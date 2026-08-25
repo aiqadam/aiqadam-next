@@ -1,0 +1,113 @@
+name: ci-cd
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: 'Commit SHA to deploy to production (7-40 hex chars)'
+        required: true
+        type: string
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+      - name: Build Docker image (verification only, not pushed)
+        run: docker build -t aiqadam-next:ci-${{ github.sha }} .
+
+  deploy-qa:
+    name: deploy-qa
+    needs: build
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: qa
+    steps:
+      - name: Add QA host key to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.QA_SSH_HOST_KEY }}" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Write QA deploy key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.QA_SSH_DEPLOY_KEY }}" > ~/.ssh/qa_deploy_key
+          chmod 600 ~/.ssh/qa_deploy_key
+      - name: Trigger deploy.sh with ref ${{ github.sha }}
+        run: |
+          ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -i ~/.ssh/qa_deploy_key -o IdentitiesOnly=yes \
+            deploy@95.46.211.230 "deploy:${{ github.sha }}"
+      - name: Health check
+        run: |
+          for i in 1 2 3 4 5; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' https://qa.aiqadam.org/health)
+            if [ "$code" = "200" ]; then echo "healthy"; exit 0; fi
+            sleep 10
+          done
+          echo "QA health check failed after deploy" >&2
+          exit 1
+      - name: Clean up key material
+        if: always()
+        run: rm -f ~/.ssh/qa_deploy_key
+
+  deploy-prod:
+    name: deploy-prod
+    needs: build
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Validate git_ref format
+        run: |
+          ref="${{ inputs.git_ref }}"
+          if ! echo "$ref" | grep -Eq '^[0-9a-fA-F]{7,40}$'; then
+            echo "git_ref must be a 7-40 character hex commit SHA, got: $ref" >&2
+            exit 1
+          fi
+      - name: Add prod host key to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PROD_SSH_HOST_KEY }}" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Write prod deploy key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PROD_SSH_DEPLOY_KEY }}" > ~/.ssh/prod_deploy_key
+          chmod 600 ~/.ssh/prod_deploy_key
+      - name: Trigger deploy.sh with ref ${{ inputs.git_ref }}
+        run: |
+          ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -i ~/.ssh/prod_deploy_key -o IdentitiesOnly=yes \
+            deploy@95.46.211.224 "deploy:${{ inputs.git_ref }}"
+      - name: Health check
+        run: |
+          for i in 1 2 3 4 5; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' https://aiqadam.org/health)
+            if [ "$code" = "200" ]; then echo "healthy"; exit 0; fi
+            sleep 10
+          done
+          echo "Prod health check failed after deploy" >&2
+          exit 1
+      - name: Clean up key material
+        if: always()
+        run: rm -f ~/.ssh/prod_deploy_key
