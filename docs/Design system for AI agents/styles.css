@@ -1,0 +1,15 @@
+/* AI Qadam Design System — global CSS entry point
+ * Link this one file. It imports tokens + component classes.
+ * Add the Google Fonts <link> in your HTML <head> for Geist / Inter / JetBrains Mono.
+ *
+ * Fonts (copy into <head>):
+ *   <link rel="preconnect" href="https://fonts.googleapis.com">
+ *   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+ *
+ * Theme:
+ *   Light (default) — no attribute needed
+ *   Dark — add data-theme="dark" to <html>
+ */
+
+@import 'tokens/tokens.css';
+@import 'tokens/components.css';

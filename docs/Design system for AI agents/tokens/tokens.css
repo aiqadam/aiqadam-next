@@ -1,0 +1,566 @@
+/* =========================================================
+   AI Qadam — Design Tokens
+   Tailwind 4 / shadcn/ui compatible. OKLCH color space.
+   ========================================================= */
+
+:root, [data-theme="light"] {
+  --background:         oklch(1 0 0);
+  --foreground:         oklch(0.145 0 0);
+  --card:               oklch(0.99 0 0);
+  --card-foreground:    oklch(0.145 0 0);
+  --popover:            oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --muted:              oklch(0.97 0 0);
+  --muted-foreground:   oklch(0.556 0 0);
+  --border:             oklch(0.922 0 0);
+  --input:              oklch(0.922 0 0);
+  --primary:            oklch(0.58 0.10 192);         /* brand teal — circuit footprint */
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary:          oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --accent:             oklch(0.97 0 0);
+  --accent-foreground:  oklch(0.205 0 0);
+  --success:            oklch(0.696 0.17 162);
+  --success-foreground: oklch(0.985 0 0);
+  --warning:            oklch(0.768 0.188 70);
+  --warning-foreground: oklch(0.145 0 0);
+  --destructive:        oklch(0.577 0.245 27);
+  --destructive-foreground: oklch(0.985 0 0);
+  --ring:               oklch(0.58 0.10 192);
+  --shadow-color:       0 0 0;
+}
+
+[data-theme="dark"] {
+  --background:         oklch(0.145 0 0);
+  --foreground:         oklch(0.985 0 0);
+  --card:               oklch(0.205 0 0);
+  --card-foreground:    oklch(0.985 0 0);
+  --popover:            oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --muted:              oklch(0.269 0 0);
+  --muted-foreground:   oklch(0.708 0 0);
+  --border:             oklch(0.269 0 0);
+  --input:              oklch(0.269 0 0);
+  --primary:            oklch(0.70 0.105 192);        /* brand teal — brighter for dark */
+  --primary-foreground: oklch(0.145 0 0);
+  --secondary:          oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --accent:             oklch(0.269 0 0);
+  --accent-foreground:  oklch(0.985 0 0);
+  --success:            oklch(0.765 0.17 162);
+  --success-foreground: oklch(0.145 0 0);
+  --warning:            oklch(0.823 0.188 70);
+  --warning-foreground: oklch(0.145 0 0);
+  --destructive:        oklch(0.704 0.191 22);
+  --destructive-foreground: oklch(0.985 0 0);
+  --ring:               oklch(0.70 0.105 192);
+}
+
+:root {
+  /* Special-purpose */
+  --live-indicator: oklch(0.7 0.2 145);
+  --badge-bronze:   oklch(0.65 0.12 50);
+  --badge-silver:   oklch(0.75 0.02 250);
+  --badge-gold:     oklch(0.82 0.15 85);
+  --badge-special:  oklch(0.65 0.23 295);
+  --streak:         oklch(0.7 0.2 35);
+
+  /* Logo — drive inline SVG fills. Static SVG files keep their hex fallbacks
+     so /brand/*.svg works in <img>, og:image, favicon. When inlined into HTML
+     these vars take over and pick up the active theme.
+     Letter counters are hollow (fill-rule:evenodd compound paths), so no
+     inset token is needed — whatever surface is behind the logo shows through. */
+  --aiq-logo-teal: var(--primary);
+  --aiq-logo-dark: var(--foreground);
+
+  /* Fonts */
+  --font-display: "Geist", system-ui, -apple-system, sans-serif;
+  --font-sans:    "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono:    "JetBrains Mono", "SF Mono", Consolas, monospace;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius:    8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow:    0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+  /* Motion */
+  --ease-out:    cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font: inherit; cursor: pointer; }
+code, pre, .mono { font-family: var(--font-mono); }
+.display { font-family: var(--font-display); letter-spacing: -0.02em; }
+
+/* =========================================================
+   Layout primitives
+   ========================================================= */
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+@media (min-width: 768px)  { .container { padding: 0 48px; } }
+@media (min-width: 1024px) { .container { padding: 0 64px; } }
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  border: 0;
+  margin: 0;
+}
+
+/* =========================================================
+   Buttons
+   ========================================================= */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  transition: all 150ms var(--ease-out);
+  white-space: nowrap;
+  user-select: none;
+}
+.btn:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+.btn-sm  { height: 32px; padding: 0 12px; font-size: 13px; }
+.btn-lg  { height: 44px; padding: 0 24px; font-size: 16px; }
+.btn-icon { width: 40px; padding: 0; }
+.btn-icon.btn-sm { width: 32px; }
+.btn-icon.btn-lg { width: 44px; }
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.btn-primary:hover {
+  background: color-mix(in oklch, var(--primary) 88%, white);
+}
+
+.btn-secondary {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  border-color: var(--border);
+}
+.btn-secondary:hover {
+  border-color: color-mix(in oklch, var(--primary) 40%, transparent);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--foreground);
+}
+.btn-ghost:hover {
+  background: var(--muted);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--foreground);
+  border-color: var(--border);
+}
+.btn-outline:hover {
+  border-color: color-mix(in oklch, var(--primary) 40%, transparent);
+  background: var(--muted);
+}
+
+.btn-destructive {
+  background: var(--destructive);
+  color: var(--destructive-foreground);
+}
+.btn-destructive:hover {
+  background: color-mix(in oklch, var(--destructive) 88%, white);
+}
+
+/* =========================================================
+   Inputs
+   ========================================================= */
+.input, .textarea {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  font-size: 14px;
+  font-family: inherit;
+  background: transparent;
+  color: var(--foreground);
+  border: 1px solid var(--input);
+  border-radius: var(--radius);
+  transition: border-color 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
+}
+.textarea { height: auto; min-height: 96px; padding: 10px 12px; resize: vertical; line-height: 1.5; }
+.input::placeholder, .textarea::placeholder { color: var(--muted-foreground); }
+.input:hover, .textarea:hover {
+  border-color: color-mix(in oklch, var(--primary) 40%, transparent);
+}
+.input:focus, .textarea:focus {
+  outline: none;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 30%, transparent);
+}
+.input.error, .textarea.error { border-color: var(--destructive); }
+.input.error:focus, .textarea.error:focus {
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--destructive) 30%, transparent);
+}
+.input-wrap { position: relative; }
+.input-wrap > svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px; height: 16px;
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+.input-wrap > .input { padding-left: 36px; }
+
+.label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground);
+  margin-bottom: 6px;
+}
+.helper { font-size: 12px; color: var(--muted-foreground); margin-top: 6px; }
+.helper.error { color: var(--destructive); }
+
+/* =========================================================
+   Badges
+   ========================================================= */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  line-height: 1;
+}
+.badge .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.badge-primary {
+  background: color-mix(in oklch, var(--primary) 12%, transparent);
+  color: var(--primary);
+  border-color: color-mix(in oklch, var(--primary) 25%, transparent);
+}
+.badge-success {
+  background: color-mix(in oklch, var(--success) 12%, transparent);
+  color: var(--success);
+  border-color: color-mix(in oklch, var(--success) 25%, transparent);
+}
+.badge-warning {
+  background: color-mix(in oklch, var(--warning) 14%, transparent);
+  color: var(--warning);
+  border-color: color-mix(in oklch, var(--warning) 30%, transparent);
+}
+.badge-destructive {
+  background: color-mix(in oklch, var(--destructive) 12%, transparent);
+  color: var(--destructive);
+  border-color: color-mix(in oklch, var(--destructive) 25%, transparent);
+}
+.badge.mono { font-family: var(--font-mono); letter-spacing: 0.02em; font-size: 11px; text-transform: uppercase; }
+
+/* Tag (a slightly different badge style for topics/tech) */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--muted-foreground);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  line-height: 1;
+}
+
+/* =========================================================
+   Avatars
+   ========================================================= */
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--muted);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-xs  { width: 24px;  height: 24px;  font-size: 10px; }
+.avatar-sm  { width: 32px;  height: 32px;  font-size: 12px; }
+.avatar-md  { width: 40px;  height: 40px;  font-size: 13px; }
+.avatar-lg  { width: 56px;  height: 56px;  font-size: 16px; }
+.avatar-xl  { width: 80px;  height: 80px;  font-size: 20px; }
+.avatar-2xl { width: 120px; height: 120px; font-size: 32px; }
+
+.avatar-wrap { position: relative; display: inline-flex; }
+.avatar-wrap .status-dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--success);
+  border: 2px solid var(--background);
+}
+.avatar-wrap.size-xl .status-dot { width: 16px; height: 16px; border-width: 3px; }
+.avatar-wrap.size-2xl .status-dot { width: 20px; height: 20px; border-width: 3px; }
+
+/* Avatar group (overlapping) */
+.avatar-group { display: inline-flex; }
+.avatar-group .avatar { border: 2px solid var(--card); margin-left: -8px; }
+.avatar-group .avatar:first-child { margin-left: 0; }
+
+/* =========================================================
+   Checkbox, Radio, Switch
+   ========================================================= */
+.checkbox, .radio {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  transition: all 150ms var(--ease-out);
+  flex-shrink: 0;
+}
+.checkbox { border-radius: 4px; }
+.radio    { border-radius: 50%; }
+.checkbox:hover, .radio:hover { border-color: color-mix(in oklch, var(--primary) 60%, transparent); }
+.checkbox:checked, .radio:checked {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.checkbox:checked::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='3.5 8 6.5 11 12.5 5'/></svg>") center/12px no-repeat;
+}
+.radio:checked::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: var(--primary-foreground);
+}
+.checkbox:focus-visible, .radio:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.switch {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 36px; height: 20px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  position: relative;
+  cursor: pointer;
+  transition: all 150ms var(--ease-out);
+  flex-shrink: 0;
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 1px; left: 1px;
+  width: 16px; height: 16px;
+  background: var(--foreground);
+  border-radius: 50%;
+  transition: transform 150ms var(--ease-out), background 150ms var(--ease-out);
+}
+.switch:checked {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.switch:checked::after {
+  transform: translateX(16px);
+  background: var(--primary-foreground);
+}
+.switch:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+.control-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* =========================================================
+   Tooltip (CSS-only)
+   ========================================================= */
+.tooltip-host { position: relative; display: inline-flex; }
+.tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: var(--radius);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 150ms var(--ease-out);
+  box-shadow: var(--shadow-md);
+  z-index: 50;
+}
+.tooltip-host:hover .tooltip,
+.tooltip-host:focus-within .tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* =========================================================
+   Skeleton
+   ========================================================= */
+.skeleton {
+  background: linear-gradient(90deg,
+    var(--muted) 0%,
+    color-mix(in oklch, var(--muted) 70%, var(--border)) 50%,
+    var(--muted) 100%);
+  background-size: 200% 100%;
+  animation: skeleton 1.6s linear infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes skeleton {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* =========================================================
+   Cards
+   ========================================================= */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  transition: border-color 150ms var(--ease-out), transform 150ms var(--ease-out);
+}
+.card.hoverable:hover {
+  border-color: color-mix(in oklch, var(--primary) 40%, transparent);
+  transform: translateY(-1px);
+}
+.card-flush { padding: 0; overflow: hidden; }
+
+/* =========================================================
+   Section-frame helper for the docs page
+   ========================================================= */
+.docs-section {
+  padding: 72px 0;
+  border-top: 1px solid var(--border);
+}
+.docs-section:first-of-type { border-top: 0; }
+.section-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted-foreground);
+  margin-bottom: 12px;
+}
+.section-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 36px;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  margin: 0 0 12px 0;
+}
+.section-lead {
+  font-size: 16px;
+  color: var(--muted-foreground);
+  max-width: 640px;
+  margin: 0 0 48px 0;
+}
+.subsection-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+  margin: 48px 0 16px 0;
+}
+.subsection-title:first-child { margin-top: 0; }
+.subsection-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted-foreground);
+  letter-spacing: 0.04em;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+
+/* small "code chip" used to label values throughout the docs */
+.codechip {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+/* visually-hidden but accessible */
+.sr {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}

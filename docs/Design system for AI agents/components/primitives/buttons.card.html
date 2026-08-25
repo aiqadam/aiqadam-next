@@ -1,0 +1,57 @@
+<!-- @dsCard group="Components" viewport="700x270" subtitle="5 variants · 3 sizes · icon · disabled" name="Button" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+body { margin: 0; padding: 20px 24px; background: var(--background); display: flex; flex-direction: column; gap: 16px; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.row-label { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 2px; }
+</style>
+</head>
+<body>
+
+<div>
+  <div class="row-label">Variants — default size</div>
+  <div class="row">
+    <button class="btn btn-primary">Register for event</button>
+    <button class="btn btn-secondary">Save draft</button>
+    <button class="btn btn-ghost">View agenda</button>
+    <button class="btn btn-outline">Cancel</button>
+    <button class="btn btn-destructive">Withdraw</button>
+  </div>
+</div>
+
+<div>
+  <div class="row-label">Sizes — primary</div>
+  <div class="row">
+    <button class="btn btn-primary btn-sm">Register</button>
+    <button class="btn btn-primary">Register for event</button>
+    <button class="btn btn-primary btn-lg">Register for AI Qadam #4</button>
+  </div>
+</div>
+
+<div>
+  <div class="row-label">With icon · icon-only · disabled</div>
+  <div class="row">
+    <button class="btn btn-primary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+      Continue
+    </button>
+    <button class="btn btn-secondary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download .ics
+    </button>
+    <button class="btn btn-ghost btn-icon" aria-label="Settings">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+    <button class="btn btn-primary" disabled>Sold out</button>
+    <button class="btn btn-secondary" disabled>Unavailable</button>
+  </div>
+</div>
+
+</body>
+</html>

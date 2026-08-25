@@ -1,0 +1,63 @@
+<!-- @dsCard group="Domain" viewport="700x280" subtitle="StatCard · ActivityFeedItem" name="Stats & Activity" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../styles.css">
+<style>body{margin:0;padding:16px;background:var(--background);display:flex;flex-direction:column;gap:16px}</style>
+</head>
+<body>
+
+<!-- Stat cards -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+  <div class="card" style="display:flex;flex-direction:column;gap:6px;padding:16px">
+    <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted-foreground)">Events attended</span>
+    <span style="font-family:var(--font-display);font-size:32px;font-weight:700;line-height:1;letter-spacing:-.03em">14</span>
+    <span style="font-size:12px;color:var(--success)">+3 this quarter</span>
+  </div>
+  <div class="card" style="display:flex;flex-direction:column;gap:6px;padding:16px">
+    <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted-foreground)">Talks given</span>
+    <span style="font-family:var(--font-display);font-size:32px;font-weight:700;line-height:1;letter-spacing:-.03em">3</span>
+    <span style="font-size:12px;color:var(--success)">+1 this year</span>
+  </div>
+  <div class="card" style="display:flex;flex-direction:column;gap:6px;padding:16px">
+    <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted-foreground)">Points</span>
+    <span style="font-family:var(--font-display);font-size:32px;font-weight:700;line-height:1;letter-spacing:-.03em">2,840</span>
+    <span style="font-size:12px;color:var(--success)">+125 this week</span>
+  </div>
+  <div class="card" style="display:flex;flex-direction:column;gap:6px;padding:16px">
+    <span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted-foreground)">Leaderboard rank</span>
+    <span style="font-family:var(--font-display);font-size:32px;font-weight:700;line-height:1;letter-spacing:-.03em">#01</span>
+    <span style="font-size:12px;color:var(--muted-foreground)">No change</span>
+  </div>
+</div>
+
+<!-- Activity feed -->
+<div style="display:flex;flex-direction:column;gap:0">
+  <div style="display:flex;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+    <div class="avatar avatar-sm" style="background:oklch(0.64 0.13 192);color:#fff;flex-shrink:0">AM</div>
+    <div>
+      <p style="margin:0 0 3px;font-size:13px">Abdu Muzaffariy registered for <strong>AI Qadam #4</strong></p>
+      <time style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground)">12 minutes ago</time>
+    </div>
+  </div>
+  <div style="display:flex;gap:12px;padding-top:12px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+    <div class="avatar avatar-sm" style="background:oklch(0.63 0.13 225);color:#fff;flex-shrink:0">EV</div>
+    <div>
+      <p style="margin:0 0 3px;font-size:13px">Ekaterina Vashurina earned the <strong>Speaker</strong> badge</p>
+      <time style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground)">2 hours ago</time>
+    </div>
+  </div>
+  <div style="display:flex;gap:12px;padding-top:12px">
+    <div class="avatar avatar-sm" style="background:oklch(0.64 0.14 40);color:#fff;flex-shrink:0">VT</div>
+    <div>
+      <p style="margin:0 0 3px;font-size:13px">Volodymyr Tytenko published a writeup — <strong>"Evaluating RAG without ground truth"</strong></p>
+      <time style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground)">Yesterday at 18:42</time>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

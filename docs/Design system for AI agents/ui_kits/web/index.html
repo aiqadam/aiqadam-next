@@ -1,0 +1,528 @@
+<!-- @startingPoint section="Web" subtitle="Country homepage, event detail, user profile — full interactive demo" viewport="1280x800" -->
+<!-- @dsCard group="Web App" viewport="1280x700" subtitle="uz.aiqadam.com — country homepage · event detail · profile" name="Web UI Kit" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Qadam · uz.aiqadam.com</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Inter:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  @keyframes aiq-spin { to { transform: rotate(360deg); } }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: var(--background); color: var(--foreground); }
+
+  /* Header */
+  .site-header { position: sticky; top: 0; z-index: 50; height: 56px; background: var(--card); border-bottom: 1px solid var(--border); display: flex; align-items: center; }
+  .header-inner { max-width: 1280px; width: 100%; margin: 0 auto; padding: 0 32px; display: flex; align-items: center; gap: 0; }
+  .logo-link { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--foreground); font-family: var(--font-display); font-size: 16px; font-weight: 600; flex-shrink: 0; }
+  .logo-link img { width: 24px; height: 24px; }
+  .main-nav { display: flex; align-items: center; gap: 4px; margin-left: 32px; }
+  .nav-link { padding: 6px 12px; font-size: 14px; font-weight: 500; color: var(--muted-foreground); border-radius: var(--radius); transition: all 150ms; text-decoration: none; cursor: pointer; background: none; border: none; font-family: var(--font-sans); }
+  .nav-link:hover { color: var(--foreground); background: var(--muted); }
+  .header-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .country-btn { display: flex; align-items: center; gap: 6px; padding: 5px 10px; font-size: 13px; font-family: var(--font-mono); font-weight: 500; border: 1px solid var(--border); border-radius: var(--radius); background: transparent; color: var(--foreground); cursor: pointer; transition: border-color 150ms; }
+  .country-btn:hover { border-color: color-mix(in oklch, var(--primary) 40%, transparent); }
+  .lang-btn { padding: 5px 10px; font-size: 13px; font-family: var(--font-mono); border: none; border-radius: var(--radius); background: transparent; color: var(--muted-foreground); cursor: pointer; transition: all 150ms; }
+  .lang-btn:hover, .lang-btn.active { color: var(--foreground); background: var(--muted); }
+  .theme-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius); border: none; background: transparent; cursor: pointer; font-size: 16px; color: var(--muted-foreground); transition: all 150ms; }
+  .theme-btn:hover { background: var(--muted); color: var(--foreground); }
+  .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: oklch(0.64 0.13 192); color: white; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; font-family: var(--font-sans); transition: opacity 150ms; }
+  .user-avatar:hover { opacity: 0.85; }
+
+  /* Container */
+  .container { max-width: 1280px; margin: 0 auto; padding: 0 32px; }
+
+  /* Pages */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* Hero */
+  .hero { padding: 80px 0 64px; border-bottom: 1px solid var(--border); }
+  .hero-eyebrow { font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted-foreground); margin: 0 0 16px; }
+  .hero-label { font-size: 14px; color: var(--muted-foreground); margin: 0 0 12px; }
+  .hero-title { font-family: var(--font-display); font-size: 56px; font-weight: 700; line-height: 1.05; letter-spacing: -0.03em; margin: 0 0 20px; max-width: 640px; }
+  .hero-desc { font-size: 16px; line-height: 1.6; color: var(--muted-foreground); max-width: 540px; margin: 0 0 32px; }
+  .hero-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .hero-meta { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted-foreground); margin-top: 48px; }
+
+  /* Section */
+  .section { padding: 56px 0; border-bottom: 1px solid var(--border); }
+  .section-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 32px; }
+  .section-title { font-family: var(--font-display); font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+  .section-link { font-size: 14px; color: var(--primary); text-decoration: none; font-weight: 500; cursor: pointer; background: none; border: none; font-family: var(--font-sans); }
+  .section-link:hover { text-decoration: underline; }
+
+  /* Event grid */
+  .event-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 900px) { .event-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 600px) { .event-grid { grid-template-columns: 1fr; } }
+
+  /* Event card clickable */
+  .event-card-click { cursor: pointer; }
+
+  /* Tabs */
+  .tab-bar { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 32px; }
+  .tab-btn { background: none; border: none; border-bottom: 2px solid transparent; padding: 12px 0; margin-right: 28px; font-size: 14px; font-weight: 500; color: var(--muted-foreground); cursor: pointer; font-family: var(--font-sans); transition: all 150ms; margin-bottom: -1px; }
+  .tab-btn:hover { color: var(--foreground); }
+  .tab-btn.active { color: var(--foreground); border-bottom-color: var(--primary); }
+
+  /* Two-column layout */
+  .two-col { display: grid; grid-template-columns: 1fr 340px; gap: 40px; align-items: flex-start; }
+  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+  /* Agenda */
+  .agenda-item { display: flex; gap: 20px; padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .agenda-time { font-family: var(--font-mono); font-size: 13px; color: var(--muted-foreground); width: 48px; flex-shrink: 0; padding-top: 2px; }
+  .agenda-content h4 { margin: 0 0 4px; font-size: 14px; font-weight: 500; }
+  .agenda-content p { margin: 0; font-size: 13px; color: var(--muted-foreground); }
+
+  /* Partners */
+  .partner-row { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; }
+  .partner-name { font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* Profile */
+  .profile-header { padding: 48px 0 40px; border-bottom: 1px solid var(--border); }
+  .profile-meta { display: flex; align-items: flex-start; gap: 28px; }
+  .profile-info h1 { font-family: var(--font-display); font-size: 32px; font-weight: 700; letter-spacing: -0.025em; margin: 0 0 4px; }
+  .profile-info .username { font-family: var(--font-mono); font-size: 13px; color: var(--muted-foreground); margin: 0 0 12px; }
+  .profile-info .bio { font-size: 14px; line-height: 1.6; color: var(--muted-foreground); max-width: 480px; margin: 0 0 16px; }
+  .profile-tags { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .profile-tag { font-family: var(--font-mono); font-size: 12px; color: var(--muted-foreground); }
+  .badge-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .badge-item { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 20px 16px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+  .badge-circle { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+  .badge-name { font-size: 13px; font-weight: 600; }
+  .badge-desc { font-size: 12px; color: var(--muted-foreground); }
+  .badge-date { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+
+  /* Breadcrumbs */
+  .breadcrumbs { display: flex; align-items: center; gap: 8px; padding: 20px 0; font-size: 13px; color: var(--muted-foreground); }
+  .breadcrumb-link { color: var(--muted-foreground); text-decoration: none; cursor: pointer; background: none; border: none; font-family: var(--font-sans); font-size: 13px; }
+  .breadcrumb-link:hover { color: var(--foreground); text-decoration: underline; }
+  .breadcrumb-sep { color: var(--border); }
+
+  /* Register sidebar */
+  .register-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; display: flex; flex-direction: column; gap: 20px; position: sticky; top: 72px; }
+  .register-capacity { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.08em; }
+  .register-count { font-family: var(--font-display); font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+  .progress-bar { height: 4px; background: var(--muted); border-radius: 999px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--primary); border-radius: 999px; }
+  .register-detail { display: flex; flex-direction: column; gap: 10px; }
+  .register-detail-item { display: flex; gap: 12px; font-size: 13px; }
+  .register-detail-item .detail-label { font-weight: 500; min-width: 72px; }
+  .register-detail-item .detail-value { color: var(--muted-foreground); }
+
+  /* Footer */
+  .site-footer { padding: 32px 0; border-top: 1px solid var(--border); }
+  .footer-inner { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--muted-foreground); }
+  .build-badge { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--muted-foreground); font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .build-badge img { width: 18px; height: 18px; }
+  .build-badge:hover { color: var(--foreground); }
+
+  /* Stat cards row */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+</style>
+</head>
+<body>
+
+<!-- ================================================== -->
+<!-- HEADER (always visible)                            -->
+<!-- ================================================== -->
+<header class="site-header">
+  <div class="header-inner">
+    <button class="logo-link" onclick="showPage('home')" style="background:none;border:none;cursor:pointer">
+      <img src="../../assets/logo-mark.svg" alt="AI Qadam mark" />
+      <span>AI Qadam</span>
+    </button>
+    <nav class="main-nav">
+      <button class="nav-link" onclick="showPage('home')">Events</button>
+      <button class="nav-link">Speakers</button>
+      <button class="nav-link">Community</button>
+      <button class="nav-link">Blog</button>
+    </nav>
+    <div class="header-actions">
+      <button class="country-btn">🇺🇿 UZ</button>
+      <button class="lang-btn active">EN</button>
+      <button class="lang-btn">RU</button>
+      <button class="theme-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle theme">🌙</button>
+      <button class="user-avatar" onclick="showPage('profile')" title="My profile">AM</button>
+    </div>
+  </div>
+</header>
+
+<!-- ================================================== -->
+<!-- PAGE: HOMEPAGE                                     -->
+<!-- ================================================== -->
+<div id="page-home" class="page active">
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container">
+      <p class="hero-eyebrow">AI QADAM #4 · MAY 22 · TASHKENT</p>
+      <p class="hero-label">Next event · 8 days away</p>
+      <h1 class="hero-title">LLM Engineering<br>in Production</h1>
+      <p class="hero-desc">The fourth AI Qadam Tashkent meetup. Four practitioners share how they actually run LLM systems — eval pipelines, prompt regressions, on-call playbooks for stochastic models.</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary" onclick="showPage('event')">Register · free</button>
+        <button class="btn btn-secondary" onclick="showPage('event')">View agenda</button>
+      </div>
+      <p class="hero-meta">A working evening for the people running things in production.</p>
+    </div>
+  </section>
+
+  <!-- Upcoming events -->
+  <section class="section">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Upcoming</h2>
+        <button class="section-link">All events →</button>
+      </div>
+      <div class="event-grid">
+
+        <!-- Upcoming -->
+        <div class="card hoverable event-card-click" onclick="showPage('event')" style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div style="text-align:center;min-width:44px">
+              <div style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground)">May</div>
+              <div style="font-family:var(--font-display);font-size:24px;font-weight:700;line-height:1.05;letter-spacing:-.025em">22</div>
+              <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;color:var(--muted-foreground)">Fri</div>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;padding:3px 8px;border-radius:6px;background:color-mix(in oklch,var(--primary) 10%,transparent);color:var(--primary)">UPCOMING</span>
+          </div>
+          <div>
+            <h3 style="margin:0 0 6px;font-family:var(--font-display);font-size:16px;font-weight:600;line-height:1.3;letter-spacing:-.01em">AI Qadam #4 · LLM Engineering</h3>
+            <p style="margin:0;font-size:13px;line-height:1.5;color:var(--muted-foreground)">Four practitioners on running LLM systems in production.</p>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px"><span class="tag">#LLM</span><span class="tag">#MLOps</span></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px solid var(--border)">
+            <div class="avatar-group">
+              <div class="avatar avatar-xs" style="background:oklch(0.64 0.13 192);color:#fff">AM</div>
+              <div class="avatar avatar-xs" style="background:oklch(0.60 0.14 270);color:#fff">BR</div>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground)">142 going</span>
+          </div>
+        </div>
+
+        <!-- Online -->
+        <div class="card hoverable event-card-click" style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div style="text-align:center;min-width:44px">
+              <div style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground)">Jun</div>
+              <div style="font-family:var(--font-display);font-size:24px;font-weight:700;line-height:1.05;letter-spacing:-.025em">05</div>
+              <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;color:var(--muted-foreground)">Fri</div>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;padding:3px 8px;border-radius:6px;background:color-mix(in oklch,var(--primary) 10%,transparent);color:var(--primary)">ONLINE</span>
+          </div>
+          <div>
+            <h3 style="margin:0 0 6px;font-family:var(--font-display);font-size:16px;font-weight:600;line-height:1.3;letter-spacing:-.01em">RAG Reading Group · Faiss</h3>
+            <p style="margin:0;font-size:13px;line-height:1.5;color:var(--muted-foreground)">Monthly online deep-read. Faiss + what production vector DBs changed.</p>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px"><span class="tag">#RAG</span><span class="tag">#Vector-DB</span></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px solid var(--border)">
+            <div class="avatar-group">
+              <div class="avatar avatar-xs" style="background:oklch(0.61 0.14 300);color:#fff">AK</div>
+              <div class="avatar avatar-xs" style="background:oklch(0.63 0.13 155);color:#fff">DT</div>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground)">34 going</span>
+          </div>
+        </div>
+
+        <!-- Hackathon -->
+        <div class="card hoverable event-card-click" style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div style="text-align:center;min-width:44px">
+              <div style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground)">Jun</div>
+              <div style="font-family:var(--font-display);font-size:24px;font-weight:700;line-height:1.05;letter-spacing:-.025em">21</div>
+              <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;color:var(--muted-foreground)">Sun</div>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;padding:3px 8px;border-radius:6px;background:color-mix(in oklch,var(--badge-special) 12%,transparent);color:var(--badge-special)">HACKATHON</span>
+          </div>
+          <div>
+            <h3 style="margin:0 0 6px;font-family:var(--font-display);font-size:16px;font-weight:600;line-height:1.3;letter-spacing:-.01em">AI Qadam Hackathon · RAG for Business</h3>
+            <p style="margin:0;font-size:13px;line-height:1.5;color:var(--muted-foreground)">Weekend hack. Build a working RAG product for a real Central Asian SME.</p>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px"><span class="tag">#Hackathon</span><span class="tag">#RAG</span></div>
+          <div style="display:flex;align-items:center;justify-content:flex-end;padding-top:10px;border-top:1px solid var(--border)">
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground)">67 going</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- About -->
+  <section class="section">
+    <div class="container">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:64px">
+        <div>
+          <h2 class="section-title" style="margin-bottom:16px">About AI Qadam</h2>
+          <p style="font-size:15px;line-height:1.7;color:var(--muted-foreground);margin:0 0 16px">A community of AI engineers, ML practitioners, and tech builders across Uzbekistan, Kazakhstan, and Tajikistan. We meet offline, share what's actually working, and avoid the conference fluff. Built by practitioners, for practitioners.</p>
+        </div>
+        <div>
+          <h3 style="font-family:var(--font-display);font-size:18px;font-weight:600;letter-spacing:-.01em;margin:0 0 12px">How to participate</h3>
+          <p style="font-size:14px;line-height:1.7;color:var(--muted-foreground);margin:0 0 24px">Show up. Bring questions. Submit a talk — we run an open CFP for every meetup. Or co-host in your city.</p>
+          <p style="font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground);margin:0 0 12px">Partners</p>
+          <div class="partner-row">
+            <span class="partner-name">IT Park</span>
+            <span class="partner-name">Astana Hub</span>
+            <span class="partner-name">Smart Point</span>
+            <span class="partner-name">Yandex Cloud</span>
+            <span class="partner-name">Uzum Lab</span>
+            <span class="partner-name">Alem AI</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-inner">
+        <span>AI Qadam Brand Guidelines · v1 · 2026</span>
+        <a href="https://build.aiqadam.org" class="build-badge" target="_blank">
+          <img src="../../assets/logo-mark.svg" alt="">
+          an AI Qadam Build project
+        </a>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<!-- ================================================== -->
+<!-- PAGE: EVENT DETAIL                                  -->
+<!-- ================================================== -->
+<div id="page-event" class="page">
+  <div class="container">
+
+    <!-- Breadcrumbs -->
+    <div class="breadcrumbs">
+      <button class="breadcrumb-link" onclick="showPage('home')">Events</button>
+      <span class="breadcrumb-sep">/</span>
+      <span>AI Qadam #4 · LLM Engineering in Production</span>
+    </div>
+
+    <!-- Event header -->
+    <div style="padding-bottom:32px;border-bottom:1px solid var(--border);margin-bottom:40px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <span style="font-family:var(--font-mono);font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;padding:3px 8px;border-radius:6px;background:color-mix(in oklch,var(--primary) 10%,transparent);color:var(--primary)">UPCOMING</span>
+        <span style="font-family:var(--font-mono);font-size:12px;color:var(--muted-foreground)">MAY 22, 2026 · TASHKENT</span>
+      </div>
+      <h1 style="font-family:var(--font-display);font-size:40px;font-weight:700;line-height:1.1;letter-spacing:-.03em;margin:0 0 20px">LLM Engineering in Production</h1>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <span class="tag">#LLM</span><span class="tag">#MLOps</span><span class="tag">#Prompt-Engineering</span><span class="tag">#Eval</span>
+      </div>
+    </div>
+
+    <!-- Two-column content -->
+    <div class="two-col">
+
+      <!-- Left: Tabs -->
+      <div>
+        <div class="tab-bar">
+          <button class="tab-btn active" onclick="switchTab('about')">About</button>
+          <button class="tab-btn" onclick="switchTab('agenda')">Agenda <span style="background:var(--muted);padding:1px 6px;border-radius:4px;font-size:11px;margin-left:4px">5</span></button>
+          <button class="tab-btn" onclick="switchTab('speakers')">Speakers <span style="background:var(--muted);padding:1px 6px;border-radius:4px;font-size:11px;margin-left:4px">4</span></button>
+          <button class="tab-btn" onclick="switchTab('location')">Location</button>
+        </div>
+
+        <!-- About panel -->
+        <div id="panel-about" class="tab-panel">
+          <p style="font-size:16px;line-height:1.7;margin:0 0 16px;color:var(--muted-foreground)">Four talks, one panel, two hours of mingling. We focus this meetup on the part nobody writes a blog post about: what happens after the demo works.</p>
+          <p style="font-size:15px;line-height:1.7;margin:0;color:var(--muted-foreground)">Eval pipelines that actually catch regressions. Prompt versioning that survives a team of more than two. On-call for stochastic systems. The cost-vs-quality knife-edge of switching providers.</p>
+        </div>
+
+        <!-- Agenda panel -->
+        <div id="panel-agenda" class="tab-panel" style="display:none">
+          <div class="agenda-item"><div class="agenda-time">18:30</div><div class="agenda-content"><h4>Doors open · coffee</h4><p>Informal mingling</p></div></div>
+          <div class="agenda-item"><div class="agenda-time">19:00</div><div class="agenda-content"><h4>Eval pipelines that don't lie to you</h4><p>Abdu Muzaffariy · Yandex Cloud</p></div></div>
+          <div class="agenda-item"><div class="agenda-time">19:30</div><div class="agenda-content"><h4>Prompt versioning past 2 engineers</h4><p>Binali Rustamov · Uzum Lab</p></div></div>
+          <div class="agenda-item"><div class="agenda-time">20:00</div><div class="agenda-content"><h4>Panel · The provider-switch tax</h4><p>All speakers + moderator</p></div></div>
+          <div class="agenda-item" style="border-bottom:none"><div class="agenda-time">20:45</div><div class="agenda-content"><h4>Pizza &amp; informal Q&amp;A</h4><p>Until 22:00</p></div></div>
+        </div>
+
+        <!-- Speakers panel -->
+        <div id="panel-speakers" class="tab-panel" style="display:none;display:none">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div class="card" style="display:flex;gap:14px;align-items:flex-start">
+              <div class="avatar avatar-lg" style="background:oklch(0.64 0.13 192);color:#fff;flex-shrink:0">AM</div>
+              <div><h3 style="margin:0 0 2px;font-family:var(--font-display);font-size:15px;font-weight:600">Abdu Muzaffariy</h3><p style="margin:0 0 8px;font-size:13px;color:var(--muted-foreground)">Staff ML@Yandex Cloud</p><span class="tag">#LLM</span></div>
+            </div>
+            <div class="card" style="display:flex;gap:14px;align-items:flex-start">
+              <div class="avatar avatar-lg" style="background:oklch(0.60 0.14 270);color:#fff;flex-shrink:0">BR</div>
+              <div><h3 style="margin:0 0 2px;font-family:var(--font-display);font-size:15px;font-weight:600">Binali Rustamov</h3><p style="margin:0 0 8px;font-size:13px;color:var(--muted-foreground)">ML Lead@Uzum Lab</p><span class="tag">#Prompt-Engineering</span></div>
+            </div>
+            <div class="card" style="display:flex;gap:14px;align-items:flex-start">
+              <div class="avatar avatar-lg" style="background:oklch(0.63 0.13 155);color:#fff;flex-shrink:0">DT</div>
+              <div><h3 style="margin:0 0 2px;font-family:var(--font-display);font-size:15px;font-weight:600">Dilyara Tashpulatova</h3><p style="margin:0 0 8px;font-size:13px;color:var(--muted-foreground)">Founder@Rava AI</p><span class="tag">#MLOps</span></div>
+            </div>
+            <div class="card" style="display:flex;gap:14px;align-items:flex-start">
+              <div class="avatar avatar-lg" style="background:oklch(0.60 0.12 350);color:#fff;flex-shrink:0">RK</div>
+              <div><h3 style="margin:0 0 2px;font-family:var(--font-display);font-size:15px;font-weight:600">Rustam Karimov</h3><p style="margin:0 0 8px;font-size:13px;color:var(--muted-foreground)">Tech Lead@Alem AI</p><span class="tag">#On-call</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Location panel -->
+        <div id="panel-location" class="tab-panel" style="display:none">
+          <h3 style="font-family:var(--font-display);font-size:18px;font-weight:600;margin:0 0 8px">IT Park Tashkent</h3>
+          <p style="font-size:14px;color:var(--muted-foreground);margin:0 0 20px">17 Buyuk Turon St, Mirzo Ulug'bek district</p>
+          <div style="height:200px;background:var(--muted);border-radius:var(--radius-lg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center">
+            <span style="font-family:var(--font-mono);font-size:12px;color:var(--muted-foreground)">Map placeholder</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Registration card -->
+      <div class="register-card">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span style="font-family:var(--font-mono);font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;padding:3px 8px;border-radius:4px;background:var(--muted);color:var(--muted-foreground)">FREE</span>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground)">200 SEATS</span>
+        </div>
+        <div>
+          <div class="register-count">142 / 200 going</div>
+          <div class="progress-bar" style="margin-top:8px">
+            <div class="progress-fill" style="width:71%"></div>
+          </div>
+          <div style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground);margin-top:6px">71% filled · waitlist opens at 90%</div>
+        </div>
+        <div class="register-detail">
+          <div class="register-detail-item"><span class="detail-label">Date</span><span class="detail-value">Friday, May 22, 2026<br>18:30 — 22:00 GMT+5</span></div>
+          <div class="register-detail-item"><span class="detail-label">Location</span><span class="detail-value">IT Park Tashkent<br>17 Buyuk Turon St</span></div>
+          <div class="register-detail-item"><span class="detail-label">Languages</span><span class="detail-value">Russian · English</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-primary" style="width:100%">Register · free</button>
+          <button class="btn btn-ghost" style="width:100%">Add to calendar</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="height:48px"></div>
+  </div>
+</div>
+
+<!-- ================================================== -->
+<!-- PAGE: PROFILE                                       -->
+<!-- ================================================== -->
+<div id="page-profile" class="page">
+  <div class="container">
+
+    <div class="profile-header">
+      <div class="profile-meta">
+        <div class="avatar avatar-2xl" style="background:oklch(0.64 0.13 192);color:#fff;flex-shrink:0">AM</div>
+        <div class="profile-info">
+          <h1>Abdu Muzaffariy</h1>
+          <p class="username">@abdu_mzfr · joined Mar 2025</p>
+          <p class="bio">ML engineer building RAG systems for Central Asian languages. Co-host of AI Qadam Tashkent. Currently @ Yandex Cloud.</p>
+          <div class="profile-tags">
+            <span class="profile-tag">Tashkent 🇺🇿</span>
+            <span class="profile-tag">·</span>
+            <span class="profile-tag">3 countries visited</span>
+            <span class="profile-tag">·</span>
+            <span class="profile-tag" style="color:var(--streak)">🔥 12-week streak</span>
+            <button class="btn btn-secondary" style="margin-left:8px">Follow</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="section">
+      <h2 class="section-title" style="margin-bottom:24px">Stats</h2>
+      <div class="stats-grid">
+        <div class="card" style="display:flex;flex-direction:column;gap:6px"><span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted-foreground)">Events attended</span><span style="font-family:var(--font-display);font-size:36px;font-weight:700;line-height:1;letter-spacing:-.03em">14</span></div>
+        <div class="card" style="display:flex;flex-direction:column;gap:6px"><span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted-foreground)">Talks given</span><span style="font-family:var(--font-display);font-size:36px;font-weight:700;line-height:1;letter-spacing:-.03em">3</span></div>
+        <div class="card" style="display:flex;flex-direction:column;gap:6px"><span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted-foreground)">Points</span><span style="font-family:var(--font-display);font-size:36px;font-weight:700;line-height:1;letter-spacing:-.03em">2,840</span><span style="font-size:12px;color:var(--success)">+125 this week</span></div>
+        <div class="card" style="display:flex;flex-direction:column;gap:6px"><span style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted-foreground)">Leaderboard rank</span><span style="font-family:var(--font-display);font-size:36px;font-weight:700;line-height:1;letter-spacing:-.03em">#01</span></div>
+      </div>
+    </div>
+
+    <!-- Badges -->
+    <div class="section">
+      <h2 class="section-title" style="margin-bottom:24px">Badges <span style="font-family:var(--font-mono);font-size:14px;font-weight:400;color:var(--muted-foreground)">4 / 12 earned</span></h2>
+      <div class="badge-grid">
+        <div class="badge-item">
+          <div class="badge-circle" style="background:color-mix(in oklch,var(--badge-gold) 20%,transparent)">🏆</div>
+          <div class="badge-name">Pioneer</div>
+          <div class="badge-desc">Attended one of the first 3 meetups.</div>
+          <div class="badge-date">Mar 2025</div>
+        </div>
+        <div class="badge-item">
+          <div class="badge-circle" style="background:color-mix(in oklch,var(--primary) 15%,transparent)">🎤</div>
+          <div class="badge-name">Speaker</div>
+          <div class="badge-desc">Gave a talk at an AI Qadam event.</div>
+          <div class="badge-date">Apr 2025</div>
+        </div>
+        <div class="badge-item">
+          <div class="badge-circle" style="background:color-mix(in oklch,var(--streak) 20%,transparent)">🔥</div>
+          <div class="badge-name">Streak</div>
+          <div class="badge-desc">3 meetups in a row, no missed.</div>
+          <div class="badge-date">May 2025</div>
+        </div>
+        <div class="badge-item">
+          <div class="badge-circle" style="background:color-mix(in oklch,var(--success) 15%,transparent)">🤝</div>
+          <div class="badge-name">Connector</div>
+          <div class="badge-desc">Referred 3+ friends who joined.</div>
+          <div class="badge-date">Feb 2025</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity -->
+    <div class="section" style="border-bottom:none">
+      <h2 class="section-title" style="margin-bottom:24px">Recent activity</h2>
+      <div style="display:flex;flex-direction:column;gap:0;max-width:640px">
+        <div style="display:flex;gap:14px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+          <div class="avatar avatar-sm" style="background:oklch(0.64 0.13 192);color:#fff;flex-shrink:0">AM</div>
+          <div><p style="margin:0 0 4px;font-size:14px">Registered for <strong>AI Qadam #4</strong></p><time style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground)">12 minutes ago</time></div>
+        </div>
+        <div style="display:flex;gap:14px;padding:16px 0;border-bottom:1px solid var(--border)">
+          <div class="avatar avatar-sm" style="background:oklch(0.64 0.13 192);color:#fff;flex-shrink:0">AM</div>
+          <div><p style="margin:0 0 4px;font-size:14px">Published a writeup — <strong>"Evaluating RAG without ground truth"</strong></p><time style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground)">Yesterday at 18:42</time></div>
+        </div>
+        <div style="display:flex;gap:14px;padding-top:16px">
+          <div class="avatar avatar-sm" style="background:oklch(0.64 0.13 192);color:#fff;flex-shrink:0">AM</div>
+          <div><p style="margin:0 0 4px;font-size:14px">Checked in at <strong>Fuck-Up Nights: AI Edition</strong></p><time style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground)">2 days ago</time></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="height:48px"></div>
+  </div>
+</div>
+
+<script>
+  // Page navigation
+  function showPage(id) {
+    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+    var target = document.getElementById('page-' + id);
+    if (target) { target.classList.add('active'); }
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+
+  // Theme toggle
+  function toggleTheme() {
+    var html = document.documentElement;
+    var isDark = html.getAttribute('data-theme') === 'dark';
+    html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    document.getElementById('theme-btn').textContent = isDark ? '🌙' : '☀️';
+  }
+
+  // Tab switching on event detail page
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    var btn = document.querySelector('[onclick="switchTab(\'' + tab + '\')"]');
+    if (btn) btn.classList.add('active');
+
+    document.querySelectorAll('.tab-panel').forEach(function(p) { p.style.display = 'none'; });
+    var panel = document.getElementById('panel-' + tab);
+    if (panel) panel.style.display = 'block';
+  }
+</script>
+</body>
+</html>

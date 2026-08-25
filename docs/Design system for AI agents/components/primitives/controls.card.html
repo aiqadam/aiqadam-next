@@ -1,0 +1,62 @@
+<!-- @dsCard group="Components" viewport="700x220" subtitle="Checkbox · Radio · Switch — checked and unchecked states" name="Controls" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+body { margin: 0; padding: 20px 24px; background: var(--background); display: flex; gap: 48px; }
+.col { display: flex; flex-direction: column; gap: 10px; }
+.col-label { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 2px; }
+</style>
+</head>
+<body>
+
+<div class="col">
+  <div class="col-label">Checkbox</div>
+  <label class="control-row">
+    <input type="checkbox" class="checkbox">
+    <span style="font-size:14px">Notify me by email</span>
+  </label>
+  <label class="control-row">
+    <input type="checkbox" class="checkbox" checked>
+    <span style="font-size:14px">Add to calendar automatically</span>
+  </label>
+  <label class="control-row">
+    <input type="checkbox" class="checkbox" checked>
+    <span style="font-size:14px">Send Telegram reminder 1h before</span>
+  </label>
+</div>
+
+<div class="col">
+  <div class="col-label">Radio</div>
+  <label class="control-row">
+    <input type="radio" name="format" class="radio" checked>
+    <span style="font-size:14px">In-person · Tashkent</span>
+  </label>
+  <label class="control-row">
+    <input type="radio" name="format" class="radio">
+    <span style="font-size:14px">Online via Zoom</span>
+  </label>
+  <label class="control-row">
+    <input type="radio" name="format" class="radio">
+    <span style="font-size:14px">Hybrid</span>
+  </label>
+</div>
+
+<div class="col">
+  <div class="col-label">Switch</div>
+  <label class="control-row">
+    <input type="checkbox" class="switch" checked>
+    <span style="font-size:14px">Public profile on leaderboard</span>
+  </label>
+  <label class="control-row">
+    <input type="checkbox" class="switch">
+    <span style="font-size:14px">Speaker-available for CFPs</span>
+  </label>
+</div>
+
+</body>
+</html>

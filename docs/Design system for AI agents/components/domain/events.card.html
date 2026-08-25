@@ -1,0 +1,121 @@
+<!-- @dsCard group="Domain" viewport="700x420" subtitle="EventCard — all 4 states: upcoming · live · past · online" name="EventCard" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@600;700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../styles.css">
+<style>body{margin:0;padding:16px;background:var(--background)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}</style>
+</head>
+<body>
+<div class="grid">
+
+<!-- UPCOMING -->
+<div class="card" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div style="text-align:center;min-width:44px">
+      <div style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground)">May</div>
+      <div style="font-family:var(--font-display);font-size:24px;font-weight:700;line-height:1.05;letter-spacing:-.025em">22</div>
+      <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;color:var(--muted-foreground)">Fri</div>
+    </div>
+    <span style="font-family:var(--font-mono);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;padding:3px 8px;border-radius:6px;background:color-mix(in oklch,var(--primary) 10%,transparent);color:var(--primary)">UPCOMING</span>
+  </div>
+  <div>
+    <h3 style="margin:0 0 5px;font-family:var(--font-display);font-size:15px;font-weight:600;line-height:1.3;letter-spacing:-.01em">AI Qadam #4 · LLM Engineering in Production</h3>
+    <p style="margin:0;font-size:12px;line-height:1.5;color:var(--muted-foreground)">Practitioner stories from teams running LLM systems in production.</p>
+  </div>
+  <div style="font-family:var(--font-mono);font-size:12px;color:var(--muted-foreground)">18:30 · Tashkent · IT Park</div>
+  <div style="display:flex;flex-wrap:wrap;gap:5px">
+    <span class="tag">#LLM</span><span class="tag">#MLOps</span><span class="tag">#Prompt-Engineering</span>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border)">
+    <div class="avatar-group">
+      <div class="avatar avatar-xs" style="background:oklch(0.64 0.13 192);color:#fff">AM</div>
+      <div class="avatar avatar-xs" style="background:oklch(0.60 0.14 270);color:#fff">BR</div>
+      <div class="avatar avatar-xs" style="background:oklch(0.64 0.14 40);color:#fff">VT</div>
+    </div>
+    <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground)">142 going</span>
+  </div>
+</div>
+
+<!-- LIVE -->
+<div class="card" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div style="text-align:center;min-width:44px">
+      <div style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground)">May</div>
+      <div style="font-family:var(--font-display);font-size:24px;font-weight:700;line-height:1.05;letter-spacing:-.025em">14</div>
+      <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;color:var(--muted-foreground)">Thu</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:5px">
+      <span style="width:7px;height:7px;border-radius:50%;background:var(--live-indicator);display:inline-block"></span>
+      <span style="font-family:var(--font-mono);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;padding:3px 8px;border-radius:6px;background:color-mix(in oklch,var(--live-indicator) 14%,transparent);color:var(--live-indicator)">LIVE 14:00→18:00</span>
+    </div>
+  </div>
+  <div>
+    <h3 style="margin:0 0 5px;font-family:var(--font-display);font-size:15px;font-weight:600;line-height:1.3;letter-spacing:-.01em">Fuck-Up Nights: AI Edition · The talks we don't post on LinkedIn</h3>
+    <p style="margin:0;font-size:12px;line-height:1.5;color:var(--muted-foreground)">Eight engineers, eight production disasters. No slides allowed.</p>
+  </div>
+  <div style="font-family:var(--font-mono);font-size:12px;color:var(--muted-foreground)">Almaty · Smart Point</div>
+  <div style="display:flex;flex-wrap:wrap;gap:5px">
+    <span class="tag">#War-Stories</span><span class="tag">#Postmortem</span>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border)">
+    <div class="avatar-group">
+      <div class="avatar avatar-xs" style="background:oklch(0.63 0.13 225);color:#fff">EV</div>
+      <div class="avatar avatar-xs" style="background:oklch(0.60 0.15 22);color:#fff">VS</div>
+      <div class="avatar avatar-xs" style="background:var(--muted);color:var(--muted-foreground);font-size:9px">+6</div>
+    </div>
+    <span style="font-family:var(--font-mono);font-size:11px;color:var(--live-indicator)">89 watching</span>
+  </div>
+</div>
+
+<!-- ONLINE -->
+<div class="card" style="display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div style="text-align:center;min-width:44px">
+      <div style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground)">Jun</div>
+      <div style="font-family:var(--font-display);font-size:24px;font-weight:700;line-height:1.05;letter-spacing:-.025em">05</div>
+      <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;color:var(--muted-foreground)">Fri</div>
+    </div>
+    <span style="font-family:var(--font-mono);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;padding:3px 8px;border-radius:6px;background:color-mix(in oklch,var(--primary) 10%,transparent);color:var(--primary)">ONLINE</span>
+  </div>
+  <div>
+    <h3 style="margin:0 0 5px;font-family:var(--font-display);font-size:15px;font-weight:600;line-height:1.3;letter-spacing:-.01em">RAG Reading Group · "The Faiss Library"</h3>
+    <p style="margin:0;font-size:12px;line-height:1.5;color:var(--muted-foreground)">Monthly online deep-read. Revisit the Faiss paper + production vector DBs.</p>
+  </div>
+  <div style="font-family:var(--font-mono);font-size:12px;color:var(--muted-foreground)">Zoom · Russian + English</div>
+  <div style="display:flex;flex-wrap:wrap;gap:5px"><span class="tag">#RAG</span><span class="tag">#Vector-DB</span></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border)">
+    <div class="avatar-group">
+      <div class="avatar avatar-xs" style="background:oklch(0.61 0.14 300);color:#fff">AK</div>
+      <div class="avatar avatar-xs" style="background:oklch(0.63 0.13 155);color:#fff">DT</div>
+    </div>
+    <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground)">34 going</span>
+  </div>
+</div>
+
+<!-- PAST -->
+<div class="card" style="display:flex;flex-direction:column;gap:12px;opacity:.7">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div style="text-align:center;min-width:44px">
+      <div style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground)">Apr</div>
+      <div style="font-family:var(--font-display);font-size:24px;font-weight:700;line-height:1.05;letter-spacing:-.025em">11</div>
+      <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;color:var(--muted-foreground)">Sat</div>
+    </div>
+    <span style="font-family:var(--font-mono);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;padding:3px 8px;border-radius:6px;background:var(--muted);color:var(--muted-foreground)">PAST</span>
+  </div>
+  <div>
+    <h3 style="margin:0 0 5px;font-family:var(--font-display);font-size:15px;font-weight:600;line-height:1.3;letter-spacing:-.01em">AI Qadam Almaty #1 · Computer Vision Day</h3>
+    <p style="margin:0;font-size:12px;line-height:1.5;color:var(--muted-foreground)">CV in the wild — satellite imagery, real-time defect detection.</p>
+  </div>
+  <div style="font-family:var(--font-mono);font-size:12px;color:var(--muted-foreground)">Almaty · Astana Hub</div>
+  <div style="display:flex;flex-wrap:wrap;gap:5px"><span class="tag">#Computer-Vision</span><span class="tag">#Edge-AI</span></div>
+  <div style="display:flex;align-items:center;justify-content:flex-end;padding-top:8px;border-top:1px solid var(--border)">
+    <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground)">178 attended</span>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

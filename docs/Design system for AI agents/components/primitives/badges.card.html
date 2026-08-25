@@ -1,0 +1,65 @@
+<!-- @dsCard group="Components" viewport="700x220" subtitle="Semantic · dot indicator · mono status · tags" name="Badge & Tag" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+body { margin: 0; padding: 20px 24px; background: var(--background); display: flex; flex-direction: column; gap: 14px; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.row-label { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<div>
+  <div class="row-label">Semantic badges</div>
+  <div class="row">
+    <span class="badge">Default</span>
+    <span class="badge badge-primary">Primary</span>
+    <span class="badge badge-success">Success</span>
+    <span class="badge badge-warning">Warning</span>
+    <span class="badge badge-destructive">Destructive</span>
+  </div>
+</div>
+
+<div>
+  <div class="row-label">With dot indicator — attendance status</div>
+  <div class="row">
+    <span class="badge"><span class="dot" style="background:var(--muted-foreground)"></span>Draft</span>
+    <span class="badge badge-primary"><span class="dot"></span>Registered</span>
+    <span class="badge badge-success"><span class="dot"></span>Checked in</span>
+    <span class="badge badge-warning"><span class="dot"></span>Waitlisted</span>
+    <span class="badge badge-destructive"><span class="dot"></span>Cancelled</span>
+  </div>
+</div>
+
+<div>
+  <div class="row-label">Mono status labels — event state</div>
+  <div class="row">
+    <span class="badge badge-primary mono">UPCOMING</span>
+    <span class="badge mono" style="background:color-mix(in oklch,var(--live-indicator) 14%,transparent);color:var(--live-indicator);border-color:color-mix(in oklch,var(--live-indicator) 25%,transparent)">● LIVE</span>
+    <span class="badge mono">PAST</span>
+    <span class="badge badge-primary mono">ONLINE</span>
+    <span class="badge mono" style="background:color-mix(in oklch,var(--badge-special) 12%,transparent);color:var(--badge-special);border-color:color-mix(in oklch,var(--badge-special) 25%,transparent)">HACKATHON</span>
+  </div>
+</div>
+
+<div>
+  <div class="row-label">Topic tags</div>
+  <div class="row">
+    <span class="tag">#LLM</span>
+    <span class="tag">#RAG</span>
+    <span class="tag">#Computer-Vision</span>
+    <span class="tag">#MLOps</span>
+    <span class="tag">#Agents</span>
+    <span class="tag">#Fine-tuning</span>
+    <span class="tag">#Embeddings</span>
+    <span class="tag">#Vector-DB</span>
+  </div>
+</div>
+
+</body>
+</html>

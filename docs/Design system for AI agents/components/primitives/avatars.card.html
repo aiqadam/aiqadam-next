@@ -1,0 +1,63 @@
+<!-- @dsCard group="Components" viewport="700x200" subtitle="Initials on OKLCH backgrounds · 6 sizes · group · online status" name="Avatar" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+body { margin: 0; padding: 20px 24px; background: var(--background); display: flex; flex-direction: column; gap: 16px; }
+.row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.row-label { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<div>
+  <div class="row-label">Sizes — xs · sm · md · lg · xl · 2xl</div>
+  <div class="row" style="align-items:flex-end">
+    <div class="avatar avatar-xs" style="background:oklch(0.64 0.13 192);color:#fff">AM</div>
+    <div class="avatar avatar-sm" style="background:oklch(0.60 0.14 270);color:#fff">BR</div>
+    <div class="avatar avatar-md" style="background:oklch(0.63 0.13 225);color:#fff">EV</div>
+    <div class="avatar avatar-lg" style="background:oklch(0.64 0.14 40);color:#fff">VT</div>
+    <div class="avatar avatar-xl" style="background:oklch(0.60 0.15 22);color:#fff">VS</div>
+    <div class="avatar avatar-2xl" style="background:oklch(0.61 0.14 300);color:#fff">AK</div>
+  </div>
+</div>
+
+<div style="display:flex;gap:48px;align-items:flex-start">
+  <div>
+    <div class="row-label">Online status</div>
+    <div class="row">
+      <div class="avatar-wrap">
+        <div class="avatar avatar-md" style="background:oklch(0.64 0.13 192);color:#fff">AM</div>
+        <span class="status-dot"></span>
+      </div>
+      <div class="avatar-wrap">
+        <div class="avatar avatar-md" style="background:oklch(0.60 0.14 270);color:#fff">BR</div>
+        <span class="status-dot"></span>
+      </div>
+      <div class="avatar-wrap">
+        <div class="avatar avatar-md" style="background:oklch(0.63 0.13 225);color:#fff">EV</div>
+        <span class="status-dot"></span>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="row-label">Group with overflow</div>
+    <div class="row" style="align-items:center;gap:12px">
+      <div class="avatar-group">
+        <div class="avatar avatar-xs" style="background:oklch(0.64 0.13 192);color:#fff">AM</div>
+        <div class="avatar avatar-xs" style="background:oklch(0.60 0.14 270);color:#fff">BR</div>
+        <div class="avatar avatar-xs" style="background:oklch(0.63 0.13 225);color:#fff">EV</div>
+        <div class="avatar avatar-xs" style="background:var(--muted);color:var(--muted-foreground);font-size:9px;font-weight:500">+12</div>
+      </div>
+      <span style="font-family:var(--font-mono);font-size:12px;color:var(--muted-foreground)">15 going</span>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

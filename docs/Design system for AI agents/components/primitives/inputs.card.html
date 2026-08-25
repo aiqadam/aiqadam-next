@@ -1,0 +1,48 @@
+<!-- @dsCard group="Components" viewport="700x320" subtitle="Text · password · search · error · textarea" name="Input" -->
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+body { margin: 0; padding: 20px 24px; background: var(--background); }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; }
+</style>
+</head>
+<body>
+<div class="grid">
+
+  <div>
+    <label class="label" for="name">Full name</label>
+    <input id="name" type="text" class="input" placeholder="Abdu Muzaffariy">
+  </div>
+
+  <div>
+    <label class="label" for="email">Email <span style="color:var(--destructive)">*</span></label>
+    <input id="email" type="email" class="input" placeholder="abdu@yandex.cloud">
+  </div>
+
+  <div>
+    <label class="label" for="search">Search</label>
+    <div class="input-wrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="search" type="search" class="input" placeholder="Search events, speakers…">
+    </div>
+  </div>
+
+  <div>
+    <label class="label" for="tg">Telegram handle</label>
+    <input id="tg" type="text" class="input error" placeholder="@username" value="@abdu_mzfr">
+    <span class="helper error">This username is already taken.</span>
+  </div>
+
+  <div style="grid-column:1/-1">
+    <label class="label" for="bio">Bio</label>
+    <textarea id="bio" class="textarea" rows="3" placeholder="ML engineer building RAG systems…">ML engineer building RAG systems for Central Asian languages. Co-host of AI Qadam Tashkent.</textarea>
+  </div>
+
+</div>
+</body>
+</html>
