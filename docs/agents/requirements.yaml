@@ -1,0 +1,21 @@
+# AI Qadam Next — Requirements Registry
+#
+# Canonical schema (do not invent a different one):
+#   - id: REQ-NNN                 # sequential, never reused, never renumbered
+#     title: <short summary>
+#     owner: <AGENT_ID>           # role expected to implement it — FRONTEND-DEV or CONTENT-BA
+#     status: pending|in_progress|done|blocked
+#     description: >
+#       <specific, cites real file paths where relevant>
+#     acceptance_criteria:
+#       - <measurable criterion>
+#     depends_on: [REQ-NNN, ...]  # empty list if none
+#
+# Written by REQ-ANALYST (drafting), gated by REQ-VALIDATOR (WF-01), consumed by
+# ORCH to select work for WF-02. Status is flipped pending -> in_progress by ORCH at
+# WF-02 Step 00, and in_progress -> done by DOC-UPDATER at WF-02 Step 6 — see
+# docs/agents/workflows/WF-02_requirement_implementation.md.
+#
+# Append new entries; never reorder, renumber, or rewrite an existing entry's id.
+
+requirements: []

@@ -1,0 +1,20 @@
+# AI Qadam Next — Requirement Status History
+#
+# APPEND-ONLY. Never rewrite, reorder, or delete an existing entry — see
+# docs/agents/instructions/core-directives.md "Bookkeeping Is Not Optional".
+# Written by ORCH (started/blocked events) and DOC-UPDATER (done events).
+#
+# Entry schema:
+#   - requirement_id: REQ-NNN
+#     event: started|done|blocked|escalated
+#     run_id: <RUN-ID>
+#     at: <ISO8601-UTC, from the clock — never estimated>
+#     note: <one line, optional>
+#
+# No roll/volume-splitting rule exists yet — this file starts empty and is expected
+# to stay small for a long time at this project's current size. If it ever grows large
+# enough that a full read becomes impractical, that is a trigger to add a roll rule
+# (see letflow's requirement_status.index.yaml for the pattern to adapt) — do not
+# silently start truncating reads of it before that decision is made explicitly.
+
+history: []
