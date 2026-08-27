@@ -10,6 +10,24 @@ actually having happened — a speculative entry ("might do X wrong") teaches no
 clutters the file every future reader has to scan. See `core-directives.md`'s "No
 Speculation" — the same principle applies to this log's own contents.
 
+## result.status set to a handoff-status value instead of a legal result value
+
+**Date:** 2026-08-27
+**Where:** WF02-REQ-001b, step-01 (CODE-DESIGNER)
+
+CODE-DESIGNER wrote `result.status: "COMPLETED"` instead of one of
+`HANDOFF_PROTOCOL.md`'s legal `result.status` values (`PASS|FAIL|PARTIAL|BLOCKED|
+SKIPPED`) — conflating the handoff-lifecycle `status` field ("COMPLETED", which was
+correctly set) with the separate `result.status` field, which records the *verdict* on
+the work, not the handoff's lifecycle state. ORCH caught it by re-reading the handoff
+before routing to the next gate and corrected it directly (the underlying design work
+was sound, so this was a mechanical fix, not a rework cycle). Downstream steps and gates
+key off `result.status` to decide PASS/FAIL routing, so a wrong value here could silently
+misroute a run if not checked. No new rule needed beyond what's already written — this
+is a reminder to actually re-read a completed handoff's `result.status` against the
+legal-values table before treating the step as gated-PASS, rather than assuming the
+producer got the schema right.
+
 ## Entry format
 
 ```markdown
