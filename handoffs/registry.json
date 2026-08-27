@@ -46,7 +46,7 @@
       "started_at": "2026-08-27T04:52:00Z",
       "completed_at": null,
       "status": "IN_PROGRESS",
-      "current_step": "step-04-test-runner",
+      "current_step": "step-05-release-validator",
       "steps": [
         {
           "step": "00",
@@ -101,6 +101,13 @@
           "step": "04",
           "file": "handoffs/WF02-REQ-001a/step-04-test-runner.json",
           "to_agent": "TEST-RUNNER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "05",
+          "file": "handoffs/WF02-REQ-001a/step-05-release-validator.json",
+          "to_agent": "RELEASE-VALIDATOR",
           "status": "PENDING"
         }
       ]
