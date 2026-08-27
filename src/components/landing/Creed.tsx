@@ -1,52 +1,38 @@
-export default function Creed() {
+import { getTranslations } from "next-intl/server";
+
+export default async function Creed() {
+  const t = await getTranslations("Creed");
   return (
     <section id="about">
       <div className="wrap creed-grid">
         <div className="rv">
-          <p className="eyebrow">Что это такое</p>
-          <h2>Сообщество, которое строит, а не потребляет.</h2>
-          <p className="lede">
-            Центральная Азия может остаться пользователем чужих решений — или
-            вырастить своих инженеров. Мы выбрали второе и делаем это
-            открыто: методология, инфраструктура и бренд принадлежат
-            сообществу, а не одному человеку или компании.
-          </p>
+          <p className="eyebrow">{t("eyebrow")}</p>
+          <h2>{t("title")}</h2>
+          <p className="lede">{t("lede")}</p>
           <div className="creed-list" style={{ marginTop: 34 }}>
             <div>
-              <b>Честность вместо хайпа</b>
-              <span>
-                Не продвигаем то, чего не существует или что не подтверждено
-                практикой.
-              </span>
+              <b>{t("principle1Title")}</b>
+              <span>{t("principle1Body")}</span>
             </div>
             <div>
-              <b>Практика вместо теории</b>
-              <span>
-                Спикер рассказывает то, что делал сам. Реальный кейс важнее
-                красивого фреймворка.
-              </span>
+              <b>{t("principle2Title")}</b>
+              <span>{t("principle2Body")}</span>
             </div>
             <div>
-              <b>Право на ошибку</b>
-              <span>
-                Мы открыто разбираем провалы. Честный постмортем учит больше,
-                чем success story.
-              </span>
+              <b>{t("principle3Title")}</b>
+              <span>{t("principle3Body")}</span>
             </div>
             <div>
-              <b>Сообщество, а не канал продаж</b>
-              <span>
-                Партнёры вкладываются в людей. Мы не рекламная площадка.
-              </span>
+              <b>{t("principle4Title")}</b>
+              <span>{t("principle4Body")}</span>
             </div>
           </div>
         </div>
         <div className="quote rv">
           <p>
-            В конце концов, AI Qadam — это <em>не про искусственный интеллект.</em>{" "}
-            Это про людей.
+            {t.rich("quote", { em: (chunks) => <em>{chunks}</em> })}
           </p>
-          <div className="qmeta">Qadam — «шаг вперёд» в тюркских языках</div>
+          <div className="qmeta">{t("quoteMeta")}</div>
         </div>
       </div>
     </section>

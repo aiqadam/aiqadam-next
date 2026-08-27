@@ -1,4 +1,7 @@
-export default function Doors() {
+import { getTranslations } from "next-intl/server";
+
+export default async function Doors() {
+  const t = await getTranslations("Doors");
   return (
     <section
       id="join"
@@ -6,13 +9,9 @@ export default function Doors() {
     >
       <div className="wrap">
         <div className="sect-head rv">
-          <p className="eyebrow">Как участвовать</p>
-          <h2>Три двери. Все открыты.</h2>
-          <p className="lede">
-            После первого митапа 86% участников выбрали активную роль, а не
-            «просто прийти». Дальше — вопрос того, сколько времени вы готовы
-            вложить.
-          </p>
+          <p className="eyebrow">{t("eyebrow")}</p>
+          <h2>{t("title")}</h2>
+          <p className="lede">{t("lede")}</p>
         </div>
         <div className="doors rv">
           <div className="door">
@@ -21,15 +20,12 @@ export default function Doors() {
               <i />
               <i />
             </div>
-            <h3>Прийти</h3>
-            <p>
-              Регистрация на ближайшее событие и чат страны. Бесплатно, без
-              отбора, без «оставьте заявку».
-            </p>
-            <a href="https://t.me/ai_qadam_community">Чат Узбекистана →</a>
+            <h3>{t("door1Title")}</h3>
+            <p>{t("door1Body")}</p>
+            <a href="https://t.me/ai_qadam_community">{t("door1LinkUzbekistan")}</a>
             <br />
-            <a href="https://t.me/ai_qadam_kazakhstan">Чат Казахстана →</a>
-            <span className="tag">~1 вечер в два месяца</span>
+            <a href="https://t.me/ai_qadam_kazakhstan">{t("door1LinkKazakhstan")}</a>
+            <span className="tag">{t("door1Tag")}</span>
           </div>
           <div className="door">
             <div className="dots">
@@ -37,13 +33,10 @@ export default function Doors() {
               <i />
               <i />
             </div>
-            <h3>Выступить</h3>
-            <p>
-              CFP на митап #3 в сентябре открыт. Нужен ваш собственный кейс —
-              что делали, что сломалось, что получилось.
-            </p>
-            <a href="https://t.me/RETURN_VOID_0">Подать доклад →</a>
-            <span className="tag">~2 недели на подготовку</span>
+            <h3>{t("door2Title")}</h3>
+            <p>{t("door2Body")}</p>
+            <a href="https://t.me/RETURN_VOID_0">{t("door2Link")}</a>
+            <span className="tag">{t("door2Tag")}</span>
           </div>
           <div className="door">
             <div className="dots">
@@ -51,16 +44,12 @@ export default function Doors() {
               <i />
               <i />
             </div>
-            <h3>Строить</h3>
-            <p>
-              Открытая инфраструктура региона: Qadam Flow, дизайн-система,
-              портал. Contributor → committer → maintainer, по вкладу, а не
-              по должности.
-            </p>
-            <a href="https://build.aiqadam.org">Проекты Build →</a>
+            <h3>{t("door3Title")}</h3>
+            <p>{t("door3Body")}</p>
+            <a href="https://build.aiqadam.org">{t("door3LinkProjects")}</a>
             <br />
-            <a href="https://t.me/aiqadam_build">Чат контрибьюторов →</a>
-            <span className="tag">регулярно</span>
+            <a href="https://t.me/aiqadam_build">{t("door3LinkChat")}</a>
+            <span className="tag">{t("door3Tag")}</span>
           </div>
         </div>
       </div>

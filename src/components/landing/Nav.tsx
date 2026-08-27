@@ -1,6 +1,8 @@
+import { getTranslations } from "next-intl/server";
 import LocaleSwitcher from "./LocaleSwitcher";
 
-export default function Nav() {
+export default async function Nav() {
+  const t = await getTranslations("Nav");
   return (
     <header className="nav">
       <div className="nav-in">
@@ -9,11 +11,11 @@ export default function Nav() {
           AI Qadam
         </a>
         <nav className="nav-links">
-          <a href="#events">События</a>
-          <a href="#map">Чаптеры</a>
-          <a href="#streams">Направления</a>
-          <a href="#join">Участвовать</a>
-          <a href="#team">Команда</a>
+          <a href="#events">{t("events")}</a>
+          <a href="#map">{t("chapters")}</a>
+          <a href="#streams">{t("streams")}</a>
+          <a href="#join">{t("join")}</a>
+          <a href="#team">{t("team")}</a>
         </nav>
         <LocaleSwitcher />
       </div>

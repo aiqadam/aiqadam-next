@@ -1,0 +1,54 @@
+{
+  "handoff_id": "9c0d1e2f-3a4b-4c5d-8e7f-8a9b0c1d2e3f",
+  "run_id": "WF02-REQ-001b",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGNER",
+  "file": "handoffs/WF02-REQ-001b/step-01-code-designer.json",
+  "created_at": "2026-08-27T06:40:00Z",
+  "started_at": "2026-08-27T06:40:00Z",
+  "completed_at": "2026-08-27T06:43:37Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-001b"],
+    "requirement_text": {
+      "REQ-001b": "Depends on REQ-001a, which lands the next-intl dependency, the app/[locale] routing/middleware skeleton, the working Nav.tsx locale switcher, and messages/ru.json + messages/uz.json seeded from only src/app/layout.tsx's strings (now merged to master via PR #5). This requirement extracts the remaining hardcoded copy from all 12 landing components under src/components/landing/ (Band, Creed, Doors, Events, Footer, Hero, MapSection, Metrics, Nav, Partners, Streams, Team) into the same two catalogs, and updates each component to read its copy from the catalog via next-intl's hooks (`useTranslations` in client components, `getTranslations` in server components, as appropriate per each component's existing client/server status) instead of inline strings. As with REQ-001a's seed keys, every new messages/uz.json value added here is populated with the Russian source string duplicated verbatim as a placeholder — translation content is out of scope for this requirement; REQ-002 (depends_on this requirement and REQ-001a) replaces every uz placeholder, from both requirements' keys, with real Uzbek copy.\n\nAcceptance criteria: (1) every hardcoded user-facing string in the 12 landing components is replaced with a next-intl translation call, verified by grepping each component file for remaining literal Cyrillic text — none should remain outside of messages/ru.json and messages/uz.json; (2) messages/ru.json and messages/uz.json each contain a key for every string extracted from the 12 components, in addition to the REQ-001a keys already present, with matching key sets between the two catalogs; (3) every messages/uz.json key added by this requirement has a non-empty value (placeholder duplicate acceptable); (4) npm run build completes with no type or routing errors after all 12 components are wired to next-intl hooks; (5) visiting /ru and /uz both render all 12 landing sections with no missing-translation-key runtime errors or fallback warnings in the build/start output."
+    },
+    "source_text": {},
+    "related_handoff_ids": ["8b9c0d1e-2f3a-4b4c-9d6e-7f8a9b0c1d2e"],
+    "artifacts_in": [
+      "docs/guides/frontend_developer_guide.md",
+      "docs/agents/design/REQ-001a.md"
+    ]
+  },
+  "task": {
+    "description": "Design the extraction plan for REQ-001b per WF-02 Step 1. Read src/app/[locale]/layout.tsx and src/i18n/routing.ts, request.ts, navigation.ts (created by REQ-001a, now on master) to understand the actual current next-intl setup before designing anything new. Read all 12 landing components under src/components/landing/ (Band, Creed, Doors, Events, Footer, Hero, MapSection, Metrics, Nav, Partners, Streams, Team) yourself to catalog every hardcoded string that needs extraction — do not estimate or guess at their content. Write docs/agents/design/REQ-001b.md covering: the message catalog namespace/key structure for each of the 12 components (propose a sensible per-component namespace, e.g. one top-level key per component matching its filename, to keep messages/ru.json and messages/uz.json organized as they grow — but state your reasoning, don't just assert it), which components are Server vs Client Components today (check for 'use client' directives) since that determines useTranslations vs getTranslations usage, any component whose copy includes dynamic/templated content (e.g. an array.join or interpolated value) since content_ba_guide.md flags 'empty-array copy' as a known pitfall requiring a fallback — flag any case found rather than silently handling it. List open questions explicitly (e.g. any component with copy that doesn't map cleanly to a flat key structure) rather than guessing.",
+    "acceptance_criteria": [
+      "Every one of the 12 landing components has a corresponding message-catalog section named in the design",
+      "Client vs Server Component status stated per component, with the correct next-intl hook (useTranslations/getTranslations) named for each",
+      "Any dynamic/templated/array-interpolated copy is flagged explicitly as an open question or handled with a stated fallback approach, not silently glossed over",
+      "No .tsx implementation code blocks present — structure, types, and prose only",
+      "Every acceptance criterion in REQ-001b's requirement_text maps to a concrete design element"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Read frontend_developer_guide.md, REQ-001a's design doc, and the live next-intl setup (src/app/[locale]/layout.tsx, src/i18n/routing.ts, request.ts, navigation.ts) directly. Read all 12 landing components (Band, Creed, Doors, Events, Footer, Hero, MapSection, Metrics, Nav, Partners, Streams, Team) in full and confirmed none has a 'use client' directive, so all 12 are Server Components and should use getTranslations (matching the pattern already proven in layout.tsx's generateMetadata), not useTranslations. Wrote docs/agents/design/REQ-001b.md proposing one top-level message-catalog namespace per component named for its filename (sibling to REQ-001a's Metadata namespace), with a full per-component key enumeration built from the actual strings read in each file, non-copy values (URLs, image paths, CSS class names) explicitly scoped out of extraction, and a flat-indexed-key approach (not JSON-array-valued catalog entries) proposed for the six components with repeated-shape data arrays (Events.TALKS, MapSection.CHAPTERS, Metrics.METRICS, Partners.PARTNERS, Streams.STREAMS, Team.TEAM). Checked all 12 components against content_ba_guide.md's empty-array-copy pitfall (array.join() interpolated into a sentence): none of the 12 uses that pattern — all six data arrays render one repeated DOM block per item via .map(), not a joined sentence — so the literal pitfall does not apply; this finding is stated explicitly in the design (not silently omitted) along with a related but distinct flag: MapSection's static SVG aria-label describes the same four cities as its CHAPTERS array without being derived from it, a latent desync risk if the array is ever edited. Six open questions listed explicitly, including whether the invariant 'AI Qadam' brand string is worth extracting at all, how to handle <em>-wrapped emphasis fragments inside otherwise-flat sentences (Hero, Creed), and the flat-key-vs-JSON-array tradeoff for the repeated-shape arrays. No .tsx implementation code included. Every acceptance criterion from the handoff and from REQ-001b's requirement_text mapped to a concrete design element in the doc's closing table.",
+    "artifacts_out": ["docs/agents/design/REQ-001b.md"],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-001b",
+      "commit_sha_list": [],
+      "remote_branch": "origin/feature/WF02-REQ-001b",
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Route to CODE-DESIGN-VALIDATOR"
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
