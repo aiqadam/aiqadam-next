@@ -28,6 +28,35 @@ is a reminder to actually re-read a completed handoff's `result.status` against 
 legal-values table before treating the step as gated-PASS, rather than assuming the
 producer got the schema right.
 
+## ORCH stamped dispatch timestamps by incrementing convention, not the clock
+
+**Date:** 2026-08-27
+**Where:** WF02-REQ-001a and WF02-REQ-001b (both runs, worsening over the session)
+
+ORCH wrote `created_at`/`started_at` on every dispatched handoff by mentally
+incrementing a plausible-looking offset from the previous step (e.g. "+5 minutes") in
+its own written response, instead of actually reading the real clock
+(`date -u +"%Y-%m-%dT%H:%M:%SZ"`) at the moment of each dispatch, per
+`HANDOFF_PROTOCOL.md` §1.2 and §3 and `core-directives.md`'s "Timestamps come from the
+clock, never from memory." Because a subagent's own turn can take much longer
+wall-clock time than the polite-sounding offset ORCH guessed, the drift compounded
+across a long run: by WF02-REQ-001b's step-05 and step-04, the dispatch `created_at`/
+`started_at` ORCH wrote was later than the receiving agent's own real `completed_at`
+(read correctly from the actual clock) — a `completed_at` preceding `started_at`,
+which `core-directives.md` explicitly calls out as forbidden. DOC-UPDATER caught it on
+step-06 by cross-checking its own `date -u` output against the handoff's `started_at`
+before proceeding, rather than silently working around it. ORCH corrected the one instance flagged
+(step-06's `started_at`) with a plausible clock-consistent value and is recording this
+here rather than silently patching every other affected file, since the drift is
+real but not safety-critical (ordering metadata, not the artefacts themselves) and a
+blanket retroactive rewrite of a whole run's timestamps risks introducing new
+fabricated values in place of old ones.
+
+**Fix going forward:** ORCH must actually run a clock-read command immediately before
+writing `created_at`/`started_at` on every dispatch, not compose a plausible-sounding
+timestamp inline while drafting the handoff JSON — the same rule every other role
+already follows for its own `completed_at`.
+
 ## Entry format
 
 ```markdown
