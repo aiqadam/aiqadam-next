@@ -8,8 +8,8 @@
   "file": "handoffs/WF02-REQ-001b/step-00-git-setup.json",
   "created_at": "2026-08-27T06:12:00Z",
   "started_at": "2026-08-27T06:12:00Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-08-27T06:38:49Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-001b"],
@@ -30,19 +30,19 @@
     ]
   },
   "result": {
-    "status": "",
-    "summary": "",
-    "artifacts_out": [],
+    "status": "PASS",
+    "summary": "Single checkout (no secondary worktree). git checkout master + git pull --ff-only origin master exited 0 (already up to date). Branch feature/WF02-REQ-001b did not exist locally, so no delete was needed. Created with git checkout -b feature/WF02-REQ-001b from master; git branch --show-current verified feature/WF02-REQ-001b. Pushed with git push -u origin feature/WF02-REQ-001b, exit 0, upstream tracking set.",
+    "artifacts_out": ["branch: feature/WF02-REQ-001b"],
     "issues": [],
     "git_evidence": {
-      "branch_name": null,
-      "commit_sha_list": [],
-      "remote_branch": null,
-      "push_status": "skipped",
+      "branch_name": "feature/WF02-REQ-001b",
+      "commit_sha_list": ["212fef75abba76d717065811bbecfdddfe9659e6"],
+      "remote_branch": "origin/feature/WF02-REQ-001b",
+      "push_status": "pushed",
       "pr_url": null,
       "pr_create_error": null
     },
-    "next_action": ""
+    "next_action": "ORCH routes to Step 1 (CODE-DESIGNER)"
   },
   "rework_count": 0,
   "max_rework": 3,
