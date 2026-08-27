@@ -224,7 +224,7 @@
       "started_at": "2026-08-27T09:14:13Z",
       "completed_at": null,
       "status": "IN_PROGRESS",
-      "current_step": "step-07-release-validator",
+      "current_step": "step-08-doc-updater",
       "note": "Content-primary requirement: CODE-DESIGNER/CODE-DESIGN-VALIDATOR skipped per decisions/0002 -- CONTENT-BA writes messages/uz.json directly, gated by REVIEWER. FRONTEND-DEV retains Step 00/Final only.",
       "steps": [
         {
@@ -288,6 +288,13 @@
           "step": "07",
           "file": "handoffs/WF02-REQ-002/step-07-release-validator.json",
           "to_agent": "RELEASE-VALIDATOR",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "08",
+          "file": "handoffs/WF02-REQ-002/step-08-doc-updater.json",
+          "to_agent": "DOC-UPDATER",
           "status": "PENDING"
         }
       ]
