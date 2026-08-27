@@ -8,8 +8,8 @@
   "file": "handoffs/WF01-ISSUE2-UZ-LOCALE/step-03-req-analyst-rework.json",
   "created_at": "2026-08-27T04:41:00Z",
   "started_at": "2026-08-27T04:41:00Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-08-27T04:44:28Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-001", "REQ-002"],
@@ -32,9 +32,11 @@
     ]
   },
   "result": {
-    "status": "",
-    "summary": "",
-    "artifacts_out": [],
+    "status": "PASS",
+    "summary": "Reworked docs/agents/requirements.yaml per both BLOCKERs and the MINOR issue from step-02-req-validator.json. Read src/app/globals.css directly (confirmed .nav/.nav-in/.lang classes at lines 36-51, on this project's own bespoke --bg/--fg/--primary variable set defined in the :root block at the top of the same file, distinct from the documented OKLCH design-system tokens under docs/Design system for AI agents/tokens/) and src/components/landing/Nav.tsx (confirmed the non-functional RU/UZ/EN <div className=\"lang\"> block with no click handlers/hrefs) before rewriting. Replaced REQ-001 with REQ-001a (next-intl dependency, app/[locale] routing skeleton, middleware/proxy, working Nav.tsx RU/UZ switcher citing the corrected src/app/globals.css lines 36-51 / 48-51, message catalogs seeded from only src/app/layout.tsx's strings) and REQ-001b (depends_on: [REQ-001a]; extracts remaining copy from all 12 landing components into the catalogs, wires each component via next-intl's useTranslations/getTranslations hooks, uz values still placeholder-duplicated). Each is scoped to one agent turn with concrete, script/grep/build-checkable acceptance criteria citing only real paths (src/app/globals.css, src/app/layout.tsx, src/components/landing/*, messages/ru.json, messages/uz.json, package.json) -- no reference to the nonexistent tokens/components.css remains anywhere in the file. REQ-001a's design-system-fit paragraph explicitly states the decision (stay on globals.css's existing bespoke classes, do not migrate to the documented OKLCH tokens) and the reasoning (the rest of Nav.tsx and the whole landing page already run on globals.css; migrating only the switcher would fragment one component from its own parent markup for no functional gain). REQ-002's depends_on changed to [REQ-001a, REQ-001b] and its description's first paragraph and final sentence updated to reference both catalog-building requirements instead of a single REQ-001; REQ-002's domain-vocabulary decision, translation acceptance criteria, and all other content are otherwise byte-for-byte unchanged from the PASS-quality draft REQ-VALIDATOR already checked. Rephrased the next-intl rationale in REQ-001a to state plainly that the Next.js doc's Resources section lists next-intl first in an unordered, unranked list, and that the maintenance/adoption assessment is REQ-ANALYST's own, not sourced from the doc. On the replace-vs-append question the task asked me to confirm: REQ-001 never reached status done, was never consumed by a WF-02 selection, and existed only inside this same unmerged WF-01 run with no other requirement depending on it except REQ-002 (which is being updated in this same edit) -- so replacing it with REQ-001a/REQ-001b rather than appending alongside a dead REQ-001 entry is the correct application of the schema's never-renumber rule, which exists to protect ids that were actually relied upon elsewhere. No disagreement with this reasoning.",
+    "artifacts_out": [
+      "docs/agents/requirements.yaml"
+    ],
     "issues": [],
     "git_evidence": {
       "branch_name": null,
@@ -44,7 +46,7 @@
       "pr_url": null,
       "pr_create_error": null
     },
-    "next_action": ""
+    "next_action": "Route to REQ-VALIDATOR for rework verification"
   },
   "rework_count": 1,
   "max_rework": 3,

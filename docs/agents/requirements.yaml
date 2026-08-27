@@ -19,30 +19,50 @@
 # Append new entries; never reorder, renumber, or rewrite an existing entry's id.
 
 requirements:
-  - id: REQ-001
-    title: Add i18n routing/switcher infrastructure (ru default, uz second locale)
+  - id: REQ-001a
+    title: Add next-intl + app/[locale] routing skeleton and working Nav locale switcher
     owner: FRONTEND-DEV
     status: pending
     description: >
       GitHub issue #2 ("Translate to UZ" / "Add localization") requires Uzbek
-      localization of the AI Qadam landing site. This requirement covers
-      INFRASTRUCTURE AND MECHANISM ONLY — routing, switching, persistence, and the
-      <html lang> attribute — not translation quality (that is REQ-002).
+      localization of the AI Qadam landing site. This requirement is the first
+      of two: it proves the i18n MECHANISM end-to-end (dependency, routing,
+      middleware, a working switcher) using only src/app/layout.tsx's strings as
+      the seed catalog. REQ-001b (depends_on this requirement) extracts the
+      remaining 12 landing components' copy once the mechanism is proven working.
+      Translation quality is out of scope for both (that is REQ-002).
 
       Chosen approach: adopt `next-intl` as the i18n library. Rationale: Next.js
       16's own App Router internationalization guide
       (node_modules/next/dist/docs/01-app/02-guides/internationalization.md,
-      "Resources" section) lists next-intl first among maintained libraries for
-      this exact routing shape, it is the most actively maintained App-Router-native
-      i18n library as of this writing, and it natively supports the
-      `app/[locale]/` segment routing pattern the same doc specifies (locale
-      resolved via middleware/proxy, forwarded as a route param into every layout
-      and page), plus a `useLocale`/`Link` pairing that makes a locale switcher a
-      few lines of client code instead of a hand-rolled cookie/redirect scheme.
-      The task instructions explicitly direct evaluating next-intl or an
-      equivalent maintained library over inventing a custom routing scheme; no
-      other library in the doc's list has comparable adoption or App Router-native
-      routing support, so no further evaluation is needed.
+      "Resources" section) lists next-intl first among an unordered list of
+      libraries for this exact routing shape — the doc itself does not rank or
+      rate any library in that list. REQ-ANALYST's own assessment, not derived
+      from the doc, is that next-intl is a well-maintained, widely-adopted choice
+      with native support for the `app/[locale]/` segment routing pattern the
+      same doc specifies (locale resolved via middleware/proxy, forwarded as a
+      route param into every layout and page), plus a `useLocale`/`Link` pairing
+      that makes a locale switcher a few lines of client code instead of a
+      hand-rolled cookie/redirect scheme. The task instructions direct evaluating
+      next-intl or an equivalent maintained library over inventing a custom
+      routing scheme; no other library in the doc's list offers comparable
+      App Router-native routing support, so no further evaluation is needed.
+
+      Design-system fit: the Nav.tsx switcher reuses the `.nav`/`.nav-in`/`.lang`
+      classes already defined in src/app/globals.css (lines 36-51), which is
+      this project's own bespoke, pre-existing CSS variable set (--bg/--fg/
+      --primary and friends as raw hex/oklab, defined in the :root block at the
+      top of that same file) — a DIFFERENT set from the documented OKLCH design
+      system under docs/Design system for AI agents/tokens/ (--background/
+      --foreground/--primary). Decision: the switcher stays on the existing
+      globals.css classes as-is (option a from rework guidance), not migrated
+      onto the documented design-system tokens (option b). Reason: Nav.tsx and
+      the entire landing page already run on globals.css's bespoke variables
+      site-wide; migrating just the switcher onto a different token system while
+      everything around it stays on globals.css would fragment one component's
+      styling from its own parent markup for no functional gain, and no other
+      part of this requirement needs the documented tokens. A full token
+      migration, if ever wanted, is a separate, larger requirement of its own.
 
       Scope of work:
       - Add `next-intl` as a dependency.
@@ -50,16 +70,15 @@ requirements:
         under `src/app/[locale]/`, with locale resolution proxy/middleware per
         next-intl's App Router setup, `ru` as the default locale and `uz` as the
         second locale (locales: ["ru", "uz"], defaultLocale: "ru").
-      - Create message catalogs (e.g. `messages/ru.json`, `messages/uz.json`)
-        seeded with every hardcoded string currently in src/app/layout.tsx
-        (title, description, OpenGraph/Twitter metadata, `locale: "ru_RU"`) and
-        the 12 landing components under src/components/landing/ (Doors, Events,
-        Hero, Partners, MapSection, Nav, Streams, Creed, Footer, Metrics, Band,
-        Team). For the `uz.json` catalog, populate every key with the Russian
-        source string duplicated verbatim as a placeholder — this requirement's
-        acceptance criteria are about the mechanism working end-to-end, not
-        translation content, and REQ-002 (depends_on this requirement) replaces
-        every placeholder with real Uzbek copy.
+      - Create message catalogs `messages/ru.json` and `messages/uz.json`,
+        seeded ONLY with the hardcoded strings currently in src/app/layout.tsx:
+        `title`, `description`, the OpenGraph title/description/locale field
+        (`ru_RU`), and the Twitter card title/description. For `messages/uz.json`,
+        populate every key with the Russian source string duplicated verbatim as
+        a placeholder — this requirement's acceptance criteria are about the
+        mechanism working end-to-end, not translation content. REQ-001b adds the
+        remaining components' keys to both catalogs; REQ-002 (depends_on
+        REQ-001a and REQ-001b) replaces every uz placeholder with real Uzbek copy.
       - Replace the static language switcher already present in
         src/components/landing/Nav.tsx (the `<div className="lang">` block with
         RU/UZ/EN spans, currently marked `title="Прототип: переключатель языка"`
@@ -67,42 +86,73 @@ requirements:
         click handlers or hrefs) with a working switcher between `ru` and `uz`
         only (drop the non-functional `EN` option — no English locale is in
         scope) that navigates via next-intl's locale-aware `Link`/routing helpers
-        and reuses only existing design tokens/classes already defined in
-        `tokens/components.css` — no new colors, spacing values, or component
-        patterns.
+        and reuses only the existing `.lang`/`.lang span`/`.lang .on` classes
+        already defined in src/app/globals.css (lines 48-51) — no new colors,
+        spacing values, or component patterns.
       - `src/app/[locale]/layout.tsx` sets `<html lang={locale}>` dynamically
         (`ru` or `uz`) and localizes the metadata title/description/OpenGraph
         locale field (`ru_RU` / `uz_UZ`) from the active locale's message
-        catalog, replacing the hardcoded Russian-only values.
+        catalog (as seeded above), replacing the hardcoded Russian-only values.
       - Root `/` redirects to `/ru` (the default locale) per next-intl's
         recommended proxy/middleware config.
     acceptance_criteria:
       - "Visiting /uz renders the page with <html lang=\"uz\">, and visiting /ru (or /) renders <html lang=\"ru\">, verified by inspecting the rendered HTML output of `npm run build && npm run start` for both paths."
       - "Clicking the Nav.tsx locale switcher's UZ control while on any /ru/* page navigates to the equivalent /uz/* page (same section anchors preserved), and clicking RU while on /uz/* navigates back to /ru/*, verified by manual click-through per TEST-DESIGNER's spec."
-      - "next-intl appears as a dependency in package.json, and `npm run build` completes with no type or routing errors after the src/app -> src/app/[locale] restructuring."
-      - "Every string key present in messages/ru.json has a corresponding, non-empty key in messages/uz.json (verified by a diff/script comparing the two catalogs' key sets), even where the uz value is a placeholder duplicate of the ru value."
-      - "The Nav.tsx switcher control offers exactly two options, RU and UZ (the prior non-functional EN option is removed), using only existing `.nav`/`.lang`-family classes or their direct extensions already defined in tokens/components.css — no new hex colors or spacing values introduced (grep for raw hex/px literals in the changed CSS confirms none)."
+      - "next-intl appears as a dependency in package.json, and `npm run build` completes with no type or routing errors after the src/app -> src/app/[locale] restructuring, with middleware/proxy config present per next-intl's setup."
+      - "messages/ru.json and messages/uz.json exist, each containing exactly the keys sourced from src/app/layout.tsx (title, description, OpenGraph title/description/locale, Twitter title/description), with every messages/uz.json value present and non-empty (verified by a diff/script comparing the two catalogs' key sets), even where the uz value is a placeholder duplicate of the ru value."
+      - "The Nav.tsx switcher control offers exactly two options, RU and UZ (the prior non-functional EN option is removed), using only the existing `.lang`/`.lang span`/`.lang .on` classes defined in src/app/globals.css lines 48-51 — no new hex colors or spacing values introduced (grep for raw hex/px literals in the changed CSS confirms none)."
     depends_on: []
+
+  - id: REQ-001b
+    title: Extract landing-component copy into next-intl message catalogs
+    owner: FRONTEND-DEV
+    status: pending
+    description: >
+      Depends on REQ-001a, which lands the next-intl dependency, the
+      app/[locale] routing/middleware skeleton, the working Nav.tsx locale
+      switcher, and messages/ru.json + messages/uz.json seeded from only
+      src/app/layout.tsx's strings. This requirement extracts the remaining
+      hardcoded copy from all 12 landing components under
+      src/components/landing/ (Band, Creed, Doors, Events, Footer, Hero,
+      MapSection, Metrics, Nav, Partners, Streams, Team) into the same two
+      catalogs, and updates each component to read its copy from the catalog via
+      next-intl's hooks (`useTranslations` in client components, `getTranslations`
+      in server components, as appropriate per each component's existing
+      client/server status) instead of inline strings. As with REQ-001a's seed
+      keys, every new messages/uz.json value added here is populated with the
+      Russian source string duplicated verbatim as a placeholder — translation
+      content is out of scope for this requirement; REQ-002 (depends_on this
+      requirement and REQ-001a) replaces every uz placeholder, from both
+      requirements' keys, with real Uzbek copy.
+    acceptance_criteria:
+      - "Every hardcoded user-facing string in the 12 landing components (Band, Creed, Doors, Events, Footer, Hero, MapSection, Metrics, Nav, Partners, Streams, Team, all under src/components/landing/) is replaced with a next-intl translation call (`useTranslations`/`getTranslations`), verified by grepping each component file for remaining literal Cyrillic text — none should remain outside of messages/ru.json and messages/uz.json."
+      - "messages/ru.json and messages/uz.json each contain a key for every string extracted from the 12 components, in addition to the REQ-001a keys already present, with matching key sets between the two catalogs (verified by a diff/script comparing key sets)."
+      - "Every messages/uz.json key added by this requirement has a non-empty value (a placeholder duplicate of the ru value is acceptable per this requirement's scope), verified by the same key-set diff plus a non-empty-value check."
+      - "`npm run build` completes with no type or routing errors after all 12 components are wired to next-intl hooks."
+      - "Visiting /ru and /uz both render all 12 landing sections with no missing-translation-key runtime errors or fallback warnings in the build/start output."
+    depends_on: [REQ-001a]
 
   - id: REQ-002
     title: Write Uzbek (Latin-script) translations for all landing page copy
     owner: CONTENT-BA
     status: pending
     description: >
-      Depends on REQ-001, which establishes the messages/ru.json and
-      messages/uz.json catalogs with placeholder Russian-duplicated values under
-      every uz key. This requirement replaces every placeholder in
-      messages/uz.json with an actual Uzbek (O'zbek, Latin script — the modern
-      standard orthography, not Cyrillic Uzbek) translation, following
-      docs/guides/content_ba_guide.md's voice/casing/vocabulary rules (functional
-      operator-facing tone, no exclamation marks or slogans, sentence case for
-      buttons/menu items, Title Case for section/page titles mapping to a domain
-      noun, UPPERCASE MONO for status labels) applied to Uzbek rather than
-      Russian prose. Scope covers every string sourced from src/app/layout.tsx
-      (title, description, OpenGraph/Twitter metadata) and all 12 landing
-      components under src/components/landing/ (Doors, Events, Hero, Partners,
-      MapSection, Nav, Streams, Creed, Footer, Metrics, Band, Team) as carried
-      into messages/uz.json by REQ-001.
+      Depends on REQ-001a and REQ-001b, which together establish the
+      messages/ru.json and messages/uz.json catalogs (REQ-001a seeds keys from
+      src/app/layout.tsx; REQ-001b adds keys from all 12 landing components)
+      with placeholder Russian-duplicated values under every uz key. This
+      requirement replaces every placeholder in messages/uz.json with an actual
+      Uzbek (O'zbek, Latin script — the modern standard orthography, not
+      Cyrillic Uzbek) translation, following docs/guides/content_ba_guide.md's
+      voice/casing/vocabulary rules (functional operator-facing tone, no
+      exclamation marks or slogans, sentence case for buttons/menu items, Title
+      Case for section/page titles mapping to a domain noun, UPPERCASE MONO for
+      status labels) applied to Uzbek rather than Russian prose. Scope covers
+      every string sourced from src/app/layout.tsx (title, description,
+      OpenGraph/Twitter metadata) and all 12 landing components under
+      src/components/landing/ (Doors, Events, Hero, Partners, MapSection, Nav,
+      Streams, Creed, Footer, Metrics, Band, Team) as carried into
+      messages/uz.json by REQ-001a and REQ-001b.
 
       Domain vocabulary decision (the content_ba_guide.md / design system readme
       do not currently state this for non-English locales, so it is decided
@@ -125,4 +175,4 @@ requirements:
       - "No Cyrillic characters appear anywhere in messages/uz.json's values (verified by a script checking for Unicode Cyrillic code points, U+0400 to U+04FF) — the translation is Latin-script Uzbek throughout, with the sole exception of the verbatim English domain-vocabulary tokens which contain no Cyrillic by definition."
       - "Every UPPERCASE MONO status-label key (matching the Russian source's status labels) renders in uppercase Latin-script Uzbek or the verbatim English domain term, consistent with content_ba_guide.md §4's casing rule, spot-checked against at least the Nav.tsx and Events.tsx-sourced keys."
       - "No exclamation marks, slogans, or emoji appear in any messages/uz.json value (grepped), matching the tone rule in content_ba_guide.md §3."
-    depends_on: [REQ-001]
+    depends_on: [REQ-001a, REQ-001b]
