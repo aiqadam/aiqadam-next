@@ -30,3 +30,5 @@
 2026-08-27T05:53:00Z WF02-REQ-001a dispatch step-05 to_agent=RELEASE-VALIDATOR task="Independently re-verify REQ-001a acceptance criteria"
 2026-08-27T05:52:10Z WF02-REQ-001a complete step-05 from_agent=RELEASE-VALIDATOR result=PASS commit=2ec61a6 note="independent lint/build/curl re-verification all PASS; found requirements.yaml stale '.lang span' reference (should be '.lang a'), flagged OBSERVATION-1 for DOC-UPDATER"
 2026-08-27T05:55:00Z WF02-REQ-001a dispatch step-06 to_agent=DOC-UPDATER task="Flip REQ-001a to done, fix stale .lang span reference, append status history"
+2026-08-27T05:55:24Z WF02-REQ-001a complete step-06 from_agent=DOC-UPDATER result=PASS commit=e1c192314d0034cd7081c745c4a74bbe9ef54e49 note="ORCH independently confirmed via grep: no .lang span remains, status:done present exactly once for REQ-001a"
+2026-08-27T05:57:00Z WF02-REQ-001a dispatch step-final to_agent=FRONTEND-DEV task="Git merge: rebase, PR, merge feature/WF02-REQ-001a"
