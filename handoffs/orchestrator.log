@@ -38,3 +38,5 @@
 2026-08-27T06:38:49Z WF02-REQ-001b complete step-00 from_agent=FRONTEND-DEV result=PASS branch=feature/WF02-REQ-001b commit=c87c3ec
 2026-08-27T06:39:00Z WF02-REQ-001b status_flip REQ-001b pending->in_progress
 2026-08-27T06:40:00Z WF02-REQ-001b dispatch step-01 to_agent=CODE-DESIGNER task="Design extraction plan for 12 landing components into message catalogs"
+2026-08-27T06:43:37Z WF02-REQ-001b complete step-01 from_agent=CODE-DESIGNER result=PASS commit=6465e9f1e717aada2f64704f58c1fbcecdcf7407 note="docs/agents/design/REQ-001b.md written; ORCH found+fixed schema defect (result.status was COMPLETED, corrected to PASS) commit=b83b66a; anti-pattern logged"
+2026-08-27T06:46:00Z WF02-REQ-001b dispatch step-01b to_agent=CODE-DESIGN-VALIDATOR task="Gate REQ-001b design artefact"

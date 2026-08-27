@@ -137,7 +137,7 @@
       "started_at": "2026-08-27T06:12:00Z",
       "completed_at": null,
       "status": "IN_PROGRESS",
-      "current_step": "step-01-code-designer",
+      "current_step": "step-01b-code-design-validator",
       "steps": [
         {
           "step": "00",
@@ -150,6 +150,13 @@
           "step": "01",
           "file": "handoffs/WF02-REQ-001b/step-01-code-designer.json",
           "to_agent": "CODE-DESIGNER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "01b",
+          "file": "handoffs/WF02-REQ-001b/step-01b-code-design-validator.json",
+          "to_agent": "CODE-DESIGN-VALIDATOR",
           "status": "PENDING"
         }
       ]
