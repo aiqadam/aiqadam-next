@@ -7,12 +7,18 @@
       "started_at": "2026-08-27T04:32:07Z",
       "completed_at": null,
       "status": "IN_PROGRESS",
-      "current_step": "step-01-req-analyst",
+      "current_step": "step-02-req-validator",
       "steps": [
         {
           "step": "01",
           "file": "handoffs/WF01-ISSUE2-UZ-LOCALE/step-01-req-analyst.json",
           "to_agent": "REQ-ANALYST",
+          "status": "COMPLETED"
+        },
+        {
+          "step": "02",
+          "file": "handoffs/WF01-ISSUE2-UZ-LOCALE/step-02-req-validator.json",
+          "to_agent": "REQ-VALIDATOR",
           "status": "PENDING"
         }
       ]
