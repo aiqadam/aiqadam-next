@@ -1,0 +1,56 @@
+{
+  "handoff_id": "3f1b8e2a-6c4d-4a1e-9b2f-1a2b3c4d5e6f",
+  "run_id": "WF01-ISSUE2-UZ-LOCALE",
+  "workflow_id": "WF-01",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "REQ-ANALYST",
+  "file": "handoffs/WF01-ISSUE2-UZ-LOCALE/step-01-req-analyst.json",
+  "created_at": "2026-08-27T04:32:07Z",
+  "started_at": "2026-08-27T04:32:07Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": [],
+    "requirement_text": {},
+    "source_text": {
+      "GitHub issue #2": "Title: 'Translate to UZ'. Body: 'Add localization.\nTranslate to UZ'"
+    },
+    "related_handoff_ids": [],
+    "artifacts_in": [
+      "docs/guides/content_ba_guide.md",
+      "docs/guides/frontend_developer_guide.md",
+      "docs/Design system for AI agents/readme.md"
+    ]
+  },
+  "task": {
+    "description": "GitHub issue #2 ('Translate to UZ' / 'Add localization') asks for Uzbek localization of the site. Research already done (do not re-derive): Next.js 16 App Router, React 19, plain CSS. Zero existing i18n infrastructure — no i18n library in package.json, no i18n block in next.config.ts, no locale routing. Site is currently 100% Russian, hardcoded across src/app/layout.tsx (lang=\"ru\", metadata title/description/OG, locale: \"ru_RU\") and 12 landing section components under src/components/landing/ (Hero, Doors, Events, Partners, MapSection, Nav, Streams, Creed, Footer, Metrics, Band, Team — ~770 lines of embedded copy total). Single-page marketing site, no blog/docs pages. The design system readme's brand voice principle #6 already commits to 'Multilingual by default — Russian, Uzbek, Kazakh, Kyrgyz, Tajik, English — equal weight' (content_ba_guide.md \u00a72, design system readme line 46), so this is realizing an existing brand commitment, not new scope invention. No existing design-system spec exists for a language-switcher UI control or a locale-routing convention for this landing page (the readme's uz.aiqadam.com/kz.aiqadam.com subdomain mention is a description of separate future country-specific event sites, not this repo's i18n mechanism) \u2014 the requirement's design step will need to define this pragmatically within existing design tokens/components.\n\nDraft this as TWO chained requirements, sized to one agent turn each per WF-01 Step 1c:\n\n1. First requirement (owner: FRONTEND-DEV) \u2014 introduce locale infrastructure: add an i18n/locale-routing mechanism appropriate for Next.js 16 App Router (evaluate next-intl or an equivalent maintained library that supports the App Router \u2014 do not invent a custom routing scheme from scratch when a standard library covers it), with 'ru' as default locale and 'uz' as the second locale, a locale switcher control placed in Nav.tsx using only existing design tokens/components (no new colors/patterns), and locale-aware <html lang> plus metadata. This requirement's scope is INFRASTRUCTURE AND MECHANISM only \u2014 it should use placeholder/machine-adequate Uzbek strings or the Russian strings duplicated under the uz locale as a starting structure ONLY IF that's what unblocks the second requirement's translation work cleanly; decide the cleanest split yourself, but keep this requirement's acceptance criteria about the mechanism working (routing, switching, persistence, lang attribute), not translation quality.\n\n2. Second requirement (owner: CONTENT-BA, depends_on the first) \u2014 produce actual Uzbek (O'zbek, Latin script) translations for every piece of user-facing copy currently hardcoded in src/app/layout.tsx and all 12 landing components, following the content_ba_guide.md voice/casing/vocabulary rules (note: domain vocabulary terms like Event/Chapter/CFP etc. are used verbatim per the guide \u2014 confirm whether these stay in English or get Uzbek equivalents as part of this requirement, and state the decision explicitly in the requirement text since the guide doesn't currently say). Acceptance criteria must be concrete and testable (e.g. 'every string key in the [locale file] has a non-empty uz translation, verified by a diff/script', not 'translations look good').\n\nRead docs/agents/requirements.yaml (empty today) for the schema, docs/agents/anti-patterns.md (empty) and docs/agents/decisions/ (only 0001-full-pipeline-adopted.md, about the pipeline itself, not relevant content-wise) per WF-01 Step 1. Assign REQ-001 and REQ-002. Flag in your result.issues (MINOR) if you believe this instead needs agent-system extension (a new role) rather than fitting FRONTEND-DEV/CONTENT-BA \u2014 ORCH's own read is that it fits existing roles since it's a one-time infrastructure change plus a content task, not an ongoing domain, but REQ-ANALYST should say if it disagrees after reading the actual guides.",
+    "acceptance_criteria": [
+      "Two new entries appended to docs/agents/requirements.yaml (REQ-001, REQ-002) following the exact existing schema (id/title/owner/status/description/acceptance_criteria/depends_on), status: pending",
+      "REQ-002.depends_on includes REQ-001",
+      "Each requirement has >=2 concrete, testable acceptance criteria (no vague language)",
+      "REQ-001's description names the specific i18n approach/library chosen for Next.js 16 App Router and why",
+      "REQ-002's description explicitly states whether domain vocabulary (Event/Chapter/CFP/etc.) is translated or kept verbatim in Uzbek copy",
+      "Neither requirement contradicts an existing done requirement or a docs/agents/decisions/ record (there are none yet, so this should trivially pass)"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
