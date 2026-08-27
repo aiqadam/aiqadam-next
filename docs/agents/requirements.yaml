@@ -135,7 +135,7 @@ requirements:
   - id: REQ-002
     title: Write Uzbek (Latin-script) translations for all landing page copy
     owner: CONTENT-BA
-    status: pending
+    status: in_progress
     description: >
       Depends on REQ-001a and REQ-001b, which together establish the
       messages/ru.json and messages/uz.json catalogs (REQ-001a seeds keys from

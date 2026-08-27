@@ -38,3 +38,8 @@ history:
     run_id: WF02-REQ-001b
     at: "2026-08-27T08:06:53Z"
     note: "RELEASE-VALIDATOR PASSed; requirements.yaml's REQ-001b entry needed no correction. README.md rechecked — still create-next-app boilerplate with no i18n mentions, no update needed. Status flipped to done."
+  - requirement_id: REQ-002
+    event: started
+    run_id: WF02-REQ-002
+    at: "2026-08-27T09:16:00Z"
+    note: "REQ-001a and REQ-001b merged (PRs #5, #6). Starting WF-02 for REQ-002 (real Uzbek translations for all 174 landing-copy keys, replacing ru-duplicated placeholders). Per decisions/0002, CODE-DESIGNER/CODE-DESIGN-VALIDATOR skipped -- CONTENT-BA writes messages/uz.json directly, gated by REVIEWER."

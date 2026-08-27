@@ -224,13 +224,20 @@
       "started_at": "2026-08-27T09:14:13Z",
       "completed_at": null,
       "status": "IN_PROGRESS",
-      "current_step": "step-00-git-setup",
+      "current_step": "step-01-content-ba",
       "note": "Content-primary requirement: CODE-DESIGNER/CODE-DESIGN-VALIDATOR skipped per decisions/0002 -- CONTENT-BA writes messages/uz.json directly, gated by REVIEWER. FRONTEND-DEV retains Step 00/Final only.",
       "steps": [
         {
           "step": "00",
           "file": "handoffs/WF02-REQ-002/step-00-git-setup.json",
           "to_agent": "FRONTEND-DEV",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "01",
+          "file": "handoffs/WF02-REQ-002/step-01-content-ba.json",
+          "to_agent": "CONTENT-BA",
           "status": "PENDING"
         }
       ]
