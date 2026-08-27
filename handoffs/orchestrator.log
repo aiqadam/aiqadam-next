@@ -4,3 +4,5 @@
 2026-08-27T04:32:07Z WF01-ISSUE2-UZ-LOCALE dispatch step-01 to_agent=REQ-ANALYST task="Draft REQ-001 (i18n infra) and REQ-002 (UZ translations) for GitHub issue #2 'Translate to UZ'"
 2026-08-27T04:35:20Z WF01-ISSUE2-UZ-LOCALE complete step-01 from_agent=REQ-ANALYST result=PASS commit=8accb9c650abc65f6c7e92e0fc07d789469c4eef
 2026-08-27T04:36:00Z WF01-ISSUE2-UZ-LOCALE dispatch step-02 to_agent=REQ-VALIDATOR task="Validate REQ-001/REQ-002 per WF-01 Step 2 gate checks a-e"
+2026-08-27T04:40:15Z WF01-ISSUE2-UZ-LOCALE complete step-02 from_agent=REQ-VALIDATOR result=FAIL commit=3664d5a5126cb27de5f67b95b3abf2f567b2573c issues="REQ-001 fails check(d) DESIGN-SYSTEM FIT (AC5 cites nonexistent tokens/components.css path) and check(e) SIZE (bundles 4 sub-tasks: library+routing skeleton, extraction from 13 files, switcher UI, metadata)"
+2026-08-27T04:41:00Z WF01-ISSUE2-UZ-LOCALE rework step-01 to_agent=REQ-ANALYST rework_count=1 task="Fix AC5 file citation, split REQ-001 into 001a/001b, rephrase next-intl rationale"
