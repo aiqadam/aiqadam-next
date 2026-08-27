@@ -216,6 +216,24 @@
           "result": "PASS"
         }
       ]
+    },
+    {
+      "run_id": "WF02-REQ-002",
+      "workflow_id": "WF-02",
+      "source": "REQ-002 (validated by WF01-ISSUE2-UZ-LOCALE)",
+      "started_at": "2026-08-27T09:14:13Z",
+      "completed_at": null,
+      "status": "IN_PROGRESS",
+      "current_step": "step-00-git-setup",
+      "note": "Content-primary requirement: CODE-DESIGNER/CODE-DESIGN-VALIDATOR skipped per decisions/0002 -- CONTENT-BA writes messages/uz.json directly, gated by REVIEWER. FRONTEND-DEV retains Step 00/Final only.",
+      "steps": [
+        {
+          "step": "00",
+          "file": "handoffs/WF02-REQ-002/step-00-git-setup.json",
+          "to_agent": "FRONTEND-DEV",
+          "status": "PENDING"
+        }
+      ]
     }
   ]
 }
