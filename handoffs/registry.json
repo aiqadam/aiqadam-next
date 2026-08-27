@@ -5,8 +5,6 @@
       "workflow_id": "WF-01",
       "source": "GitHub issue #2 (Translate to UZ / Add localization)",
       "started_at": "2026-08-27T04:32:07Z",
-      "completed_at": null,
-      "status": "IN_PROGRESS",
       "completed_at": "2026-08-27T04:49:00Z",
       "status": "COMPLETED",
       "current_step": "step-04-req-validator-reverify",
@@ -38,6 +36,23 @@
           "to_agent": "REQ-VALIDATOR",
           "status": "COMPLETED",
           "result": "PASS"
+        }
+      ]
+    },
+    {
+      "run_id": "WF02-REQ-001a",
+      "workflow_id": "WF-02",
+      "source": "REQ-001a (validated by WF01-ISSUE2-UZ-LOCALE)",
+      "started_at": "2026-08-27T04:52:00Z",
+      "completed_at": null,
+      "status": "IN_PROGRESS",
+      "current_step": "step-00-git-setup",
+      "steps": [
+        {
+          "step": "00",
+          "file": "handoffs/WF02-REQ-001a/step-00-git-setup.json",
+          "to_agent": "FRONTEND-DEV",
+          "status": "PENDING"
         }
       ]
     }
