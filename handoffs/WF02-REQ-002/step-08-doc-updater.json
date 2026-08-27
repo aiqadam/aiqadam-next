@@ -8,8 +8,8 @@
   "file": "handoffs/WF02-REQ-002/step-08-doc-updater.json",
   "created_at": "2026-08-27T10:21:00Z",
   "started_at": "2026-08-27T10:21:00Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-08-27T10:23:46Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-002"],
@@ -32,9 +32,13 @@
     ]
   },
   "result": {
-    "status": "",
-    "summary": "",
-    "artifacts_out": [],
+    "status": "PASS",
+    "summary": "Fixed both staleness points in REQ-002's requirements.yaml entry. AC1's exception clause reworded from the 9-term content_ba_guide.md SS4 domain-vocabulary list to the actual accepted category: untranslatable literals (event/date codes, country/role/brand names, URLs, numeric values, proper product names), with the domain-vocabulary terms kept as one named example within that broader category. AC3 reworded to name the correct components/keys -- Streams.tsx's stream{N}Status keys and MapSection.tsx's chapter{N}Status keys (not Nav.tsx/Events.tsx) -- and to state that these are stored plain lowercase in both messages/ru.json and messages/uz.json, with uppercase display coming purely from src/app/globals.css line 152's unconditional text-transform:uppercase rule on the .status class, not from the JSON values. Verified against actual source: grep of Streams.tsx line 14 (t(`stream${i+1}Status`)) and MapSection.tsx line 16 (t(`chapter${i+1}Status`)), grep of messages/ru.json and messages/uz.json showing lowercase values (e.g. 'faol', 'ishlaydi'), and globals.css line 152 confirmed. REQ-002 status flipped from in_progress to done in requirements.yaml. Appended a 'done' event to docs/status/requirement_status.yaml (append-only, all prior entries unchanged, real UTC timestamp). README.md rechecked in full -- still unmodified create-next-app boilerplate with no i18n mentions, consistent with prior WF02-REQ-001a/REQ-001b runs; no update needed.",
+    "artifacts_out": [
+      "docs/agents/requirements.yaml",
+      "docs/status/requirement_status.yaml",
+      "handoffs/WF02-REQ-002/step-08-doc-updater.json"
+    ],
     "issues": [],
     "git_evidence": {
       "branch_name": "feature/WF02-REQ-002",
@@ -44,7 +48,7 @@
       "pr_url": null,
       "pr_create_error": null
     },
-    "next_action": ""
+    "next_action": "Route to FRONTEND-DEV for Step Final"
   },
   "rework_count": 0,
   "max_rework": 3,

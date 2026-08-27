@@ -135,7 +135,7 @@ requirements:
   - id: REQ-002
     title: Write Uzbek (Latin-script) translations for all landing page copy
     owner: CONTENT-BA
-    status: in_progress
+    status: done
     description: >
       Depends on REQ-001a and REQ-001b, which together establish the
       messages/ru.json and messages/uz.json catalogs (REQ-001a seeds keys from
@@ -171,8 +171,8 @@ requirements:
       and connecting prose around these terms are still fully translated into
       Uzbek — only the specific vocabulary tokens listed above remain untranslated.
     acceptance_criteria:
-      - "Every string key in messages/uz.json has a non-empty value that is not byte-for-byte identical to the corresponding messages/ru.json value (verified by a diff/script comparing values per key — a leftover placeholder duplicate fails this check), except where a key's value consists solely of one or more domain-vocabulary terms from content_ba_guide.md §4 (Event, Chapter, Talk, Speaker, CFP, Agenda, Check-in, Going, Watching), which are permitted to match verbatim per this requirement's domain-vocabulary decision."
+      - "Every string key in messages/uz.json has a non-empty value that is not byte-for-byte identical to the corresponding messages/ru.json value (verified by a diff/script comparing values per key — a leftover placeholder duplicate fails this check), except where a key's value consists solely of an untranslatable literal — event/date codes, country/role/brand names, URLs, numeric values, or proper product names (including the content_ba_guide.md §4 domain-vocabulary terms Event, Chapter, Talk, Speaker, CFP, Agenda, Check-in, Going, Watching) — which are permitted to match verbatim per this requirement's domain-vocabulary decision."
       - "No Cyrillic characters appear anywhere in messages/uz.json's values (verified by a script checking for Unicode Cyrillic code points, U+0400 to U+04FF) — the translation is Latin-script Uzbek throughout, with the sole exception of the verbatim English domain-vocabulary tokens which contain no Cyrillic by definition."
-      - "Every UPPERCASE MONO status-label key (matching the Russian source's status labels) renders in uppercase Latin-script Uzbek or the verbatim English domain term, consistent with content_ba_guide.md §4's casing rule, spot-checked against at least the Nav.tsx and Events.tsx-sourced keys."
+      - "The status-label keys — Streams.tsx's stream{N}Status keys and MapSection.tsx's chapter{N}Status keys — hold plain lowercase Latin-script Uzbek (or the verbatim English domain term) values in messages/uz.json, matching the lowercase convention already used for these keys in messages/ru.json; uppercase display comes purely from src/app/globals.css line 152's unconditional \"text-transform:uppercase\" rule on the .status class, not from the JSON values themselves, consistent with content_ba_guide.md §4's casing rule."
       - "No exclamation marks, slogans, or emoji appear in any messages/uz.json value (grepped), matching the tone rule in content_ba_guide.md §3."
     depends_on: [REQ-001a, REQ-001b]
