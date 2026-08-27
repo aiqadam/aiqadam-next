@@ -1,0 +1,55 @@
+{
+  "handoff_id": "6d7e8f9a-0b1c-4d2e-9f4a-5b6c7d8e9f0a",
+  "run_id": "WF02-REQ-001b",
+  "workflow_id": "WF-02",
+  "step": "05",
+  "from_agent": "TEST-RUNNER",
+  "to_agent": "RELEASE-VALIDATOR",
+  "file": "handoffs/WF02-REQ-001b/step-05-release-validator.json",
+  "created_at": "2026-08-27T08:15:00Z",
+  "started_at": "2026-08-27T08:15:00Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-001b"],
+    "requirement_text": {
+      "REQ-001b": "Extract remaining hardcoded copy from all 12 landing components into messages/ru.json and messages/uz.json, wire via next-intl getTranslations/t.rich(). 5 acceptance criteria: (1) no hardcoded Cyrillic remains in the 12 components; (2) matching 177-key catalogs; (3) every new uz value non-empty; (4) clean build; (5) both /ru and /uz render all 12 sections with no missing-key errors."
+    },
+    "source_text": {},
+    "related_handoff_ids": ["5c6d7e8f-9a0b-4c1d-8e3f-4a5b6c7d8e9f"],
+    "artifacts_in": [
+      "test-reports/report-2026-08-27-WF02-REQ-001b.yaml",
+      "docs/agents/test-specs/REQ-001b.md",
+      "docs/agents/requirements.yaml"
+    ]
+  },
+  "task": {
+    "description": "Independently re-verify REQ-001b per WF-02 Step 5 — do not trust TEST-RUNNER's report alone. (1) Re-run npm run lint && npm run build yourself. (2) Re-run the Cyrillic sweep and key-set diff scripts yourself (cheap, load-bearing checks). (3) Start the server yourself and spot-check at least 2-3 of the rendered-output cases with your own curl commands, not by re-reading the report. (4) Confirm all 5 acceptance criteria against actual current code/output. (5) Check docs/agents/requirements.yaml's REQ-001b entry for staleness relative to what actually shipped — note FRONTEND-DEV reported 2 MINOR deviations already reviewed/accepted by REVIEWER (indexed-key naming for MapSection/Streams/Metrics not spelled out in the design, and Streams' foundationTitle/foundationLink extraction) — decide if requirements.yaml itself needs any correction.",
+    "acceptance_criteria": [
+      "npm run lint && npm run build re-run independently, real output quoted",
+      "Cyrillic sweep and key-set diff re-run with your own commands",
+      "At least 2-3 rendered-output cases re-verified with your own curl commands",
+      "All 5 acceptance criteria explicitly confirmed against actual code/output",
+      "requirements.yaml staleness check performed and stated"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-001b",
+      "commit_sha_list": [],
+      "remote_branch": "origin/feature/WF02-REQ-001b",
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
