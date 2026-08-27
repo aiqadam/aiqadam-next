@@ -44,8 +44,6 @@
       "workflow_id": "WF-02",
       "source": "REQ-001a (validated by WF01-ISSUE2-UZ-LOCALE)",
       "started_at": "2026-08-27T04:52:00Z",
-      "completed_at": null,
-      "status": "IN_PROGRESS",
       "completed_at": "2026-08-27T06:08:30Z",
       "status": "COMPLETED",
       "current_step": "step-final-git-merge",
@@ -137,7 +135,7 @@
       "started_at": "2026-08-27T06:12:00Z",
       "completed_at": null,
       "status": "IN_PROGRESS",
-      "current_step": "step-06-doc-updater",
+      "current_step": "step-final-git-merge",
       "steps": [
         {
           "step": "00",
@@ -206,6 +204,13 @@
           "step": "06",
           "file": "handoffs/WF02-REQ-001b/step-06-doc-updater.json",
           "to_agent": "DOC-UPDATER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "final",
+          "file": "handoffs/WF02-REQ-001b/step-final-git-merge.json",
+          "to_agent": "FRONTEND-DEV",
           "status": "PENDING"
         }
       ]

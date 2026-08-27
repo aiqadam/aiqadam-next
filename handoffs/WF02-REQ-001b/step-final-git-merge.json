@@ -1,0 +1,50 @@
+{
+  "handoff_id": "8f9a0b1c-2d3e-4f4a-9b6c-7d8e9f0a1b2c",
+  "run_id": "WF02-REQ-001b",
+  "workflow_id": "WF-02",
+  "step": "final",
+  "from_agent": "DOC-UPDATER",
+  "to_agent": "FRONTEND-DEV",
+  "file": "handoffs/WF02-REQ-001b/step-final-git-merge.json",
+  "created_at": "2026-08-27T08:10:00Z",
+  "started_at": "2026-08-27T08:10:00Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-001b"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["7e8f9a0b-1c2d-4e3f-8a5b-6c7d8e9f0a1b"],
+    "artifacts_in": [
+      "docs/agents/protocols/GIT_MERGE.md"
+    ],
+    "branch_name": "feature/WF02-REQ-001b"
+  },
+  "task": {
+    "description": "Follow docs/agents/protocols/GIT_MERGE.md exactly. All gates passed: CODE-DESIGN-VALIDATOR PASS, REVIEWER PASS, TEST-DESIGN-VALIDATOR PASS, RELEASE-VALIDATOR PASS (independently re-verified lint/build/curl checks). ORCH independently confirmed origin state before this dispatch: git fetch origin shows origin/master and local master are perfectly in sync (0 commits either direction) since REQ-001a's PR #5 merge, no other open PRs, no sibling-session activity -- this run's rebase should be a clean, trivial replay with zero conflicts (a much simpler situation than REQ-001a's run, which hit a real divergence). Use PR title \"feat: extract landing component copy into next-intl message catalogs [WF02-REQ-001b]\" and body summarizing REQ-001b (extracted all 12 landing components' hardcoded copy into messages/ru.json and messages/uz.json, wired via getTranslations/t.rich(), 177 keys added, uz values placeholder-duplicated pending REQ-002's real translations), listing REQ-001b, and a Validation section: npm run lint PASS, npm run build PASS, manual verification PASS (test-reports/report-2026-08-27-WF02-REQ-001b.yaml), REVIEWER PASS, RELEASE-VALIDATOR PASS.",
+    "acceptance_criteria": [
+      "git rebase origin/master completes (0 conflicts expected)",
+      "PR created and merged via gh pr merge --squash --delete-branch after CI is green",
+      "Local checkout returns to master, git log --oneline -1 shows the squash-merge commit, git status is clean"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-001b",
+      "commit_sha_list": [],
+      "remote_branch": "origin/feature/WF02-REQ-001b",
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
