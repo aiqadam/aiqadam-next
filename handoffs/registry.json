@@ -224,7 +224,7 @@
       "started_at": "2026-08-27T09:14:13Z",
       "completed_at": null,
       "status": "IN_PROGRESS",
-      "current_step": "step-02b-reviewer",
+      "current_step": "step-03-content-ba-rework",
       "note": "Content-primary requirement: CODE-DESIGNER/CODE-DESIGN-VALIDATOR skipped per decisions/0002 -- CONTENT-BA writes messages/uz.json directly, gated by REVIEWER. FRONTEND-DEV retains Step 00/Final only.",
       "steps": [
         {
@@ -245,6 +245,14 @@
           "step": "02b",
           "file": "handoffs/WF02-REQ-002/step-02b-reviewer.json",
           "to_agent": "REVIEWER",
+          "status": "COMPLETED",
+          "result": "FAIL",
+          "rework_count": 1
+        },
+        {
+          "step": "03",
+          "file": "handoffs/WF02-REQ-002/step-03-content-ba-rework.json",
+          "to_agent": "CONTENT-BA",
           "status": "PENDING"
         }
       ]

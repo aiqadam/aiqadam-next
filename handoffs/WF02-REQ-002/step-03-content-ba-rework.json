@@ -1,0 +1,60 @@
+{
+  "handoff_id": "2d3e4f5a-6b7c-4d8e-9f0a-1b2c3d4e5f6a",
+  "run_id": "WF02-REQ-002",
+  "workflow_id": "WF-02",
+  "step": "03",
+  "from_agent": "REVIEWER",
+  "to_agent": "CONTENT-BA",
+  "file": "handoffs/WF02-REQ-002/step-03-content-ba-rework.json",
+  "created_at": "2026-08-27T09:45:00Z",
+  "started_at": "2026-08-27T09:45:00Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-002"],
+    "requirement_text": {},
+    "source_text": {
+      "messages/ru.json Partners.disclaimer": "Мы не продаём доступ к аудитории, не торгуем данными участников и не ставим продающие доклады под видом экспертных. Что именно можно и чего нельзя — в партнёрском деке."
+    },
+    "related_handoff_ids": ["1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f"],
+    "artifacts_in": []
+  },
+  "task": {
+    "description": "REVIEWER FAILed rework iteration 1 of 3 on one BLOCKING defect: messages/uz.json's Partners.disclaimer value currently reads 'Biz auditoriyaga kirishni sotmaymiz, ishtirokchilar ma'lumotlari bilan savdo qilmaymiz va sotuv doklardlarini ekspert doklad qilib ko'rsatmaymiz. Aniq nima mumkin va nima mumkin emasligi — hamkorlik dekida.' -- this contains a garbled, repetitive clause ('sotuv doklardlarini ekspert doklad qilib ko'rsatmaymiz') that both misspells and mistranslates the Russian source's 'не ставим продающие доклады под видом экспертных' (literally: 'we don't present sales talks disguised as expert ones'). Fix this specific clause with a correct, natural Uzbek translation of that meaning -- do not just fix the spelling of 'doklardlarini', retranslate the whole clause properly since the current wording is also semantically garbled (repeats 'doklad' awkwardly). The final sentence 'Aniq nima mumkin va nima mumkin emasligi — hamkorlik dekida' (translating 'в партнёрском деке' / 'in the partner deck') was NOT flagged as wrong by REVIEWER and does not need changing -- 'dek'/'deka' as a loanword for a presentation deck is an acceptable choice, ORCH confirmed the Russian source uses the same loanword ('деке'). After fixing this key, re-scan the ENTIRE messages/uz.json file yourself for any other similar garbled/repetitive/misspelled clauses you may have introduced in the original pass -- REVIEWER's spot-check covered ~16 of 177 keys and found this one issue there; a full re-read of all 177 values for internal coherence (not just Cyrillic-scan/casing, but actually re-reading each sentence for whether it reads as correct, natural Uzbek) is warranted before resubmitting, since this defect shows the original pass had at least one quality lapse that a scripted check couldn't catch.",
+    "acceptance_criteria": [
+      "Partners.disclaimer's disputed clause is retranslated correctly and naturally, not just spell-corrected",
+      "A full re-read of all 177 messages/uz.json values is performed, checking for coherence/naturalness, not just the previously-scripted checks (Cyrillic scan, em-tag validity, casing)",
+      "Any additional issues found during the re-read are fixed and reported, or the re-read is reported as clean if nothing else was found",
+      "messages/ru.json remains untouched",
+      "npm run build still passes"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-002",
+      "commit_sha_list": [],
+      "remote_branch": "origin/feature/WF02-REQ-002",
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 1,
+  "max_rework": 3,
+  "gate_history": [
+    {
+      "iteration": 0,
+      "gated_at": "2026-08-27T09:43:22Z",
+      "status": "FAIL",
+      "summary": "Partners.disclaimer contains a garbled/typo'd clause mistranslating the Russian 'продающие доклады под видом экспертных'. All other checks (Cyrillic scan, em-tags, casing judgment call, ru.json untouched, build) passed.",
+      "issues": ["Partners.disclaimer's 'sotuv doklardlarini ekspert doklad qilib ko'rsatmaymiz' clause is garbled and needs proper retranslation, not just a spelling fix"],
+      "next_action": "Rework CONTENT-BA -- fix the clause, re-scan full file for similar issues"
+    }
+  ]
+}
