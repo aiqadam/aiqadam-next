@@ -18,4 +18,111 @@
 #
 # Append new entries; never reorder, renumber, or rewrite an existing entry's id.
 
-requirements: []
+requirements:
+  - id: REQ-001
+    title: Add i18n routing/switcher infrastructure (ru default, uz second locale)
+    owner: FRONTEND-DEV
+    status: pending
+    description: >
+      GitHub issue #2 ("Translate to UZ" / "Add localization") requires Uzbek
+      localization of the AI Qadam landing site. This requirement covers
+      INFRASTRUCTURE AND MECHANISM ONLY — routing, switching, persistence, and the
+      <html lang> attribute — not translation quality (that is REQ-002).
+
+      Chosen approach: adopt `next-intl` as the i18n library. Rationale: Next.js
+      16's own App Router internationalization guide
+      (node_modules/next/dist/docs/01-app/02-guides/internationalization.md,
+      "Resources" section) lists next-intl first among maintained libraries for
+      this exact routing shape, it is the most actively maintained App-Router-native
+      i18n library as of this writing, and it natively supports the
+      `app/[locale]/` segment routing pattern the same doc specifies (locale
+      resolved via middleware/proxy, forwarded as a route param into every layout
+      and page), plus a `useLocale`/`Link` pairing that makes a locale switcher a
+      few lines of client code instead of a hand-rolled cookie/redirect scheme.
+      The task instructions explicitly direct evaluating next-intl or an
+      equivalent maintained library over inventing a custom routing scheme; no
+      other library in the doc's list has comparable adoption or App Router-native
+      routing support, so no further evaluation is needed.
+
+      Scope of work:
+      - Add `next-intl` as a dependency.
+      - Restructure routing so `src/app/page.tsx` and `src/app/layout.tsx` move
+        under `src/app/[locale]/`, with locale resolution proxy/middleware per
+        next-intl's App Router setup, `ru` as the default locale and `uz` as the
+        second locale (locales: ["ru", "uz"], defaultLocale: "ru").
+      - Create message catalogs (e.g. `messages/ru.json`, `messages/uz.json`)
+        seeded with every hardcoded string currently in src/app/layout.tsx
+        (title, description, OpenGraph/Twitter metadata, `locale: "ru_RU"`) and
+        the 12 landing components under src/components/landing/ (Doors, Events,
+        Hero, Partners, MapSection, Nav, Streams, Creed, Footer, Metrics, Band,
+        Team). For the `uz.json` catalog, populate every key with the Russian
+        source string duplicated verbatim as a placeholder — this requirement's
+        acceptance criteria are about the mechanism working end-to-end, not
+        translation content, and REQ-002 (depends_on this requirement) replaces
+        every placeholder with real Uzbek copy.
+      - Replace the static language switcher already present in
+        src/components/landing/Nav.tsx (the `<div className="lang">` block with
+        RU/UZ/EN spans, currently marked `title="Прототип: переключатель языка"`
+        i.e. "Prototype: language switcher" — it renders locale labels but has no
+        click handlers or hrefs) with a working switcher between `ru` and `uz`
+        only (drop the non-functional `EN` option — no English locale is in
+        scope) that navigates via next-intl's locale-aware `Link`/routing helpers
+        and reuses only existing design tokens/classes already defined in
+        `tokens/components.css` — no new colors, spacing values, or component
+        patterns.
+      - `src/app/[locale]/layout.tsx` sets `<html lang={locale}>` dynamically
+        (`ru` or `uz`) and localizes the metadata title/description/OpenGraph
+        locale field (`ru_RU` / `uz_UZ`) from the active locale's message
+        catalog, replacing the hardcoded Russian-only values.
+      - Root `/` redirects to `/ru` (the default locale) per next-intl's
+        recommended proxy/middleware config.
+    acceptance_criteria:
+      - "Visiting /uz renders the page with <html lang=\"uz\">, and visiting /ru (or /) renders <html lang=\"ru\">, verified by inspecting the rendered HTML output of `npm run build && npm run start` for both paths."
+      - "Clicking the Nav.tsx locale switcher's UZ control while on any /ru/* page navigates to the equivalent /uz/* page (same section anchors preserved), and clicking RU while on /uz/* navigates back to /ru/*, verified by manual click-through per TEST-DESIGNER's spec."
+      - "next-intl appears as a dependency in package.json, and `npm run build` completes with no type or routing errors after the src/app -> src/app/[locale] restructuring."
+      - "Every string key present in messages/ru.json has a corresponding, non-empty key in messages/uz.json (verified by a diff/script comparing the two catalogs' key sets), even where the uz value is a placeholder duplicate of the ru value."
+      - "The Nav.tsx switcher control offers exactly two options, RU and UZ (the prior non-functional EN option is removed), using only existing `.nav`/`.lang`-family classes or their direct extensions already defined in tokens/components.css — no new hex colors or spacing values introduced (grep for raw hex/px literals in the changed CSS confirms none)."
+    depends_on: []
+
+  - id: REQ-002
+    title: Write Uzbek (Latin-script) translations for all landing page copy
+    owner: CONTENT-BA
+    status: pending
+    description: >
+      Depends on REQ-001, which establishes the messages/ru.json and
+      messages/uz.json catalogs with placeholder Russian-duplicated values under
+      every uz key. This requirement replaces every placeholder in
+      messages/uz.json with an actual Uzbek (O'zbek, Latin script — the modern
+      standard orthography, not Cyrillic Uzbek) translation, following
+      docs/guides/content_ba_guide.md's voice/casing/vocabulary rules (functional
+      operator-facing tone, no exclamation marks or slogans, sentence case for
+      buttons/menu items, Title Case for section/page titles mapping to a domain
+      noun, UPPERCASE MONO for status labels) applied to Uzbek rather than
+      Russian prose. Scope covers every string sourced from src/app/layout.tsx
+      (title, description, OpenGraph/Twitter metadata) and all 12 landing
+      components under src/components/landing/ (Doors, Events, Hero, Partners,
+      MapSection, Nav, Streams, Creed, Footer, Metrics, Band, Team) as carried
+      into messages/uz.json by REQ-001.
+
+      Domain vocabulary decision (the content_ba_guide.md / design system readme
+      do not currently state this for non-English locales, so it is decided
+      explicitly here): the design system's domain vocabulary terms — Event,
+      Chapter, Talk, Speaker, CFP, Agenda, Check-in, Going, Watching — STAY IN
+      ENGLISH VERBATIM in the Uzbek copy, exactly as they already do in the
+      Russian copy per content_ba_guide.md §4 ("use verbatim, don't invent
+      synonyms"). Rationale: these are established cross-locale product/brand
+      terms shared across all AI Qadam surfaces (brand.aiqadam.org's design
+      system is itself English-vocabulary for these terms regardless of body
+      copy language), not general vocabulary — inventing Uzbek equivalents would
+      break consistency with the Russian site, the design system's own
+      component/prop naming, and any future EN surface, and the guide's
+      "verbatim" instruction for Russian is adopted unchanged for Uzbek rather
+      than reinterpreted per locale. Surrounding sentence structure, headings,
+      and connecting prose around these terms are still fully translated into
+      Uzbek — only the specific vocabulary tokens listed above remain untranslated.
+    acceptance_criteria:
+      - "Every string key in messages/uz.json has a non-empty value that is not byte-for-byte identical to the corresponding messages/ru.json value (verified by a diff/script comparing values per key — a leftover placeholder duplicate fails this check), except where a key's value consists solely of one or more domain-vocabulary terms from content_ba_guide.md §4 (Event, Chapter, Talk, Speaker, CFP, Agenda, Check-in, Going, Watching), which are permitted to match verbatim per this requirement's domain-vocabulary decision."
+      - "No Cyrillic characters appear anywhere in messages/uz.json's values (verified by a script checking for Unicode Cyrillic code points, U+0400 to U+04FF) — the translation is Latin-script Uzbek throughout, with the sole exception of the verbatim English domain-vocabulary tokens which contain no Cyrillic by definition."
+      - "Every UPPERCASE MONO status-label key (matching the Russian source's status labels) renders in uppercase Latin-script Uzbek or the verbatim English domain term, consistent with content_ba_guide.md §4's casing rule, spot-checked against at least the Nav.tsx and Events.tsx-sourced keys."
+      - "No exclamation marks, slogans, or emoji appear in any messages/uz.json value (grepped), matching the tone rule in content_ba_guide.md §3."
+    depends_on: [REQ-001]
