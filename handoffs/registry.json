@@ -222,8 +222,10 @@
       "workflow_id": "WF-02",
       "source": "REQ-002 (validated by WF01-ISSUE2-UZ-LOCALE)",
       "started_at": "2026-08-27T09:14:13Z",
-      "completed_at": null,
-      "status": "IN_PROGRESS",
+      "completed_at": "2026-08-27T10:33:00Z",
+      "status": "COMPLETED",
+      "pr_url": "https://github.com/aiqadam/aiqadam-next/pull/7",
+      "closes_issue": "https://github.com/aiqadam/aiqadam-next/issues/2",
       "current_step": "step-final-git-merge",
       "note": "Content-primary requirement: CODE-DESIGNER/CODE-DESIGN-VALIDATOR skipped per decisions/0002 -- CONTENT-BA writes messages/uz.json directly, gated by REVIEWER. FRONTEND-DEV retains Step 00/Final only.",
       "steps": [
@@ -302,7 +304,8 @@
           "step": "final",
           "file": "handoffs/WF02-REQ-002/step-final-git-merge.json",
           "to_agent": "FRONTEND-DEV",
-          "status": "PENDING"
+          "status": "COMPLETED",
+          "result": "PASS"
         }
       ]
     }
