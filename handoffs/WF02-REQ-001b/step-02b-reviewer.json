@@ -1,0 +1,53 @@
+{
+  "handoff_id": "2f3a4b5c-6d7e-4f8a-9b0c-1d2e3f4a5b6c",
+  "run_id": "WF02-REQ-001b",
+  "workflow_id": "WF-02",
+  "step": "02b",
+  "from_agent": "FRONTEND-DEV",
+  "to_agent": "REVIEWER",
+  "file": "handoffs/WF02-REQ-001b/step-02b-reviewer.json",
+  "created_at": "2026-08-27T07:05:00Z",
+  "started_at": "2026-08-27T07:05:00Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-001b"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["1e2f3a4b-5c6d-4e7f-8a9b-0c1d2e3f4a5b"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-001b.md",
+      "docs/agents/anti-patterns.md",
+      "docs/Design system for AI agents/readme.md"
+    ]
+  },
+  "task": {
+    "description": "Review the diff for REQ-001b (git diff master...HEAD on branch feature/WF02-REQ-001b, note: master here is REQ-001a's already-merged state) per WF-02 Step 2b. FRONTEND-DEV reported 2 MINOR deviations in its handoff (handoffs/WF02-REQ-001b/step-02-frontend-dev.json result.issues) — read them and judge on merits: (1) the design's key table didn't spell out exact key names for some of the 6 repeated-shape arrays, FRONTEND-DEV chose a consistent naming convention itself; (2) Streams' brand/URL text was extracted as a key per the design table's literal listing even though arguably a pass-through candidate. Also independently verify FRONTEND-DEV's own key claims: it reports 177 matching keys in both messages/ru.json and messages/uz.json — verify this yourself (a node script diffing the key sets, or similar) rather than trusting the number. Check the diff against docs/agents/anti-patterns.md (note: it now has one entry, about a result.status field-confusion mistake earlier in this same run — confirm this run's REVIEWER-facing handoff doesn't repeat that mistake, i.e. check your OWN result.status will be a legal value before you write it, not something you need to check in FRONTEND-DEV's diff). Check scope: copy-extraction only, no new components, no CSS changes, no anchor/href changes. Verify the two t.rich() emphasis calls (Hero.tsx, Creed.tsx) render correctly and use next-intl's real documented API, not an invented pattern.",
+    "acceptance_criteria": [
+      "git diff master...HEAD read directly across all 14 changed files (12 components + 2 catalogs), not just the FRONTEND-DEV handoff summary",
+      "Independently verify the 177/177 matching-key-set claim with your own script/command",
+      "Both reported deviations explicitly judged, not silently accepted",
+      "Scope check confirms copy-extraction only, nothing else bundled in",
+      "t.rich() usage verified against next-intl's actual API"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-001b",
+      "commit_sha_list": [],
+      "remote_branch": "origin/feature/WF02-REQ-001b",
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}

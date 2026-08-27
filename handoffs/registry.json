@@ -137,7 +137,7 @@
       "started_at": "2026-08-27T06:12:00Z",
       "completed_at": null,
       "status": "IN_PROGRESS",
-      "current_step": "step-02-frontend-dev",
+      "current_step": "step-02b-reviewer",
       "steps": [
         {
           "step": "00",
@@ -164,6 +164,13 @@
           "step": "02",
           "file": "handoffs/WF02-REQ-001b/step-02-frontend-dev.json",
           "to_agent": "FRONTEND-DEV",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "02b",
+          "file": "handoffs/WF02-REQ-001b/step-02b-reviewer.json",
+          "to_agent": "REVIEWER",
           "status": "PENDING"
         }
       ]
