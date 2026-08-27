@@ -1,0 +1,57 @@
+{
+  "handoff_id": "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+  "run_id": "WF02-REQ-002",
+  "workflow_id": "WF-02",
+  "step": "02b",
+  "from_agent": "CONTENT-BA",
+  "to_agent": "REVIEWER",
+  "file": "handoffs/WF02-REQ-002/step-02b-reviewer.json",
+  "created_at": "2026-08-27T09:40:00Z",
+  "started_at": "2026-08-27T09:40:00Z",
+  "completed_at": "2026-08-27T09:43:22Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-002"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["0b1c2d3e-4f5a-4b6c-9d8e-9f0a1b2c3d4e"],
+    "artifacts_in": [
+      "docs/guides/content_ba_guide.md",
+      "docs/Design system for AI agents/readme.md",
+      "docs/agents/decisions/0002-content-ba-owns-message-catalogs.md"
+    ]
+  },
+  "task": {
+    "description": "This is a content-only requirement (no structural design step per decisions/0002) -- your review here substitutes for both the usual code-diff review AND the copy-quality check content_ba_guide.md would normally hand off pre-validated. Read git diff master...HEAD on branch feature/WF02-REQ-002 (should show only messages/uz.json changed, plus handoff files). Read messages/uz.json in full alongside messages/ru.json side by side. Check: (1) every one of the 177 values is genuinely translated (not a leftover Russian duplicate) -- run your own Cyrillic-regex scan, don't trust CONTENT-BA's report; (2) spot-check translation quality on at least 8-10 keys spanning different namespaces for fluency and correctness (you don't need Uzbek fluency yourself to catch obvious problems -- check for: no leftover Russian words, no English words that should have been translated, consistent terminology for repeated concepts like 'Chapter'/'Talk' across different components, natural sentence structure rather than word-for-word literal translation); (3) content_ba_guide.md's voice rules: no exclamation marks/slogans/emoji, sentence case for buttons, Title Case for section headings; (4) CONTENT-BA flagged a judgment call: MapSection/Streams status values (faol/rejalashtirilgan/ishlaydi/ishlanmoqda) were kept lowercase because the Russian source itself is lowercase, reasoning that uppercase display is a CSS text-transform, not a value-level convention -- verify this by checking the actual component/CSS (grep for text-transform in relevant CSS, or check how Nav's own status-shaped values are cased) rather than accepting the reasoning at face value; (5) confirm the <em> tag placement in Hero.title and Creed.quote is valid and wraps a sensible emphasized clause in the Uzbek sentence; (6) confirm messages/ru.json is untouched (git diff should show zero changes to it); (7) run npm run build yourself to confirm it's still green with the real translations in place.",
+    "acceptance_criteria": [
+      "git diff read directly, confirms only messages/uz.json (+ handoffs) changed, ru.json untouched",
+      "Own Cyrillic-regex scan run, confirms zero remaining",
+      "At least 8-10 keys spot-checked across different namespaces for translation quality/consistency",
+      "The status-label casing judgment call independently verified against actual CSS/component behavior, not just accepted",
+      "npm run build re-run and confirmed green"
+    ]
+  },
+  "result": {
+    "status": "FAIL",
+    "summary": "Reviewed git diff master...HEAD in full: only messages/uz.json changed content-wise (plus handoff/bookkeeping files); messages/ru.json confirmed byte-for-byte untouched (git diff shows zero changes). Ran own Node Cyrillic-regex scan (\\u0400-\\u04FF) over messages/uz.json: 0 matches. Read uz.json and ru.json side by side in full and spot-checked 16+ keys across Nav, Hero, Doors, Events, Footer, Team, Partners, Streams, MapSection, Metrics, Creed, Band: terminology is consistent (chapter/meetup/Build usage matches patterns across namespaces), sentence structure is natural/idiomatic rather than word-for-word literal (e.g. Hero.ctaPrimary 'Yaqin tadbir' reorders naturally vs literal RU order), no leftover Cyrillic, no exclamation marks (0 found), Hero.title and Creed.quote each contain exactly one well-formed <em>...</em> pair wrapping the correct emphasized clause matching the Russian original's emphasis semantics. Independently verified the MapSection/Streams status-casing judgment call: grepped src/app/globals.css and found '.status{...text-transform:uppercase...}' (line 152) applied unconditionally to the '.status' class; confirmed both src/components/landing/MapSection.tsx (line 123, className='status ...') and Streams.tsx (line 30, className='status ...') render the status text through that exact class. CONTENT-BA's reasoning is correct: lowercase JSON values (faol/rejalashtirilgan/ishlaydi/ishlanmoqda) are the right choice because uppercase display is genuinely a CSS text-transform, not a value-level convention -- confirmed, not just accepted. npm run build re-run independently: green (Turbopack build, TypeScript check, static generation all succeeded, no errors). One genuine defect found during spot-check: Partners.disclaimer contains a spelling typo -- 'doklardlarini' (should be 'dokladlarini', the correct Uzbek plural-possessive of the loanword 'doklad') -- an isolated typo (confirmed via scan: only 1 occurrence of the malformed substring in the whole file, not a systemic pattern), but it is real, customer-facing, and violates the guide's quality bar for shipped copy. All other acceptance criteria pass cleanly; this is the sole blocking defect.",
+    "artifacts_out": [],
+    "issues": [
+      "BLOCKING: messages/uz.json Partners.disclaimer contains the typo 'doklardlarini' (extra inserted 'd' -- reads as doklad+rd+larini) where the correct Uzbek plural-possessive form is 'dokladlarini'. Full current value: \"Biz auditoriyaga kirishni sotmaymiz, ishtirokchilar ma'lumotlari bilan savdo qilmaymiz va sotuv doklardlarini ekspert doklad qilib ko'rsatmaymiz. Aniq nima mumkin va nima mumkin emasligi — hamkorlik dekida.\" CONTENT-BA should correct 'doklardlarini' to 'dokladlarini' and re-scan the rest of the file for similar isolated typos before resubmitting.",
+      "Non-blocking note: Section headings (Doors.title, Events.title, MapSection.title, Streams.title, Partners.title, Team.title, Creed.title, Band.title) are sentence-style taglines rather than Title-Case noun phrases, but this exactly mirrors the Russian source's own style (e.g. ru Doors.title 'Три двери. Все открыты.' is likewise sentence case) -- not a regression introduced by this translation, so not treated as a violation of the guide's Title Case rule, which targets page titles mapping to a single domain noun (e.g. 'Computer Vision Day'), a different shape of heading than these taglines.",
+      "Non-blocking note: job titles/role labels (Founder Global, Co-founder, Senior PM, CTO, Head of Software Development, etc.) and org/product proper nouns (EPAM, BEELAB, VEON, SAP Banking, Temenos T24, CFP, SLA, MIT, Apache-2.0) are correctly kept in English/Latin verbatim, consistent with the Russian source's own convention -- correctly not translated."
+    ],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-002",
+      "commit_sha_list": [],
+      "remote_branch": "origin/feature/WF02-REQ-002",
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Rework CONTENT-BA — rework iteration 1 of 3"
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}

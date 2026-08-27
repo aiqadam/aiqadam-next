@@ -1,0 +1,56 @@
+{
+  "handoff_id": "8d9e0f1a-2b3c-4d4e-9f6a-7b8c9d0e1f2a",
+  "run_id": "WF02-REQ-002",
+  "workflow_id": "WF-02",
+  "step": "08",
+  "from_agent": "RELEASE-VALIDATOR",
+  "to_agent": "DOC-UPDATER",
+  "file": "handoffs/WF02-REQ-002/step-08-doc-updater.json",
+  "created_at": "2026-08-27T10:21:00Z",
+  "started_at": "2026-08-27T10:21:00Z",
+  "completed_at": "2026-08-27T10:23:46Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-002"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["7c8d9e0f-1a2b-4c3d-8e5f-6a7b8c9d0e1f"],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "docs/status/requirement_status.yaml"
+    ]
+  },
+  "task": {
+    "description": "RELEASE-VALIDATOR PASSed REQ-002 and found 2 real, non-blocking staleness points in requirements.yaml's REQ-002 entry (see handoffs/WF02-REQ-002/step-07-release-validator.json's full issues list) to fix as part of normal documentation-sync work: (1) AC1's exception clause currently cites only the 9 literal content_ba_guide.md SS4 domain-vocabulary terms (Event, Chapter, Talk, Speaker, CFP, Agenda, Check-in, Going, Watching) as the permitted identical-value exception, but the 21 identical-value pairs actually shipped and accepted through this run's REVIEWER/TEST-DESIGN-VALIDATOR/RELEASE-VALIDATOR gates are a broader category (event/date codes, country/role/brand literals, numeric metrics) not covered by that literal list -- reword AC1 to describe the actual accepted exception category (untranslatable literals: event codes, dates, country/role/brand names, URLs, numeric values, proper product names) rather than only the domain-vocabulary list. (2) AC3 currently says status labels 'render in uppercase Latin-script Uzbek or the verbatim English domain term... spot-checked against at least the Nav.tsx and Events.tsx-sourced keys' -- but the actual .status-class-bound i18n keys are Streams.stream{N}Status and MapSection.chapter{N}Status (not Nav.tsx/Events.tsx), they are stored LOWERCASE in both messages/ru.json and messages/uz.json, and uppercase display is achieved purely via src/app/globals.css line 152's unconditional 'text-transform:uppercase' CSS rule -- reword AC3 to name the correct components/keys and describe the CSS-driven casing convention accurately. After fixing both, flip REQ-002's status from 'in_progress' to 'done', append a 'done' event to docs/status/requirement_status.yaml (read in full first, append only, real UTC timestamp), and check README.md for staleness (same check pattern as prior runs -- likely still create-next-app boilerplate needing no update, but verify).",
+    "acceptance_criteria": [
+      "REQ-002's AC1 wording updated to describe the actual accepted exception category, not just the 9 literal domain-vocabulary terms",
+      "REQ-002's AC3 wording updated to name the correct components/keys (Streams/MapSection status keys, not Nav.tsx/Events.tsx) and the CSS-driven uppercase convention",
+      "REQ-002's status is 'done' in docs/agents/requirements.yaml",
+      "A 'done' event for REQ-002 appended to docs/status/requirement_status.yaml with a real UTC timestamp, all prior entries unchanged",
+      "README.md checked; updated only if genuinely stale"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Fixed both staleness points in REQ-002's requirements.yaml entry. AC1's exception clause reworded from the 9-term content_ba_guide.md SS4 domain-vocabulary list to the actual accepted category: untranslatable literals (event/date codes, country/role/brand names, URLs, numeric values, proper product names), with the domain-vocabulary terms kept as one named example within that broader category. AC3 reworded to name the correct components/keys -- Streams.tsx's stream{N}Status keys and MapSection.tsx's chapter{N}Status keys (not Nav.tsx/Events.tsx) -- and to state that these are stored plain lowercase in both messages/ru.json and messages/uz.json, with uppercase display coming purely from src/app/globals.css line 152's unconditional text-transform:uppercase rule on the .status class, not from the JSON values. Verified against actual source: grep of Streams.tsx line 14 (t(`stream${i+1}Status`)) and MapSection.tsx line 16 (t(`chapter${i+1}Status`)), grep of messages/ru.json and messages/uz.json showing lowercase values (e.g. 'faol', 'ishlaydi'), and globals.css line 152 confirmed. REQ-002 status flipped from in_progress to done in requirements.yaml. Appended a 'done' event to docs/status/requirement_status.yaml (append-only, all prior entries unchanged, real UTC timestamp). README.md rechecked in full -- still unmodified create-next-app boilerplate with no i18n mentions, consistent with prior WF02-REQ-001a/REQ-001b runs; no update needed.",
+    "artifacts_out": [
+      "docs/agents/requirements.yaml",
+      "docs/status/requirement_status.yaml",
+      "handoffs/WF02-REQ-002/step-08-doc-updater.json"
+    ],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-002",
+      "commit_sha_list": ["f8bda89618a0d4c9cdb3cc37e45d9417616c16fc"],
+      "remote_branch": "origin/feature/WF02-REQ-002",
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Route to FRONTEND-DEV for Step Final"
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}

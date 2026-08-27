@@ -1,0 +1,265 @@
+run_id: WF02-REQ-002
+workflow_id: WF-02
+step: "06"
+requirement_ids: ["REQ-002"]
+agent: TEST-RUNNER
+branch: feature/WF02-REQ-002
+executed_at_utc: "2026-08-27T10:09:55Z"
+spec_source: docs/agents/test-specs/REQ-002.md
+
+lint:
+  command: "npm run lint"
+  exit_code: 0
+  output: |
+    > app@0.1.0 lint
+    > eslint
+
+    C:\Users\tvolo\dev\aiqadam-next\docs\Design system for AI agents\components\primitives\Avatar.jsx
+      39:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+      59:9   warning  'color' is assigned a value but never used                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+
+    C:\Users\tvolo\dev\aiqadam-next\src\components\landing\Footer.tsx
+      11:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+    C:\Users\tvolo\dev\aiqadam-next\src\components\landing\Nav.tsx
+      10:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+    ✖ 4 problems (0 errors, 4 warnings)
+  result: PASS
+  notes: "0 errors, 4 pre-existing warnings (next/image suggestions in Avatar.jsx/Footer.tsx/Nav.tsx, one unused var in an unrelated docs/ design-system file). None reference i18n/translation content. Not a REQ-002 regression; identical warning set to the prior REQ-001b report."
+
+build:
+  command: "npm run build"
+  exit_code: 0
+  output: |
+    > app@0.1.0 build
+    > next build
+
+    ▲ Next.js 16.3.2 (Turbopack)
+    ✓ Running next.config.ts took 47ms
+
+      Creating an optimized production build ...
+    ✓ Compiled successfully in 290ms
+      Running TypeScript ...
+      Finished TypeScript in 1337ms ...
+      Collecting page data using 6 workers ...
+      Generating static pages using 6 workers (0/4) ...
+      Generating static pages using 6 workers (1/4)
+      Generating static pages using 6 workers (2/4)
+      Generating static pages using 6 workers (3/4)
+    ✓ Generating static pages using 6 workers (4/4) in 534ms
+      Finalizing page optimization ...
+
+    Route (app)
+    ┌ ○ /_not-found
+    ├ ƒ /[locale]
+    └ ƒ /health
+
+    ƒ Proxy (Middleware)
+
+    ○  (Static)   prerendered as static content
+    ƒ  (Dynamic)  server-rendered on demand
+  result: PASS
+  notes: "Exit 0. Contains '✓ Compiled successfully' and TypeScript ran/finished with no intervening Type error or Failed to compile line. Route listing includes both 'ƒ /[locale]' and 'ƒ Proxy (Middleware)'. This satisfies AC5 below as well."
+
+verification_cases:
+  - id: AC1
+    description: "Every key in messages/uz.json has a non-empty value not byte-identical to ru.json's corresponding value, except standalone domain-vocabulary terms"
+    checks:
+      - command: |
+          node -e "
+          const ru = require('./messages/ru.json');
+          const uz = require('./messages/uz.json');
+          function keys(obj, prefix=''){let out=[];for(const k in obj){const p=prefix?prefix+'.'+k:k; if(typeof obj[k]==='object'&&obj[k]!==null) out=out.concat(keys(obj[k],p)); else out.push(p);} return out;}
+          const rk = keys(ru).sort();
+          let identical = [];
+          let empty = [];
+          for (const k of rk) {
+            const rv = k.split('.').reduce((o,p)=>o[p], ru);
+            const uv = k.split('.').reduce((o,p)=>o[p], uz);
+            if (typeof uv !== 'string' || uv.trim() === '') empty.push(k);
+            if (rv === uv) identical.push(k);
+          }
+          console.log('total_keys:', rk.length);
+          console.log('empty_uz_values:', JSON.stringify(empty));
+          console.log('identical_value_pairs:', JSON.stringify(identical));
+          "
+        expected: |
+          total_keys: 177
+          empty_uz_values: []
+          identical_value_pairs: ["Events.tabFailStories","Events.tabMeetup1","Events.tabMeetup2","Events.talk1Role","Events.talk2Role","Events.talk3Role","Events.talk4Role","Footer.contactsTelegram","Footer.hashtag","Hero.eyebrow","Hero.nextEventWhatBold","Hero.pillKazakhstan","Hero.pillUzbekistan","Metrics.metric1Source","Metrics.metric3Label","Streams.foundationLink","Streams.foundationTitle","Team.team1Role","Team.team2Role","Team.team3Role","Team.team4Role"]
+        actual: |
+          total_keys: 177
+          empty_uz_values: []
+          identical_value_pairs: ["Events.tabFailStories","Events.tabMeetup1","Events.tabMeetup2","Events.talk1Role","Events.talk2Role","Events.talk3Role","Events.talk4Role","Footer.contactsTelegram","Footer.hashtag","Hero.eyebrow","Hero.nextEventWhatBold","Hero.pillKazakhstan","Hero.pillUzbekistan","Metrics.metric1Source","Metrics.metric3Label","Streams.foundationLink","Streams.foundationTitle","Team.team1Role","Team.team2Role","Team.team3Role","Team.team4Role"]
+        result: PASS
+    result: PASS
+
+  - id: AC2
+    description: "No Cyrillic characters anywhere in messages/uz.json"
+    checks:
+      - command: |
+          node -e "
+          const fs = require('fs');
+          const content = fs.readFileSync('messages/uz.json', 'utf8');
+          const cyr = /[Ѐ-ӿ]/g;
+          const matches = content.match(cyr);
+          console.log('cyrillic_matches:', matches ? matches.length : 0);
+          console.log('matched_chars:', matches ? JSON.stringify([...new Set(matches)]) : '[]');
+          "
+        expected: |
+          cyrillic_matches: 0
+          matched_chars: []
+        actual: |
+          cyrillic_matches: 0
+          matched_chars: []
+        result: PASS
+    result: PASS
+
+  - id: AC3
+    description: "Status-label-shaped values render correctly per the design's CSS-driven uppercase casing convention"
+    checks:
+      - id: 3-source
+        command: 'grep -n "text-transform" src/app/globals.css'
+        expected: 'line 152 present: .status{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;'
+        actual: '152:.status{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase; (found among 8 text-transform lines at 24,97,130,152,201,213,222,236; .status rule unconditional, not :lang()-scoped)'
+        result: PASS
+      - id: 3-rendered
+        command: 'curl -s http://localhost:3100/uz | grep -o -E ''<span class="status[^"]*"[^>]*>[a-z '"'"']+</span>'''
+        expected: |
+          <span class="status live">faol</span>
+          <span class="status live">faol</span>
+          <span class="status">rejalashtirilgan</span>
+          <span class="status">rejalashtirilgan</span>
+          <span class="status live" style="align-self:flex-start">ishlaydi</span>
+          <span class="status prog" style="align-self:flex-start">ishlanmoqda</span>
+          <span class="status" style="align-self:flex-start">rejalashtirilgan</span>
+          <span class="status" style="align-self:flex-start">rejalashtirilgan</span>
+        actual: |
+          <span class="status live">faol</span>
+          <span class="status live">faol</span>
+          <span class="status">rejalashtirilgan</span>
+          <span class="status">rejalashtirilgan</span>
+          <span class="status live" style="align-self:flex-start">ishlaydi</span>
+          <span class="status prog" style="align-self:flex-start">ishlanmoqda</span>
+          <span class="status" style="align-self:flex-start">rejalashtirilgan</span>
+          <span class="status" style="align-self:flex-start">rejalashtirilgan</span>
+        result: PASS
+    result: PASS
+
+  - id: AC4
+    description: "No exclamation marks, slogans, or emoji anywhere in messages/uz.json"
+    checks:
+      - id: 4a-exclamation
+        command: 'grep -n "!" messages/uz.json'
+        expected: "no output, grep exit 1"
+        actual: "no output, grep exit 1"
+        result: PASS
+      - id: 4b-emoji
+        command: |
+          node -e "
+          const fs = require('fs');
+          const content = fs.readFileSync('messages/uz.json', 'utf8');
+          const emoji = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\u{1F000}-\u{1F0FF}\u{1F100}-\u{1F1FF}\u{1F200}-\u{1F2FF}\u{FE0F}]/gu;
+          const matches = content.match(emoji);
+          console.log('emoji_matches:', matches ? matches.length : 0);
+          console.log('matched_chars:', matches ? JSON.stringify([...new Set(matches)]) : '[]');
+          "
+        expected: |
+          emoji_matches: 0
+          matched_chars: []
+        actual: |
+          emoji_matches: 0
+          matched_chars: []
+        result: PASS
+      - id: 4c-slogan-spot-check
+        command: "manual review of the 21 identical-value keys from AC1"
+        expected: "none reads as a marketing slogan; all are event codes, country/role codes, or brand literals"
+        actual: "confirmed — all 21 are event/date codes, country/company/role codes, or brand/contact literals per the spec's breakdown; no slogan or exclamatory tone found"
+        result: PASS
+    result: PASS
+
+  - id: AC5
+    description: "npm run build completes clean"
+    checks:
+      - command: "npm run build"
+        expected: "exit 0, ✓ Compiled successfully, TypeScript finished with no Type error, route table includes ƒ /[locale] and ƒ Proxy (Middleware)"
+        actual: "exit 0 (see build section above), all conditions met"
+        result: PASS
+      - command: "npm run build 2>&1 | grep -i error"
+        expected: "no output, grep exit 1"
+        actual: "no output, grep exit 1 (build exit 0)"
+        result: PASS
+    result: PASS
+
+  - id: AC6
+    description: "(supporting check) /uz renders with real Uzbek strings and no next-intl error markers"
+    checks:
+      - id: 6a-uz-errors
+        command: 'curl -s http://localhost:3100/uz | grep -o -E "MISSING_MESSAGE|IntlError"'
+        expected: "no output, grep exit 1"
+        actual: "no output, grep exit 1"
+        result: PASS
+      - id: 6a-ru-control
+        command: 'curl -s http://localhost:3100/ru | grep -o -E "MISSING_MESSAGE|IntlError"'
+        expected: "no output, grep exit 1"
+        actual: "no output, grep exit 1"
+        result: PASS
+      - id: 6b-nav-events
+        command: 'curl -s http://localhost:3100/uz | grep -o ''<a href="#events"[^>]*>[^<]*</a>'''
+        expected: '<a href="#events">Tadbirlar</a>'
+        actual: '<a href="#events">Tadbirlar</a>'
+        result: PASS
+      - id: 6b-hero-title-rich
+        command: 'curl -s http://localhost:3100/uz | grep -o ''<h1 class="rv">.*birgalikda\.</em></h1>'''
+        expected: '<h1 class="rv">Markaziy Osiyoda AI quradigan muhandislar — <em>birgalikda.</em></h1>'
+        actual: '<h1 class="rv">Markaziy Osiyoda AI quradigan muhandislar — <em>birgalikda.</em></h1>'
+        result: PASS
+      - id: 6b-doors-title
+        command: 'curl -s http://localhost:3100/uz | grep -o ''<h3>Kelish</h3>'''
+        expected: '<h3>Kelish</h3>'
+        actual: '<h3>Kelish</h3>'
+        result: PASS
+      - id: 6b-footer-about
+        command: 'curl -s http://localhost:3100/uz | grep -o ''<p style="[^"]*">Markaziy Osiyo muhandislarining notijorat hamjamiyati\. Brend hamjamiyatga tegishli\.</p>'''
+        expected: '<p style="margin:0;max-width:34ch">Markaziy Osiyo muhandislarining notijorat hamjamiyati. Brend hamjamiyatga tegishli.</p>'
+        actual: '<p style="margin:0;max-width:34ch">Markaziy Osiyo muhandislarining notijorat hamjamiyati. Brend hamjamiyatga tegishli.</p>'
+        result: PASS
+      - id: 6b-status
+        command: "curl -s -o /dev/null -w '%{http_code}\\n' http://localhost:3100/uz"
+        expected: "200"
+        actual: "200"
+        result: PASS
+    result: PASS
+
+server_process:
+  start_command: "npm run build && npm run start -- -p 3100"
+  port: 3100
+  started: true
+  ready_signal: "Next.js log: '✓ Ready in 174ms'; curl http://localhost:3100/uz returned 200"
+  stopped_after_tests: true
+  stop_verification: "Process listening on port 3100 (PID resolved via Get-NetTCPConnection) stopped with Stop-Process; subsequent curl to http://localhost:3100/uz returned HTTP_CODE:000 (connection failed / SERVER_DOWN)"
+
+overall_result: PASS
+summary: >
+  npm run lint: exit 0, 0 errors, 4 pre-existing warnings unrelated to REQ-002 (next/image
+  suggestions and one unused var in an unrelated docs/ design-system file, identical to the
+  prior REQ-001b report's warning set). npm run build: exit 0, compiled successfully,
+  TypeScript finished with no type errors, route listing includes ƒ /[locale] and
+  ƒ Proxy (Middleware); a case-insensitive grep for "error" over the full build output
+  produced zero matches. All checks in docs/agents/test-specs/REQ-002.md were run exactly
+  as specified and passed: AC1's key-diff script confirmed 177/177 keys non-empty in
+  uz.json with exactly the 21 expected domain-vocabulary keys identical to ru.json (no
+  unexpected identical pairs); AC2 found zero Cyrillic characters in messages/uz.json;
+  AC3 confirmed the .status CSS rule applies text-transform:uppercase unconditionally
+  (line 152) and all 8 rendered status spans on /uz matched the expected lowercase Uzbek
+  values exactly; AC4 found zero exclamation marks and zero emoji in uz.json, and manual
+  review confirmed none of the 21 identical-value keys reads as a slogan; AC5's build
+  passed clean; AC6's supporting checks found no MISSING_MESSAGE/IntlError markers on
+  either /uz or /ru, and all four namespace spot checks (Nav.events, Hero.title via
+  t.rich(), Doors.door1Title, Footer.about) plus the /uz 200 status check matched the
+  spec's expected output exactly. Server was built, started on port 3100, tested, and
+  confirmed stopped afterward. No issues found; no deviations from the spec's expected
+  output.
+
+issues: []

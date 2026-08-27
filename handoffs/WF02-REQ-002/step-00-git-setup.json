@@ -8,8 +8,8 @@
   "file": "handoffs/WF02-REQ-002/step-00-git-setup.json",
   "created_at": "2026-08-27T09:14:13Z",
   "started_at": "2026-08-27T09:14:13Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-08-27T09:32:00Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-002"],
@@ -30,19 +30,19 @@
     ]
   },
   "result": {
-    "status": "",
-    "summary": "",
-    "artifacts_out": [],
+    "status": "PASS",
+    "summary": "Single checkout confirmed via git worktree list. master pulled fast-forward (already up to date at b62b539). Created feature/WF02-REQ-002 from master, verified with git branch --show-current, and pushed with upstream tracking to origin.",
+    "artifacts_out": ["branch: feature/WF02-REQ-002"],
     "issues": [],
     "git_evidence": {
-      "branch_name": null,
-      "commit_sha_list": [],
-      "remote_branch": null,
-      "push_status": "skipped",
+      "branch_name": "feature/WF02-REQ-002",
+      "commit_sha_list": ["b62b539bdeaccc306b424b0209dcf061e2860768"],
+      "remote_branch": "origin/feature/WF02-REQ-002",
+      "push_status": "success",
       "pr_url": null,
       "pr_create_error": null
     },
-    "next_action": ""
+    "next_action": "ORCH routes to CONTENT-BA for translation drafting (no CODE-DESIGNER step -- this is a content-only requirement per docs/agents/decisions/0002)"
   },
   "rework_count": 0,
   "max_rework": 3,
