@@ -137,12 +137,19 @@
       "started_at": "2026-08-27T06:12:00Z",
       "completed_at": null,
       "status": "IN_PROGRESS",
-      "current_step": "step-00-git-setup",
+      "current_step": "step-01-code-designer",
       "steps": [
         {
           "step": "00",
           "file": "handoffs/WF02-REQ-001b/step-00-git-setup.json",
           "to_agent": "FRONTEND-DEV",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "01",
+          "file": "handoffs/WF02-REQ-001b/step-01-code-designer.json",
+          "to_agent": "CODE-DESIGNER",
           "status": "PENDING"
         }
       ]

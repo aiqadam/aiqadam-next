@@ -28,3 +28,8 @@ history:
     run_id: WF02-REQ-001a
     at: "2026-08-27T05:55:24Z"
     note: "RELEASE-VALIDATOR PASSed; DOC-UPDATER corrected requirements.yaml's '.lang span' references to '.lang a' (matches shipped implementation, which renders <a> links) and flipped status to done."
+  - requirement_id: REQ-001b
+    event: started
+    run_id: WF02-REQ-001b
+    at: "2026-08-27T06:39:00Z"
+    note: "REQ-001a merged (PR #5). Starting WF-02 implementation for REQ-001b (extract remaining 12 landing components' copy into next-intl message catalogs)."
