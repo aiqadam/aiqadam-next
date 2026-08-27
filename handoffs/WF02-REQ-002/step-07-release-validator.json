@@ -8,8 +8,8 @@
   "file": "handoffs/WF02-REQ-002/step-07-release-validator.json",
   "created_at": "2026-08-27T10:13:00Z",
   "started_at": "2026-08-27T10:13:00Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-08-27T10:19:21Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-002"],
@@ -36,10 +36,13 @@
     ]
   },
   "result": {
-    "status": "",
-    "summary": "",
+    "status": "PASS",
+    "summary": "Independently re-verified REQ-002 from scratch, not trusting TEST-RUNNER's report. (1) npm run lint: exit 0, identical 4 pre-existing warnings (next/image suggestions in Avatar.jsx/Footer.tsx/Nav.tsx, one unused var in docs/ design-system file), 0 errors -- matches report exactly. (2) npm run build: exit 0, '✓ Compiled successfully', TypeScript finished with no errors, route table shows ƒ /[locale], ƒ /health, ƒ Proxy (Middleware) -- matches report exactly. (3) Wrote and ran my own Node script (not copy-pasted from prior reports) doing a Cyrillic scan (range Ѐ-ӿ + Ѐ-ӿ supplement) over messages/uz.json: 0 matches. Same script computed key parity (177/177 ru/uz keys, 0 missing, 0 extra) and the identical-value-pair diff: found exactly the same 21 keys as TEST-RUNNER/TEST-DESIGN-VALIDATOR (Events.tabFailStories, Events.tabMeetup1/2, Events.talk1-4Role, Footer.contactsTelegram, Footer.hashtag, Hero.eyebrow, Hero.nextEventWhatBold, Hero.pillKazakhstan/Uzbekistan, Metrics.metric1Source, Metrics.metric3Label, Streams.foundationLink/Title, Team.team1-4Role). Also ran an exclamation-mark scan (0) and an emoji scan; my first emoji regex attempt had a bug (accidentally included the U+2190-21FF arrows block) that flagged the pre-existing '→' character (present in both ru.json and uz.json, a plain typographic arrow, not an emoji) as a false positive -- corrected the range to match the one used in prior reports and got 0 genuine emoji matches, consistent with all prior passes. (4) Spot-checked 10 translated (non-identical) values NOT covered in step-02b-reviewer.json or step-04-reviewer-reverify.json (which had covered general namespace sweeps plus Metadata.title/description, Band.lede, Doors.door3Body, Events.talk2Desc, Events.sourceNote, MapSection.chapter2Desc, Streams.stream4Desc, Team.team2Desc/4Desc): Band.title, Doors.door1Body, Doors.door2Body, Metrics.metric1Label, Metrics.metric2Label, Metrics.metric4Label, Metrics.metric5Label, Streams.stream1Desc, Streams.stream2Title, Events.talk1Desc -- all read as natural, fluent Uzbek prose matching the Russian source's meaning with idiomatic word order (not word-for-word literal), consistent loanword/terminology usage (meetup, CFP, dvigateli), no leftover Cyrillic or garbled text. (5) Started the production server myself (npm run build && npm run start -p 3200, backgrounded), confirmed '✓ Ready' in the log, curled /uz (200), /ru (200, control), /health (200, unrelated route sanity check), fetched the full /uz HTML and grepped it for all 10 newly spot-checked strings plus the 8 expected status spans -- all found verbatim in the rendered output; confirmed zero MISSING_MESSAGE/IntlError markers. Independently re-grepped src/app/globals.css line 152 confirming '.status{...text-transform:uppercase;...}' is unconditional (not :lang()-scoped), and independently traced the actual .status-class-bound i18n keys in source (Streams.tsx/MapSection.tsx use stream{N}Status/chapter{N}Status, not the nodeXSub keys) confirming those specific keys are stored lowercase in both ru.json and uz.json with uppercase achieved purely via CSS. Killed the server via Stop-Process on the PID resolved from Get-NetTCPConnection on port 3200; confirmed stopped via a subsequent curl returning HTTP 000 / exit 7 (connection refused). (6) All 4 of REQ-002's acceptance criteria confirmed against current code/output: AC1 (177/177 non-empty, 21 legitimate identical-value literal exceptions) PASS; AC2 (0 Cyrillic) PASS; AC3 (CSS-driven uppercase convention, confirmed at both the CSS-source and rendered-output level) PASS; AC4 (0 exclamation marks, 0 genuine emoji, no slogans) PASS. (7) Checked docs/agents/requirements.yaml's REQ-002 entry (lines 135-178) for staleness against what actually shipped and found two real drift points, both non-blocking for this release but worth DOC-UPDATER's attention: (a) AC1's exception clause names only the 9 literal content_ba_guide.md §4 domain-vocabulary terms (Event, Chapter, Talk, Speaker, CFP, Agenda, Check-in, Going, Watching) as the permitted identical-value exception, but none of the 21 actually-accepted identical pairs are drawn from that list -- they are event/date codes ('MEETUP #1 · 25.04.2026'), country/role/brand literals ('UZ · BEELAB', 'Founder Global', '#AIQadam'), and numeric/metric literals ('158 + 142', 'NPS'), a broader category that REVIEWER and TEST-DESIGN-VALIDATOR both reasonably accepted but which the requirement text as written does not actually cover; (b) AC3 says status labels 'render in uppercase Latin-script Uzbek' and directs spot-checking 'Nav.tsx and Events.tsx-sourced keys', but the actual status-labeled UI elements are in Streams.tsx/MapSection.tsx (stream{N}Status/chapter{N}Status keys), are stored LOWERCASE in the JSON, and reach uppercase display purely via CSS text-transform (confirmed above) -- both the storage-level casing assumption and the named component targets in the requirement text are inaccurate relative to the convention that was actually implemented and validated. Neither issue blocks this release (the shipped behavior is correct and was independently verified end-to-end); both are documentation-accuracy gaps in requirements.yaml for DOC-UPDATER to reconcile, likely by narrowing AC1's exception wording to match the actual literal-value category and correcting AC3's key names/casing description to reflect the CSS-driven convention.",
     "artifacts_out": [],
-    "issues": [],
+    "issues": [
+      "NON-BLOCKING (for DOC-UPDATER, Step 6): docs/agents/requirements.yaml REQ-002 AC1's exception clause cites only the 9 content_ba_guide.md §4 domain-vocabulary terms, but the 21 identical-value pairs actually shipped and accepted (event/date codes, country/role/brand literals, numeric metrics) are a broader category not covered by that literal list -- AC1 wording should be updated to match reality.",
+      "NON-BLOCKING (for DOC-UPDATER, Step 6): docs/agents/requirements.yaml REQ-002 AC3 describes status labels as rendering 'in uppercase Latin-script Uzbek' and directs checking 'Nav.tsx and Events.tsx-sourced keys', but the actual .status-class keys (Streams.stream{N}Status, MapSection.chapter{N}Status) are stored lowercase and reach uppercase purely via CSS text-transform (globals.css line 152) -- AC3 wording should name the correct components/keys and describe the CSS-driven convention."
+    ],
     "git_evidence": {
       "branch_name": "feature/WF02-REQ-002",
       "commit_sha_list": [],
@@ -48,7 +51,7 @@
       "pr_url": null,
       "pr_create_error": null
     },
-    "next_action": ""
+    "next_action": "Route to DOC-UPDATER (Step 6)"
   },
   "rework_count": 0,
   "max_rework": 3,
