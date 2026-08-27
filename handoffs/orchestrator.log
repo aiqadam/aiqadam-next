@@ -71,3 +71,5 @@
 2026-08-27T09:49:00Z WF02-REQ-002 dispatch step-04 to_agent=REVIEWER task="Re-verify REQ-002 rework"
 2026-08-27T09:51:59Z WF02-REQ-002 complete step-04 from_agent=REVIEWER result=PASS commit=eaa4957427531451e6421dd56eaddcdc74da950f note="fix confirmed, new 10-key spot-check clean, Cyrillic/em-tag/build all re-confirmed"
 2026-08-27T09:54:00Z WF02-REQ-002 dispatch step-03 to_agent=TEST-DESIGNER task="Write verification spec for REQ-002"
+2026-08-27T09:59:27Z WF02-REQ-002 complete step-05 from_agent=TEST-DESIGNER result=PASS commit=0f4821e note="21 identical-value pairs all confirmed legitimate exceptions; caught+fixed a false-positive arrow-glyph emoji match and an RSC-payload double-match risk"
+2026-08-27T10:01:00Z WF02-REQ-002 dispatch step-05b to_agent=TEST-DESIGN-VALIDATOR task="Gate REQ-002 test spec"
