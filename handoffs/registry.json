@@ -1,3 +1,21 @@
 {
-  "runs": []
+  "runs": [
+    {
+      "run_id": "WF01-ISSUE2-UZ-LOCALE",
+      "workflow_id": "WF-01",
+      "source": "GitHub issue #2 (Translate to UZ / Add localization)",
+      "started_at": "2026-08-27T04:32:07Z",
+      "completed_at": null,
+      "status": "IN_PROGRESS",
+      "current_step": "step-01-req-analyst",
+      "steps": [
+        {
+          "step": "01",
+          "file": "handoffs/WF01-ISSUE2-UZ-LOCALE/step-01-req-analyst.json",
+          "to_agent": "REQ-ANALYST",
+          "status": "PENDING"
+        }
+      ]
+    }
+  ]
 }

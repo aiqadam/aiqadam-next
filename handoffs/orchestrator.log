@@ -1,3 +1,4 @@
 # AI Qadam Next — Orchestrator Log
 # APPEND-ONLY. One line per dispatch and per run completion, written by ORCH.
 # Format: <ISO8601-UTC> <RUN-ID> <event> <detail>
+2026-08-27T04:32:07Z WF01-ISSUE2-UZ-LOCALE dispatch step-01 to_agent=REQ-ANALYST task="Draft REQ-001 (i18n infra) and REQ-002 (UZ translations) for GitHub issue #2 'Translate to UZ'"
