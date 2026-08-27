@@ -79,3 +79,5 @@
 2026-08-27T10:13:00Z WF02-REQ-002 dispatch step-07 to_agent=RELEASE-VALIDATOR task="Independently re-verify REQ-002 acceptance criteria"
 2026-08-27T10:19:21Z WF02-REQ-002 complete step-07 from_agent=RELEASE-VALIDATOR result=PASS commit=8c626bd64df118b92a65ebfb9797d4d4c448119c note="all 4 AC independently confirmed via own scripts+curl; found 2 real requirements.yaml staleness points (AC1 exception-list too narrow, AC3 wrong component/key names) for DOC-UPDATER"
 2026-08-27T10:21:00Z WF02-REQ-002 dispatch step-08 to_agent=DOC-UPDATER task="Flip REQ-002 to done, fix AC1/AC3 staleness in requirements.yaml"
+2026-08-27T10:23:46Z WF02-REQ-002 complete step-08 from_agent=DOC-UPDATER result=PASS commit=f8bda89618a0d4c9cdb3cc37e45d9417616c16fc note="AC1/AC3 reworded correctly against verified source; ORCH independently confirmed status:done"
+2026-08-27T10:26:00Z WF02-REQ-002 dispatch step-final to_agent=FRONTEND-DEV task="Git merge: rebase, PR, merge feature/WF02-REQ-002"
