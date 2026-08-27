@@ -22,7 +22,7 @@ requirements:
   - id: REQ-001a
     title: Add next-intl + app/[locale] routing skeleton and working Nav locale switcher
     owner: FRONTEND-DEV
-    status: pending
+    status: in_progress
     description: >
       GitHub issue #2 ("Translate to UZ" / "Add localization") requires Uzbek
       localization of the AI Qadam landing site. This requirement is the first
