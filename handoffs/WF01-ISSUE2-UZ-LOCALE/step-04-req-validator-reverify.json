@@ -1,0 +1,63 @@
+{
+  "handoff_id": "6b7c8d9e-0f1a-4b2c-9d3e-4f5a6b7c8d9e",
+  "run_id": "WF01-ISSUE2-UZ-LOCALE",
+  "workflow_id": "WF-01",
+  "step": "04",
+  "from_agent": "REQ-ANALYST",
+  "to_agent": "REQ-VALIDATOR",
+  "file": "handoffs/WF01-ISSUE2-UZ-LOCALE/step-04-req-validator-reverify.json",
+  "created_at": "2026-08-27T04:45:00Z",
+  "started_at": "2026-08-27T04:45:00Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-001a", "REQ-001b", "REQ-002"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d"],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "handoffs/WF01-ISSUE2-UZ-LOCALE/step-02-req-validator.json"
+    ]
+  },
+  "task": {
+    "description": "REQ-ANALYST reworked the failed REQ-001 into REQ-001a and REQ-001b per your prior FAIL findings (handoffs/WF01-ISSUE2-UZ-LOCALE/step-02-req-validator.json), and updated REQ-002's depends_on to [REQ-001a, REQ-001b]. Re-run the WF-01 Step 2 gate (checks a-e) against all three requirements as they now stand in docs/agents/requirements.yaml. This is a re-verification, not a fresh independent review from scratch — but still re-derive, don't trust the rework summary: (1) confirm the AC5-equivalent citations in REQ-001a now point at a file/lines that actually exist (src/app/globals.css, claimed lines 36-51 and 48-51 for .lang) by reading that file yourself; (2) confirm REQ-001a and REQ-001b are each plausibly one-agent-turn sized now that the split separates 'prove the mechanism with one file's strings' from 'extract the remaining 12 components'; (3) confirm REQ-002's depends_on and file-scope text are internally consistent with the new two-requirement split; (4) confirm the next-intl rationale no longer misattributes a ranking claim to the Next.js doc; (5) re-run checks a/b/c briefly on the new/changed text since check wording changed even though the underlying content mostly didn't.",
+    "acceptance_criteria": [
+      "Checks a-e re-run against REQ-001a, REQ-001b, and REQ-002 as currently written",
+      "The two original BLOCKERs (nonexistent file citation, oversized REQ-001) are explicitly confirmed fixed or explicitly still failing with a new citation",
+      "If PASS, result.next_action states the run is ready for WF-02",
+      "If FAIL, this is rework iteration 2 of 3 — cite requirement id and check letter same as before"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 1,
+  "max_rework": 3,
+  "gate_history": [
+    {
+      "iteration": 0,
+      "gated_at": "2026-08-27T04:40:15Z",
+      "status": "FAIL",
+      "summary": "REQ-001 failed check (d) DESIGN-SYSTEM FIT (AC5 cited nonexistent tokens/components.css) and check (e) SIZE (bundled 4 sub-tasks).",
+      "issues": [
+        "REQ-001 AC5 cited tokens/components.css which does not exist",
+        "REQ-001 bundled routing skeleton + middleware + 13-file copy extraction + switcher UI"
+      ],
+      "next_action": "Rework REQ-ANALYST -- split REQ-001, fix AC5 citation, rephrase next-intl rationale"
+    }
+  ]
+}

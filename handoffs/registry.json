@@ -7,7 +7,7 @@
       "started_at": "2026-08-27T04:32:07Z",
       "completed_at": null,
       "status": "IN_PROGRESS",
-      "current_step": "step-03-req-analyst-rework",
+      "current_step": "step-04-req-validator-reverify",
       "steps": [
         {
           "step": "01",
@@ -27,6 +27,13 @@
           "step": "03",
           "file": "handoffs/WF01-ISSUE2-UZ-LOCALE/step-03-req-analyst-rework.json",
           "to_agent": "REQ-ANALYST",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "04",
+          "file": "handoffs/WF01-ISSUE2-UZ-LOCALE/step-04-req-validator-reverify.json",
+          "to_agent": "REQ-VALIDATOR",
           "status": "PENDING"
         }
       ]
