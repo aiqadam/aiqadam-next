@@ -46,11 +46,81 @@
       "started_at": "2026-08-27T04:52:00Z",
       "completed_at": null,
       "status": "IN_PROGRESS",
-      "current_step": "step-00-git-setup",
+      "current_step": "step-final-git-merge",
       "steps": [
         {
           "step": "00",
           "file": "handoffs/WF02-REQ-001a/step-00-git-setup.json",
+          "to_agent": "FRONTEND-DEV",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "01",
+          "file": "handoffs/WF02-REQ-001a/step-01-code-designer.json",
+          "to_agent": "CODE-DESIGNER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "01b",
+          "file": "handoffs/WF02-REQ-001a/step-01b-code-design-validator.json",
+          "to_agent": "CODE-DESIGN-VALIDATOR",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "02",
+          "file": "handoffs/WF02-REQ-001a/step-02-frontend-dev.json",
+          "to_agent": "FRONTEND-DEV",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "02b",
+          "file": "handoffs/WF02-REQ-001a/step-02b-reviewer.json",
+          "to_agent": "REVIEWER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "03",
+          "file": "handoffs/WF02-REQ-001a/step-03-test-designer.json",
+          "to_agent": "TEST-DESIGNER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "03b",
+          "file": "handoffs/WF02-REQ-001a/step-03b-test-design-validator.json",
+          "to_agent": "TEST-DESIGN-VALIDATOR",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "04",
+          "file": "handoffs/WF02-REQ-001a/step-04-test-runner.json",
+          "to_agent": "TEST-RUNNER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "05",
+          "file": "handoffs/WF02-REQ-001a/step-05-release-validator.json",
+          "to_agent": "RELEASE-VALIDATOR",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "06",
+          "file": "handoffs/WF02-REQ-001a/step-06-doc-updater.json",
+          "to_agent": "DOC-UPDATER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "final",
+          "file": "handoffs/WF02-REQ-001a/step-final-git-merge.json",
           "to_agent": "FRONTEND-DEV",
           "status": "PENDING"
         }

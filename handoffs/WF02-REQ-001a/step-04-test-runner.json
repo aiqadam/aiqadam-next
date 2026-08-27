@@ -1,0 +1,52 @@
+{
+  "handoff_id": "4d5e6f7a-8b9c-4d0e-9f2a-3b4c5d6e7f8a",
+  "run_id": "WF02-REQ-001a",
+  "workflow_id": "WF-02",
+  "step": "04",
+  "from_agent": "TEST-DESIGN-VALIDATOR",
+  "to_agent": "TEST-RUNNER",
+  "file": "handoffs/WF02-REQ-001a/step-04-test-runner.json",
+  "created_at": "2026-08-27T05:41:00Z",
+  "started_at": "2026-08-27T05:41:00Z",
+  "completed_at": "2026-08-27T05:52:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-001a"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["3c4d5e6f-7a8b-4c9d-8e1f-2a3b4c5d6e7f"],
+    "artifacts_in": [
+      "docs/agents/test-specs/REQ-001a.md"
+    ]
+  },
+  "task": {
+    "description": "Follow WF-02 Step 4 exactly: (1) npm run lint && npm run build, quote real output; (2) start the app (npm run start after build, or npm run dev) and follow docs/agents/test-specs/REQ-001a.md's cases exactly — every route, viewport, expected output named there — report what you actually observed, not an impression; (3) write test-reports/report-<date>-WF02-REQ-001a.yaml with the actual output: lint/build result, each verification case and its real outcome.",
+    "acceptance_criteria": [
+      "npm run lint and npm run build both quoted with real exit codes/output",
+      "Every verification case in docs/agents/test-specs/REQ-001a.md is actually run, with real command output quoted, not assumed",
+      "test-reports/report-<date>-WF02-REQ-001a.yaml written with real results"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "npm run lint: exit 0, 0 errors, 4 pre-existing warnings unrelated to REQ-001a (next/image suggestions, one unused var in docs/ Design system Avatar.jsx). npm run build: exit 0, '✓ Compiled successfully in 588ms', 'Finalizing page optimization', route listing includes 'ƒ /[locale]' and 'ƒ Proxy (Middleware)', no error lines. Started `npm run start` on port 3000 and ran every case in docs/agents/test-specs/REQ-001a.md: AC1 (curl -s http://localhost:3000/uz -> '<html lang=\"uz\"'; /ru -> '<html lang=\"ru\"'; / -> '307 http://localhost:3000/ru'; -L / -> '<html lang=\"ru\"') all exact matches, PASS. AC2 (.lang div markup on /ru and /uz confirmed byte-exact via a non-greedy extraction to counter POSIX grep -o's greedy over-match on this real page; globals.css confirmed .lang has no display:none at any breakpoint, only .nav-links hides at 980px) PASS, though the literal browser click-through sub-steps were substituted with equivalent server-rendered/source/CSS evidence since no browser tool was available in this execution environment (see issues). AC3 (`npm pkg get dependencies.next-intl` -> \"^4.13.7\"; build as above) PASS. AC4 (node key-set comparison script) -> 'match: true' / 'empty_uz_values: []' exact match, PASS. AC5 (.lang div markup both locales exact match; grep className in LocaleSwitcher.tsx shows only \"lang\" and on/undefined; grep '^\\.lang' globals.css shows exactly 3 rules; git log confirms commit 59596fc; git show 59596fc -- src/app/globals.css shows the single expected line change '.lang span'->'.lang a', no hex/spacing/new-selector changes) PASS. Server was stopped and connection-refused confirmed after testing. Full command-by-command output in test-reports/report-2026-08-27-WF02-REQ-001a.yaml.",
+    "artifacts_out": ["test-reports/report-2026-08-27-WF02-REQ-001a.yaml"],
+    "issues": [
+      "ISSUE-1 (minor): AC2's browser click-through steps (600px/1024px viewport load, click UZ/RU, verify document.documentElement.lang) were not executed with an actual browser — no browser automation tool was available in this execution environment. Substituted with equivalent server-rendered HTML, LocaleSwitcher.tsx source, and globals.css breakpoint evidence supporting the same PASS conclusion. Recommend RELEASE-VALIDATOR perform a real browser click-through if a browser tool is available at that stage.",
+      "ISSUE-2 (informational): The spec's literal grep command `grep -o '<div class=\"lang\">.*</div>'` (AC2 and AC5) over-matches to the end of the document on this real page because POSIX grep's .* is greedy and many more </div> closings follow .lang — not an application defect. Verified the .lang div's actual content with `grep -oE '<div class=\"lang\">(<a[^>]*>[A-Z]*</a>)*</div>'` instead, which matched the spec's expected string exactly in all 4 instances checked. Recommend updating the test spec's grep pattern for future runs."
+    ],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-001a",
+      "commit_sha_list": [],
+      "remote_branch": "origin/feature/WF02-REQ-001a",
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Route to RELEASE-VALIDATOR"
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}

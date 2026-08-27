@@ -23,3 +23,8 @@ history:
     run_id: WF02-REQ-001a
     at: "2026-08-27T04:50:00Z"
     note: "WF-01 validated (REQ-001a/REQ-001b/REQ-002) for GitHub issue #2 'Translate to UZ'; starting WF-02 implementation for REQ-001a (i18n mechanism skeleton)."
+  - requirement_id: REQ-001a
+    event: done
+    run_id: WF02-REQ-001a
+    at: "2026-08-27T05:55:24Z"
+    note: "RELEASE-VALIDATOR PASSed; DOC-UPDATER corrected requirements.yaml's '.lang span' references to '.lang a' (matches shipped implementation, which renders <a> links) and flipped status to done."

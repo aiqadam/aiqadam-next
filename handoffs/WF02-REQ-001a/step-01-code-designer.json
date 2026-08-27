@@ -1,0 +1,54 @@
+{
+  "handoff_id": "8d9e0f1a-2b3c-4d4e-9f5a-6b7c8d9e0f1a",
+  "run_id": "WF02-REQ-001a",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGNER",
+  "file": "handoffs/WF02-REQ-001a/step-01-code-designer.json",
+  "created_at": "2026-08-27T04:54:00Z",
+  "started_at": "2026-08-27T04:54:00Z",
+  "completed_at": "2026-08-27T04:59:02Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-001a"],
+    "requirement_text": {
+      "REQ-001a": "GitHub issue #2 (\"Translate to UZ\" / \"Add localization\") requires Uzbek localization of the AI Qadam landing site. This requirement is the first of two: it proves the i18n MECHANISM end-to-end (dependency, routing, middleware, a working switcher) using only src/app/layout.tsx's strings as the seed catalog. REQ-001b (depends_on this requirement) extracts the remaining 12 landing components' copy once the mechanism is proven working. Translation quality is out of scope for both (that is REQ-002).\n\nChosen approach: adopt `next-intl` as the i18n library. Rationale: Next.js 16's own App Router internationalization guide (node_modules/next/dist/docs/01-app/02-guides/internationalization.md, \"Resources\" section) lists next-intl first among an unordered list of libraries for this exact routing shape — the doc itself does not rank or rate any library in that list. REQ-ANALYST's own assessment, not derived from the doc, is that next-intl is a well-maintained, widely-adopted choice with native support for the `app/[locale]/` segment routing pattern the same doc specifies (locale resolved via middleware/proxy, forwarded as a route param into every layout and page), plus a `useLocale`/`Link` pairing that makes a locale switcher a few lines of client code instead of a hand-rolled cookie/redirect scheme. The task instructions direct evaluating next-intl or an equivalent maintained library over inventing a custom routing scheme; no other library in the doc's list offers comparable App Router-native routing support, so no further evaluation is needed.\n\nDesign-system fit: the Nav.tsx switcher reuses the `.nav`/`.nav-in`/`.lang` classes already defined in src/app/globals.css (lines 36-51), which is this project's own bespoke, pre-existing CSS variable set (--bg/--fg/--primary and friends as raw hex/oklab, defined in the :root block at the top of that same file) — a DIFFERENT set from the documented OKLCH design system under docs/Design system for AI agents/tokens/ (--background/--foreground/--primary). Decision: the switcher stays on the existing globals.css classes as-is (option a from rework guidance), not migrated onto the documented design-system tokens (option b). Reason: Nav.tsx and the entire landing page already run on globals.css's bespoke variables site-wide; migrating just the switcher onto a different token system while everything around it stays on globals.css would fragment one component's styling from its own parent markup for no functional gain, and no other part of this requirement needs the documented tokens. A full token migration, if ever wanted, is a separate, larger requirement of its own.\n\nScope of work:\n- Add `next-intl` as a dependency.\n- Restructure routing so `src/app/page.tsx` and `src/app/layout.tsx` move under `src/app/[locale]/`, with locale resolution proxy/middleware per next-intl's App Router setup, `ru` as the default locale and `uz` as the second locale (locales: [\"ru\", \"uz\"], defaultLocale: \"ru\").\n- Create message catalogs `messages/ru.json` and `messages/uz.json`, seeded ONLY with the hardcoded strings currently in src/app/layout.tsx: `title`, `description`, the OpenGraph title/description/locale field (`ru_RU`), and the Twitter card title/description. For `messages/uz.json`, populate every key with the Russian source string duplicated verbatim as a placeholder — this requirement's acceptance criteria are about the mechanism working end-to-end, not translation content. REQ-001b adds the remaining components' keys to both catalogs; REQ-002 (depends_on REQ-001a and REQ-001b) replaces every uz placeholder with real Uzbek copy.\n- Replace the static language switcher already present in src/components/landing/Nav.tsx (the `<div className=\"lang\">` block with RU/UZ/EN spans, currently marked `title=\"Прототип: переключатель языка\"` i.e. \"Prototype: language switcher\" — it renders locale labels but has no click handlers or hrefs) with a working switcher between `ru` and `uz` only (drop the non-functional `EN` option — no English locale is in scope) that navigates via next-intl's locale-aware `Link`/routing helpers and reuses only the existing `.lang`/`.lang span`/`.lang .on` classes already defined in src/app/globals.css (lines 48-51) — no new colors, spacing values, or component patterns.\n- `src/app/[locale]/layout.tsx` sets `<html lang={locale}>` dynamically (`ru` or `uz`) and localizes the metadata title/description/OpenGraph locale field (`ru_RU` / `uz_UZ`) from the active locale's message catalog (as seeded above), replacing the hardcoded Russian-only values.\n- Root `/` redirects to `/ru` (the default locale) per next-intl's recommended proxy/middleware config."
+    },
+    "source_text": {},
+    "related_handoff_ids": ["7c8d9e0f-1a2b-4c3d-8e4f-5a6b7c8d9e0f"],
+    "artifacts_in": [
+      "docs/guides/frontend_developer_guide.md",
+      "docs/Design system for AI agents/readme.md"
+    ]
+  },
+  "task": {
+    "description": "Design the component/routing structure for REQ-001a per WF-02 Step 1. Current state you should verify yourself (don't take this description on faith — re-check src/components/landing/Nav.tsx and src/app/globals.css directly): Nav.tsx has a non-functional `<div className=\"lang\">` block with RU/UZ/EN spans and no click handlers; the `.nav`/`.nav-in`/`.lang` classes live in src/app/globals.css lines 36-51 on this project's own bespoke (non-design-system) CSS variables. Write docs/agents/design/REQ-001a.md covering: the new file/directory structure (src/app/[locale]/ layout.tsx and page.tsx, middleware.ts or proxy config location, messages/ru.json and messages/uz.json shape/keys), the exact prop/type changes to Nav.tsx (what the switcher component's props/state look like, using next-intl's Link/useLocale/usePathname patterns — structure and types only, no actual .tsx implementation code), which existing CSS classes each new/changed element uses (cite exact class names and their defined location, src/app/globals.css lines 36-51/48-51), and the exact message catalog keys to be seeded from src/app/layout.tsx's current metadata block (read that file yourself to get the literal current strings). State explicitly whether next.config.ts needs a next-intl plugin wrapper (check the actual next-intl setup requirements) and where middleware.ts should live given this project has no middleware today. List any open questions rather than silently resolving them.",
+    "acceptance_criteria": [
+      "Every acceptance criterion in REQ-001a's requirement_text maps to a concrete design element in the artefact (routing restructure, message catalog schema, switcher props/behavior, layout.tsx metadata localization, root redirect)",
+      "All new component props/types (the switcher's, any new layout/page component's) are specified with field-level detail — types, not prose descriptions",
+      "Every CSS class referenced is cited with its exact real location (file + line range) — no invented class names, no reference to a design-system token path that doesn't exist in this project",
+      "No .tsx implementation code blocks present — structure, file tree, types, and prose only",
+      "Open questions (e.g. exact next-intl config API shape, middleware file location/naming) are listed explicitly if genuinely undetermined, not guessed at silently"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Wrote docs/agents/design/REQ-001a.md for the REQ-001a i18n mechanism. Verified current-state files directly (layout.tsx, Nav.tsx, globals.css lines 36-51, next.config.ts, package.json - confirmed next-intl is not yet a dependency). Design: adds next-intl; restructures routing to src/app/[locale]/{layout.tsx,page.tsx} with src/i18n/{routing.ts,request.ts,navigation.ts}; two message catalogs (messages/ru.json, messages/uz.json) under a single Metadata namespace seeded verbatim from layout.tsx's current title/description/ogLocale (uz.json duplicates the RU strings except ogLocale=uz_UZ per the requirement's explicit target value); Nav.tsx's static .lang block replaced by a new LocaleSwitcher.tsx client component (no props, reads useLocale/usePathname from the generated navigation helpers) rendering next-intl Link elements against the existing .lang/.lang .on classes (globals.css lines 48-51), with a recommended one-line .lang span -> .lang a selector rename flagged as needing validator/reviewer confirmation; layout.tsx becomes async with generateMetadata reading the resolved locale's catalog and a dynamic <html lang>; root '/' redirects to '/ru' via the locale routing config's defaultLocale; src/app/health/route.ts stays unlocalized and excluded from the proxy/middleware matcher per deploy_guide.md. next.config.ts needs a next-intl plugin wrapper (createNextIntlPlugin). Key project-specific finding beyond the handoff's framing: Next 16.3.2 has deprecated middleware.ts/middleware.js in favor of proxy.ts/proxy.js (confirmed via node_modules/next/dist/docs file-conventions/middleware.md and proxy.md) - the handoff asked where 'middleware.ts' should live, but this design recommends proxy.ts at the project root instead, flagged explicitly as an open question since next-intl itself isn't installed to confirm its exact expected export name under Next 16. Five other open questions listed explicitly in doc section 7 (createNextIntlPlugin's default config path; ogLocale key-naming choice; generateStaticParams; accessible label replacing the removed prototype title attribute; the .lang span->a selector rename). All 5 acceptance criteria validated against the doc's own section 8 mapping table before completion.",
+    "artifacts_out": ["docs/agents/design/REQ-001a.md"],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-001a",
+      "commit_sha_list": [],
+      "remote_branch": "origin/feature/WF02-REQ-001a",
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Route to CODE-DESIGN-VALIDATOR"
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}

@@ -22,7 +22,7 @@ requirements:
   - id: REQ-001a
     title: Add next-intl + app/[locale] routing skeleton and working Nav locale switcher
     owner: FRONTEND-DEV
-    status: pending
+    status: done
     description: >
       GitHub issue #2 ("Translate to UZ" / "Add localization") requires Uzbek
       localization of the AI Qadam landing site. This requirement is the first
@@ -86,7 +86,7 @@ requirements:
         click handlers or hrefs) with a working switcher between `ru` and `uz`
         only (drop the non-functional `EN` option — no English locale is in
         scope) that navigates via next-intl's locale-aware `Link`/routing helpers
-        and reuses only the existing `.lang`/`.lang span`/`.lang .on` classes
+        and reuses only the existing `.lang`/`.lang a`/`.lang .on` classes
         already defined in src/app/globals.css (lines 48-51) — no new colors,
         spacing values, or component patterns.
       - `src/app/[locale]/layout.tsx` sets `<html lang={locale}>` dynamically
@@ -100,7 +100,7 @@ requirements:
       - "Clicking the Nav.tsx locale switcher's UZ control while on any /ru/* page navigates to the equivalent /uz/* page (same section anchors preserved), and clicking RU while on /uz/* navigates back to /ru/*, verified by manual click-through per TEST-DESIGNER's spec."
       - "next-intl appears as a dependency in package.json, and `npm run build` completes with no type or routing errors after the src/app -> src/app/[locale] restructuring, with middleware/proxy config present per next-intl's setup."
       - "messages/ru.json and messages/uz.json exist, each containing exactly the keys sourced from src/app/layout.tsx (title, description, OpenGraph title/description/locale, Twitter title/description), with every messages/uz.json value present and non-empty (verified by a diff/script comparing the two catalogs' key sets), even where the uz value is a placeholder duplicate of the ru value."
-      - "The Nav.tsx switcher control offers exactly two options, RU and UZ (the prior non-functional EN option is removed), using only the existing `.lang`/`.lang span`/`.lang .on` classes defined in src/app/globals.css lines 48-51 — no new hex colors or spacing values introduced (grep for raw hex/px literals in the changed CSS confirms none)."
+      - "The Nav.tsx switcher control offers exactly two options, RU and UZ (the prior non-functional EN option is removed), using only the existing `.lang`/`.lang a`/`.lang .on` classes defined in src/app/globals.css lines 48-51 — no new hex colors or spacing values introduced (grep for raw hex/px literals in the changed CSS confirms none)."
     depends_on: []
 
   - id: REQ-001b

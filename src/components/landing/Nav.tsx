@@ -1,3 +1,5 @@
+import LocaleSwitcher from "./LocaleSwitcher";
+
 export default function Nav() {
   return (
     <header className="nav">
@@ -13,11 +15,7 @@ export default function Nav() {
           <a href="#join">Участвовать</a>
           <a href="#team">Команда</a>
         </nav>
-        <div className="lang" title="Прототип: переключатель языка">
-          <span className="on">RU</span>
-          <span>UZ</span>
-          <span>EN</span>
-        </div>
+        <LocaleSwitcher />
       </div>
     </header>
   );

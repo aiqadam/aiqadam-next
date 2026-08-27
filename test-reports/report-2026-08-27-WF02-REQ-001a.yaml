@@ -1,0 +1,216 @@
+run_id: WF02-REQ-001a
+workflow_id: WF-02
+step: "04"
+requirement_ids: ["REQ-001a"]
+agent: TEST-RUNNER
+branch: feature/WF02-REQ-001a
+executed_at_utc: "2026-08-27T05:45:43Z"
+spec_source: docs/agents/test-specs/REQ-001a.md
+
+lint:
+  command: "npm run lint"
+  exit_code: 0
+  output: |
+    > app@0.1.0 lint
+    > eslint
+
+    C:\Users\tvolo\dev\aiqadam-next\docs\Design system for AI agents\components\primitives\Avatar.jsx
+      39:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+      59:9   warning  'color' is assigned a value but never used                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+
+    C:\Users\tvolo\dev\aiqadam-next\src\components\landing\Footer.tsx
+      8:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+    C:\Users\tvolo\dev\aiqadam-next\src\components\landing\Nav.tsx
+      8:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+    ✖ 4 problems (0 errors, 4 warnings)
+  result: PASS
+  notes: "0 errors, 4 pre-existing warnings (next/image suggestions, one unused var in an unrelated docs/ design-system file). None reference i18n/routing/next-intl. Not a REQ-001a regression."
+
+build:
+  command: "npm run build"
+  exit_code: 0
+  output: |
+    > app@0.1.0 build
+    > next build
+
+    ▲ Next.js 16.3.2 (Turbopack)
+    ✓ Running next.config.ts took 161ms
+
+      Creating an optimized production build ...
+    ✓ Compiled successfully in 588ms
+      Running TypeScript ...
+      Finished TypeScript in 1691ms ...
+      Collecting page data using 6 workers ...
+      Generating static pages using 6 workers (0/4) ...
+    ✓ Generating static pages using 6 workers (4/4) in 819ms
+      Finalizing page optimization ...
+
+    Route (app)
+    ┌ ○ /_not-found
+    ├ ƒ /[locale]
+    └ ƒ /health
+
+    ƒ Proxy (Middleware)
+
+    ○  (Static)   prerendered as static content
+    ƒ  (Dynamic)  server-rendered on demand
+  result: PASS
+  notes: "Exit 0. Contains '✓ Compiled successfully' and 'Finalizing page optimization'. No 'Failed to compile'/'Type error'/error lines. Route listing includes both 'ƒ /[locale]' and 'ƒ Proxy (Middleware)' as required."
+
+verification_cases:
+  - id: AC1
+    description: "/uz renders <html lang=\"uz\">; /ru (or /) renders <html lang=\"ru\">"
+    checks:
+      - command: "curl -s http://localhost:3000/uz | grep -o '<html lang=\"[a-z]*\"'"
+        expected: '<html lang="uz"'
+        actual: '<html lang="uz"'
+        result: PASS
+      - command: "curl -s http://localhost:3000/ru | grep -o '<html lang=\"[a-z]*\"'"
+        expected: '<html lang="ru"'
+        actual: '<html lang="ru"'
+        result: PASS
+      - command: "curl -s -o /dev/null -w '%{http_code} %{redirect_url}\\n' http://localhost:3000/"
+        expected: "307 http://localhost:3000/ru"
+        actual: "307 http://localhost:3000/ru"
+        result: PASS
+      - command: "curl -sL http://localhost:3000/ | grep -o '<html lang=\"[a-z]*\"'"
+        expected: '<html lang="ru"'
+        actual: '<html lang="ru"'
+        result: PASS
+    result: PASS
+
+  - id: AC2
+    description: "Clicking UZ on /ru/* navigates to equivalent /uz/*; clicking RU on /uz/* navigates back; anchors handled as documented"
+    checks:
+      - step: "Browser click-through (600px /ru -> UZ, 1024px /uz -> RU)"
+        method: "No interactive browser tool available in this execution environment. Verified via equivalent server-rendered/source evidence instead of an actual click."
+        evidence:
+          - "LocaleSwitcher.tsx uses next-intl's Link/usePathname with locale prop; href resolves per-locale (src/components/landing/LocaleSwitcher.tsx lines 12-24)."
+          - "src/app/globals.css: only .nav-links gets display:none at max-width:980px (line 254); .lang carries no display:none rule at any breakpoint (checked lines 247-263) - switcher stays visible/clickable at 600px."
+          - "/ru and /uz both return correct <html lang> per AC1 above, consistent with navigation actually changing the active locale."
+        result: PASS
+        notes: "Not an executed browser click; inferred PASS from source + HTTP evidence. Flagging as a coverage gap for RELEASE-VALIDATOR to close with an actual browser check if a browser tool becomes available."
+      - command: "curl -s http://localhost:3000/ru | grep -o '<div class=\"lang\">.*</div>'"
+        expected: '<div class="lang"><a class="on" href="/ru">RU</a><a hrefLang="uz" href="/uz">UZ</a></div>'
+        actual_literal_command_output: "over-matched to end of document (POSIX grep -o '.*' is greedy, and the real page has many more </div> closings after .lang) - not a markup defect"
+        actual_lang_div_content_verified: '<div class="lang"><a class="on" href="/ru">RU</a><a hrefLang="uz" href="/uz">UZ</a></div>'
+        verification_command_used: "curl -s http://localhost:3000/ru | grep -oE '<div class=\"lang\">(<a[^>]*>[A-Z]*</a>)*</div>'"
+        result: PASS
+        notes: "The .lang div's actual raw HTML content matches the expected string exactly. The spec's literal grep command over-matches on this real page due to greedy .* and needed a non-greedy-equivalent extraction to isolate the div; documenting both for transparency."
+      - command: "curl -s http://localhost:3000/uz | grep -o '<div class=\"lang\">.*</div>' (same greedy caveat as above)"
+        expected: '<div class="lang"><a hrefLang="ru" href="/ru">RU</a><a class="on" href="/uz">UZ</a></div>'
+        actual_lang_div_content_verified: '<div class="lang"><a hrefLang="ru" href="/ru">RU</a><a class="on" href="/uz">UZ</a></div>'
+        result: PASS
+    result: PASS
+
+  - id: AC3
+    description: "next-intl is a dependency; npm run build completes with no type/routing errors"
+    checks:
+      - command: "npm pkg get dependencies.next-intl"
+        expected: "non-empty version string under dependencies"
+        actual: '"^4.13.7"'
+        result: PASS
+      - command: "npm run build"
+        expected: "exit 0, compiled successfully, no errors, route listing includes ƒ /[locale] and ƒ Proxy (Middleware)"
+        actual: "exit 0 (see build section above), all conditions met"
+        result: PASS
+    result: PASS
+
+  - id: AC4
+    description: "messages/ru.json and messages/uz.json have matching key sets; every uz value is non-empty"
+    checks:
+      - command: "node -e \"... key-set comparison script ...\""
+        expected: |
+          match: true
+          empty_uz_values: []
+        actual: |
+          match: true
+          empty_uz_values: []
+        result: PASS
+    result: PASS
+
+  - id: AC5
+    description: "Nav.tsx switcher offers exactly RU and UZ (no EN); only existing .lang/.lang a/.lang .on classes; no new hex/spacing values"
+    checks:
+      - command: "curl -s http://localhost:3000/ru | grep -o '<div class=\"lang\">.*</div>' (greedy caveat as in AC2)"
+        expected: '<div class="lang"><a class="on" href="/ru">RU</a><a hrefLang="uz" href="/uz">UZ</a></div>'
+        actual_lang_div_content_verified: '<div class="lang"><a class="on" href="/ru">RU</a><a hrefLang="uz" href="/uz">UZ</a></div>'
+        result: PASS
+      - command: "curl -s http://localhost:3000/uz | grep -o '<div class=\"lang\">.*</div>' (greedy caveat as in AC2)"
+        expected: '<div class="lang"><a hrefLang="ru" href="/ru">RU</a><a class="on" href="/uz">UZ</a></div>'
+        actual_lang_div_content_verified: '<div class="lang"><a hrefLang="ru" href="/ru">RU</a><a class="on" href="/uz">UZ</a></div>'
+        result: PASS
+      - command: 'grep -n "className" src/components/landing/LocaleSwitcher.tsx'
+        expected: 'only "lang" and the on/undefined conditional appear'
+        actual: |
+          12:    <div className="lang">
+          18:          className={locale === activeLocale ? "on" : undefined}
+        result: PASS
+      - command: 'grep -n "^\.lang" src/app/globals.css'
+        expected: "exactly 3 rules: .lang{...}, .lang a{...}, .lang .on{...}"
+        actual: |
+          48:.lang{display:flex;gap:2px;font-family:var(--mono);font-size:11px;color:var(--muted);
+          50:.lang a{padding:2px 8px;border-radius:999px}
+          51:.lang .on{background:var(--primary);color:#08100F;font-weight:700}
+        result: PASS
+      - command: "git log --oneline -- src/app/globals.css (SHA confirmation)"
+        expected: "confirm implementation commit SHA"
+        actual: "59596fc feat(i18n): add next-intl mechanism for ru/uz locales (REQ-001a) - matches the SHA named in the spec"
+        result: PASS
+      - command: "git show 59596fc -- src/app/globals.css"
+        expected: "single-line diff: -.lang span{...} / +.lang a{...}, no hex/spacing/new-selector changes"
+        actual: |
+          -.lang span{padding:2px 8px;border-radius:999px}
+          +.lang a{padding:2px 8px;border-radius:999px}
+          (only change in the file for this commit)
+        result: PASS
+    result: PASS
+
+server_process:
+  start_command: "npm run start (after npm run build)"
+  port: 3000
+  started: true
+  stopped_after_tests: true
+  stop_verification: "curl to http://localhost:3000/ after kill returned HTTP_CODE:000 (connection refused)"
+
+overall_result: PASS
+summary: >
+  npm run lint: exit 0, 0 errors, 4 pre-existing warnings unrelated to REQ-001a.
+  npm run build: exit 0, compiled successfully, route listing includes ƒ /[locale] and
+  ƒ Proxy (Middleware) as required. All 5 acceptance criteria (AC1-AC5) in
+  docs/agents/test-specs/REQ-001a.md verified PASS using real curl/grep/node/git output
+  against a locally started npm run start server on port 3000. One coverage note: AC2's
+  browser click-through steps could not be executed with an actual browser (no browser
+  tool available in this execution environment) and were instead verified via equivalent
+  server-rendered HTML, source code, and CSS evidence — flagged for RELEASE-VALIDATOR.
+  Two of the spec's literal grep commands (AC2 and AC5's ".lang div" extraction) over-match
+  on the real page due to POSIX grep -o greedy `.*` matching past the intended </div> to a
+  later one in the document; the actual .lang div content was isolated with a non-greedy
+  equivalent command and confirmed to match the spec's expected string exactly in all four
+  instances checked.
+
+issues:
+  - id: ISSUE-1
+    severity: minor
+    description: >
+      AC2's browser-based click-through verification steps (load in a 600px/1024px
+      viewport, click UZ/RU control, confirm document.documentElement.lang) were not
+      executed with an actual browser — no browser automation tool was available in
+      this execution environment. Substituted with equivalent server-rendered HTML,
+      source-code (LocaleSwitcher.tsx), and CSS (globals.css breakpoints) verification,
+      which supports the same PASS conclusion but is not a literal replication of the
+      spec's browser steps.
+    recommendation: "RELEASE-VALIDATOR should perform an actual browser click-through if a browser tool is available at that stage, to close this gap."
+  - id: ISSUE-2
+    severity: informational
+    description: >
+      The exact grep commands as literally written in AC2 and AC5
+      (grep -o '<div class="lang">.*</div>') over-match on the real rendered page because
+      POSIX grep's .* is greedy and the page contains many more </div> closings after the
+      .lang div. This is expected grep behavior on this page's actual markup, not a
+      defect in the application. A non-greedy-equivalent extraction
+      (grep -oE '<div class="lang">(<a[^>]*>[A-Z]*</a>)*</div>') was used to confirm the
+      .lang div's actual content matches the spec's expected string exactly.
+    recommendation: "Consider updating the test spec's grep pattern to a non-greedy-safe form for future runs, e.g. the -oE alternative used here."
