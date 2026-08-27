@@ -8,8 +8,8 @@
   "file": "handoffs/WF01-ISSUE2-UZ-LOCALE/step-04-req-validator-reverify.json",
   "created_at": "2026-08-27T04:45:00Z",
   "started_at": "2026-08-27T04:45:00Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-08-27T04:48:22Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-001a", "REQ-001b", "REQ-002"],
@@ -31,8 +31,8 @@
     ]
   },
   "result": {
-    "status": "",
-    "summary": "",
+    "status": "PASS",
+    "summary": "Re-read docs/agents/requirements.yaml directly (lines 21-178, full REQ-001a/REQ-001b/REQ-002 entries) rather than trusting the REQ-ANALYST rework summary, plus src/app/globals.css in full, src/components/landing/Nav.tsx, src/app/layout.tsx, package.json, docs/agents/decisions/0001-full-pipeline-adopted.md, docs/guides/content_ba_guide.md SS4, node_modules/next/dist/docs/01-app/02-guides/internationalization.md's Resources section, and the actual src/components/landing/ directory listing (12 files, matching the requirement text exactly: Band, Creed, Doors, Events, Footer, Hero, MapSection, Metrics, Nav, Partners, Streams, Team). Both original BLOCKERs are genuinely fixed, not just rephrased. (1) Citation check: REQ-001a's scope-of-work now cites src/app/globals.css lines 36-51 for the .nav/.nav-in/.lang block and lines 48-51 specifically for .lang -- verified byte-for-byte against the real file: line 36 is 'header.nav{', the nav block runs through line 51 ('.lang .on{...}'), and .lang itself starts at line 48 and ends at line 51. Citation is accurate, not approximate. The nonexistent tokens/components.css path from the prior draft is gone. (2) SIZE check on REQ-001a: scope is now the i18n mechanism only -- next-intl dependency, src/app -> src/app/[locale] restructure with middleware/proxy (confirmed no middleware.ts/proxy.ts exists yet in the project, so this is genuinely net-new), a small seed catalog of exactly the 7 keys present in src/app/layout.tsx today (title, description, OG title/description/locale, Twitter title/description -- verified by reading layout.tsx), and rewiring Nav.tsx's already-nonfunctional lang div into a working 2-option (RU/UZ, EN dropped) switcher using the cited existing classes. This is now one indivisible unit: none of routing, middleware, seed catalog, or switcher is independently mergeable or testable without the others, unlike the prior draft where the 12-component extraction was a clearly severable fifth piece bolted onto the same turn. This reads as genuinely one-turn-sized now, not size-limboed by rephrasing. REQ-001b is the mechanical repeat of the same proven per-string extraction pattern across the remaining 12 components with zero new decisions -- appropriately sized as a second turn. (3) REQ-002's depends_on is exactly [REQ-001a, REQ-001b], and its description text is internally consistent with the split: it explicitly describes REQ-001a seeding keys from layout.tsx and REQ-001b adding the 12-component keys, with no leftover reference assuming a single REQ-001 anywhere in the text or acceptance criteria. (4) Next-intl rationale check: the Next.js doc's Resources section (read directly) is a flat 8-item bullet list with next-intl listed first, no ranking or maintenance-rating language anywhere in it -- REQ-001a's text now correctly attributes only the plain fact ('lists next-intl first among an unordered list... the doc itself does not rank or rate any library') to the doc, and explicitly labels the 'well-maintained, widely-adopted' assessment as 'REQ-ANALYST's own assessment, not derived from the doc.' The prior misattribution is fully corrected, not softened. (5) Checks a/b/c re-run: (a) TESTABILITY -- all acceptance criteria across all three requirements remain script/diff/grep/click-through checkable with no vague wording (e.g. REQ-001a's key-set diff, REQ-001b's Cyrillic-literal grep, REQ-002's Cyrillic-codepoint scan and per-key value-diff with an explicit domain-vocabulary carve-out) -- PASS. (b) CONSISTENCY -- checked against docs/agents/decisions/0001-full-pipeline-adopted.md (unrelated to i18n, no conflict) and content_ba_guide.md SS4, whose domain-vocabulary list (Event, Chapter, Talk, Speaker, CFP, Agenda, Check-in, Going, Watching) matches REQ-002's list verbatim, term-for-term -- PASS. (c) DEPENDS_ON CORRECTNESS -- REQ-001b -> [REQ-001a] and REQ-002 -> [REQ-001a, REQ-001b] are both the right and complete dependency sets given what each requirement's acceptance criteria actually consume from its predecessor(s) -- PASS. No new issues emerged. All checks a-e pass for REQ-001a, REQ-001b, and REQ-002.",
     "artifacts_out": [],
     "issues": [],
     "git_evidence": {
@@ -43,7 +43,7 @@
       "pr_url": null,
       "pr_create_error": null
     },
-    "next_action": ""
+    "next_action": "requirement ready for WF-02, route WF-02 for REQ-001a first (REQ-001b and REQ-002 blocked on its completion)"
   },
   "rework_count": 1,
   "max_rework": 3,
@@ -58,6 +58,14 @@
         "REQ-001 bundled routing skeleton + middleware + 13-file copy extraction + switcher UI"
       ],
       "next_action": "Rework REQ-ANALYST -- split REQ-001, fix AC5 citation, rephrase next-intl rationale"
+    },
+    {
+      "iteration": 1,
+      "gated_at": "2026-08-27T04:48:22Z",
+      "status": "PASS",
+      "summary": "Both prior BLOCKERs confirmed genuinely fixed on independent re-derivation: REQ-001a's globals.css line citations (36-51, .lang at 48-51) verified byte-accurate; REQ-001 successfully split into REQ-001a (i18n mechanism, one indivisible unit) and REQ-001b (mechanical 12-component extraction using the proven pattern), depends_on-chained. REQ-002's depends_on updated to [REQ-001a, REQ-001b] with internally consistent text. Next-intl rationale no longer misattributes an unranked list as a maintenance ranking. Checks a/b/c re-run clean.",
+      "issues": [],
+      "next_action": "requirement ready for WF-02, route WF-02 for REQ-001a first (REQ-001b and REQ-002 blocked on its completion)"
     }
   ]
 }
