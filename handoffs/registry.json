@@ -46,7 +46,7 @@
       "started_at": "2026-08-27T04:52:00Z",
       "completed_at": null,
       "status": "IN_PROGRESS",
-      "current_step": "step-05-release-validator",
+      "current_step": "step-06-doc-updater",
       "steps": [
         {
           "step": "00",
@@ -108,6 +108,13 @@
           "step": "05",
           "file": "handoffs/WF02-REQ-001a/step-05-release-validator.json",
           "to_agent": "RELEASE-VALIDATOR",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "06",
+          "file": "handoffs/WF02-REQ-001a/step-06-doc-updater.json",
+          "to_agent": "DOC-UPDATER",
           "status": "PENDING"
         }
       ]

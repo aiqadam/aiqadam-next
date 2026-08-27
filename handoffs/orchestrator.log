@@ -28,3 +28,5 @@
 2026-08-27T05:41:00Z WF02-REQ-001a dispatch step-04 to_agent=TEST-RUNNER task="Execute REQ-001a verification spec"
 2026-08-27T05:52:00Z WF02-REQ-001a complete step-04 from_agent=TEST-RUNNER result=PASS commit=27255f2 note="lint/build exit 0; all 5 AC cases PASS; 2 non-blocking issues logged (no browser tool available for click-through, spec grep pattern over-matches -- worked around)"
 2026-08-27T05:53:00Z WF02-REQ-001a dispatch step-05 to_agent=RELEASE-VALIDATOR task="Independently re-verify REQ-001a acceptance criteria"
+2026-08-27T05:52:10Z WF02-REQ-001a complete step-05 from_agent=RELEASE-VALIDATOR result=PASS commit=2ec61a6 note="independent lint/build/curl re-verification all PASS; found requirements.yaml stale '.lang span' reference (should be '.lang a'), flagged OBSERVATION-1 for DOC-UPDATER"
+2026-08-27T05:55:00Z WF02-REQ-001a dispatch step-06 to_agent=DOC-UPDATER task="Flip REQ-001a to done, fix stale .lang span reference, append status history"
