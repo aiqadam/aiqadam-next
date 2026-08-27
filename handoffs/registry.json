@@ -129,6 +129,23 @@
           "result": "PASS"
         }
       ]
+    },
+    {
+      "run_id": "WF02-REQ-001b",
+      "workflow_id": "WF-02",
+      "source": "REQ-001b (validated by WF01-ISSUE2-UZ-LOCALE)",
+      "started_at": "2026-08-27T06:12:00Z",
+      "completed_at": null,
+      "status": "IN_PROGRESS",
+      "current_step": "step-00-git-setup",
+      "steps": [
+        {
+          "step": "00",
+          "file": "handoffs/WF02-REQ-001b/step-00-git-setup.json",
+          "to_agent": "FRONTEND-DEV",
+          "status": "PENDING"
+        }
+      ]
     }
   ]
 }
