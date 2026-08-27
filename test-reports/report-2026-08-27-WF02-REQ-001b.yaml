@@ -1,0 +1,291 @@
+run_id: WF02-REQ-001b
+workflow_id: WF-02
+step: "04"
+requirement_ids: ["REQ-001b"]
+agent: TEST-RUNNER
+branch: feature/WF02-REQ-001b
+executed_at_utc: "2026-08-27T00:00:00Z"
+spec_source: docs/agents/test-specs/REQ-001b.md
+
+lint:
+  command: "npm run lint"
+  exit_code: 0
+  output: |
+    > app@0.1.0 lint
+    > eslint
+
+    C:\Users\tvolo\dev\aiqadam-next\docs\Design system for AI agents\components\primitives\Avatar.jsx
+      39:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+      59:9   warning  'color' is assigned a value but never used                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+
+    C:\Users\tvolo\dev\aiqadam-next\src\components\landing\Footer.tsx
+      11:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+    C:\Users\tvolo\dev\aiqadam-next\src\components\landing\Nav.tsx
+      10:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+    ✖ 4 problems (0 errors, 4 warnings)
+  result: PASS
+  notes: "0 errors, 4 pre-existing warnings (next/image suggestions in Avatar.jsx/Footer.tsx/Nav.tsx, one unused var in an unrelated docs/ design-system file). None reference i18n/routing/next-intl/translation content. Not a REQ-001b regression."
+
+build:
+  command: "npm run build"
+  exit_code: 0
+  output: |
+    > app@0.1.0 build
+    > next build
+
+    ▲ Next.js 16.3.2 (Turbopack)
+    ✓ Running next.config.ts took 225ms
+
+      Creating an optimized production build ...
+    ✓ Compiled successfully in 671ms
+      Running TypeScript ...
+      Finished TypeScript in 2.2s ...
+      Collecting page data using 6 workers ...
+      Generating static pages using 6 workers (0/4) ...
+      Generating static pages using 6 workers (1/4)
+      Generating static pages using 6 workers (2/4)
+      Generating static pages using 6 workers (3/4)
+    ✓ Generating static pages using 6 workers (4/4) in 898ms
+      Finalizing page optimization ...
+
+    Route (app)
+    ┌ ○ /_not-found
+    ├ ƒ /[locale]
+    └ ƒ /health
+
+    ƒ Proxy (Middleware)
+
+    ○  (Static)   prerendered as static content
+    ƒ  (Dynamic)  server-rendered on demand
+  result: PASS
+  notes: "Exit 0. Contains '✓ Compiled successfully' and TypeScript ran/finished with no intervening Type error or Failed to compile line. Route listing includes both 'ƒ /[locale]' and 'ƒ Proxy (Middleware)'. Re-ran build a second time piping full stdout+stderr into a log file and ran `grep -i error` over it: zero matches (grep exit 1), confirming no line in the full output contains the case-insensitive substring 'error'."
+
+verification_cases:
+  - id: AC1
+    description: "Every hardcoded Cyrillic string in the 12 components replaced with a translation call; none remaining outside the catalogs"
+    checks:
+      - command: |
+          node -e "
+          const fs = require('fs');
+          const files = ['Nav','Hero','Band','Creed','Metrics','Doors','Events','MapSection','Streams','Partners','Team','Footer'].map(n => 'src/components/landing/'+n+'.tsx');
+          const cyr = /[Ѐ-ӿ]/;
+          let bad = [];
+          for (const f of files) {
+            const content = fs.readFileSync(f, 'utf8');
+            if (cyr.test(content)) bad.push(f);
+          }
+          console.log('files_scanned:', files.length);
+          console.log('cyrillic_matches:', JSON.stringify(bad));
+          "
+        expected: |
+          files_scanned: 12
+          cyrillic_matches: []
+        actual: |
+          files_scanned: 12
+          cyrillic_matches: []
+        result: PASS
+      - command: 'grep -l "getTranslations" src/components/landing/Nav.tsx src/components/landing/Hero.tsx src/components/landing/Band.tsx src/components/landing/Creed.tsx src/components/landing/Metrics.tsx src/components/landing/Doors.tsx src/components/landing/Events.tsx src/components/landing/MapSection.tsx src/components/landing/Streams.tsx src/components/landing/Partners.tsx src/components/landing/Team.tsx src/components/landing/Footer.tsx | wc -l'
+        expected: "12"
+        actual: "12"
+        result: PASS
+    result: PASS
+
+  - id: AC2
+    description: "messages/ru.json and messages/uz.json have matching key sets (177 keys each, independently verified)"
+    checks:
+      - command: "node -e \"... key-set comparison script from spec ...\""
+        expected: |
+          ru_count: 177
+          uz_count: 177
+          key_sets_match: true
+          in_ru_not_uz: []
+          in_uz_not_ru: []
+        actual: |
+          ru_count: 177
+          uz_count: 177
+          key_sets_match: true
+          in_ru_not_uz: []
+          in_uz_not_ru: []
+        result: PASS
+    result: PASS
+
+  - id: AC3
+    description: "Every messages/uz.json key added by this requirement has a non-empty value (placeholder duplicate acceptable)"
+    checks:
+      - command: "node -e \"... empty-value check script from spec ...\""
+        expected: |
+          uz_keys_total: 177
+          empty_uz_values: []
+        actual: |
+          uz_keys_total: 177
+          empty_uz_values: []
+        result: PASS
+    result: PASS
+
+  - id: AC4
+    description: "npm run build completes with no type/routing errors"
+    checks:
+      - command: "npm run build"
+        expected: "exit 0, ✓ Compiled successfully, TypeScript finished with no Type error, route table includes ƒ /[locale] and ƒ Proxy (Middleware)"
+        actual: "exit 0 (see build section above), all conditions met"
+        result: PASS
+      - command: "npm run build > build_out.log 2>&1; grep -i error build_out.log"
+        expected: "no output, grep exit 1"
+        actual: "no output, grep exit 1 (build exit 0)"
+        result: PASS
+    result: PASS
+
+  - id: AC5
+    description: "/ru and /uz both render all 12 sections with no missing-translation-key errors"
+    checks:
+      - id: 5a-ru
+        command: 'curl -s http://localhost:3100/ru | grep -o -E "MISSING_MESSAGE|IntlError"'
+        expected: "no output, grep exit 1"
+        actual: "no output, grep exit 1"
+        result: PASS
+      - id: 5a-uz
+        command: 'curl -s http://localhost:3100/uz | grep -o -E "MISSING_MESSAGE|IntlError"'
+        expected: "no output, grep exit 1"
+        actual: "no output, grep exit 1"
+        result: PASS
+      - id: 5b-ru-eyebrow
+        command: 'curl -s http://localhost:3100/ru | grep -o ''<p class="eyebrow rv">[^<]*</p>'''
+        expected: '<p class="eyebrow rv">AI Qadam · UZ · KZ · KG · TJ</p>'
+        actual: '<p class="eyebrow rv">AI Qadam · UZ · KZ · KG · TJ</p>'
+        result: PASS
+      - id: 5b-uz-eyebrow
+        command: 'curl -s http://localhost:3100/uz | grep -o ''<p class="eyebrow rv">[^<]*</p>'''
+        expected: '<p class="eyebrow rv">AI Qadam · UZ · KZ · KG · TJ</p>'
+        actual: '<p class="eyebrow rv">AI Qadam · UZ · KZ · KG · TJ</p>'
+        result: PASS
+      - id: 5b-ru-team
+        command: 'curl -s http://localhost:3100/ru | grep -o ''<div class="nm">[^<]*</div>'' | head -1'
+        expected: '<div class="nm">Бинали Рустамов</div>'
+        actual: '<div class="nm">Бинали Рустамов</div>'
+        result: PASS
+      - id: 5b-uz-team
+        command: 'curl -s http://localhost:3100/uz | grep -o ''<div class="nm">[^<]*</div>'' | head -1'
+        expected: '<div class="nm">Бинали Рустамов</div>'
+        actual: '<div class="nm">Бинали Рустамов</div>'
+        result: PASS
+      - id: 5b-ru-footer
+        command: 'curl -s http://localhost:3100/ru | grep -o ''<span>#AIQadam</span>'''
+        expected: '<span>#AIQadam</span>'
+        actual: '<span>#AIQadam</span>'
+        result: PASS
+      - id: 5b-uz-footer
+        command: 'curl -s http://localhost:3100/uz | grep -o ''<span>#AIQadam</span>'''
+        expected: '<span>#AIQadam</span>'
+        actual: '<span>#AIQadam</span>'
+        result: PASS
+      - id: 5c-ru-hero-em
+        command: 'curl -s http://localhost:3100/ru | grep -o ''<h1 class="rv">.*вместе\.</em></h1>'''
+        expected: '<h1 class="rv">Инженеры, которые строят AI в Центральной Азии — <em>вместе.</em></h1>'
+        actual: '<h1 class="rv">Инженеры, которые строят AI в Центральной Азии — <em>вместе.</em></h1>'
+        result: PASS
+      - id: 5c-uz-hero-em
+        command: 'curl -s http://localhost:3100/uz | grep -o ''<h1 class="rv">.*вместе\.</em></h1>'''
+        expected: '<h1 class="rv">Инженеры, которые строят AI в Центральной Азии — <em>вместе.</em></h1>'
+        actual: '<h1 class="rv">Инженеры, которые строят AI в Центральной Азии — <em>вместе.</em></h1>'
+        result: PASS
+      - id: 5c-ru-creed-em
+        command: 'curl -s http://localhost:3100/ru | grep -o ''<p>В конце концов.*Это про людей\.</p>'''
+        expected: '<p>В конце концов, AI Qadam — это <em>не про искусственный интеллект.</em> Это про людей.</p>'
+        actual: '<p>В конце концов, AI Qadam — это <em>не про искусственный интеллект.</em> Это про людей.</p>'
+        result: PASS
+      - id: 5c-uz-creed-em
+        command: 'curl -s http://localhost:3100/uz | grep -o ''<p>В конце концов.*Это про людей\.</p>'''
+        expected: '<p>В конце концов, AI Qadam — это <em>не про искусственный интеллект.</em> Это про людей.</p>'
+        actual: '<p>В конце концов, AI Qadam — это <em>не про искусственный интеллект.</em> Это про людей.</p>'
+        result: PASS
+      - id: 5c-negative-escaped
+        command: 'curl -s http://localhost:3100/ru | grep -o "&lt;em&gt;"'
+        expected: "no output, grep exit 1"
+        actual: "no output, grep exit 1"
+        result: PASS
+      - id: 5d-ru-status
+        command: "curl -s -o /dev/null -w '%{http_code}\\n' http://localhost:3100/ru"
+        expected: "200"
+        actual: "200"
+        result: PASS
+      - id: 5d-uz-status
+        command: "curl -s -o /dev/null -w '%{http_code}\\n' http://localhost:3100/uz"
+        expected: "200"
+        actual: "200"
+        result: PASS
+      - id: 5d-ru-landmarks
+        command: 'curl -s http://localhost:3100/ru | grep -o -E ''id="top"|class="nav"|id="about"|id="events"|id="map"|id="team"'' | sort -u'
+        expected: |
+          class="nav"
+          id="about"
+          id="events"
+          id="map"
+          id="team"
+          id="top"
+        actual: |
+          class="nav"
+          id="about"
+          id="events"
+          id="map"
+          id="team"
+          id="top"
+        result: PASS
+      - id: 5d-uz-landmarks
+        command: 'curl -s http://localhost:3100/uz | grep -o -E ''id="top"|class="nav"|id="about"|id="events"|id="map"|id="team"'' | sort -u'
+        expected: |
+          class="nav"
+          id="about"
+          id="events"
+          id="map"
+          id="team"
+          id="top"
+        actual: |
+          class="nav"
+          id="about"
+          id="events"
+          id="map"
+          id="team"
+          id="top"
+        result: PASS
+      - id: 5d-ru-section-count
+        command: 'curl -s http://localhost:3100/ru | grep -o "<section" | wc -l'
+        expected: "10"
+        actual: "10"
+        result: PASS
+      - id: 5d-uz-section-count
+        command: 'curl -s http://localhost:3100/uz | grep -o "<section" | wc -l'
+        expected: "10"
+        actual: "10"
+        result: PASS
+    result: PASS
+
+server_process:
+  start_command: "npm run start -- -p 3100 (after npm run build)"
+  port: 3100
+  started: true
+  ready_signal: "curl http://localhost:3100/ru returned 200 on first attempt (Next.js log: '✓ Ready in 198ms')"
+  stopped_after_tests: true
+  stop_verification: "curl to http://localhost:3100/ru after kill returned HTTP_CODE:000 (connection refused / SERVER_DOWN)"
+
+overall_result: PASS
+summary: >
+  npm run lint: exit 0, 0 errors, 4 pre-existing warnings unrelated to REQ-001b (next/image
+  suggestions and one unused var in an unrelated docs/ design-system file). npm run build:
+  exit 0, compiled successfully, TypeScript finished with no type errors, route listing
+  includes ƒ /[locale] and ƒ Proxy (Middleware); a second build run piped to a log and
+  grepped case-insensitively for "error" produced zero matches. All 5 acceptance criteria
+  (AC1-AC5) in docs/agents/test-specs/REQ-001b.md were run exactly as specified and passed:
+  AC1's Cyrillic sweep found zero remaining Cyrillic strings across all 12 scoped landing
+  components and confirmed all 12 call getTranslations; AC2's key-set diff confirmed
+  messages/ru.json and messages/uz.json both have exactly 177 keys with an identical,
+  fully-matching key set; AC3 confirmed zero empty values among uz.json's 177 keys; AC4's
+  build passed with no errors; AC5's four-part check (error-marker sweep, 3 spot checks
+  spanning flat-key/repeated-array/Footer-literal patterns, t.rich() em-tag rendering
+  checks including the negative escaped-markup check, and the 200-status/landmark/
+  section-count checks) all matched the spec's expected output exactly on both /ru and
+  /uz, served from a locally built-and-started server on port 3100 that was confirmed
+  stopped after testing. No issues found; no deviations from the spec's expected output.
+
+issues: []
