@@ -106,7 +106,7 @@ requirements:
   - id: REQ-001b
     title: Extract landing-component copy into next-intl message catalogs
     owner: FRONTEND-DEV
-    status: in_progress
+    status: done
     description: >
       Depends on REQ-001a, which lands the next-intl dependency, the
       app/[locale] routing/middleware skeleton, the working Nav.tsx locale
