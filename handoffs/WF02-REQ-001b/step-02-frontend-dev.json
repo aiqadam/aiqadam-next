@@ -8,8 +8,8 @@
   "file": "handoffs/WF02-REQ-001b/step-02-frontend-dev.json",
   "created_at": "2026-08-27T06:50:00Z",
   "started_at": "2026-08-27T06:50:00Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-08-27T07:01:44Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-001b"],
@@ -35,10 +35,41 @@
     ]
   },
   "result": {
-    "status": "",
-    "summary": "",
-    "artifacts_out": [],
-    "issues": [],
+    "status": "PASS",
+    "summary": "Converted all 12 landing components (Band, Creed, Doors, Events, Footer, Hero, MapSection, Metrics, Nav, Partners, Streams, Team) from hardcoded Russian strings to next-intl translation calls, following docs/agents/design/REQ-001b.md SS2's key table and CODE-DESIGN-VALIDATOR's resolutions (flat indexed keys for the 6 repeated-shape arrays, t.rich() for Hero.title/Creed.quote em-emphasis, 'AI Qadam' brand text left as a literal, Telegram handle+label kept as one key, no anchor/href changes, MapSection aria-label/CHAPTERS desync left as-is). Each component is now an async function calling `await getTranslations(\"<Name>\")` matching the layout.tsx generateMetadata pattern. Added 177 keys total across 13 namespaces (Metadata + 12 new) to both messages/ru.json (real Russian source strings, copied verbatim from the original components) and messages/uz.json (identical Russian strings duplicated as REQ-002 placeholders) -- verified programmatically that both catalogs have exactly matching key sets (177 = 177, zero missing either direction) and that every t()/t.rich() key referenced in each component's source exists in that component's ru.json namespace (checked namespace-by-namespace including all 6 dynamic/indexed array namespaces: Events talk1-4, MapSection chapter1-4, Metrics metric1-5, Partners partner1-4, Streams stream1-4, Team team1-5 -- array lengths matched the design's stated counts exactly). npm run lint exits 0 (4 pre-existing @next/next/no-img-element warnings unrelated to this change, 0 errors). npm run build exits 0 (TypeScript, static generation, and page-data collection all succeeded). Grepped all 12 .tsx files programmatically (Unicode Cyrillic range regex, not shell grep -P which failed silently on this Windows/Git-Bash locale) -- zero Cyrillic characters remain in any of the 12 component files. Started npm run start, curled /ru and /uz (both 200), confirmed no next-intl error markers (MISSING_MESSAGE/IntlError/etc.) in either response, confirmed distinct strings from all 12 sections render in /ru (hero title, band, doors, events, map, streams, partners, team, footer, one speaker name, one team member name), confirmed uz.html renders the same placeholder content, and confirmed both t.rich() calls produced real <em> tags in the output (not escaped literal markup), then killed the server.",
+    "artifacts_out": [
+      "src/components/landing/Band.tsx",
+      "src/components/landing/Creed.tsx",
+      "src/components/landing/Doors.tsx",
+      "src/components/landing/Events.tsx",
+      "src/components/landing/Footer.tsx",
+      "src/components/landing/Hero.tsx",
+      "src/components/landing/MapSection.tsx",
+      "src/components/landing/Metrics.tsx",
+      "src/components/landing/Nav.tsx",
+      "src/components/landing/Partners.tsx",
+      "src/components/landing/Streams.tsx",
+      "src/components/landing/Team.tsx",
+      "messages/ru.json",
+      "messages/uz.json"
+    ],
+    "issues": [
+      {
+        "severity": "MINOR",
+        "description": "This handoff's own started_at arrived pre-filled (non-null) from ORCH rather than null -- no action needed on my end per HANDOFF_PROTOCOL.md SS1.2 (started_at is ORCH's field), noting only for completeness since a prior handoff on this run had a started_at/status field-confusion issue flagged.",
+        "affected_requirement": null
+      },
+      {
+        "severity": "MINOR",
+        "description": "Design doc SS2's table did not spell out exact key names for the MapSection.CHAPTERS and Streams.STREAMS/Metrics.METRICS repeated-shape arrays (only stated shape + count, e.g. 'name/desc/status each'), unlike Events.TALKS and Team.TEAM where key names were implied by prose elsewhere. Chose chapterNName/chapterNDesc/chapterNStatus, streamNStatus/streamNTitle/streamNDesc, and metricNLabel/metricNSource as the naming convention, consistent with the talkNWho/teamNName pattern CODE-DESIGN-VALIDATOR confirmed. Flagging as a naming judgment call, not a deviation from confirmed direction.",
+        "affected_requirement": "REQ-001b"
+      },
+      {
+        "severity": "MINOR",
+        "description": "Streams.tsx's 'AI Qadam Build' foundation-section title and its 'build.aiqadam.org →' link label were extracted as translation keys (foundationTitle, foundationLink) per the design table's explicit listing, even though both are arguably brand/URL-label pass-through candidates under the design's own non-copy-value rule (SS2 notes). Followed the design's authoritative table literally rather than re-applying the brand-literal judgment call to these two, since the table named them as keys explicitly.",
+        "affected_requirement": "REQ-001b"
+      }
+    ],
     "git_evidence": {
       "branch_name": "feature/WF02-REQ-001b",
       "commit_sha_list": [],
@@ -47,7 +78,7 @@
       "pr_url": null,
       "pr_create_error": null
     },
-    "next_action": ""
+    "next_action": "Route to REVIEWER (Step 2b)"
   },
   "rework_count": 0,
   "max_rework": 3,

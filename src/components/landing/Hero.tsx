@@ -1,6 +1,8 @@
 import Image from "next/image";
+import { getTranslations } from "next-intl/server";
 
-export default function Hero() {
+export default async function Hero() {
+  const t = await getTranslations("Hero");
   return (
     <section className="hero" id="top">
       <div className="hero-media">
@@ -8,39 +10,35 @@ export default function Hero() {
       </div>
       <div className="hero-inner">
         <div className="wrap">
-          <p className="eyebrow rv">AI Qadam · UZ · KZ · KG · TJ</p>
+          <p className="eyebrow rv">{t("eyebrow")}</p>
           <h1 className="rv">
-            Инженеры, которые строят AI в Центральной Азии — <em>вместе.</em>
+            {t.rich("title", { em: (chunks) => <em>{chunks}</em> })}
           </h1>
-          <p className="sub rv">
-            Не конференция и не курс. Федерация локальных сообществ под одним
-            брендом: практики рассказывают, что они делали сами, а не что
-            прочитали в отчёте.
-          </p>
+          <p className="sub rv">{t("subtitle")}</p>
           <div className="cta-row rv">
             <a className="btn btn-primary" href="#events">
-              Ближайшее событие
+              {t("ctaPrimary")}
             </a>
             <a className="btn btn-ghost" href="https://t.me/ai_qadam_community">
-              Вступить в чат Узбекистана
+              {t("ctaSecondary")}
             </a>
           </div>
           <div className="chapters-pills rv">
             <span className="pill active">
               <i className="dot" />
-              UZBEKISTAN
+              {t("pillUzbekistan")}
             </span>
             <span className="pill active">
               <i className="dot" />
-              KAZAKHSTAN
+              {t("pillKazakhstan")}
             </span>
             <span className="pill">
               <i className="dot" />
-              TAJIKISTAN — СКОРО
+              {t("pillTajikistan")}
             </span>
             <span className="pill">
               <i className="dot" />
-              KYRGYZSTAN — СКОРО
+              {t("pillKyrgyzstan")}
             </span>
           </div>
         </div>
@@ -49,15 +47,15 @@ export default function Hero() {
         <div className="nextev-in">
           <span className="live">
             <i />
-            Ближайшее
+            {t("nextEventLabel")}
           </span>
-          <span className="when">26 августа · 20:00</span>
+          <span className="when">{t("nextEventWhen")}</span>
           <span className="what">
-            <b>Fail Stories #1</b> — честные истории провалов в AI и продукте
-            · Bridge, Tashkent City
+            <b>{t("nextEventWhatBold")}</b>
+            {t("nextEventWhatRest")}
           </span>
           <a className="go" href="#events">
-            По приглашениям · написать организатору →
+            {t("nextEventCta")}
           </a>
         </div>
       </div>

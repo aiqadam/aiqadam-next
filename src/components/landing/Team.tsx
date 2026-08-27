@@ -1,53 +1,32 @@
 import Image from "next/image";
+import { getTranslations } from "next-intl/server";
 
 const TEAM = [
-  {
-    img: "/images/team-rustamov.jpg",
-    name: "Бинали Рустамов",
-    role: "Founder Global",
-    desc: "CTO в BEELAB (Beepul, VEON). 12 лет в инженерии, 6+ как CTO.",
-  },
-  {
-    img: "/images/team-kambetbaeva.jpg",
-    name: "Айгерим Камбетбаева",
-    role: "Country Lead — KZ",
-    desc: "Senior ML Engineer в Verigram, Head of Speech Recognition в CyberNet AI.",
-  },
-  {
-    img: "/images/team-tytenko.jpg",
-    name: "Владимир Тытенко",
-    role: "Co-founder",
-    desc: "Head of Software Development в ABiTech. SAP Banking, Temenos T24.",
-  },
-  {
-    img: "/images/team-vashurina.jpg",
-    name: "Екатерина Вашурина",
-    role: "Board",
-    desc: "Ipoteka Bank (OTP Group). Запускала EPAM Uzbekistan с нуля, основатель Agile Uzbekistan.",
-  },
-  {
-    img: "/images/team-drukker.jpg",
-    name: "Виктор Друккер",
-    role: "Board · События",
-    desc: "Kanban / Agile-практик и коуч, Senior PM в Ipoteka Bank.",
-  },
+  { img: "/images/team-rustamov.jpg" },
+  { img: "/images/team-kambetbaeva.jpg" },
+  { img: "/images/team-tytenko.jpg" },
+  { img: "/images/team-vashurina.jpg" },
+  { img: "/images/team-drukker.jpg" },
 ];
 
-export default function Team() {
+export default async function Team() {
+  const t = await getTranslations("Team");
+  const team = TEAM.map((member, i) => ({
+    ...member,
+    name: t(`team${i + 1}Name`),
+    role: t(`team${i + 1}Role`),
+    desc: t(`team${i + 1}Desc`),
+  }));
   return (
     <section id="team">
       <div className="wrap">
         <div className="sect-head rv">
-          <p className="eyebrow">Команда</p>
-          <h2>Практики, а не комьюнити-менеджеры.</h2>
-          <p className="lede">
-            Бренд принадлежит сообществу, а не основателю. Решения принимает
-            Global Board: согласие вместо голосования, вето у страновых
-            лидов на локальные вопросы.
-          </p>
+          <p className="eyebrow">{t("eyebrow")}</p>
+          <h2>{t("title")}</h2>
+          <p className="lede">{t("lede")}</p>
         </div>
         <div className="team rv">
-          {TEAM.map((p) => (
+          {team.map((p) => (
             <article className="person" key={p.name}>
               <div className="ph">
                 <Image src={p.img} alt="" width={320} height={505} />

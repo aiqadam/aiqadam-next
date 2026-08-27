@@ -1,21 +1,23 @@
-export default function Band() {
+import { getTranslations } from "next-intl/server";
+
+export default async function Band() {
+  const t = await getTranslations("Band");
   return (
     <section className="band">
       <div className="wrap">
-        <h2 className="rv">Сделаем Qadam в сторону доверия.</h2>
+        <h2 className="rv">{t("title")}</h2>
         <p
           className="lede rv"
           style={{ marginLeft: "auto", marginRight: "auto", textAlign: "center" }}
         >
-          Следующее событие — 26 августа. Следующий митап — в сентябре, CFP
-          открыт.
+          {t("lede")}
         </p>
         <div className="cta-row rv">
           <a className="btn btn-primary" href="https://t.me/ai_qadam_community">
-            Вступить в сообщество
+            {t("ctaPrimary")}
           </a>
           <a className="btn btn-ghost" href="mailto:binali.rustamov@aiqadam.org">
-            Написать нам
+            {t("ctaSecondary")}
           </a>
         </div>
       </div>

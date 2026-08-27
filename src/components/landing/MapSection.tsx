@@ -1,49 +1,34 @@
+import { getTranslations } from "next-intl/server";
+
 const CHAPTERS = [
-  {
-    name: "Узбекистан",
-    desc: "Хоум-база. Здесь живёт Global.",
-    status: "активен",
-    statusClass: "live",
-  },
-  {
-    name: "Казахстан",
-    desc: "Свой митап в Алматы 20 июня — в один день с Ташкентом.",
-    status: "активен",
-    statusClass: "live",
-  },
-  {
-    name: "Таджикистан",
-    desc: "Следующий в дорожной карте.",
-    status: "в планах",
-    statusClass: "",
-  },
-  {
-    name: "Кыргызстан",
-    desc: "Дальше — весь тюркский мир.",
-    status: "в планах",
-    statusClass: "",
-  },
+  { statusClass: "live" },
+  { statusClass: "live" },
+  { statusClass: "" },
+  { statusClass: "" },
 ];
 
-export default function MapSection() {
+export default async function MapSection() {
+  const t = await getTranslations("MapSection");
+  const chapters = CHAPTERS.map((chapter, i) => ({
+    ...chapter,
+    name: t(`chapter${i + 1}Name`),
+    desc: t(`chapter${i + 1}Desc`),
+    status: t(`chapter${i + 1}Status`),
+  }));
   return (
     <section className="map-sect" id="map">
       <div className="wrap">
         <div className="sect-head rv">
-          <p className="eyebrow">География</p>
-          <h2>Не франшиза, а федерация.</h2>
-          <p className="lede">
-            Всё, что можно стандартизировать — бренд, методология, форматы,
-            инфраструктура — приходит из центра. Всё локальное — язык,
-            партнёры, контекст — остаётся у местной команды.
-          </p>
+          <p className="eyebrow">{t("eyebrow")}</p>
+          <h2>{t("title")}</h2>
+          <p className="lede">{t("lede")}</p>
         </div>
         <div className="map-layout">
           <div className="map-frame rv">
             <svg
               viewBox="0 0 820 430"
               role="img"
-              aria-label="Карта присутствия AI Qadam: Ташкент и Алматы активны, Душанбе и Бишкек в планах"
+              aria-label={t("svgAriaLabel")}
             >
               <defs>
                 <pattern
@@ -75,20 +60,20 @@ export default function MapSection() {
               <circle className="node-ring b" cx="300" cy="232" r="9" />
               <circle className="node-live" cx="300" cy="232" r="7" />
               <text className="node-label" x="300" y="272" textAnchor="middle">
-                ТАШКЕНТ
+                {t("nodeTashkentLabel")}
               </text>
               <text className="node-sub" x="300" y="288" textAnchor="middle">
-                ХОУМ-БАЗА · 2 МИТАПА
+                {t("nodeTashkentSub")}
               </text>
 
               {/* Almaty */}
               <circle className="node-ring" cx="630" cy="158" r="9" />
               <circle className="node-live" cx="630" cy="158" r="7" />
               <text className="node-label" x="630" y="132" textAnchor="middle">
-                АЛМАТЫ
+                {t("nodeAlmatyLabel")}
               </text>
               <text className="node-sub" x="630" y="116" textAnchor="middle">
-                ЧАПТЕР KZ · С 20.06.2026
+                {t("nodeAlmatySub")}
               </text>
 
               {/* Dushanbe */}
@@ -100,10 +85,10 @@ export default function MapSection() {
                 textAnchor="middle"
                 opacity=".65"
               >
-                ДУШАНБЕ
+                {t("nodeDushanbeLabel")}
               </text>
               <text className="node-sub" x="402" y="384" textAnchor="middle">
-                В ПЛАНАХ
+                {t("nodeDushanbeSub")}
               </text>
 
               {/* Bishkek */}
@@ -115,10 +100,10 @@ export default function MapSection() {
                 textAnchor="middle"
                 opacity=".65"
               >
-                БИШКЕК
+                {t("nodeBishkekLabel")}
               </text>
               <text className="node-sub" x="560" y="110" textAnchor="middle">
-                В ПЛАНАХ
+                {t("nodeBishkekSub")}
               </text>
 
               <polyline
@@ -126,12 +111,12 @@ export default function MapSection() {
                 points="630,158 720,158 760,120"
               />
               <text className="node-sub" x="768" y="112" opacity=".8">
-                ТЮРКСКИЙ МИР →
+                {t("turkicWorldLabel")}
               </text>
             </svg>
           </div>
           <div className="rv">
-            {CHAPTERS.map((c) => (
+            {chapters.map((c) => (
               <div className="chapter-row" key={c.name}>
                 <span className="c-name">{c.name}</span>
                 <span className="c-desc">{c.desc}</span>
@@ -142,7 +127,7 @@ export default function MapSection() {
             ))}
             <div style={{ marginTop: 26 }}>
               <a className="btn btn-ghost" href="#join">
-                Запустить чаптер у себя
+                {t("ctaLaunchChapter")}
               </a>
             </div>
           </div>
