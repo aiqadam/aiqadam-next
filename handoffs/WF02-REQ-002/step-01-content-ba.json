@@ -8,8 +8,8 @@
   "file": "handoffs/WF02-REQ-002/step-01-content-ba.json",
   "created_at": "2026-08-27T09:33:00Z",
   "started_at": "2026-08-27T09:33:00Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-08-27T09:37:32Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-002"],
@@ -35,10 +35,14 @@
     ]
   },
   "result": {
-    "status": "",
-    "summary": "",
-    "artifacts_out": [],
-    "issues": [],
+    "status": "PASS",
+    "summary": "Replaced all 177 ru-duplicated placeholder values in messages/uz.json with real Uzbek (Latin-script, modern standard orthography) translations across all 13 namespaces (Metadata + Band, Creed, Doors, Events, Footer, Hero, MapSection, Metrics, Nav, Partners, Streams, Team). Verified zero of the 177 values is a standalone domain-vocabulary term (Event/Chapter/Talk/Speaker/CFP/Agenda/Check-in/Going/Watching) via a scripted scan of ru.json -- all such terms appear only embedded in longer sentences (e.g. door2Body's 'CFP', Streams.foundationBody's implicit domain framing), so none needed to be left English-verbatim as a whole key value; English tokens that do appear in the Russian source verbatim (CFP, EPAM, BEELAB, SLA, MIT, CEO, etc., plus country/pill codes like UZ/KZ/UZBEKISTAN) were kept as-is since they are proper nouns/acronyms, not translatable prose. Functional/operator tone preserved: no exclamation marks, no slogans, no emoji introduced. Casing: sentence case for buttons/menu items (e.g. Nav.join 'Qatnashish', Doors CTAs), Title Case for section headings mapping to domain nouns (e.g. Doors.title 'Uchta eshik. Barchasi ochiq.', Streams.title). Hero.title and Creed.quote keep single well-formed <em>...</em> pairs wrapping the Uzbek equivalent of the emphasized clause ('birgalikda.' and \"sun'iy intellekt haqida emas.\" respectively) -- verified programmatically (1 open + 1 close tag each).",
+    "artifacts_out": ["messages/uz.json"],
+    "issues": [
+      "Status-label casing judgment call: MapSection.chapter[1-4]Status and Streams.stream[1-4]Status are lowercase in the Russian JSON source itself (e.g. \"активен\", \"в планах\", \"работает\") even though the guide's UPPERCASE MONO rule names status labels like UPCOMING/LIVE/PAST as an example. Read this as the Russian author having already decided these particular values are lowercase at the content-value level, with any visual uppercasing (consistent with the design system's 'mono labels: uppercase' CSS convention) applied by the rendering component via text-transform rather than baked into the string. Mirrored that exact convention in Uzbek with lowercase values (faol, rejalashtirilgan, ishlaydi, ishlanmoqda) rather than second-guessing the Russian source's casing choice. Flagging this explicitly per the handoff's request to state reasoning rather than guess silently -- if REVIEWER determines the source components actually expect uppercase string values (no CSS transform), these four Streams + four MapSection status values would need an uppercase pass in both languages, which is out of this requirement's scope (ru.json is not to be touched).",
+      "No standalone domain-vocabulary-term key values were found in the 177 keys (verified by scripted exact-match scan against ru.json), so no key was left English-verbatim under the SS4 domain-vocabulary rule. Domain terms that appear embedded in longer sentences (CFP in Doors.door2Body/Band.lede) were kept in English inline as instructed, with surrounding prose translated.",
+      "Proper nouns, acronyms, and org/product names in the Russian source (CFP, SLA, MIT, Apache-2.0, CEO, EPAM, BEELAB, VEON, SAP Banking, Temenos T24, NPS, KYC/AML, AppSec, Engineering Manager, Country Lead, Board, Founder Global, Co-founder, Senior PM, Kanban/Agile, low-code, build.aiqadam.org, @RETURN_VOID_0, person names transliterated to Latin) were left as-is/transliterated rather than translated, consistent with how the Russian source itself keeps these in Latin/English -- this is standard practice for Uzbek Latin copy and not a domain-vocabulary-rule concern."
+    ],
     "git_evidence": {
       "branch_name": "feature/WF02-REQ-002",
       "commit_sha_list": [],
@@ -47,7 +51,7 @@
       "pr_url": null,
       "pr_create_error": null
     },
-    "next_action": ""
+    "next_action": "Route to REVIEWER for content/copy gate"
   },
   "rework_count": 0,
   "max_rework": 3,
