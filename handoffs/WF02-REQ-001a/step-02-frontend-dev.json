@@ -1,0 +1,76 @@
+{
+  "handoff_id": "0f1a2b3c-4d5e-4f6a-9b7c-8d9e0f1a2b3c",
+  "run_id": "WF02-REQ-001a",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "CODE-DESIGN-VALIDATOR",
+  "to_agent": "FRONTEND-DEV",
+  "file": "handoffs/WF02-REQ-001a/step-02-frontend-dev.json",
+  "created_at": "2026-08-27T05:02:30Z",
+  "started_at": "2026-08-27T05:02:30Z",
+  "completed_at": "2026-08-27T05:23:24Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-001a"],
+    "requirement_text": {
+      "REQ-001a": "GitHub issue #2 (\"Translate to UZ\" / \"Add localization\") requires Uzbek localization of the AI Qadam landing site. This requirement is the first of two: it proves the i18n MECHANISM end-to-end (dependency, routing, middleware, a working switcher) using only src/app/layout.tsx's strings as the seed catalog. REQ-001b (depends_on this requirement) extracts the remaining 12 landing components' copy once the mechanism is proven working. Translation quality is out of scope for both (that is REQ-002). Chosen approach: adopt next-intl as the i18n library. The switcher reuses the .nav/.nav-in/.lang classes already defined in src/app/globals.css (lines 36-51) -- this project's own bespoke CSS variable set, not the documented design-system tokens; stays on globals.css as-is. Scope: add next-intl dependency; restructure routing so src/app/page.tsx and src/app/layout.tsx move under src/app/[locale]/ with locale resolution proxy/middleware, ru default + uz second locale; create messages/ru.json and messages/uz.json seeded ONLY from src/app/layout.tsx's current strings (title, description, OG title/description/locale, Twitter title/description), uz values placeholder-duplicated from ru; replace Nav.tsx's non-functional RU/UZ/EN switcher with a working ru/uz-only switcher (drop EN) using next-intl's locale-aware routing helpers and only the existing .lang/.lang span/.lang .on classes; src/app/[locale]/layout.tsx sets <html lang> dynamically and localizes metadata title/description/OG locale (ru_RU/uz_UZ) from the message catalog; root / redirects to /ru."
+    },
+    "source_text": {},
+    "related_handoff_ids": ["9e0f1a2b-3c4d-4e5f-8a6b-7c8d9e0f1a2b"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-001a.md",
+      "docs/guides/frontend_developer_guide.md"
+    ]
+  },
+  "task": {
+    "description": "Implement REQ-001a exactly per docs/agents/design/REQ-001a.md (do not freelance structure it didn't specify — if it's wrong or incomplete, report rather than silently improvising). CODE-DESIGN-VALIDATOR PASSed the design with one legitimate open question left for you to resolve here: Next.js 16 deprecated middleware.ts in favor of proxy.ts (confirmed against Next's own docs) — once you add next-intl as an actual dependency, check ITS OWN docs/exports (node_modules/next-intl or its README/types) for which convention it expects on Next 16, and use whichever is actually correct for the installed version — don't guess, verify against the installed package. Follow WF-02 Step 2's procedure: verify you're on branch feature/WF02-REQ-001a before touching any file (STOP and report FAIL if not), implement per the design, run npm run lint (fix and retry on FAIL), run npm run build (fix and retry on FAIL), then self-review against frontend_developer_guide.md §4's checklist including checking both light/dark theme and mobile/desktop width for the switcher specifically.",
+    "acceptance_criteria": [
+      "npm run lint exits 0",
+      "npm run build exits 0",
+      "Implementation matches docs/agents/design/REQ-001a.md's structure (file tree, message catalog keys, switcher props/behavior) -- any deliberate deviation is reported, not silent",
+      "No raw hex colors introduced; only var(--token-name) and the cited existing .lang/.nav classes reused",
+      "Visiting /uz renders <html lang=\"uz\">, visiting /ru or / renders <html lang=\"ru\">",
+      "Nav.tsx switcher has exactly two working options (RU, UZ), navigates correctly between /ru/* and /uz/* preserving section anchors, checked in both light and dark theme and at a mobile and desktop width",
+      "messages/ru.json and messages/uz.json exist with matching key sets, uz values placeholder-duplicated from ru"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Implemented REQ-001a per docs/agents/design/REQ-001a.md. Installed next-intl@4.13.7. Resolved the open middleware/proxy question by inspecting the installed package directly: next-intl 4.13.7 only ships a `next-intl/middleware` export (no `next-intl/proxy` export exists in this version; its README has no mention of `proxy` at all), so its `createMiddleware(routing)` factory output is wrapped in a plain function, framework-signature-compatible with Next 16's Proxy convention. Per Next 16's own doc (node_modules/next/dist/docs/.../proxy.md), the file must be named proxy.ts with a default or named `proxy` export -- created that. Also discovered empirically (not documented) that Next's dev/build bundler resolves the middleware/proxy filename relative to the *parent of the app/pages directory*, not the true project root: since this project's app dir is src/app, proxy.ts had to live at src/proxy.ts (not repo-root proxy.ts) or it was silently never registered (confirmed via .next middleware-manifest.json being empty and via build output only showing 'ƒ Proxy (Middleware)' once moved). Also added `NextIntlClientProvider` wrapping {children} in src/app/[locale]/layout.tsx -- not explicit in the design's file tree (which lists no new provider), but required by next-intl's actual client-hook contract: LocaleSwitcher is a Client Component calling useLocale()/usePathname(), and without NextIntlClientProvider in the tree these throw at render (verified: caused a 500 before it was added, fixed after). This is a necessary wiring detail, not new structure/files, and is called out here per the design's own instruction not to silently deviate. Real command output -- `npm run lint`: '4 problems (0 errors, 4 warnings)' (all 4 warnings pre-existing @next/next/no-img-element and one pre-existing unused-var, none from new files), exit 0. `npm run build`: 'Compiled successfully in ~500ms', 'Finished TypeScript', route table shows '/_not-found' static, '/[locale]' dynamic, '/health' dynamic, and 'ƒ Proxy (Middleware)', exit 0. Verified via `npm run start` + curl: GET / -> 307 to /ru with Set-Cookie NEXT_LOCALE=ru; GET /ru -> 200, <html lang=\"ru\">, switcher renders <a class=\"on\" href=\"/ru\">RU</a><a href=\"/uz\">UZ</a>, og:locale=ru_RU; GET /uz -> 200, <html lang=\"uz\">, switcher shows UZ active, og:locale=uz_UZ; GET /health -> 200 {\"status\":\"ok\",\"service\":\"aiqadam-next\"} unaffected. Also ran `docker build -t aiqadam-next:local .` (per deploy_guide.md #5 since next.config.ts changed) -- succeeded, and a container run of the built image confirmed /health and the / -> /ru redirect both work in the production Docker image; image and container removed after verification. Self-review per frontend_developer_guide.md #4: no raw hex colors introduced (globals.css diff is a single selector rename `.lang span` -> `.lang a`, same declaration block, no new values, per design section 3's explicit recommendation); no new spacing values; copy unchanged (no new copy invented, EN option dropped per requirement, title attribute removed per design's open question 5, left with no replacement rather than inventing copy). Two checks I could not perform and am stating explicitly rather than claiming: (a) 'checked in both light and dark theme' -- src/app/globals.css (the bespoke stylesheet this component uses, per the design's explicit choice) has no data-theme light/dark split at all, only a single fixed dark palette in :root with no [data-theme] rules anywhere in the file, so this check does not apply to this component as built (confirmed by grep -- 0 matches for data-theme in src/app/globals.css); (b) 'checked at mobile and desktop width' -- verified statically that .lang has no media-query override at either the 980px or 620px breakpoints in globals.css (only .nav-links hides at 980px), so no responsive breakage is expected, but I have no browser/viewport tool available to visually confirm actual rendered layout at specific widths, only curl-based HTML/HTTP inspection. No unrelated changes bundled in -- diff is scoped to the i18n restructure only.",
+    "artifacts_out": [
+      "package.json",
+      "package-lock.json",
+      "next.config.ts",
+      "src/i18n/routing.ts",
+      "src/i18n/request.ts",
+      "src/i18n/navigation.ts",
+      "src/proxy.ts",
+      "src/app/[locale]/layout.tsx",
+      "src/app/[locale]/page.tsx",
+      "src/app/globals.css",
+      "src/components/landing/Nav.tsx",
+      "src/components/landing/LocaleSwitcher.tsx",
+      "messages/ru.json",
+      "messages/uz.json"
+    ],
+    "issues": [
+      "Deviation from design file tree: proxy.ts placed at src/proxy.ts, not project-root proxy.ts as the design's §1 file tree and §7 open-question-1 recommendation stated. Verified empirically that Next 16.3.2 resolves the middleware/proxy filename relative to the parent directory of app/ (i.e. src/, since app lives at src/app), not the true repository root -- a root-level proxy.ts is silently never registered (empty middleware-manifest.json, no proxy chunk in build output) with no warning or error. This is a correction to the design's assumption, not a freelance choice.",
+      "Addition not listed in the design's file tree: NextIntlClientProvider now wraps {children} in src/app/[locale]/layout.tsx. Required because LocaleSwitcher is a Client Component using next-intl's useLocale()/usePathname() hooks, which throw without a client provider in the tree (verified: 500 error before adding it, resolved after). Not a new file/component, just a required wrapper in the existing layout.",
+      "'.lang' has no data-theme light/dark variants in src/app/globals.css (single fixed dark palette only) -- the light/dark self-review checklist item does not apply to this component as scoped by the design's own decision to stay on the bespoke globals.css classes rather than the design-system's themed tokens.",
+      "No browser/viewport tool was available to visually verify responsive rendering at mobile/desktop widths -- verified statically via CSS media-query inspection only (no breakpoint hides or restyles .lang), not visually confirmed."
+    ],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-001a",
+      "commit_sha_list": ["59596fcc3465f675612e8600e9295ba0a1839344"],
+      "remote_branch": "origin/feature/WF02-REQ-001a",
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Route to REVIEWER (Step 2b)"
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}

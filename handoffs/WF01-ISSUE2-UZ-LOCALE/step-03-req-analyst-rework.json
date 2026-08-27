@@ -1,0 +1,66 @@
+{
+  "handoff_id": "5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d",
+  "run_id": "WF01-ISSUE2-UZ-LOCALE",
+  "workflow_id": "WF-01",
+  "step": "03",
+  "from_agent": "REQ-VALIDATOR",
+  "to_agent": "REQ-ANALYST",
+  "file": "handoffs/WF01-ISSUE2-UZ-LOCALE/step-03-req-analyst-rework.json",
+  "created_at": "2026-08-27T04:41:00Z",
+  "started_at": "2026-08-27T04:41:00Z",
+  "completed_at": "2026-08-27T04:44:28Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-001", "REQ-002"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["9c2d4e6f-8a1b-4c3d-9e5f-2b3c4d5e6f7a"],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "handoffs/WF01-ISSUE2-UZ-LOCALE/step-02-req-validator.json"
+    ]
+  },
+  "task": {
+    "description": "REQ-VALIDATOR FAILed REQ-001 on rework iteration 1 of 3 (see result/issues in handoffs/WF01-ISSUE2-UZ-LOCALE/step-02-req-validator.json for the full independently-derived reasoning; REQ-002 needs no rework itself but stays blocked until REQ-001 clears). Two BLOCKERs to fix:\n\n1. Check (d) DESIGN-SYSTEM FIT: REQ-001's scope text and AC5 both cite 'tokens/components.css' as where the reusable .nav/.lang classes live. That path doesn't exist in the project. The real classes Nav.tsx uses (.nav, .nav-in, .lang) live in src/app/globals.css lines 35-51, on this project's own bespoke CSS variables (--bg/--fg/--primary as raw hex), which is a DIFFERENT and pre-existing variable set from the documented design-system tokens under docs/Design system for AI agents/tokens/ (OKLCH-based --background/--foreground/--primary). Read src/app/globals.css yourself to confirm this before rewriting. Fix AC5 to cite src/app/globals.css correctly, and explicitly state in the requirement whether the switcher (a) stays on the existing globals.css classes as-is (minimal-risk, matches current site as-built) or (b) migrates onto the documented OKLCH design-system tokens (larger, out-of-scope-feeling change this requirement didn't ask for) -- pick (a) unless you find a concrete reason (b) is actually required elsewhere in this requirement, and say which you picked and why.\n\n2. Check (e) SIZE: REQ-001 as drafted bundles four distinct sub-tasks with no intermediate checkpoint: (i) adding next-intl + committing to the library choice, (ii) restructuring src/app/ under src/app/[locale]/ with new middleware/proxy (none exists today), (iii) extracting hardcoded copy from all 13 source files (layout.tsx + 12 landing components) into messages/ru.json and messages/uz.json, (iv) building a working two-option locale switcher wired to next-intl's routing. Split this into two requirements, chained by depends_on:\n   - REQ-001a: next-intl dependency + app/[locale] routing skeleton + middleware/proxy config + the working locale switcher in Nav.tsx (using the corrected globals.css citation) + message catalogs seeded from ONLY src/app/layout.tsx's strings (title/description/OG/Twitter metadata, lang attribute, locale field) as the minimal end-to-end proof the mechanism works. Keep this requirement's acceptance criteria focused on the routing/switching mechanism actually functioning.\n   - REQ-001b (depends_on: [REQ-001a]): extract the remaining hardcoded copy from all 12 landing components (Band, Creed, Doors, Events, Footer, Hero, MapSection, Metrics, Nav, Partners, Streams, Team) into messages/ru.json and messages/uz.json (uz values still placeholder-duplicated from ru per the original design -- REQ-002 replaces them), and update each component to read from the message catalog via next-intl's hooks instead of inline strings.\n   - Update REQ-002's depends_on to [REQ-001a, REQ-001b] (it needs the full catalog from both, not just REQ-001a's partial one) and adjust its description's file-scope references if they assumed a single REQ-001.\n\nAlso fix the MINOR non-blocking accuracy issue: REQ-001(a)'s rationale currently claims the Next.js internationalization doc states next-intl is 'the most actively maintained App-Router-native i18n library' -- the doc doesn't rank libraries, it just lists next-intl first in an unordered list. Rephrase so the maintenance/adoption claim is stated as REQ-ANALYST's own assessment, not attributed to the doc.\n\nDo not touch REQ-002's core content (domain-vocabulary decision, translation acceptance criteria) beyond the depends_on and file-scope fixes named above -- REQ-VALIDATOR found no defect in REQ-002 itself.",
+    "acceptance_criteria": [
+      "REQ-001 is replaced by REQ-001a and REQ-001b in docs/agents/requirements.yaml, each sized to one agent turn, chained by depends_on",
+      "REQ-001a's acceptance criteria cite only files/paths that actually exist in the project (verified by the same grep-for-path check REQ-VALIDATOR used)",
+      "REQ-002's depends_on updated to [REQ-001a, REQ-001b]",
+      "The next-intl rationale no longer attributes an unranked-list claim to the Next.js doc as if the doc ranked it",
+      "REQ-002 itself is otherwise unchanged from REQ-VALIDATOR's PASS-quality draft (checks a/b/c already passed on it)"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Reworked docs/agents/requirements.yaml per both BLOCKERs and the MINOR issue from step-02-req-validator.json. Read src/app/globals.css directly (confirmed .nav/.nav-in/.lang classes at lines 36-51, on this project's own bespoke --bg/--fg/--primary variable set defined in the :root block at the top of the same file, distinct from the documented OKLCH design-system tokens under docs/Design system for AI agents/tokens/) and src/components/landing/Nav.tsx (confirmed the non-functional RU/UZ/EN <div className=\"lang\"> block with no click handlers/hrefs) before rewriting. Replaced REQ-001 with REQ-001a (next-intl dependency, app/[locale] routing skeleton, middleware/proxy, working Nav.tsx RU/UZ switcher citing the corrected src/app/globals.css lines 36-51 / 48-51, message catalogs seeded from only src/app/layout.tsx's strings) and REQ-001b (depends_on: [REQ-001a]; extracts remaining copy from all 12 landing components into the catalogs, wires each component via next-intl's useTranslations/getTranslations hooks, uz values still placeholder-duplicated). Each is scoped to one agent turn with concrete, script/grep/build-checkable acceptance criteria citing only real paths (src/app/globals.css, src/app/layout.tsx, src/components/landing/*, messages/ru.json, messages/uz.json, package.json) -- no reference to the nonexistent tokens/components.css remains anywhere in the file. REQ-001a's design-system-fit paragraph explicitly states the decision (stay on globals.css's existing bespoke classes, do not migrate to the documented OKLCH tokens) and the reasoning (the rest of Nav.tsx and the whole landing page already run on globals.css; migrating only the switcher would fragment one component from its own parent markup for no functional gain). REQ-002's depends_on changed to [REQ-001a, REQ-001b] and its description's first paragraph and final sentence updated to reference both catalog-building requirements instead of a single REQ-001; REQ-002's domain-vocabulary decision, translation acceptance criteria, and all other content are otherwise byte-for-byte unchanged from the PASS-quality draft REQ-VALIDATOR already checked. Rephrased the next-intl rationale in REQ-001a to state plainly that the Next.js doc's Resources section lists next-intl first in an unordered, unranked list, and that the maintenance/adoption assessment is REQ-ANALYST's own, not sourced from the doc. On the replace-vs-append question the task asked me to confirm: REQ-001 never reached status done, was never consumed by a WF-02 selection, and existed only inside this same unmerged WF-01 run with no other requirement depending on it except REQ-002 (which is being updated in this same edit) -- so replacing it with REQ-001a/REQ-001b rather than appending alongside a dead REQ-001 entry is the correct application of the schema's never-renumber rule, which exists to protect ids that were actually relied upon elsewhere. No disagreement with this reasoning.",
+    "artifacts_out": [
+      "docs/agents/requirements.yaml"
+    ],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Route to REQ-VALIDATOR for rework verification"
+  },
+  "rework_count": 1,
+  "max_rework": 3,
+  "gate_history": [
+    {
+      "iteration": 0,
+      "gated_at": "2026-08-27T04:40:15Z",
+      "status": "FAIL",
+      "summary": "REQ-001 failed check (d) DESIGN-SYSTEM FIT (AC5 cites nonexistent tokens/components.css path; real classes live in src/app/globals.css on a different variable set than the documented design system) and check (e) SIZE (bundles 4 distinct sub-tasks: library+routing skeleton, middleware, copy-extraction from 13 files, switcher UI). REQ-002 passed all checks but stays blocked.",
+      "issues": [
+        "REQ-001 AC5 cites tokens/components.css which does not exist in the project",
+        "REQ-001 bundles routing skeleton + middleware + 13-file copy extraction + switcher UI into one agent turn"
+      ],
+      "next_action": "Rework REQ-ANALYST -- split REQ-001, fix AC5 citation, rephrase next-intl rationale"
+    }
+  ]
+}
