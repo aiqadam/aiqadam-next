@@ -7,9 +7,9 @@
   "to_agent": "RELEASE-VALIDATOR",
   "file": "handoffs/WF02-REQ-001a/step-05-release-validator.json",
   "created_at": "2026-08-27T05:53:00Z",
-  "started_at": "2026-08-27T05:53:00Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "started_at": "2026-08-27T05:49:13Z",
+  "completed_at": "2026-08-27T05:52:10Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-001a"],
@@ -34,10 +34,17 @@
     ]
   },
   "result": {
-    "status": "",
-    "summary": "",
+    "status": "PASS",
+    "summary": "Independently re-verified REQ-001a from scratch, not from TEST-RUNNER's report. npm run lint: exit 0, 0 errors, 4 pre-existing warnings (next/image suggestions in Avatar.jsx/Footer.tsx/Nav.tsx, one unused-var in Avatar.jsx), none touching i18n/routing/next-intl -- matches TEST-RUNNER's output verbatim. npm run build: exit 0, 'Compiled successfully in 232ms', 'Finished TypeScript', route table shows 'ƒ /[locale]', 'ƒ /health', 'ƒ Proxy (Middleware)', '○ /_not-found' -- clean. Started the server myself (npm run build && npm run start, backgrounded with output to a log, polled curl until bound at PID 36580, port 3000) and ran my own commands (not re-reading the report) for AC1 (curl /uz, /ru, / redirect, /ru followed), AC2/AC5 (curl+grep the .lang div on /ru and /uz, both the literal spec grep and a non-greedy equivalent), and AC4 (my own run of the key-set-comparison node script) -- exceeding the 2-3 case minimum. All 5 acceptance criteria confirmed against actual current code/output: AC1 -- curl http://localhost:3000/uz shows exactly <html lang=\"uz\">; /ru shows <html lang=\"ru\">; curl -s -o /dev/null -w on / returns '307 http://localhost:3000/ru'; curl -sL / shows <html lang=\"ru\">. AC2 -- LocaleSwitcher.tsx (read in full) builds Link href from usePathname() over routing.locales=[\"ru\",\"uz\"], so it correctly targets bare /ru and /uz with no hash; confirmed .lang has no display:none at either the 980px or 620px @media breakpoints in globals.css (only .nav-links hides at 980px), so the switcher stays visible/clickable at mobile width; confirmed #events anchor exists on the page; the rendered .lang div markup on /ru and /uz (isolated via non-greedy grep) exactly matches the spec's expected strings, consistent with functioning locale navigation. No browser tool is available in this execution environment either (confirmed by checking my own available tools), so this remains source+HTTP-evidence verification rather than an executed click, same substitution TEST-RUNNER used. AC3 -- npm pkg get dependencies.next-intl returns \"^4.13.7\" under dependencies (not devDependencies); build is clean per above. AC4 -- my own run of the key-set-comparison script against messages/ru.json and messages/uz.json outputs 'match: true' / 'empty_uz_values: []'. AC5 -- routing.ts locales array is exactly [\"ru\",\"uz\"], no EN; grep -n className src/components/landing/LocaleSwitcher.tsx shows only \"lang\" and the on/undefined conditional; grep -n '^\\.lang' globals.css shows exactly 3 rules (.lang, .lang a, .lang .on); git log --oneline -- src/app/globals.css confirms 59596fc as the only history entry; git show 59596fc -- src/app/globals.css shows the single-line diff '-.lang span{...}' / '+.lang a{...}' with no other change in the file for that commit -- no new hex/spacing/selector. Server stopped after testing: found and killed the actual node.exe process (PID 36580, via Get-CimInstance since the bash background job's PID did not match the real OS process on Windows), confirmed down via curl returning HTTP code 000 / connection refused. ISSUE-1 (no browser tool) assessed: I independently confirm the same constraint applies to me -- no interactive browser/viewport tool is available in this environment -- so TEST-RUNNER's server/source/CSS-evidence substitution is an acceptable substitute at this step too, not a gap unique to a weaker validator; the underlying evidence (Link/usePathname wiring, absence of any display:none on .lang at either breakpoint, correct <html lang> per locale) is sufficient to support the PASS conclusion for AC2 without a literal browser click. ISSUE-2 (grep over-match) verified myself: ran the exact literal spec command from AC2/AC5 (curl -s http://localhost:3000/ru | grep -o '<div class=\"lang\">.*</div>') and reproduced the over-match directly -- captured 23,794 characters running to the very last </div> in the entire page (the closing </div> of the footer's f-bottom block), confirming POSIX grep -o's greedy .* matches past the intended tag on this real page. Ran the non-greedy equivalent (grep -oE '<div class=\"lang\">(<a[^>]*>[A-Z]*</a>)*</div>') on both /ru and /uz and got exactly the two expected strings with no other content -- confirms this is a spec-wording quirk (the grep pattern itself, not the markup) and not a masked defect; the underlying .lang div content is correct and minimal (exactly two <a> children, RU and UZ, no EN, no extra markup). requirements.yaml staleness check performed: read REQ-001a's full entry (lines 22-104). Three of FRONTEND-DEV's 4 reported deviations (src/proxy.ts location, NextIntlClientProvider addition, no applicable light/dark theme split, no browser viewport tool) are implementation/wiring details that requirements.yaml's description and acceptance criteria never asserted one way or the other (the yaml only says 'middleware/proxy config present' and 'verified by manual click-through per TEST-DESIGNER's spec' -- both still true) -- no correction needed for those. One genuine staleness finding: requirements.yaml lines 89 and 103 still say the switcher must use 'only the existing `.lang`/`.lang span`/`.lang .on` classes' -- but `.lang span` no longer exists in the shipped CSS (confirmed above: the only 3 rules are `.lang`, `.lang a`, `.lang .on`). This rename was necessary and was already reviewed and explicitly accepted by REVIEWER (step-02b-reviewer.json) as a non-violating change (same declaration block, same values, required because the switcher now renders real <a> links instead of static <span>s) -- the IMPLEMENTATION is correct and approved, but requirements.yaml's own acceptance-criterion wording is now stale: read literally today it names a selector (`.lang span`) that a correct, working implementation could never satisfy. This is a documentation-accuracy issue in the registry, not a defect in the code, and does not block this PASS -- flagging for DOC-UPDATER to correct `.lang span` to `.lang a` in requirements.yaml lines 89 and 103 as part of Step 6's normal documentation-sync work.",
     "artifacts_out": [],
-    "issues": [],
+    "issues": [
+      {
+        "id": "OBSERVATION-1",
+        "severity": "minor",
+        "description": "docs/agents/requirements.yaml REQ-001a entry (lines 89 and 103) references '.lang span' as one of the classes the switcher must reuse, but the shipped, REVIEWER-approved implementation necessarily renamed this selector to '.lang a' in commit 59596fc (single-line diff, same declaration block/values, required because the switcher renders real <a> links, not <span>s). The registry text is stale relative to the accepted implementation.",
+        "recommendation": "DOC-UPDATER should correct '.lang span' to '.lang a' in requirements.yaml lines 89 and 103 when performing Step 6 documentation sync. Non-blocking for this PASS -- implementation itself is correct and already reviewed/accepted."
+      }
+    ],
     "git_evidence": {
       "branch_name": "feature/WF02-REQ-001a",
       "commit_sha_list": [],
@@ -46,7 +53,7 @@
       "pr_url": null,
       "pr_create_error": null
     },
-    "next_action": ""
+    "next_action": "Route to DOC-UPDATER (Step 6)"
   },
   "rework_count": 0,
   "max_rework": 3,
