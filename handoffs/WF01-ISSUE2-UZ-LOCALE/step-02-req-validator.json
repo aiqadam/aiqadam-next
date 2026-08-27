@@ -8,8 +8,8 @@
   "file": "handoffs/WF01-ISSUE2-UZ-LOCALE/step-02-req-validator.json",
   "created_at": "2026-08-27T04:36:00Z",
   "started_at": "2026-08-27T04:36:00Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-08-27T04:40:15Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-001", "REQ-002"],
@@ -31,10 +31,14 @@
     ]
   },
   "result": {
-    "status": "",
-    "summary": "",
+    "status": "FAIL",
+    "summary": "Read docs/agents/requirements.yaml directly (both full entries, lines 22-128) rather than trusting REQ-ANALYST's handoff summary, plus docs/agents/decisions/0001-full-pipeline-adopted.md (only decision on record, unrelated to i18n), docs/Design system for AI agents/readme.md in full, docs/guides/content_ba_guide.md, docs/guides/frontend_developer_guide.md, node_modules/next/dist/docs/01-app/02-guides/internationalization.md (the doc REQ-001 cites), src/components/landing/Nav.tsx, src/app/globals.css, next.config.ts, and the actual project tree (no middleware.ts/proxy.ts, no tokens/ directory outside the docs folder). Checks (a) TESTABILITY, (b) CONSISTENCY, and (c) DEPENDS_ON pass for both requirements: all 9 acceptance criteria across REQ-001/REQ-002 are script/diff/grep/click-through checkable with no vague wording, no conflict with any done requirement or decision record exists, and REQ-002's depends_on:[REQ-001] is correct and complete. The domain-vocabulary decision in REQ-002 was a legitimate unilateral call, not an escalation case: content_ba_guide.md SS4 and the design system readme's 'Domain vocabulary (use verbatim)' list already state the verbatim-English rule with no locale carve-out, and the existing Russian copy already applies it (Nav.tsx's Russian labels translate ordinary nav words, never the domain tokens) -- extending a precedented rule to a new locale is inference from an existing record, not a choice between genuinely equivalent options core-directives.md SS1 would require filing as a decisions/ draft. Two checks FAIL, both on REQ-001. (d) DESIGN-SYSTEM FIT FAILS: REQ-001's scope-of-work text and AC5 both assert the Nav.tsx switcher must reuse classes 'already defined in tokens/components.css', but no such path exists in the project -- the only components.css is docs/Design system for AI agents/tokens/components.css, a documentation-only reference file, and grepping it for '.lang'/'.nav' returns zero matches (the documented OKLCH design system does not define a nav or lang-switcher pattern at all). The actual .nav/.nav-in/.lang classes Nav.tsx uses live in src/app/globals.css (lines 35-51), built on this project's own bespoke variable set (--bg/--fg/--primary literals) that predates and diverges from the design system's documented tokens (--background/--foreground/--primary OKLCH values) -- similar names, not the same tokens. AC5 as written cannot be verified against the file it cites. (e) SIZE FAILS: REQ-001 bundles four materially distinct sub-tasks into one agent turn -- (1) adding next-intl as a dependency and committing to that library choice, (2) restructuring all of src/app/ under src/app/[locale]/ with new middleware/proxy (no middleware.ts or proxy.ts exists in the project today), (3) extracting hardcoded copy from 13 source files (layout.tsx plus the 12 landing components confirmed present: Band, Creed, Doors, Events, Footer, Hero, MapSection, Metrics, Nav, Partners, Streams, Team) into two new JSON message catalogs, and (4) building a working two-option locale switcher with routing-aware links, replacing Nav.tsx's confirmed-nonfunctional RU/UZ/EN spans. Per WF-01 Step 1c and core-directives.md's Weak-model tolerance principle, this asks one turn to introduce a new architectural layer, touch 13+ files, and land working UI interaction with no intermediate validation checkpoint -- it should be split, e.g. REQ-001a (next-intl + [locale] routing skeleton + switcher, catalogs seeded from layout.tsx only) depends_on-chained to REQ-001b (extract remaining 12 components' copy into the catalogs). Additionally noting as a MINOR (non-blocking) accuracy issue under check (b): REQ-001's rationale claims the Next.js doc's Resources section shows next-intl is 'the most actively maintained App-Router-native i18n library as of this writing' -- the actual doc (read in full) only lists next-intl first in an unordered, uncommented library list with no maintenance ranking language; the claim is REQ-ANALYST's own unstated inference presented as if sourced from the doc. This does not itself invalidate the library choice but should not be phrased as a doc citation.",
     "artifacts_out": [],
-    "issues": [],
+    "issues": [
+      {"severity": "BLOCKER", "description": "REQ-001 check (d) DESIGN-SYSTEM FIT: scope-of-work text and AC5 assert the Nav.tsx locale switcher must reuse classes 'already defined in tokens/components.css', but that path does not exist in the project (only docs/Design system for AI agents/tokens/components.css does, a reference-only doc file that itself contains zero .nav/.lang selectors). The .nav/.lang classes actually in use live in src/app/globals.css on the project's own bespoke variable set, not the documented design-system tokens. Rework must either point AC5 at the real file (src/app/globals.css) or explicitly decide/state whether the switcher should be migrated onto the documented OKLCH tokens instead -- not cite a nonexistent path.", "affected_requirement": "REQ-001"},
+      {"severity": "BLOCKER", "description": "REQ-001 check (e) SIZE: bundles (1) next-intl dependency/library decision, (2) src/app -> src/app/[locale] routing + middleware restructure, (3) copy extraction from 13 files into new message catalogs, and (4) a working locale-switcher UI into a single agent turn. Per WF-01 Step 1c, split into depends_on-chained requirements, e.g. routing/library/switcher skeleton first (catalogs seeded minimally) then full copy extraction second.", "affected_requirement": "REQ-001"},
+      {"severity": "MINOR", "description": "REQ-001's rationale attributes to node_modules/next/dist/docs/01-app/02-guides/internationalization.md's Resources section the claim that next-intl is 'the most actively maintained App-Router-native i18n library as of this writing' -- the doc only lists it first among nine unranked, uncommented libraries. Rework should rephrase this as REQ-ANALYST's own assessment, not a doc citation.", "affected_requirement": "REQ-001"}
+    ],
     "git_evidence": {
       "branch_name": null,
       "commit_sha_list": [],
@@ -43,7 +47,7 @@
       "pr_url": null,
       "pr_create_error": null
     },
-    "next_action": ""
+    "next_action": "Rework REQ-ANALYST -- rework iteration 1 of 3: (1) fix AC5/scope-of-work's tokens/components.css citation to reference the real file (src/app/globals.css) or explicitly address the divergence from the documented design-system tokens, (2) split REQ-001 into depends_on-chained requirements separating the i18n routing/library/switcher skeleton from the full 12-component copy extraction, (3) rephrase the next-intl rationale to not overstate what the Next.js doc's Resources section says. REQ-002 passed all five checks as drafted and needs no rework, but is blocked from WF-02 pending REQ-001's rework since its depends_on target is being reworked."
   },
   "rework_count": 0,
   "max_rework": 3,
