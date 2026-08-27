@@ -1,0 +1,56 @@
+{
+  "handoff_id": "7c8d9e0f-1a2b-4c3d-8e5f-6a7b8c9d0e1f",
+  "run_id": "WF02-REQ-002",
+  "workflow_id": "WF-02",
+  "step": "07",
+  "from_agent": "TEST-RUNNER",
+  "to_agent": "RELEASE-VALIDATOR",
+  "file": "handoffs/WF02-REQ-002/step-07-release-validator.json",
+  "created_at": "2026-08-27T10:13:00Z",
+  "started_at": "2026-08-27T10:13:00Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-002"],
+    "requirement_text": {
+      "REQ-002": "Replace every placeholder in messages/uz.json with real Uzbek translations. 4 acceptance criteria: (1) every key has a non-empty, non-placeholder value except verified standalone domain-vocabulary/proper-noun exceptions; (2) no Cyrillic anywhere in messages/uz.json; (3) status-label values correct per the CSS-driven uppercase convention; (4) no exclamation marks, slogans, or emoji."
+    },
+    "source_text": {},
+    "related_handoff_ids": ["6b7c8d9e-0f1a-4b2c-9d4e-5f6a7b8c9d0e"],
+    "artifacts_in": [
+      "test-reports/report-2026-08-27-WF02-REQ-002.yaml",
+      "docs/agents/test-specs/REQ-002.md",
+      "docs/agents/requirements.yaml"
+    ]
+  },
+  "task": {
+    "description": "Independently re-verify REQ-002 per WF-02 Step 5 -- do not trust TEST-RUNNER's report alone. This run already went through one rework cycle (REVIEWER caught a garbled translation, CONTENT-BA fixed it, REVIEWER re-verified) and TEST-DESIGN-VALIDATOR independently re-judged all 21 identical-value pairs as legitimate exceptions -- you should still do your own independent pass, not lean on those prior checks alone. (1) Re-run npm run lint && npm run build yourself. (2) Re-run the Cyrillic scan and the 21-identical-value-pair check yourself, and spot-check at least 5-8 of the ACTUAL TRANSLATED (non-identical) values yourself for basic sanity (does it read as real Uzbek prose, not garbled text) -- pick different keys than what REVIEWER/TEST-DESIGN-VALIDATOR already checked if you can tell from their handoffs which ones those were. (3) Start the server yourself and curl at least 2-3 rendered pages/sections. (4) Confirm all 4 acceptance criteria against actual current code/output. (5) Check docs/agents/requirements.yaml's REQ-002 entry for staleness -- does it still accurately describe what shipped?",
+    "acceptance_criteria": [
+      "npm run lint && npm run build re-run independently, real output quoted",
+      "Cyrillic scan and identical-value-pair check re-run with own commands",
+      "5-8 NEW (not previously spot-checked) translated values read for basic sanity",
+      "Server started, 2-3 rendered pages curled independently",
+      "All 4 acceptance criteria explicitly confirmed",
+      "requirements.yaml staleness check performed"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-002",
+      "commit_sha_list": [],
+      "remote_branch": "origin/feature/WF02-REQ-002",
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
