@@ -46,7 +46,7 @@
       "started_at": "2026-08-27T04:52:00Z",
       "completed_at": null,
       "status": "IN_PROGRESS",
-      "current_step": "step-02b-reviewer",
+      "current_step": "step-03-test-designer",
       "steps": [
         {
           "step": "00",
@@ -80,6 +80,13 @@
           "step": "02b",
           "file": "handoffs/WF02-REQ-001a/step-02b-reviewer.json",
           "to_agent": "REVIEWER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "03",
+          "file": "handoffs/WF02-REQ-001a/step-03-test-designer.json",
+          "to_agent": "TEST-DESIGNER",
           "status": "PENDING"
         }
       ]
