@@ -46,7 +46,10 @@
       "started_at": "2026-08-27T04:52:00Z",
       "completed_at": null,
       "status": "IN_PROGRESS",
+      "completed_at": "2026-08-27T06:08:30Z",
+      "status": "COMPLETED",
       "current_step": "step-final-git-merge",
+      "pr_url": "https://github.com/aiqadam/aiqadam-next/pull/5",
       "steps": [
         {
           "step": "00",
@@ -122,7 +125,8 @@
           "step": "final",
           "file": "handoffs/WF02-REQ-001a/step-final-git-merge.json",
           "to_agent": "FRONTEND-DEV",
-          "status": "PENDING"
+          "status": "COMPLETED",
+          "result": "PASS"
         }
       ]
     }
