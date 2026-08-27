@@ -8,8 +8,8 @@
   "file": "handoffs/WF02-REQ-001b/step-01b-code-design-validator.json",
   "created_at": "2026-08-27T06:46:00Z",
   "started_at": "2026-08-27T06:46:00Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-08-27T06:48:39Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-001b"],
@@ -30,8 +30,8 @@
     ]
   },
   "result": {
-    "status": "",
-    "summary": "",
+    "status": "PASS",
+    "summary": "Read docs/agents/design/REQ-001b.md directly, independent of the handoff's characterization of it. All four gate checks pass: (a) all 5 REQ-001b acceptance criteria (requirements.yaml lines 128-132) map to concrete design elements in SS5's table, verified against SS1-SS4's actual content, not just the table's own claims; no TBD/deferral language found anywhere outside the explicitly labeled SS4 open-questions section (grepped). (b) SS2's per-component key table gives fully field-level flat key names for every one of the 12 namespaces (e.g. principle1Title/principle1Body, not vague placeholders) -- cross-checked exhaustively against the actual source strings in all 12 files. (c) No color/hex/spacing/token content anywhere in the design; the one CSS-adjacent item (statusClass) is correctly kept as a non-extracted literal, so zero token surface is touched, as expected for a copy-only requirement. (d) No .tsx code blocks present -- confirmed no code fences in the file at all. Independently re-verified the design's two load-bearing factual claims against real source: read all 12 landing component files' opening lines myself (Band, Creed, Doors, Events, Footer, Hero, MapSection, Metrics, Nav, Partners, Streams, Team) -- none has a \"use client\" directive, confirming the Server-Component/getTranslations claim for all 12. Also read the six components with data arrays (Events.TALKS, MapSection.CHAPTERS, Metrics.METRICS, Partners.PARTNERS, Streams.STREAMS, Team.TEAM) in full -- confirmed none uses array.join() or any array-to-sentence interpolation; all six render one repeated DOM block per item via .map(), matching the design's claim. Checked next-intl's actual shipped types (node_modules/use-intl/dist/types/core/AbstractIntlMessages.d.ts, createTranslator.d.ts, TranslationValues.d.ts, createFormatter.d.ts) rather than taking the design's characterization on faith: AbstractIntlMessages is typed as `{[id: string]: AbstractIntlMessages | string}` -- nested string leaves only, no array variant in the type -- confirming flat indexed keys is the only pattern next-intl's typed message shape and t()/t.rich() resolution model actually support; a JSON-array-valued entry would require t.raw() (returns `any`, an untyped escape hatch) and would bypass ICU interpolation and t.rich() entirely. Verdict on open question 4: CONFIRM flat indexed keys (option a) as designed -- it is the only pattern the library's own types support as first-class, not merely the more conservative choice. Also confirmed t.rich() exists (RichTagsFunction-based) and format.list() exists (ICU/Intl.ListFormatOptions-based array-to-sentence formatting) -- next-intl's actual supported mechanism for joining an array into a sentence, which the 12 components correctly never use, reinforcing the SS3 pitfall-audit finding. Triage of all 6 SS4 open questions: (1) brand-name extraction scope -- SAFE PASS-THROUGH to FRONTEND-DEV; either choice (extract 'AI Qadam' as a key or leave it literal like the non-copy URLs) is mechanically reversible and affects zero visible behavior or acceptance criteria either way, recommend leaving it literal per content_ba_guide.md's 'no permitted variants' framing but not blocking on it. (2) <em>-emphasis handling -- SAFE PASS-THROUGH, now with concrete direction: next-intl's t.rich() is confirmed to exist and is exactly the documented mechanism for this (verified in createTranslator.d.ts), so FRONTEND-DEV should use t.rich() with a tag-function value for the em span rather than dangerouslySetInnerHTML or manual string splitting; this is an implementation-pattern choice, not a content or catalog-shape decision, so it does not need to come back to design. (3) Telegram-handle splitting -- SAFE PASS-THROUGH, genuinely cosmetic (one key vs. two for an invariant token), zero effect on acceptance criteria or catalog structure either way. (4) flat-key-vs-array -- RESOLVED by this gate, not a pass-through: confirmed flat indexed keys per the verdict above, FRONTEND-DEV should treat this as decided, not still open. (5) MapSection aria-label desync -- SAFE PASS-THROUGH, explicitly out of scope: the design correctly identifies this as a pre-existing latent risk this requirement neither introduces nor is positioned to fix (fixing it would mean deriving the aria-label from CHAPTERS programmatically, which is a structural change beyond copy extraction) -- correctly left for a future requirement, not a Step-2 blocker. (6) nav anchor scope -- NOT REALLY OPEN: the design already states affirmatively, backed by a direct Nav.tsx read, that anchors do not change; this is confirmed correct and should be treated as closed, not left open for FRONTEND-DEV to re-litigate.",
     "artifacts_out": [],
     "issues": [],
     "git_evidence": {
@@ -42,7 +42,7 @@
       "pr_url": null,
       "pr_create_error": null
     },
-    "next_action": ""
+    "next_action": "Route to FRONTEND-DEV (Step 2)"
   },
   "rework_count": 0,
   "max_rework": 3,
