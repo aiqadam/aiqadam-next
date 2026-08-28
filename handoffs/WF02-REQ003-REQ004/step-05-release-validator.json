@@ -8,8 +8,8 @@
   "file": "handoffs/WF02-REQ003-REQ004/step-05-release-validator.json",
   "created_at": "2026-08-28T03:03:30Z",
   "started_at": "2026-08-28T03:03:30Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-08-28T03:05:25Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-003"],
@@ -33,19 +33,26 @@
     ]
   },
   "result": {
-    "status": "",
-    "summary": "",
+    "status": "PASS",
+    "summary": "Independently re-verified REQ-003, not trusting TEST-RUNNER's report. npm run lint: exit 0, 0 errors, same 4 pre-existing warnings (Avatar.jsx, Footer.tsx, Nav.tsx) unrelated to routing.ts/messages/en.json. npm run build: exit 0, compiled successfully, route table shows 'ƒ /[locale]' and 'ƒ Proxy (Middleware)', no type/routing errors. AC1: read src/i18n/routing.ts directly - locales=[\"ru\",\"uz\",\"en\"], defaultLocale=\"ru\", exact match. AC2/AC2b: re-ran my own Node leaf-key-diff and verbatim-value-diff scripts (not the report's copy) against messages/ru.json and messages/en.json - ru_count=177, en_count=177, missing=[], extra=[], empty=[], diff_keys=[\"Metadata.ogLocale\"] with en=\"en_US\"/ru=\"ru_RU\" - matches report exactly. AC3: started my own npm run dev, curled /en, /ru, /uz directly - <html lang> is \"en\"/\"ru\"/\"uz\" respectively; / redirects 307 to /ru; /xx redirects 307 to /ru/xx; /ru/xx returns 404. AC4: curled LocaleSwitcher markup on all three locale pages myself, including /uz which the report never explicitly showed - all three show correct hrefLang/class=\"on\" placement and bare-path hrefs (/ru,/uz,/en) with no hash fragments, consistent across every page checked (anchor preservation follows structurally since next-intl's Link/pathname mechanism is unchanged and hrefs never carry an anchor server-side). Read LocaleSwitcher.tsx directly - confirmed it is fully generic over routing.locales with zero hardcoded locale branches, so this requirement needed no code change there, matching the requirement description's own claim. Read src/i18n/request.ts directly - confirmed it resolves messages by dynamic import keyed on locale with a defaultLocale fallback, needing no change for a third locale, matching the description's claim. AC6: curled /en myself - 0 MISSING_MESSAGE occurrences, only one dotted-string match '>IMPACT.T<' which is a real partner brand name in context, all 10 distinct section ids present (top/about/proof/map/events/streams/team/partners/join/grid), hero content verbatim Russian placeholder as REQ-003 scopes it (translation is REQ-004's job, correctly out of scope here). Confirmed dev server stopped: post-kill curl to :3000 returned status=000 (connection refused). git diff master...HEAD is tightly scoped: only src/i18n/routing.ts (+1/-1) and new messages/en.json touched in application code, no scope creep. docs/agents/requirements.yaml REQ-003 checked for staleness: status is 'in_progress', which is correct at this pipeline stage (DOC-UPDATER flips to 'done' in Step 6, after this gate) - not stale. Recurring browser-automation-gap MINOR issue (AC4/AC6's literal click-through/theme-toggle steps): confirmed independently via ToolSearch that no Playwright/Puppeteer/browser MCP tool is available in this environment either (only WebFetch matched, which is a read-only markdown-conversion fetcher, not an interactive browser) - the gap is real and still unresolved at this gate too. This is the second consecutive requirement (REQ-001a, now REQ-003) where TEST-RUNNER and RELEASE-VALIDATOR both had to substitute server-rendered/source/CSS evidence for the literal browser-interaction steps in a test spec. Recommend this now be escalated from a per-run MINOR note to a system-level issue (per docs/agents/protocols/ISSUE_QUEUE.md) to provision a browser automation tool - the substituted evidence has been sound both times, but two independent verification stages across two requirements hitting the identical gap is a pattern, not noise, and the equivalent-evidence workaround will not scale indefinitely as more requirements have interactive acceptance criteria.",
     "artifacts_out": [],
-    "issues": [],
+    "issues": [
+      {
+        "id": "browser-automation-gap",
+        "severity": "minor",
+        "description": "No browser automation tool (Playwright/Puppeteer/browser MCP) is available in this execution environment. AC4's click-through-and-read-document.documentElement.lang steps and AC6's live dark-theme-toggle-and-rescroll steps could not be executed literally; both were substituted with independently-verified server-rendered HTML, source-code, and CSS evidence that supports the same PASS conclusion. Recurred identically at REQ-001a (Step 4, test-reports/report-2026-08-27-WF02-REQ-001a.yaml ISSUE-1) and now at REQ-003 (Step 4 and this Step 5 re-check).",
+        "recommendation": "Escalate to a system-level issue via docs/agents/protocols/ISSUE_QUEUE.md to provision a browser automation tool for TEST-RUNNER/RELEASE-VALIDATOR, since this gap has now recurred across two requirements at two separate pipeline stages each."
+      }
+    ],
     "git_evidence": {
-      "branch_name": null,
+      "branch_name": "feature/WF02-REQ003-REQ004",
       "commit_sha_list": [],
       "remote_branch": null,
       "push_status": "skipped",
       "pr_url": null,
       "pr_create_error": null
     },
-    "next_action": ""
+    "next_action": "Route to DOC-UPDATER"
   },
   "rework_count": 0,
   "max_rework": 3,
