@@ -8,8 +8,8 @@
   "file": "handoffs/WF02-REQ005-REQ006/step-12-reviewer-final.json",
   "created_at": "2026-08-28T06:57:10Z",
   "started_at": "2026-08-28T06:57:10Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-08-28T07:10:00Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-006"],
@@ -30,21 +30,30 @@
     ]
   },
   "result": {
-    "status": "",
-    "summary": "",
+    "status": "PASS",
+    "summary": "Confirmed both acceptance criteria. (1) `git log -1 --format=%H -- messages/kk.json` still returns 357d1c2495cd96cb8aa0cfa8fbea8c7eb5f82e3b -- the file is byte-identical to the version REVIEWER already checked value-by-value in step-10; no new commits touched it, so no re-verification of translation content was needed. (2) Independently re-ran `git diff 401080e..357d1c2 -- messages/kk.json` and counted 17 removed key lines: Nav.events, Nav.chapters, Hero.ctaPrimary, Band.lede, Creed.principle2Body, Metrics.sourceNote, Doors.door1Body, Doors.door2Link, Events.eyebrow, Events.lede, Map.nodeAlmatySub, Map.ctaLaunchChapter, Streams.stream1Title, Partners.partner1Desc, Partners.disclaimer, Team.team5Role, Footer.licenseContent. This is the exact same 17-key set REVIEWER derived in step-10 (there recorded as 16 explicitly-checked keys plus the undisclosed Events.lede = 17 total) -- same keys, no additions, no omissions, no substitutions. CONTENT-BA's step-11 reconciled list matches it exactly, including the previously-undisclosed Events.lede. No content in messages/kk.json changed during this rework (confirmed by the unchanged commit hash), so the step-10 per-value correctness verdict still stands and was not re-litigated. This rework was, as scoped, a pure bookkeeping correction to the self-report inventory, and CONTENT-BA's root-cause explanation (report compiled from sweep notes rather than a fresh diff) is a reasonable account of how a real, benign edit fell out of a hand-assembled list. No new discrepancy found. PASS.",
     "artifacts_out": [],
     "issues": [],
     "git_evidence": {
-      "branch_name": null,
-      "commit_sha_list": [],
+      "branch_name": "feature/WF02-REQ005-REQ006",
+      "commit_sha_list": ["357d1c2495cd96cb8aa0cfa8fbea8c7eb5f82e3b"],
       "remote_branch": null,
       "push_status": "skipped",
       "pr_url": null,
       "pr_create_error": null
     },
-    "next_action": ""
+    "next_action": "Route to TEST-DESIGNER"
   },
   "rework_count": 2,
   "max_rework": 3,
-  "gate_history": []
+  "gate_history": [
+    {
+      "iteration": 2,
+      "gated_at": "2026-08-28T07:10:00Z",
+      "status": "PASS",
+      "summary": "messages/kk.json unchanged since step-10 (still commit 357d1c2). CONTENT-BA's reconciled 17-key list independently re-verified against a fresh git diff 401080e..357d1c2 and matches exactly, including the previously-undisclosed Events.lede. No new discrepancy found.",
+      "issues": [],
+      "next_action": "Route to TEST-DESIGNER"
+    }
+  ]
 }
