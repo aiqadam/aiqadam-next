@@ -58,3 +58,8 @@ history:
     run_id: WF02-REQ003-REQ004
     at: "2026-08-28T02:43:56Z"
     note: "Batched with REQ-003 in the same WF-02 run per ORCHESTRATOR.md's batch cap (REQ-004 depends_on REQ-003). Per decisions/0002, CODE-DESIGNER/CODE-DESIGN-VALIDATOR will be skipped for REQ-004's content-writing step (CONTENT-BA writes messages/en.json directly, gated by REVIEWER)."
+  - requirement_id: REQ-003
+    event: done
+    run_id: WF02-REQ003-REQ004
+    at: "2026-08-28T03:07:03Z"
+    note: "RELEASE-VALIDATOR PASSed REQ-003 (add 'en' locale to routing.ts, seed messages/en.json placeholders). requirements.yaml needed no content correction. README.md rechecked -- still create-next-app boilerplate with no i18n mentions, no update needed. Status flipped to done. REQ-004 remains in_progress -- batched into this same WF-02 run per the batch cap, but its own CONTENT-BA/REVIEWER cycle has not run yet."

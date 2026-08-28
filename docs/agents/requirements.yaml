@@ -180,7 +180,7 @@ requirements:
   - id: REQ-003
     title: Add English (en) locale to routing and seed messages/en.json
     owner: FRONTEND-DEV
-    status: in_progress
+    status: done
     description: >
       GitHub issue #3 ("translate to en") asks for an English version of the
       site. REQ-001a explicitly scoped English out when it built the ru/uz i18n
