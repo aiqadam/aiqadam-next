@@ -1,0 +1,31 @@
+id: ISS-0001
+title: No browser automation tool available for TEST-RUNNER/RELEASE-VALIDATOR
+discovered_by: RELEASE-VALIDATOR
+discovered_in_run: WF02-REQ003-REQ004
+discovered_at: "2026-08-28T03:26:16Z"
+severity: MINOR
+description: >
+  No Playwright/Puppeteer/browser-automation MCP tool is available in this execution
+  environment (confirmed independently via ToolSearch by three separate agent runs).
+  Test specs with literal browser-interaction acceptance criteria (click-through
+  navigation, live viewport-resize, dark/light theme toggle, reading
+  document.documentElement.lang after a client-side action) cannot be executed as
+  written. TEST-RUNNER and RELEASE-VALIDATOR have substituted equivalent
+  server-rendered HTML / source-code / CSS-rule evidence each time, and that
+  substitute evidence has been sound in every case checked so far -- this is not
+  currently blocking any run's PASS verdict. But it is a real, recurring gap: the
+  same substitution was needed at REQ-001a (TEST-RUNNER step-04,
+  test-reports/report-2026-08-27-WF02-REQ-001a.yaml ISSUE-1), REQ-003 (TEST-RUNNER
+  step-04 and RELEASE-VALIDATOR step-05), and REQ-004 (TEST-RUNNER step-10 and
+  RELEASE-VALIDATOR step-11) -- three requirements running, two pipeline roles each
+  time. The REQ-003 RELEASE-VALIDATOR run already recommended escalating this to a
+  system-level issue; that recommendation was not acted on until now, which is the
+  reason this is being filed only at the third recurrence rather than the first.
+  As more requirements accumulate genuinely interactive or theme/viewport-conditional
+  acceptance criteria, the server-rendered-evidence substitute will not keep scaling
+  as a reliable stand-in for literal browser verification.
+affected_files:
+  - docs/agents/workflows/WF-02_requirement_implementation.md
+  - .claude/agents/test-runner.md
+  - .claude/agents/release-validator.md
+status: open
