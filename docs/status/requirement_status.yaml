@@ -68,3 +68,13 @@ history:
     run_id: WF02-REQ003-REQ004
     at: "2026-08-28T03:27:57Z"
     note: "RELEASE-VALIDATOR PASSed REQ-004 (real English translations for all landing page copy, replacing REQ-003's Russian-duplicated placeholders in messages/en.json). requirements.yaml's REQ-004 entry needed no content correction. README.md rechecked -- still create-next-app boilerplate with no i18n mentions, no update needed. Status flipped to done. Both REQ-003 and REQ-004 now done -- run WF02-REQ003-REQ004 ready for Step Final git merge."
+  - requirement_id: REQ-005
+    event: started
+    run_id: WF02-REQ005-REQ006
+    at: "2026-08-28T06:17:32Z"
+    note: "REQ-VALIDATOR PASSed REQ-005/REQ-006 in WF01-ISSUE4-KZ-LOCALE (GitHub issue #4). Starting WF-02 for REQ-005 (add 'kk' locale to routing.ts, seed messages/kk.json placeholders) batched with REQ-006."
+  - requirement_id: REQ-006
+    event: started
+    run_id: WF02-REQ005-REQ006
+    at: "2026-08-28T06:17:32Z"
+    note: "Batched with REQ-005 per ORCHESTRATOR.md's batch cap (REQ-006 depends_on REQ-005). Per decisions/0002, CODE-DESIGNER/CODE-DESIGN-VALIDATOR will be skipped for REQ-006's content-writing step (CONTENT-BA writes messages/kk.json directly, Cyrillic script, gated by REVIEWER)."
