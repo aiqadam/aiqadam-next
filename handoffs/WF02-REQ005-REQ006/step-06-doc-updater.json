@@ -1,0 +1,50 @@
+{
+  "handoff_id": "9fdfe225-adae-4a05-af72-4ad84f78a077",
+  "run_id": "WF02-REQ005-REQ006",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "RELEASE-VALIDATOR",
+  "to_agent": "DOC-UPDATER",
+  "file": "handoffs/WF02-REQ005-REQ006/step-06-doc-updater.json",
+  "created_at": "2026-08-28T06:38:48Z",
+  "started_at": "2026-08-28T06:38:48Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-005"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["bad7c5fd-96b3-4632-b67d-2dd77f9b5765"],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "docs/status/requirement_status.yaml"
+    ]
+  },
+  "task": {
+    "description": "RELEASE-VALIDATOR PASSed REQ-005. Flip REQ-005's status from 'in_progress' to 'done' in docs/agents/requirements.yaml. Append a 'done' event to docs/status/requirement_status.yaml with a real UTC timestamp. REQ-006 stays 'in_progress' — its own CONTENT-BA/REVIEWER steps haven't run in this run yet. Check README.md for whether it needs updating (it hasn't for any prior i18n requirement).",
+    "acceptance_criteria": [
+      "REQ-005's status is 'done' in docs/agents/requirements.yaml, REQ-006 untouched (stays in_progress)",
+      "A 'done' event appended to docs/status/requirement_status.yaml for REQ-005 with a real UTC timestamp, prior entries untouched",
+      "README.md checked; updated only if it documents behavior this change altered"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
