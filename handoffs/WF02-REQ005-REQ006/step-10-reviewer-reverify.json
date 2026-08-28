@@ -1,0 +1,55 @@
+{
+  "handoff_id": "0c416d1e-c8f5-4188-9176-2824c9056230",
+  "run_id": "WF02-REQ005-REQ006",
+  "workflow_id": "WF-02",
+  "step": "10",
+  "from_agent": "CONTENT-BA",
+  "to_agent": "REVIEWER",
+  "file": "handoffs/WF02-REQ005-REQ006/step-10-reviewer-reverify.json",
+  "created_at": "2026-08-28T06:52:16Z",
+  "started_at": "2026-08-28T06:52:16Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-006"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["7b1d41f0-48de-4cc0-8d9b-8b4678a76ca6"],
+    "artifacts_in": [
+      "messages/ru.json",
+      "messages/kk.json",
+      "handoffs/WF02-REQ005-REQ006/step-08-reviewer.json",
+      "handoffs/WF02-REQ005-REQ006/step-09-content-ba-rework.json"
+    ]
+  },
+  "task": {
+    "description": "Re-verify REQ-006's rework. CONTENT-BA fixed the 12 originally-flagged keys plus Footer.licenseContent, and found+fixed 3 additional instances of the same pattern (Creed.principle2Body, Metrics.sourceNote, Partners.disclaimer) during a full re-scan. Independently re-check all 15 changed keys against ru.json's actual meaning yourself (don't trust CONTENT-BA's report of what changed). Also independently re-run your own re-scan for the same pattern across the full 177 keys — confirm CONTENT-BA's re-scan wasn't itself incomplete. Re-verify the other REQ-006 acceptance criteria still hold (they weren't the subject of the FAIL, but confirm nothing regressed): Metadata.ogLocale, status labels, no exclamation marks/emoji, Kazakh-letter distribution.",
+    "acceptance_criteria": [
+      "git diff (against the pre-rework commit) reviewed to confirm exactly the claimed 15 lines changed, nothing else",
+      "Each of the 15 changed values independently checked against ru.json's actual corresponding meaning — confirm genuine translation, not just presence of Cyrillic",
+      "An independent full re-scan for the same English-word-substitution pattern across all 177 keys, not limited to the previously-flagged list",
+      "Footer.licenseCode/licenseBrand's 'kept as loanword' reasoning independently assessed — is this genuinely consistent with ru.json's own usage, or should REVIEWER disagree with CONTENT-BA's judgment call here?",
+      "Other REQ-006 acceptance criteria (ogLocale, status labels, no exclamation/emoji, letter distribution) spot-re-checked for no regression",
+      "FAIL again if any genuine issue remains; otherwise PASS"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 1,
+  "max_rework": 3,
+  "gate_history": []
+}
