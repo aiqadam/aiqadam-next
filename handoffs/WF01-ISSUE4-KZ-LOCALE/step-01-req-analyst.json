@@ -1,0 +1,63 @@
+{
+  "handoff_id": "2cc935f7-c6fb-468a-939a-1ba2a1786e94",
+  "run_id": "WF01-ISSUE4-KZ-LOCALE",
+  "workflow_id": "WF-01",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "REQ-ANALYST",
+  "file": "handoffs/WF01-ISSUE4-KZ-LOCALE/step-01-req-analyst.json",
+  "created_at": "2026-08-28T06:09:33Z",
+  "started_at": "2026-08-28T06:09:33Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": [],
+    "requirement_text": {},
+    "source_text": {
+      "GitHub issue #4": "Title: 'Add KZ translation'. Body: 'Add KZ translation'"
+    },
+    "related_handoff_ids": [],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "docs/guides/content_ba_guide.md",
+      "docs/guides/frontend_developer_guide.md",
+      "messages/ru.json",
+      "messages/en.json",
+      "src/i18n/routing.ts",
+      "src/components/landing/LocaleSwitcher.tsx"
+    ]
+  },
+  "task": {
+    "description": "GitHub issue #4 ('Add KZ translation') asks for a Kazakh version of the site. This is structurally identical to GitHub issue #3 ('translate to en'), which this project just resolved via REQ-003 (routing/mechanism, owner FRONTEND-DEV) + REQ-004 (real translations, owner CONTENT-BA, depends_on REQ-003) -- read both of those entries in docs/agents/requirements.yaml directly as your primary precedent/template, plus docs/agents/decisions/0002-content-ba-owns-message-catalogs.md.\n\nCurrent state (verify yourself, don't trust this summary): src/i18n/routing.ts has locales=['ru','uz','en'], defaultLocale='ru'. No 'kk' (Kazakh) locale exists anywhere. messages/ru.json, messages/uz.json, messages/en.json all exist with matching key sets (177 keys as of REQ-004's close, but re-verify the current count -- it may have grown). src/components/landing/LocaleSwitcher.tsx iterates routing.locales generically (confirmed in REQ-003's design/build), so adding a locale to the array is expected to be sufficient for the switcher UI, same as REQ-003 found -- but verify this claim still holds by reading the file yourself rather than assuming it's unchanged. The design system readme's brand voice principle #6 already commits to 'Multilingual by default -- Russian, Uzbek, Kazakh, Kyrgyz, Tajik, English -- equal weight' (content_ba_guide.md, design system readme), so Kazakh is a locale this project already committed to, not new scope invention.\n\nUse ISO locale code 'kk' for Kazakh (the standard ISO 639-1 code; next-intl and Next.js both expect ISO codes, matching how 'ru'/'uz'/'en' are already used). State this choice explicitly rather than silently assuming it.\n\nDraft this as two requirements sized to one agent turn each, mirroring REQ-003/REQ-004's split exactly:\n1. FRONTEND-DEV-owned requirement: add 'kk' to routing.ts's locales array, defaultLocale stays 'ru' unless you find a stated reason to change it (there isn't one -- state this explicitly, don't silently imply a change), seed messages/kk.json with every current messages/ru.json key duplicated verbatim as a placeholder. Verify LocaleSwitcher.tsx/request.ts/layout.tsx still need no code change (or state what changed if they do).\n2. CONTENT-BA-owned requirement, depends_on the first: write real Kazakh (Latin or Cyrillic script -- state which and why; note Kazakh has historically used Cyrillic script and the ru/uz precedent in this project used Latin script for Uzbek specifically because that's Uzbekistan's current official script -- Kazakhstan's ongoing Latin transition is not complete, so don't assume Latin without justifying it) copy for every messages/kk.json key, following content_ba_guide.md's rules and restating the domain-vocabulary decision for this locale (should follow the same verbatim-English-domain-terms precedent as REQ-002/REQ-004 unless you find a reason it doesn't apply).\n\nRead docs/agents/requirements.yaml in full first (existing schema + REQ-001a/b/REQ-002/REQ-003/REQ-004 as direct precedent). Read docs/agents/anti-patterns.md and docs/agents/decisions/ for anything relevant.",
+    "acceptance_criteria": [
+      "Two new entries appended to docs/agents/requirements.yaml (next sequential ids after REQ-004), following the exact existing schema, status: pending",
+      "The second requirement's depends_on includes the first",
+      "Each requirement has >=2 concrete, testable acceptance criteria (script/diff/grep/build-output verifiable, no vague language)",
+      "The requirement(s) state explicitly what defaultLocale remains and why",
+      "The ISO locale code choice ('kk') is stated explicitly with reasoning",
+      "The script decision (Cyrillic vs Latin) for Kazakh copy is stated explicitly with reasoning, not silently assumed from the Uzbek precedent",
+      "The domain-vocabulary-in-Kazakh decision is stated explicitly, citing whether it follows or diverges from the REQ-002/REQ-004 precedent and why",
+      "Neither requirement contradicts any existing done requirement's description",
+      "Sized to one agent turn per requirement per WF-01 Step 1c, following the REQ-003/REQ-004 precedent split"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
