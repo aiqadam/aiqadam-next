@@ -1,0 +1,58 @@
+{
+  "handoff_id": "dc2a18d9-5b66-467f-ae53-54660d016b26",
+  "run_id": "WF01-ISSUE4-KZ-LOCALE",
+  "workflow_id": "WF-01",
+  "step": "02",
+  "from_agent": "REQ-ANALYST",
+  "to_agent": "REQ-VALIDATOR",
+  "file": "handoffs/WF01-ISSUE4-KZ-LOCALE/step-02-req-validator.json",
+  "created_at": "2026-08-28T06:13:11Z",
+  "started_at": "2026-08-28T06:13:11Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-005", "REQ-006"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["2cc935f7-c6fb-468a-939a-1ba2a1786e94"],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "docs/guides/content_ba_guide.md",
+      "docs/guides/frontend_developer_guide.md",
+      "docs/agents/decisions/0002-content-ba-owns-message-catalogs.md",
+      "src/i18n/routing.ts",
+      "src/components/landing/LocaleSwitcher.tsx",
+      "messages/ru.json"
+    ]
+  },
+  "task": {
+    "description": "REQ-ANALYST drafted REQ-005 (FRONTEND-DEV, depends_on [REQ-001a, REQ-001b]: add 'kk' to routing.ts's locales array, keep defaultLocale 'ru', seed messages/kk.json with 177 ru.json-duplicated placeholders) and REQ-006 (CONTENT-BA, depends_on [REQ-005]: write real Kazakh copy, Cyrillic script, Metadata.ogLocale='kk_KZ') into docs/agents/requirements.yaml, in response to GitHub issue #4 ('Add KZ translation'). Run WF-01 Step 2's full gate against both: TESTABILITY, CONSISTENCY, DEPENDS_ON CORRECTNESS, DESIGN-SYSTEM FIT, SIZE. Read both entries directly from docs/agents/requirements.yaml rather than trusting this summary.\n\nGive real scrutiny to the script decision (Cyrillic, not Latin) in REQ-006 -- REQ-ANALYST's reasoning is that Kazakhstan's Latin transition is real but incomplete in practice, so Cyrillic is what the site's actual Kazakh-reading audience reads fluently today, distinct from Uzbek where Latin is Uzbekistan's completed official standard. Assess whether this is a legitimate unilateral call (grounded in a stated, checkable distinction) or should have been escalated as a decisions/ record given it reverses the script-choice pattern set by the one precedent (REQ-002) this project has for a non-Russian locale. Also verify: (a) the locale-count-agnostic claims for request.ts/LocaleSwitcher.tsx/layout.tsx by reading those files yourself, (b) messages/ru.json's current key count matches what REQ-005 assumes (177, not stale), (c) depends_on correctness for both requirements, (d) SIZE -- does REQ-005 (routing edit + seeding) still fit one turn, is the FRONTEND-DEV/CONTENT-BA split still justified at this size per the established REQ-003/REQ-004 precedent.",
+    "acceptance_criteria": [
+      "Checks a-e from WF-01_requirement_development.md Step 2 are each explicitly run and recorded against both REQ-005 and REQ-006",
+      "The Cyrillic-vs-Latin script decision is independently assessed with real scrutiny (own reasoning, not just accepting REQ-ANALYST's framing) -- is it a legitimate unilateral call or an escalation case?",
+      "The locale-count-agnostic file claims (request.ts, LocaleSwitcher.tsx, layout.tsx) are independently re-verified by reading the actual files",
+      "messages/ru.json's current key count independently re-verified (script-based, not assumed)",
+      "Any FAIL cites the specific requirement id and check letter",
+      "If PASS, result.summary states what was independently re-derived, not just 'looks good'"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
