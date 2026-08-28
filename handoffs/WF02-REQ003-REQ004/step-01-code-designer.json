@@ -1,0 +1,58 @@
+{
+  "handoff_id": "867e774c-48b0-4b8a-ae82-f7f39a4e09cb",
+  "run_id": "WF02-REQ003-REQ004",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGNER",
+  "file": "handoffs/WF02-REQ003-REQ004/step-01-code-designer.json",
+  "created_at": "2026-08-28T02:44:08Z",
+  "started_at": "2026-08-28T02:44:08Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-003"],
+    "requirement_text": {
+      "REQ-003": "GitHub issue #3 (\"translate to en\") asks for an English version of the site. REQ-001a explicitly scoped English out when it built the ru/uz i18n mechanism (\"no English locale is in scope\") — this requirement is additive, not a fix or redo of REQ-001a: it realizes a locale REQ-001a deliberately deferred, matching the design system readme's brand voice principle #6 (\"Multilingual by default — Russian, Uzbek, Kazakh, Kyrgyz, Tajik, English — equal weight,\" docs/guides/content_ba_guide.md §2).\n\nVerified current state (2026-08-28): src/i18n/routing.ts defines `locales: [\"ru\", \"uz\"]`, `defaultLocale: \"ru\"`. messages/ru.json and messages/uz.json each hold exactly 177 leaf keys with matching key sets (verified by script). The locale switcher is no longer inline JSX — it's src/components/landing/LocaleSwitcher.tsx, which renders one link per entry in `routing.locales` generically (no hardcoded ru/uz list, no per-locale JSX branches). Consequence: adding `\"en\"` to `routing.locales` is sufficient by itself to produce a working three-way ru/uz/en switcher control — LocaleSwitcher.tsx requires no code change for this requirement.\n\ndefaultLocale decision: stays `\"ru\"`. No source states a reason to change the default locale — issue #3 only asks for an English version to exist, not for English to become the entry point.\n\nScope of work:\n- Add `\"en\"` to the `locales` array in src/i18n/routing.ts, after `\"uz\"` (`locales: [\"ru\", \"uz\", \"en\"]`), keeping `defaultLocale: \"ru\"` unchanged.\n- Create messages/en.json containing every key currently present in messages/ru.json (same 177-key structure/nesting), with every value set to the Russian source string duplicated verbatim as a placeholder — translation content is out of scope for this requirement. REQ-004 (depends_on this requirement) replaces every en placeholder with real English copy.\n- Confirm src/i18n/request.ts needs no change: it already resolves messages via `(await import(`../../messages/${locale}.json`))` and falls back to `routing.defaultLocale` for any unrecognized locale — verify this by reading the file, don't just assume it.\n- Confirm src/components/landing/LocaleSwitcher.tsx needs no change per the verified-state note above; if implementation finds it does require a change, state what was found and why.\n- `src/app/[locale]/layout.tsx` (or wherever the dynamic `<html lang={locale}>`/metadata logic now lives) must handle `en` the same way it already handles `ru`/`uz` — verify by reading the current file."
+    },
+    "source_text": {},
+    "related_handoff_ids": ["e9d368ca-b635-4942-bd65-860ed64a8459"],
+    "artifacts_in": [
+      "docs/guides/frontend_developer_guide.md",
+      "docs/Design system for AI agents/readme.md",
+      "src/i18n/routing.ts",
+      "src/i18n/request.ts",
+      "src/components/landing/LocaleSwitcher.tsx",
+      "src/app/[locale]/layout.tsx",
+      "messages/ru.json"
+    ]
+  },
+  "task": {
+    "description": "Design REQ-003: adding a third locale ('en') to this project's next-intl i18n mechanism. This is a small, mostly-mechanical change (one array entry, one new JSON catalog seeded with placeholders) with no new component, no new prop, and no new UI pattern — LocaleSwitcher.tsx already iterates routing.locales generically per the requirement text, so nothing structural is being introduced. Write docs/agents/design/REQ-003.md per WF-02 Step 1's procedure (docs/agents/workflows/WF-02_requirement_implementation.md Step 1), covering: which files change (src/i18n/routing.ts, messages/en.json — new file, and explicit confirmation of which files do NOT change and why, per the requirement text's verification asks), the exact shape of messages/en.json (matches messages/ru.json's structure exactly), and any design-token/responsive/theme considerations (state explicitly if none apply, given this touches no visual/layout code). If your own reading of the files confirms the requirement text's claim that this needs no new component structure, say so plainly in the design artefact rather than padding it with invented design decisions the requirement doesn't need.",
+    "acceptance_criteria": [
+      "Every REQ-003 acceptance criterion (see context.requirement_text) maps to a concrete design element or an explicit statement of 'no change needed, verified by reading <file>'",
+      "No TBD/deferral language",
+      "No implementation code (no .tsx/.ts code blocks) — structure/file-list/content-shape description only",
+      "If any file (LocaleSwitcher.tsx, request.ts, layout.tsx) is found during design review to need an actual change beyond what the requirement text assumes, state exactly what and why — do not silently follow the requirement text if your own file read contradicts it (HANDOFF_PROTOCOL.md §1.1)"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
