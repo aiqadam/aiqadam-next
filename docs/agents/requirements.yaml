@@ -301,7 +301,7 @@ requirements:
   - id: REQ-005
     title: Add Kazakh (kk) locale to routing and seed messages/kk.json
     owner: FRONTEND-DEV
-    status: pending
+    status: done
     description: >
       GitHub issue #4 ("Add KZ translation") asks for a Kazakh version of the
       site. This is structurally identical to GitHub issue #3 ("translate to
@@ -379,7 +379,7 @@ requirements:
   - id: REQ-006
     title: Write real Kazakh (Cyrillic-script) translations for all landing page copy
     owner: CONTENT-BA
-    status: pending
+    status: done
     description: >
       Depends on REQ-005, which adds `"kk"` to src/i18n/routing.ts and seeds
       messages/kk.json with every messages/ru.json key populated with a

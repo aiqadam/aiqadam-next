@@ -1,0 +1,53 @@
+{
+  "handoff_id": "da2dc362-969e-43c5-b0c7-040035b5abec",
+  "run_id": "WF02-REQ005-REQ006",
+  "workflow_id": "WF-02",
+  "step": "final",
+  "from_agent": "DOC-UPDATER",
+  "to_agent": "FRONTEND-DEV",
+  "file": "handoffs/WF02-REQ005-REQ006/step-final-git-merge.json",
+  "created_at": "2026-08-28T07:15:57Z",
+  "started_at": "2026-08-28T07:15:57Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-005", "REQ-006"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["da491fba-0cd5-4b34-9dd6-2673b78aa19f"],
+    "artifacts_in": [
+      "docs/agents/protocols/GIT_MERGE.md"
+    ],
+    "branch_name": "feature/WF02-REQ005-REQ006"
+  },
+  "task": {
+    "description": "Follow docs/agents/protocols/GIT_MERGE.md exactly. Both REQ-005 (Kazakh locale routing + placeholder catalog) and REQ-006 (real Cyrillic-script Kazakh translations, which went through 2 legitimate rework cycles with REVIEWER before passing) are done, all gates PASSed. This closes out GitHub issue #4 ('Add KZ translation'). No sibling-session activity found on origin immediately before this dispatch (checked: no divergence on origin/master, no other open PRs). PR body should note: adds a fourth locale (kk) to the existing ru/uz/en next-intl mechanism, seeds+translates all 177 message keys into Cyrillic-script Kazakh, closes GitHub issue #4.",
+    "acceptance_criteria": [
+      "gh pr merge exited 0 (or PARTIAL correctly reported if gh unavailable)",
+      "git branch --show-current is master after cleanup",
+      "git pull --ff-only on master after merge exited 0",
+      "git log --oneline -1 shows the squash-merge commit",
+      "git status shows a clean working tree",
+      "PR body includes 'Closes #4' so GitHub auto-closes the issue"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}

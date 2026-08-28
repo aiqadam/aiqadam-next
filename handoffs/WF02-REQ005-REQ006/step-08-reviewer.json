@@ -1,0 +1,66 @@
+{
+  "handoff_id": "2f07489d-b558-4588-8e91-1dfa90424cca",
+  "run_id": "WF02-REQ005-REQ006",
+  "workflow_id": "WF-02",
+  "step": "08",
+  "from_agent": "CONTENT-BA",
+  "to_agent": "REVIEWER",
+  "file": "handoffs/WF02-REQ005-REQ006/step-08-reviewer.json",
+  "created_at": "2026-08-28T06:45:06Z",
+  "started_at": "2026-08-28T06:45:06Z",
+  "completed_at": "2026-08-28T06:47:05Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-006"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["6db889d5-f5f8-4c12-b667-814222abd31a"],
+    "artifacts_in": [
+      "docs/guides/content_ba_guide.md",
+      "docs/agents/decisions/0002-content-ba-owns-message-catalogs.md",
+      "messages/ru.json",
+      "messages/kk.json"
+    ]
+  },
+  "task": {
+    "description": "Review REQ-006's content per docs/agents/decisions/0002 — CONTENT-BA wrote real Cyrillic-script Kazakh translations directly into messages/kk.json (no CODE-DESIGNER step, per that decision). Review against content_ba_guide.md's voice/casing/vocabulary rules, all 5 of REQ-006's acceptance criteria (see CONTENT-BA's handoff at handoffs/WF02-REQ005-REQ006/step-07-content-ba.json for the full text), and scope (only messages/kk.json should have changed, no drive-by src/ edits). CONTENT-BA reports several ru/kk identical values claimed as legitimate untranslatable literals (names, codes, brand/URL tokens, city names) -- spot-check a sample yourself to confirm they're genuine exceptions, not missed translations. Also spot-check that the Kazakh prose reads as genuine Kazakh (not a mechanical Russian transliteration) -- you don't need fluency to sanity-check this: confirm Kazakh-specific letters actually appear distributed across many different keys (not clustered in only 2-3 places), which would suggest real translation rather than token-swapping a few words.",
+    "acceptance_criteria": [
+      "git diff master...HEAD reviewed directly; scoped to messages/kk.json plus expected bookkeeping",
+      "Independent check that domain vocabulary terms use the exact stated casing/form with no synonym substitution",
+      "Independent check that status-label keys are plain lowercase Kazakh",
+      "Independent check for exclamation marks/slogans/emoji",
+      "Independent check that Metadata.ogLocale is exactly 'kk_KZ'",
+      "Independent check that Kazakh-specific letters (Ә/Ғ/Қ/Ң/Ө/Ұ/Ү/Һ/І) appear broadly distributed across the file, not clustered",
+      "Spot-check at least 5 of the claimed-identical-to-ru.json values to confirm they're legitimate untranslatable literals, not missed translations",
+      "FAIL if a genuine violation found; otherwise PASS with any non-blocking notes"
+    ]
+  },
+  "result": {
+    "status": "FAIL",
+    "summary": "git diff master...HEAD confirmed scope: the REQ-006 commit (401080e) touched only messages/kk.json plus its own handoff file, as expected. Metadata.ogLocale is exactly 'kk_KZ'. Status-label keys (chapter{N}Status, stream{N}Status) are plain lowercase Kazakh with no exclamation marks/slogans/emoji anywhere in the file. Kazakh-specific letters (Ә/Ғ/Қ/Ң/Ө/Ұ/Ү/Һ/І) appear in 111/177 keys spread across all 13 namespaces (not clustered), confirming real translation work. Spot-checked 8 ru/kk-identical values (Metrics.metric1Source numeric, Events.talk1Who/talk1Role person name + country code, MapSection.nodeTashkentLabel city name, Streams.foundationLink URL, Footer.contactsTelegram handle, Footer.hashtag, Team.team1Role English role title) — all legitimate untranslatable literals, this part of CONTENT-BA's claim holds. BLOCKING VIOLATION FOUND: the domain-vocabulary rule was misapplied. The requirement's decision text says Event/Chapter/Talk/Speaker/CFP/etc. stay in English 'exactly as they already do in Russian... copy' -- but in messages/ru.json these words are actually translated (событие/события for 'event', чаптер/чаптеры for 'chapter', доклад for 'talk'); only CFP genuinely appears verbatim in English in ru.json (confirmed by regex scan: only Band.lede and Doors.door2Body match, both via CFP). Instead, messages/kk.json inserts the literal capitalized English words 'Event'/'Events'/'Chapter'/'Chapters'/'Talk' broadly, well beyond CFP: Nav.events='Events' (ru: 'События'), Nav.chapters='Chapters' (ru: 'Чаптеры'), Hero.ctaPrimary='Жақындағы Event' (ru: 'Ближайшее событие'), Band.lede='Келесі Event...' (ru: 'Следующее событие...'), Doors.door1Body='Жақындағы Event мен ел чатына тіркелу' (ru: 'ближайшее событие'), Doors.door2Link='Talk ұсыну →' (ru: 'Подать доклад →'), Events.eyebrow='Events' (ru: 'События'), Streams.stream1Title='Events' (ru: 'События'), Partners.partner1Desc='...Event залдары' (ru: '...залы для событий'), MapSection.ctaLaunchChapter='Өз қалаңызда Chapter ашу' (ru: 'Запустить чаптер у себя'), MapSection.nodeAlmatySub='KZ CHAPTER · ...' (ru: 'ЧАПТЕР KZ · ...'), Team.team5Role='Board · Events' (ru: 'Board · События'). This is a mistranslation pattern (leaving common nouns in English rather than translating them into Kazakh), not a legitimate domain-vocabulary exception, and directly contradicts the requirement's own decision text. SECONDARY (non-blocking on its own, but should be fixed in the same rework pass): Footer.licenseCode/licenseContent/licenseBrand keep the Russian words 'КОД'/'КОНТЕНТ'/'БРЕНД' verbatim -- these are plain nouns (code/content/brand), not names/codes/URLs/domain-vocabulary terms, so they do not qualify for the untranslatable-literal exception either (the license values themselves -- MIT, CC BY 4.0, AI QADAM BUP -- are legitimate literals and should stay).",
+    "artifacts_out": [],
+    "issues": [
+      {
+        "severity": "BLOCKING",
+        "description": "Domain-vocabulary rule misapplied in messages/kk.json: the requirement's decision says Event/Chapter/Talk/etc. stay in English only 'exactly as they already do in Russian... copy', but ru.json translates these words natively (событие, чаптер, доклад) except for CFP. kk.json instead substitutes literal English 'Event'/'Events'/'Chapter'/'Chapters'/'Talk' into nav labels, CTAs, eyebrows, titles, and body prose where ru.json uses native Russian vocabulary. Affected keys include Nav.events, Nav.chapters, Hero.ctaPrimary, Band.lede, Doors.door1Body, Doors.door2Link, Events.eyebrow, Streams.stream1Title, Partners.partner1Desc, MapSection.ctaLaunchChapter, MapSection.nodeAlmatySub, Team.team5Role."
+      },
+      {
+        "severity": "MINOR",
+        "description": "Footer.licenseCode/licenseContent/licenseBrand leave the Russian plain nouns 'КОД'/'КОНТЕНТ'/'БРЕНД' untranslated. These are not domain-vocabulary terms or proper names -- only the trailing values (MIT, CC BY 4.0, AI QADAM BUP) are legitimate literals."
+      }
+    ],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ005-REQ006",
+      "commit_sha_list": ["401080e95675d919c51795a51ac3c5ca14500fdb"],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Rework CONTENT-BA: translate the Event/Chapter/Talk instances flagged above into native Kazakh (matching what ru.json actually does at each corresponding key -- only CFP is a genuine verbatim-English domain term in this dataset), and translate the Footer license-line labels (КОД/КОНТЕНТ/БРЕНД) into Kazakh, keeping the license values themselves (MIT, CC BY 4.0, AI QADAM BUP) verbatim."
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}

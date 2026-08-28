@@ -1,0 +1,54 @@
+{
+  "handoff_id": "96c13e69-8098-4b30-8724-9bf9692567d8",
+  "run_id": "WF02-REQ005-REQ006",
+  "workflow_id": "WF-02",
+  "step": "13",
+  "from_agent": "REVIEWER",
+  "to_agent": "TEST-DESIGNER",
+  "file": "handoffs/WF02-REQ005-REQ006/step-13-test-designer.json",
+  "created_at": "2026-08-28T06:58:33Z",
+  "started_at": "2026-08-28T06:58:33Z",
+  "completed_at": "2026-08-28T07:03:40Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-006"],
+    "requirement_text": {
+      "REQ-006": "CONTENT-BA wrote real Cyrillic-script Kazakh copy for all 177 keys in messages/kk.json (previously Russian-duplicated placeholders from REQ-005), including correcting a domain-vocabulary misapplication through two rework cycles. REVIEWER PASSed. Acceptance criteria: non-empty translated values (except stated literal exceptions, including CFP as the sole genuine verbatim-English domain term); Metadata.ogLocale exactly 'kk_KZ'; Cyrillic-script Kazakh throughout (Kazakh-specific letters present, no Latin prose); status-label keys plain lowercase Kazakh; no exclamation marks/slogans/emoji."
+    },
+    "source_text": {},
+    "related_handoff_ids": ["7d1a51ac-700d-4755-a181-72e4214ae723"],
+    "artifacts_in": [
+      "messages/kk.json",
+      "messages/ru.json",
+      "docs/agents/test-specs/REQ-004.md"
+    ]
+  },
+  "task": {
+    "description": "This requirement has a real user-visible surface (/kk's rendered copy), so run the full Step 3 procedure. Use docs/agents/test-specs/REQ-004.md as your template (the analogous prior spec for a CONTENT-BA translation requirement) — same shape of checks, adapted for Kazakh/Cyrillic instead of English. Write docs/agents/test-specs/REQ-006.md: verification cases for each REQ-006 acceptance criterion. CRITICAL: actually run every script/curl command during authoring against the real current files/server — no speculative expected values (see this project's own ISS-0001-adjacent lesson from REQ-004's test spec).",
+    "acceptance_criteria": [
+      "Every REQ-006 acceptance criterion has at least one verification case",
+      "Each case names the exact script/command or exact route+viewport+theme+expected result",
+      "No TODO left in the spec",
+      "Every command's expected output was actually observed during authoring, not assumed"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Wrote docs/agents/test-specs/REQ-006.md covering all 5 REQ-006 acceptance criteria plus a supporting rendered-page check, modeled on docs/agents/test-specs/REQ-004.md's structure. Every script/curl command in the spec was actually executed against messages/kk.json, messages/ru.json, src/app/globals.css, and a real npm run build && npm run start server on localhost:3000 during authoring, with real observed output copied into the spec verbatim (server was stopped again afterward). AC1 (non-empty/translated values): node script found 177/177 keys non-empty and identified 34 identical ru/kk value pairs, each independently verified as a legitimate untranslatable literal (person names, country/role codes, date-tab codes, city-name proper nouns, brand/contact/license literals, one numeric value, one acronym) -- including re-deriving (not trusting) REVIEWER's step-10 judgment call that Footer.licenseCode='КОД'/licenseBrand='БРЕНД' are genuine established Kazakh loanwords by confirming both words appear natively elsewhere in the file's own prose (код in Streams.foundationBody matching ru.json's own usage; бренд in 6 other keys). AC2 (ogLocale): confirmed 'kk_KZ' both in the source JSON and in the rendered <meta property=\"og:locale\"> tag on the built /kk page, with /ru as a control showing 'ru_RU' to prove the tag is genuinely locale-driven. AC3 (Cyrillic Kazakh throughout): confirmed 569 Kazakh-specific letter occurrences (Ә/Ғ/Қ/Ң/Ө/Ұ/Ү/Һ/І, both cases) spread across 12 of 18 letter-forms, and that every Latin-script match of length>=5 is either a JSON key name or an already-accounted-for proper noun/brand/acronym/role-title literal, not translatable prose. AC4 (status labels lowercase): confirmed all 8 status values lowercase in source, confirmed the unconditional .status{text-transform:uppercase} CSS rule at globals.css:152, and confirmed all 8 status spans render lowercase in the built page's HTML, byte-for-byte matching the source values. AC5 (no exclamation/slogan/emoji): grep -n \"!\" exited 1 with no output; a node Unicode-range emoji scan returned 0 matches; a full manual read of messages/kk.json's title/lede/cta* values found only plain declarative/imperative copy, no hype slogans. AC6 (supporting, rendered-page evidence): confirmed no MISSING_MESSAGE/IntlError markers on /kk or /ru, spot-checked 4 real Kazakh strings across 4 namespaces (Nav, Hero with t.rich() emphasis, Doors, Footer) rendering correctly with real Kazakh-specific letters, confirmed HTTP 200 and <html lang=\"kk\">, and wrote the full 4-viewport/theme content-completeness procedure per qa_testing_guide.md §5. Also added a dedicated CFP-verbatim-domain-term check re-deriving that Event/Chapter/Talk/Speaker have zero remaining untranslated instances (the exact defect class REVIEWER's step-08 review caught and required two rework cycles to fix) and CFP appears exactly twice, matching the requirement text's claim that CFP is the sole genuine verbatim-English domain term.",
+    "artifacts_out": ["docs/agents/test-specs/REQ-006.md"],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ005-REQ006",
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Route to TEST-DESIGN-VALIDATOR"
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}

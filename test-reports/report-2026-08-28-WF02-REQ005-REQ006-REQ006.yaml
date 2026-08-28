@@ -1,0 +1,248 @@
+run_id: WF02-REQ005-REQ006
+date: 2026-08-28T07:09:01Z
+requirement_ids:
+  - REQ-006
+spec: docs/agents/test-specs/REQ-006.md
+lint: pass
+build: pass
+environment_note: >
+  No browser automation tool exists in this environment (tracked as ISS-0001,
+  same limitation documented in this run's own REQ-005 report at
+  test-reports/report-2026-08-28-WF02-REQ005-REQ006.yaml). Every step in the
+  spec that calls for a literal browser interaction (loading a URL in a
+  viewport, toggling a theme control, reading the dev-server console live)
+  was substituted with equivalent server-rendered source evidence: curl
+  against `npm run start`'s production server, direct file reads, and Node
+  scripts comparing fetched HTML against messages/kk.json and messages/ru.json.
+  Also re-confirmed (grep across src/ for theme/data-theme/prefers-color-scheme/
+  ThemeToggle/useTheme/dark-mode) that no theme mechanism exists anywhere in
+  this codebase, matching REQ-005's finding — the site has exactly one fixed
+  visual presentation, so AC6c's light/dark dimension is vacuously satisfied
+  by the single render path exercised below, consistent with prior runs.
+
+lint_output: |
+  > app@0.1.0 lint
+  > eslint
+
+  C:\Users\tvolo\dev\aiqadam-next\docs\Design system for AI agents\components\primitives\Avatar.jsx
+    39:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. ... @next/next/no-img-element
+    59:9   warning  'color' is assigned a value but never used ... @typescript-eslint/no-unused-vars
+
+  C:\Users\tvolo\dev\aiqadam-next\src\components\landing\Footer.tsx
+    11:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. ... @next/next/no-img-element
+
+  C:\Users\tvolo\dev\aiqadam-next\src\components\landing\Nav.tsx
+    10:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. ... @next/next/no-img-element
+
+  ✖ 4 problems (0 errors, 4 warnings)
+  exit code: 0
+  note: all 4 warnings are pre-existing (img/no-img-element convention, unused var in
+    an unrelated design-system doc file), none in messages/kk.json or any file touched
+    by REQ-006. Identical warning set to REQ-005's report in this same run.
+
+build_output: |
+  > app@0.1.0 build
+  > next build
+
+  ▲ Next.js 16.3.2 (Turbopack)
+  ✓ Running next.config.ts took 40ms
+  ✓ Compiled successfully in 214ms
+    Running TypeScript ...
+    Finished TypeScript in 1061ms ...
+    Collecting page data using 6 workers ...
+  ✓ Generating static pages using 6 workers (4/4) in 445ms
+    Finalizing page optimization ...
+
+  Route (app)
+  ┌ ○ /_not-found
+  ├ ƒ /[locale]
+  └ ƒ /health
+
+  ƒ Proxy (Middleware)
+  exit code: 0
+
+cases:
+  - acceptance_criterion: AC1
+    result: pass
+    notes: >
+      Ran the spec's exact Node script. Output: total_keys: 177,
+      empty_kk_values: [], identical_value_pairs matches the spec's expected
+      list of exactly 34 keys, in the same order. No empty values, no
+      unexpected identical-value pairs (i.e. no untranslated Russian
+      leftover). Ran the CFP verbatim-domain-term check: Event_count=0,
+      Chapter_count=0, Talk_count=0, Speaker_count=0, CFP_count=2 — matches
+      spec exactly, confirming zero regression of the domain-vocabulary
+      defect class REVIEWER's step-08 review previously caught.
+
+      Ran the брэнд/код loanword sub-check script exactly as written in the
+      spec. Actual output: brend_keys=["Metadata.description","Hero.subtitle",
+      "Creed.lede","MapSection.lede","Team.lede","Footer.about"],
+      kod_keys=["Streams.foundationBody"]. This differs from the spec's
+      stated "Expected" sample (which additionally lists Footer.licenseBrand
+      in brend_keys and Footer.licenseCode in kod_keys) — root-caused: the
+      spec's script checks only lowercase 'бренд'/'Бренд' and 'код'/'Код'
+      substrings, but the actual Footer.licenseBrand/Footer.licenseCode
+      values are ALL-CAPS ("БРЕНД · AI QADAM BUP", "КОД · MIT"), which the
+      script's exact substring checks do not match (confirmed directly:
+      "БРЕНД · AI QADAM BUP".includes('бренд') === false,
+      .includes('БРЕНД') === true). This is a defect in the test spec's
+      sample output, not in the implementation — verified this is not
+      environment drift by checking git log, which confirms HEAD is still
+      commit 357d1c2, the exact commit the spec states it was authored
+      against. Applying the AC's actual stated PASS condition (brend/kod must
+      each appear in at least one *other* key besides the license line, which
+      both do here — 6 and 1 other keys respectively) rather than the
+      mismatched sample text, this sub-check PASSes on its merits. Reporting
+      as a MINOR spec-accuracy issue per core-directives.md's "Never resolve
+      a conflict silently" — filed to ORCH, not corrected here.
+
+  - acceptance_criterion: AC2
+    result: pass
+    notes: >
+      Source check: node -e confirmed kk.Metadata.ogLocale === "kk_KZ"
+      exactly, matching spec. Rendered check: started `npm run build && npm
+      run start` (production server on localhost:3000, polled until ready).
+      curl http://localhost:3000/kk | grep og:locale -> exactly
+      `<meta property="og:locale" content="kk_KZ"`, matching spec byte for
+      byte. Control check curl http://localhost:3000/ru -> exactly
+      `<meta property="og:locale" content="ru_RU"`, confirming the meta tag
+      is genuinely locale-driven, matching spec.
+
+  - acceptance_criterion: AC3
+    result: pass
+    notes: >
+      3a: ran the spec's exact Node script counting Kazakh-specific Cyrillic
+      letters. Output matched the spec's expected output exactly, character
+      for character: {"Ә":1,"ә":30,"Ғ":0,"ғ":46,"Қ":15,"қ":127,"Ң":0,"ң":34,
+      "Ө":8,"ө":25,"Ұ":3,"ұ":30,"Ү":3,"ү":21,"Һ":0,"һ":0,"І":11,"і":215},
+      total_kazakh_specific_chars: 569. 3b: ran the spec's exact Latin
+      5+-char scan. The full match list produced was identical to the
+      spec's "actual full match list observed" — every entry is a JSON key
+      name or an already-accounted-for proper noun/acronym/role-title
+      literal per AC1's exception list. No unexpected ordinary-English-prose
+      word found. No Latin prose leak.
+
+  - acceptance_criterion: AC4
+    result: pass
+    notes: >
+      Source check: node -e confirmed all 8 status values (stream1-4Status,
+      chapter1-4Status) match the spec's expected 8 lines exactly, all
+      lowercase, no uppercase Cyrillic anywhere. CSS-rule check: grep
+      "text-transform" src/app/globals.css -> line 152
+      ".status{font-family:var(--mono);font-size:10px;letter-spacing:.12em;
+      text-transform:uppercase;" present and unconditional (not
+      :lang()-scoped), matching spec. Rendered check (production server):
+      curl http://localhost:3000/kk | grep status spans -> exactly the 8
+      expected lines, byte for byte, in the expected MapSection-then-Streams
+      order, all lowercase in the HTML source (uppercased visually only by
+      the CSS rule).
+
+  - acceptance_criterion: AC5
+    result: pass
+    notes: >
+      5a: grep "!" messages/kk.json -> no output, exit code 1 (no
+      exclamation marks). 5b: ran the spec's exact Node emoji-scan script ->
+      emoji_matches: 0, matched_chars: [], matching spec exactly. 5c: read
+      messages/kk.json in full (206 lines). Confirmed every title/lede/cta
+      value across all 12 sections reads as plain declarative/imperative
+      copy, matching the spec's cited examples verbatim: Band.title =
+      "Сенімге қарай Qadam жасайық.", Doors.title = "Үш есік. Барлығы ашық.",
+      Partners.cta = "Серіктестікті талқылау". No exclamatory/hype/urgency
+      framing or superlative claims found anywhere in the file.
+
+  - acceptance_criterion: AC6
+    result: pass
+    notes: >
+      6a: with the production server running, curl http://localhost:3000/kk
+      | grep MISSING_MESSAGE|IntlError -> no output, exit 1. Control curl
+      http://localhost:3000/ru -> same, no output, exit 1. Also inspected the
+      full server stdout console log covering every request made this run
+      (/kk, /ru, all curl calls above) -> contained only startup lines
+      ("✓ Ready in 147ms", "✓ Running next.config.ts took 49ms"), zero
+      MISSING_MESSAGE/error/IntlError lines of any kind.
+
+      6b: all four namespace spot checks matched the spec's expected output
+      exactly, byte for byte: Nav.events ->
+      `<a href="#events">Іс-шаралар</a>`; Hero.title (t.rich emphasis) ->
+      `<h1 class="rv">Орталық Азияда AI құратын инженерлер —
+      <em>бірге.</em></h1>` (contains Kazakh-specific letters Ұ/Қ as the spec
+      notes); Doors.door1Title -> `<h3>Келу</h3>`; Footer.about -> exactly
+      `<p style="margin:0;max-width:34ch">Орталық Азия инженерлерінің
+      коммерциялық емес қауымдастығы. Бренд қауымдастыққа тиесілі.</p>`. HTTP
+      status for /kk -> 200. <title>/<html lang> check -> exactly
+      `<html lang="kk"` then
+      `<title>AI Qadam — Орталық Азияда AI құратын инженерлер
+      қауымдастығы</title>`, matching spec.
+
+      6c: no browser automation tool exists in this environment (ISS-0001) —
+      could not literally load /kk in a real browser, toggle
+      data-theme="light"/"dark", or resize to 600px/1024px viewports and
+      eyeball each section. Substituted equivalent structural evidence: (1)
+      fetched the full /kk HTML (87156 bytes) and confirmed all 10 expected
+      section anchor ids present (about, events, grid, join, map, partners,
+      proof, streams, team, top); (2) grepped for any literal namespaced key
+      string leaking as visible text (pattern `>Namespace.key<`) -> one match,
+      `>IMPACT.T<`, confirmed by context to be the legitimate partner-name
+      literal Partners.partner1Name ("IMPACT.T", a company brand name with a
+      period), not a leaked key path — no genuine leak found; (3) spot-checked
+      for leaked Russian-language words (сообщество, которые, строят,
+      инженеров, прийти, события — common Russian terms whose Kazakh
+      equivalents in this file are different words) on the full /kk response
+      -> zero matches, confirming no Russian prose leaked through; (4)
+      re-confirmed via grep across src/ that no theme mechanism
+      (data-theme/prefers-color-scheme/ThemeToggle/useTheme/dark-mode) exists
+      anywhere in this codebase, matching REQ-005's report's finding — the
+      site has exactly one fixed visual presentation, so there is nothing to
+      toggle and AC6c's light/dark dimension is vacuously satisfied by the
+      single render path already exercised in 6a/6b; (5) the server console
+      inspected in 6a covers the only render path that exists, and shows zero
+      MISSING_MESSAGE/error output. This is offered as the substitute per
+      REQ-005's precedent in this same run, not as a literal viewport/theme
+      walkthrough — flagged here for RELEASE-VALIDATOR's awareness, not
+      silently presented as a full browser check.
+
+summary: >
+  All 5 numbered acceptance criteria (AC1-AC5) plus the AC6 supporting check
+  pass. Lint exits 0 (4 pre-existing warnings, unrelated to REQ-006). Build
+  exits 0, compiles successfully. All static file checks (AC1, AC3, AC5) and
+  all rendered production-server checks (AC2, AC4, AC6a, AC6b) matched the
+  spec's expected output exactly, byte for byte, with the production server
+  actually started, curled, and stopped again after checks completed. One
+  MINOR spec-accuracy issue found and reported (not corrected in this run):
+  the spec's брэнд/код loanword sub-check sample output under AC1 includes
+  Footer.licenseBrand/Footer.licenseCode in its expected key lists, but its
+  own script (checking only lowercase substrings) does not match those keys'
+  actual ALL-CAPS values when run against the exact commit (357d1c2) the spec
+  states it was authored against — the sub-check's real PASS condition is
+  still independently satisfied by the actual output, so this does not change
+  the AC1 verdict. AC6c's browser viewport/theme walkthrough could not be
+  performed literally — no browser automation tool exists in this environment
+  (ISS-0001, same pre-existing gap documented in this run's own REQ-005
+  report) — and was substituted with structural evidence (section-anchor
+  presence, no leaked key paths, no leaked Russian prose, confirmed absence of
+  any theme mechanism in the codebase, clean server console), consistent with
+  prior runs' documented approach for this same limitation.
+
+issues:
+  - severity: MINOR
+    title: "REQ-006 test spec AC1 брэнд/код sub-check sample output does not match its own script's actual result"
+    description: >
+      docs/agents/test-specs/REQ-006.md AC1's брэнд/код loanword sub-check
+      states an "Expected" output of
+      brend_keys=[...,"Footer.licenseBrand"] and
+      kod_keys=[...,"Footer.licenseCode"], but running the spec's own script
+      exactly as written against commit 357d1c2 (the exact commit the spec
+      states it was authored against) produces brend_keys/kod_keys without
+      those two keys, because Footer.licenseBrand/Footer.licenseCode hold
+      ALL-CAPS values ("БРЕНД · AI QADAM BUP", "КОД · MIT") and the script's
+      substring checks only test lowercase/title-case forms
+      ('бренд'/'Бренд', 'код'/'Код'), not ALL-CAPS. The AC's actual stated
+      PASS condition (each word appears in at least one *other* key besides
+      the license line) is still independently satisfied by the real output,
+      so this did not change the AC1/REQ-006 verdict — but the spec's sample
+      text is inaccurate and should be corrected at the source so a future
+      re-run isn't misled into treating the mismatch as a regression.
+    affected_files:
+      - docs/agents/test-specs/REQ-006.md
+
+next_action: "Route to RELEASE-VALIDATOR"

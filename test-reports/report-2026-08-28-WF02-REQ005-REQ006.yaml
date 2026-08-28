@@ -1,0 +1,174 @@
+run_id: WF02-REQ005-REQ006
+date: 2026-08-28T06:34:41Z
+requirement_ids:
+  - REQ-005
+spec: docs/agents/test-spec/REQ-005.md
+lint: pass
+build: pass
+environment_note: >
+  No browser automation tool exists in this environment (tracked as ISS-0001).
+  Every step in the spec that calls for a literal browser interaction (loading
+  a URL in a viewport, clicking a link, reading document.documentElement.lang,
+  toggling a theme control) was substituted with equivalent server-rendered
+  source evidence: curl against `npm run start`'s production server, direct
+  file reads, and Node scripts comparing fetched HTML against messages/*.json.
+  Consistent with prior runs' documented approach for this same limitation.
+
+lint_output: |
+  > app@0.1.0 lint
+  > eslint
+
+  C:\Users\tvolo\dev\aiqadam-next\docs\Design system for AI agents\components\primitives\Avatar.jsx
+    39:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. ... @next/next/no-img-element
+    59:9   warning  'color' is assigned a value but never used ... @typescript-eslint/no-unused-vars
+
+  C:\Users\tvolo\dev\aiqadam-next\src\components\landing\Footer.tsx
+    11:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. ... @next/next/no-img-element
+
+  C:\Users\tvolo\dev\aiqadam-next\src\components\landing\Nav.tsx
+    10:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. ... @next/next/no-img-element
+
+  ✖ 4 problems (0 errors, 4 warnings)
+  exit code: 0
+  note: all 4 warnings are pre-existing (img/no-img-element convention, unused var in
+    an unrelated design-system doc file), none in files touched by REQ-005/REQ-006.
+
+build_output: |
+  > app@0.1.0 build
+  > next build
+
+  ▲ Next.js 16.3.2 (Turbopack)
+  ✓ Running next.config.ts took 41ms
+  ✓ Compiled successfully in 197ms
+    Running TypeScript ...
+    Finished TypeScript in 1081ms ...
+    Collecting page data using 6 workers ...
+  ✓ Generating static pages using 6 workers (4/4) in 458ms
+    Finalizing page optimization ...
+
+  Route (app)
+  ┌ ○ /_not-found
+  ├ ƒ /[locale]
+  └ ƒ /health
+
+  ƒ Proxy (Middleware)
+  exit code: 0
+
+cases:
+  - acceptance_criterion: AC1
+    result: pass
+    notes: >
+      Read src/i18n/routing.ts directly. Contents match spec exactly:
+      locales: ["ru", "uz", "en", "kk"], defaultLocale: "ru". kk appended
+      after en, not prepended/reordered.
+
+  - acceptance_criterion: AC2
+    result: pass
+    notes: >
+      Ran the spec's exact Node key-set comparison script. Output:
+      ru_count=177, kk_count=177, missing=[], extra=[], empty=[].
+      Matches expected output exactly.
+
+  - acceptance_criterion: AC2b
+    result: pass
+    notes: >
+      Ran the spec's exact Node verbatim-diff script. Output: diff_keys=[],
+      kk_ogLocale="ru_RU", ru_ogLocale="ru_RU". Confirms all 177 kk.json leaf
+      values are character-for-character identical to ru.json, including
+      Metadata.ogLocale staying "ru_RU" (no premature REQ-006 divergence).
+
+  - acceptance_criterion: AC3
+    result: pass
+    notes: >
+      Started `npm run start` (production server, port 3000), confirmed ready
+      via polling curl. Ran all 7 spec curl checks against the live server:
+      /kk -> "<html lang=\"kk\"" ; /ru -> "<html lang=\"ru\"" ; /uz ->
+      "<html lang=\"uz\"" ; /en -> "<html lang=\"en\"" ; / -> "307
+      http://localhost:3000/ru" ; /xx -> "307 http://localhost:3000/ru/xx" ;
+      /ru/xx -> "404". All seven outputs match the spec's expected values
+      exactly.
+
+  - acceptance_criterion: AC4
+    result: pass
+    notes: >
+      No browser tool available (ISS-0001) — substituted curl against the
+      production server for the markup assertions (server-rendered, so this
+      is direct equivalent evidence, not a proxy) plus source verification for
+      the click-navigation and anchor-preservation logic. Switcher markup
+      fetched for /ru, /kk, /uz, /en all matched the spec's expected markup
+      exactly: 4 links each in RU/UZ/EN/KK order, correct locale's link
+      carrying class="on" with no hrefLang, the other three carrying hrefLang
+      and no class="on". Verified globals.css: .lang has no media query hiding
+      it (only .nav-links collapses at max-width:980px/620px), so the switcher
+      stays visible at the 600px mobile viewport the spec calls for. All href
+      values are bare paths (/ru, /uz, /en, /kk) with zero "#" characters
+      across all four fetches, confirming: (a) click-navigation targets are
+      exactly the four locale roots (next/link's href is what determines
+      navigation, and it's a static, non-viewport-conditional server-rendered
+      attribute, so this is conclusive, not inferential), and (b) anchor
+      preservation holds identically to REQ-001a/REQ-003 precedent — no link
+      carries a hash fragment to strip or preserve incorrectly. Section-anchor
+      preservation case: /ru markup re-fetch identical to the base /ru case,
+      zero "#" present. Could not literally observe a mouse click firing
+      client-side navigation or read document.documentElement.lang from a live
+      DOM (ISS-0001) — the href/attribute evidence above is offered as the
+      substitute per the handoff's instruction.
+
+  - acceptance_criterion: AC5
+    result: pass
+    notes: >
+      `npm run build` exit code 0. Output contains "✓ Compiled successfully",
+      "Finalizing page optimization", route listing includes both
+      "ƒ /[locale]" and "ƒ Proxy (Middleware)". No "Failed to compile", "Type
+      error", or "error" lines anywhere in the output. Matches spec exactly.
+
+  - acceptance_criterion: AC6
+    result: pass
+    notes: >
+      No browser tool available (ISS-0001) — ran the automated proxy checks
+      the spec itself prescribes as a floor, plus additional structural
+      checks, in place of the literal 4-viewport/theme browser walkthrough.
+      Fetched /kk via curl (85689 bytes). grep -c "MISSING_MESSAGE" on the
+      HTML -> 0. Server console (npm run start stdout) across all requests
+      made this run (/kk, /ru, /uz, /en, /, /xx, /ru/xx) -> only startup lines
+      ("✓ Ready in 171ms", "✓ Running next.config.ts took 49ms"), zero
+      MISSING_MESSAGE or error lines of any kind. Section-anchor ids present
+      in fetched HTML: about, events, grid, join, map, partners, proof,
+      streams, team, top — all matching spec's expected list. Content-verbatim
+      spot checks: Metadata.title ("AI Qadam — сообщество инженеров, которые
+      строят AI в Центральной Азии") present verbatim; Footer sample string
+      present verbatim; Hero.title's plain-text substring match initially
+      returned false only because the source string embeds an <em> tag that
+      Next.js's RSC flight payload serializes as a split JSON structure around
+      "вместе." rather than as one contiguous string — confirmed by direct
+      grep that both the full rendered-HTML copy and the RSC-payload copy of
+      "Инженеры, которые строят AI в Центральной Азии — ... вместе." are
+      present verbatim in the response; not a missing-content defect.
+      Namespace cross-check: all 12 section namespaces (Nav, Hero, Metrics,
+      Creed, MapSection, Events, Streams, Doors, Team, Partners, Band, Footer)
+      appear in the response body, matching messages/ru.json's/kk.json's
+      top-level key set (already proven identical and non-empty by AC2).
+      Theme dimension: grepped src/ for any theme mechanism
+      (data-theme, prefers-color-scheme, ThemeToggle, useTheme, dark-mode) —
+      none exists anywhere in the codebase; globals.css has no "theme" token
+      at all. The site has exactly one fixed visual presentation, consistent
+      with REQ-005's own design note (§0/§4: "touches no CSS, no
+      theme-specific code"). The spec's light/dark checks are therefore
+      vacuously satisfied (there is nothing to toggle, and every fetch above
+      already exercises the only render path that exists) — this is a
+      pre-existing site characteristic, not introduced by or specific to this
+      run, so it does not block AC6. Could not literally scroll a live
+      600px/1024px viewport in a real browser and eyeball each of the 12
+      sections (ISS-0001) — the structural evidence above (all namespaces
+      present, zero missing-key markers, verbatim sampled content, clean
+      server console across every route this run touched) is offered as the
+      substitute per the handoff's instruction.
+
+summary: >
+  All 7 spec cases (AC1, AC2, AC2b, AC3, AC4, AC5, AC6) pass. Lint and build
+  both exit 0. No regressions found on /ru, /uz, /en. No browser automation
+  tool exists in this environment (ISS-0001, previously tracked) — every
+  literal browser-interaction step in the spec was substituted with equivalent
+  server-rendered/source evidence, consistent with prior runs' approach; no
+  case in the spec was found unattributable to this substitution such that a
+  genuine gap remains unverified.

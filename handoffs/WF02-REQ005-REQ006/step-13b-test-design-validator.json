@@ -1,0 +1,50 @@
+{
+  "handoff_id": "19965c5d-ac39-44f3-8548-fc15f6a6545c",
+  "run_id": "WF02-REQ005-REQ006",
+  "workflow_id": "WF-02",
+  "step": "13b",
+  "from_agent": "TEST-DESIGNER",
+  "to_agent": "TEST-DESIGN-VALIDATOR",
+  "file": "handoffs/WF02-REQ005-REQ006/step-13b-test-design-validator.json",
+  "created_at": "2026-08-28T07:04:41Z",
+  "started_at": "2026-08-28T07:04:41Z",
+  "completed_at": "2026-08-28T07:05:49Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-006"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["96c13e69-8098-4b30-8724-9bf9692567d8"],
+    "artifacts_in": [
+      "docs/agents/test-specs/REQ-006.md"
+    ]
+  },
+  "task": {
+    "description": "Gate docs/agents/test-specs/REQ-006.md per WF-02 Step 3b. Read the spec independently. TEST-DESIGNER claims every script/curl command was actually run during authoring against real messages/kk.json/ru.json and a live server. Re-run at least 4-5 of the spec's commands yourself to confirm they match exactly. Verify coverage of all 5 acceptance criteria plus AC6/CFP check, no TODO, and precision.",
+    "acceptance_criteria": [
+      "Every REQ-006 acceptance criterion has at least one verification case (a)",
+      "No TODO left in the spec (b)",
+      "Each case is precise enough to run without judgment (c)",
+      "At least 4-5 commands independently re-run and confirmed to match exactly"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Read docs/agents/test-specs/REQ-006.md independently and re-derived rather than trusted TEST-DESIGNER's claims. Re-ran 7 of the spec's file-based script commands directly against messages/ru.json, messages/kk.json, and src/app/globals.css on branch feature/WF02-REQ005-REQ006 (commit cb26ccb3a588...): AC1's key-diff/empty/identical-value script (total_keys:177, empty_kk_values:[], identical_value_pairs matching the 34 named keys exactly), AC2's static Metadata.ogLocale check ('kk_KZ' exactly), AC3a's Kazakh-specific-letter count (569 total, same per-letter distribution), AC4's 8-key status-label source check plus the CSS text-transform:uppercase grep (line 152, .status selector, unconditional), AC5a's exclamation-mark grep (no output, exit 1), AC5b's emoji-range scan (0 matches), and the CFP verbatim-domain-term cross-check (Event/Chapter/Talk/Speaker counts all 0, CFP_count=2). All 7 outputs matched the spec's claimed 'Expected' output byte-for-byte -- none were speculative. No local server was running, so the curl-based rendered checks (AC2/AC4 rendered parts, AC6) were not independently re-executed in this validation pass -- those remain for TEST-RUNNER to run live at Step 4; this does not affect the 3b gate, which checks spec coverage/precision/no-TODO, not live execution. Verified all 3 gate checks: (a) coverage -- every one of REQ-006's 5 numbered acceptance criteria plus the AC6/CFP supporting check has at least one dedicated verification case, each traceable in the spec's own coverage table; (b) no TODO -- grep for 'TODO' in the spec file returned zero matches; (c) precision -- every case names an exact route (/kk, /ru, or explicit N/A-file-check), exact command, and exact expected output/count with explicit FAIL conditions; the two inherently-manual cases (AC5c slogan spot-check, AC6c content-completeness) are as mechanically constrained as their nature allows, naming exact keys/namespaces/viewports/themes/section lists rather than 'check it looks right'. No check failed.",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ005-REQ006",
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Route to TEST-RUNNER (Step 4)"
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
