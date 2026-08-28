@@ -48,3 +48,13 @@ history:
     run_id: WF02-REQ-002
     at: "2026-08-27T10:23:27Z"
     note: "RELEASE-VALIDATOR PASSed; requirements.yaml's REQ-002 entry corrected: AC1's exception clause reworded from the 9-term domain-vocabulary list to the actual accepted untranslatable-literal category (event/date codes, country/role/brand names, URLs, numeric values, proper product names), AC3 reworded to name Streams.tsx's stream{N}Status and MapSection.tsx's chapter{N}Status keys (not Nav.tsx/Events.tsx), stored lowercase in both catalogs, with uppercase display from globals.css line 152's text-transform:uppercase rule. README.md rechecked -- still create-next-app boilerplate with no i18n mentions, no update needed. Status flipped to done."
+  - requirement_id: REQ-003
+    event: started
+    run_id: WF02-REQ003-REQ004
+    at: "2026-08-28T02:43:56Z"
+    note: "REQ-VALIDATOR PASSed REQ-003/REQ-004 in WF01-ISSUE3-EN-LOCALE (GitHub issue #3). Starting WF-02 for REQ-003 (add 'en' locale to routing.ts, seed messages/en.json placeholders) batched with REQ-004."
+  - requirement_id: REQ-004
+    event: started
+    run_id: WF02-REQ003-REQ004
+    at: "2026-08-28T02:43:56Z"
+    note: "Batched with REQ-003 in the same WF-02 run per ORCHESTRATOR.md's batch cap (REQ-004 depends_on REQ-003). Per decisions/0002, CODE-DESIGNER/CODE-DESIGN-VALIDATOR will be skipped for REQ-004's content-writing step (CONTENT-BA writes messages/en.json directly, gated by REVIEWER)."
