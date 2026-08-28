@@ -308,6 +308,168 @@
           "result": "PASS"
         }
       ]
+    },
+    {
+      "run_id": "WF01-ISSUE3-EN-LOCALE",
+      "workflow_id": "WF-01",
+      "source": "GitHub issue #3 (translate to en)",
+      "started_at": "2026-08-28T02:36:38Z",
+      "completed_at": "2026-08-28T02:48:12Z",
+      "status": "COMPLETED",
+      "current_step": "step-02-req-validator",
+      "steps": [
+        {
+          "step": "01",
+          "file": "handoffs/WF01-ISSUE3-EN-LOCALE/step-01-req-analyst.json",
+          "to_agent": "REQ-ANALYST",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "02",
+          "file": "handoffs/WF01-ISSUE3-EN-LOCALE/step-02-req-validator.json",
+          "to_agent": "REQ-VALIDATOR",
+          "status": "COMPLETED",
+          "result": "PASS"
+        }
+      ]
+    },
+    {
+      "run_id": "WF02-REQ003-REQ004",
+      "workflow_id": "WF-02",
+      "source": "GitHub issue #3 (translate to en) via REQ-003/REQ-004",
+      "started_at": "2026-08-28T02:41:49Z",
+      "completed_at": "2026-08-28T03:32:22Z",
+      "status": "COMPLETED",
+      "current_step": "step-final-git-merge",
+      "steps": [
+        {
+          "step": "00",
+          "file": "handoffs/WF02-REQ003-REQ004/step-00-git-setup.json",
+          "to_agent": "FRONTEND-DEV",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "01",
+          "file": "handoffs/WF02-REQ003-REQ004/step-01-code-designer.json",
+          "to_agent": "CODE-DESIGNER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "01b",
+          "file": "handoffs/WF02-REQ003-REQ004/step-01b-code-design-validator.json",
+          "to_agent": "CODE-DESIGN-VALIDATOR",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "02",
+          "file": "handoffs/WF02-REQ003-REQ004/step-02-frontend-dev.json",
+          "to_agent": "FRONTEND-DEV",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "02b",
+          "file": "handoffs/WF02-REQ003-REQ004/step-02b-reviewer.json",
+          "to_agent": "REVIEWER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "03",
+          "file": "handoffs/WF02-REQ003-REQ004/step-03-test-designer.json",
+          "to_agent": "TEST-DESIGNER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "03b",
+          "file": "handoffs/WF02-REQ003-REQ004/step-03b-test-design-validator.json",
+          "to_agent": "TEST-DESIGN-VALIDATOR",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "04",
+          "file": "handoffs/WF02-REQ003-REQ004/step-04-test-runner.json",
+          "to_agent": "TEST-RUNNER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "05",
+          "file": "handoffs/WF02-REQ003-REQ004/step-05-release-validator.json",
+          "to_agent": "RELEASE-VALIDATOR",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "06",
+          "file": "handoffs/WF02-REQ003-REQ004/step-06-doc-updater.json",
+          "to_agent": "DOC-UPDATER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "07",
+          "file": "handoffs/WF02-REQ003-REQ004/step-07-content-ba.json",
+          "to_agent": "CONTENT-BA",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "08",
+          "file": "handoffs/WF02-REQ003-REQ004/step-08-reviewer.json",
+          "to_agent": "REVIEWER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "09",
+          "file": "handoffs/WF02-REQ003-REQ004/step-09-test-designer.json",
+          "to_agent": "TEST-DESIGNER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "09b",
+          "file": "handoffs/WF02-REQ003-REQ004/step-09b-test-design-validator.json",
+          "to_agent": "TEST-DESIGN-VALIDATOR",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "10",
+          "file": "handoffs/WF02-REQ003-REQ004/step-10-test-runner.json",
+          "to_agent": "TEST-RUNNER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "11",
+          "file": "handoffs/WF02-REQ003-REQ004/step-11-release-validator.json",
+          "to_agent": "RELEASE-VALIDATOR",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "12",
+          "file": "handoffs/WF02-REQ003-REQ004/step-12-doc-updater.json",
+          "to_agent": "DOC-UPDATER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "final",
+          "file": "handoffs/WF02-REQ003-REQ004/step-final-git-merge.json",
+          "to_agent": "FRONTEND-DEV",
+          "status": "COMPLETED",
+          "result": "PASS"
+        }
+      ]
     }
   ]
 }
