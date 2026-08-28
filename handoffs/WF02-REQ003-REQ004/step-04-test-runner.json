@@ -1,0 +1,50 @@
+{
+  "handoff_id": "92edda92-c174-41a9-bebe-5d5b32e8ddbc",
+  "run_id": "WF02-REQ003-REQ004",
+  "workflow_id": "WF-02",
+  "step": "04",
+  "from_agent": "TEST-DESIGN-VALIDATOR",
+  "to_agent": "TEST-RUNNER",
+  "file": "handoffs/WF02-REQ003-REQ004/step-04-test-runner.json",
+  "created_at": "2026-08-28T02:59:05Z",
+  "started_at": "2026-08-28T02:59:05Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-003"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["77797745-ca6b-4dbc-8e66-61a1bd46e4c5"],
+    "artifacts_in": [
+      "docs/agents/test-specs/REQ-003.md"
+    ]
+  },
+  "task": {
+    "description": "Execute docs/agents/test-specs/REQ-003.md's full verification spec (gated PASS by TEST-DESIGN-VALIDATOR) per WF-02 Step 4. Run npm run lint && npm run build first, quote real output. Then npm run dev and follow every case in the spec exactly (AC1 through AC6/AC2b) — report what was actually observed for each, not an impression. Write test-reports/report-<date>-WF02-REQ003-REQ004.yaml with the actual output.",
+    "acceptance_criteria": [
+      "npm run lint exits 0, output quoted",
+      "npm run build exits 0, output quoted",
+      "Every case in docs/agents/test-specs/REQ-003.md executed and its real outcome recorded",
+      "test-reports/report-<date>-WF02-REQ003-REQ004.yaml written with actual results"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
