@@ -78,3 +78,8 @@ history:
     run_id: WF02-REQ005-REQ006
     at: "2026-08-28T06:17:32Z"
     note: "Batched with REQ-005 per ORCHESTRATOR.md's batch cap (REQ-006 depends_on REQ-005). Per decisions/0002, CODE-DESIGNER/CODE-DESIGN-VALIDATOR will be skipped for REQ-006's content-writing step (CONTENT-BA writes messages/kk.json directly, Cyrillic script, gated by REVIEWER)."
+  - requirement_id: REQ-005
+    event: done
+    run_id: WF02-REQ005-REQ006
+    at: "2026-08-28T06:39:36Z"
+    note: "RELEASE-VALIDATOR PASSed REQ-005 (add 'kk' locale to routing.ts, seed messages/kk.json placeholders mirroring REQ-003's shape). requirements.yaml's REQ-005 entry needed no content correction. README.md rechecked (grep for locale/i18n/translat/kazakh terms) -- still create-next-app boilerplate with no i18n mentions, no update needed. Status flipped to done. REQ-006 remains in_progress -- batched into this same WF-02 run per the batch cap, but its own CONTENT-BA/REVIEWER cycle has not run yet."
