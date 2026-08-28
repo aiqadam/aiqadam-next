@@ -1,0 +1,60 @@
+{
+  "handoff_id": "75abbc50-79d7-4943-953a-1d28fce24815",
+  "run_id": "WF02-REQ005-REQ006",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGNER",
+  "file": "handoffs/WF02-REQ005-REQ006/step-01-code-designer.json",
+  "created_at": "2026-08-28T06:17:40Z",
+  "started_at": "2026-08-28T06:17:40Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-005"],
+    "requirement_text": {
+      "REQ-005": "GitHub issue #4 (\"Add KZ translation\") asks for a Kazakh version of the site, structurally identical to issue #3 resolved by REQ-003+REQ-004 -- this requirement mirrors REQ-003's split exactly, for Kazakh.\n\nLocale code decision: ISO 639-1 code \"kk\" (distinct from \"KZ\", the ISO 3166-1 country code used only in region-tagged variants like OpenGraph's kk_KZ).\n\nVerified current state: src/i18n/routing.ts defines locales: [\"ru\", \"uz\", \"en\"], defaultLocale: \"ru\". No \"kk\" locale exists anywhere. messages/ru.json, uz.json, en.json each hold exactly 177 leaf keys with matching key sets. src/i18n/request.ts, src/components/landing/LocaleSwitcher.tsx, and src/app/[locale]/layout.tsx are all confirmed locale-count-agnostic by construction (dynamic import + hasLocale/defaultLocale fallback; generic map over routing.locales; dynamic <html lang> + ogLocale read from the message catalog) -- none need code changes.\n\ndefaultLocale decision: stays \"ru\". No source states a reason to change it.\n\nScope of work:\n- Add \"kk\" to the locales array in src/i18n/routing.ts, after \"en\" (locales: [\"ru\", \"uz\", \"en\", \"kk\"]), keeping defaultLocale: \"ru\" unchanged.\n- Create messages/kk.json containing every key currently present in messages/ru.json (same 177-key structure/nesting), every value set to the Russian source string duplicated verbatim as a placeholder, including Metadata.ogLocale seeded as the placeholder \"ru_RU\" -- translation content (including the real kk_KZ ogLocale value) is out of scope for this requirement, REQ-006 (depends_on this requirement) handles that.\n- No change expected to request.ts/LocaleSwitcher.tsx/layout.tsx per the verified-state note; if implementation finds otherwise, state what was found and why."
+    },
+    "source_text": {},
+    "related_handoff_ids": ["a60c0eaf-b597-4e64-9902-a55c3427c395"],
+    "artifacts_in": [
+      "docs/guides/frontend_developer_guide.md",
+      "docs/Design system for AI agents/readme.md",
+      "docs/agents/design/REQ-003.md",
+      "src/i18n/routing.ts",
+      "src/i18n/request.ts",
+      "src/components/landing/LocaleSwitcher.tsx",
+      "src/app/[locale]/layout.tsx",
+      "messages/ru.json"
+    ]
+  },
+  "task": {
+    "description": "Design REQ-005: adding a fourth locale ('kk') to this project's next-intl i18n mechanism -- structurally identical to REQ-003 (which added 'en' as the third locale). Read docs/agents/design/REQ-003.md as your direct template/precedent since the shape of this change is the same. Write docs/agents/design/REQ-005.md per WF-02 Step 1's procedure, covering: which files change (src/i18n/routing.ts, messages/kk.json -- new file), explicit confirmation of which files do NOT change and why (verify by reading them yourself, don't just copy REQ-003's design doc's claims without re-checking), the exact shape of messages/kk.json (matches messages/ru.json's structure exactly, Metadata.ogLocale placeholder value), and any design-token/responsive/theme considerations (state explicitly if none apply). If your own reading confirms this needs no new component structure, say so plainly.",
+    "acceptance_criteria": [
+      "Every REQ-005 acceptance criterion maps to a concrete design element or an explicit statement of 'no change needed, verified by reading <file>'",
+      "No TBD/deferral language",
+      "No implementation code",
+      "The 'no code change needed' claims for request.ts/LocaleSwitcher.tsx/layout.tsx are independently re-verified by reading the current files yourself (not just copied from REQ-003's design doc, since the files may have changed since)",
+      "State the Metadata.ogLocale placeholder value decision (should be 'ru_RU' per the requirement text's explicit statement, unlike REQ-003 which had an open question about this -- confirm this is settled, not still open)"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
