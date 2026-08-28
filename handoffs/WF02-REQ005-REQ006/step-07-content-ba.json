@@ -1,0 +1,55 @@
+{
+  "handoff_id": "6db889d5-f5f8-4c12-b667-814222abd31a",
+  "run_id": "WF02-REQ005-REQ006",
+  "workflow_id": "WF-02",
+  "step": "07",
+  "from_agent": "ORCH",
+  "to_agent": "CONTENT-BA",
+  "file": "handoffs/WF02-REQ005-REQ006/step-07-content-ba.json",
+  "created_at": "2026-08-28T06:40:43Z",
+  "started_at": "2026-08-28T06:40:43Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-006"],
+    "requirement_text": {
+      "REQ-006": "Depends on REQ-005 (done — merged into this run's branch), which added 'kk' to src/i18n/routing.ts and seeded messages/kk.json with every messages/ru.json key populated with a Russian-duplicated placeholder value (including Metadata.ogLocale seeded as the placeholder 'ru_RU'). This requirement replaces every placeholder in messages/kk.json with actual Kazakh copy, following docs/guides/content_ba_guide.md's voice/casing/vocabulary rules (§2's seven voice principles, §4's casing) applied to Kazakh prose, and sets Metadata.ogLocale to 'kk_KZ'. Scope covers every string in messages/kk.json (177 keys, mirroring the Metadata + 12 landing-component namespaces).\n\nScript decision (explicit, not copied from REQ-002's Uzbek precedent): Kazakh copy uses CYRILLIC script, not Latin. Kazakhstan's Latin-script transition remains incomplete in practice — Cyrillic is what the large majority of the site's actual Kazakh-reading audience currently reads fluently day-to-day (government, education, media). This differs from REQ-002's Uzbek decision, where Latin is Uzbekistan's actual completed official standard since the 1990s — the two locales are not analogous and REQ-002's Latin choice is not extended here.\n\nDomain vocabulary decision (same pattern as REQ-002/REQ-004, restated for this locale): content_ba_guide.md §4's domain vocabulary terms — Event, Chapter, Talk, Speaker, CFP, Agenda, Check-in, Going, Watching — STAY IN ENGLISH VERBATIM in the Kazakh copy, exactly as they already do in Russian, Uzbek, and English copy. These are established cross-locale product/brand terms, not general vocabulary to translate. Surrounding sentence structure, headings, and connecting prose around these terms are still fully translated into Kazakh."
+    },
+    "source_text": {},
+    "related_handoff_ids": ["9fdfe225-adae-4a05-af72-4ad84f78a077"],
+    "artifacts_in": [
+      "docs/guides/content_ba_guide.md",
+      "messages/ru.json",
+      "messages/kk.json"
+    ]
+  },
+  "task": {
+    "description": "Per docs/agents/decisions/0002-content-ba-owns-message-catalogs.md: this is a pure content-writing task against an already-built structure (REQ-005 merged), so CODE-DESIGNER/CODE-DESIGN-VALIDATOR are skipped as inapplicable. Write real Cyrillic-script Kazakh copy directly into messages/kk.json, replacing every Russian-duplicated placeholder, gated next by REVIEWER (not CODE-DESIGN-VALIDATOR). Follow content_ba_guide.md's voice/casing/vocabulary rules exactly, and this requirement's own script decision (Cyrillic, not Latin) and domain-vocabulary decision (verbatim English domain terms, no synonym substitution) above. This is a genuinely new-language translation task, not a copy-edit — draft real, natural Kazakh prose, not a mechanical transliteration of the Russian.",
+    "acceptance_criteria": [
+      "Every string key in messages/kk.json has a non-empty value that is not byte-for-byte identical to the corresponding messages/ru.json value, except where a key's value consists solely of an untranslatable literal — event/date codes, country/role/brand names, URLs, numeric values, proper product names, or the content_ba_guide.md §4 domain-vocabulary terms — which are permitted to match verbatim",
+      "messages/kk.json's Metadata.ogLocale value is exactly \"kk_KZ\" (not the placeholder \"ru_RU\")",
+      "Every messages/kk.json value uses Cyrillic-script Kazakh, verified by the presence of Kazakh-specific Cyrillic-extension code points (Ә, Ғ, Қ, Ң, Ө, Ұ, Ү, Һ, І and lowercase forms) appearing somewhere across the file — confirming genuine Kazakh, not a Russian-Cyrillic duplicate left in place — with no Latin-script prose sentences present (the sole exception being verbatim English domain-vocabulary tokens and untranslatable literals)",
+      "The status-label keys (Streams.tsx's stream{N}Status keys and MapSection.tsx's chapter{N}Status keys) hold plain lowercase Cyrillic-script Kazakh (or the verbatim English domain term) values, matching the lowercase convention already used in messages/ru.json/uz.json/en.json",
+      "No exclamation marks, slogans, or emoji appear in any messages/kk.json value"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
