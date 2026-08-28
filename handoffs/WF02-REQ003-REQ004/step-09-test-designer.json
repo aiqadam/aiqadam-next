@@ -1,0 +1,52 @@
+{
+  "handoff_id": "bf31f3af-703e-4e7e-99b8-b204d94ef080",
+  "run_id": "WF02-REQ003-REQ004",
+  "workflow_id": "WF-02",
+  "step": "09",
+  "from_agent": "REVIEWER",
+  "to_agent": "TEST-DESIGNER",
+  "file": "handoffs/WF02-REQ003-REQ004/step-09-test-designer.json",
+  "created_at": "2026-08-28T03:13:20Z",
+  "started_at": "2026-08-28T03:13:20Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-004"],
+    "requirement_text": {
+      "REQ-004": "CONTENT-BA wrote real English copy for all 177 keys in messages/en.json (previously Russian-duplicated placeholders from REQ-003). REVIEWER PASSed. Acceptance criteria: every key has a non-empty, translated value (except stated untranslatable literals); no Cyrillic anywhere; domain vocabulary (Event/Chapter/Talk/Speaker/CFP/Agenda/Check-in/Going/Watching) verbatim with no synonyms; status-label keys plain lowercase English; no exclamation marks/slogans/emoji."
+    },
+    "source_text": {},
+    "related_handoff_ids": ["706e5568-a40b-417d-a239-c4cc482ff385"],
+    "artifacts_in": [
+      "messages/en.json",
+      "messages/ru.json"
+    ]
+  },
+  "task": {
+    "description": "Write docs/agents/test-specs/REQ-004.md per WF-02 Step 3 procedure: a concrete verification case for each REQ-004 acceptance criterion, following the same pattern used for REQ-002's Uzbek translation test spec (script-based key/value/Cyrillic checks plus a rendered-page content-completeness check). This requirement has a user-visible surface (/en's rendered copy), so do not skip to the docs-only path.",
+    "acceptance_criteria": [
+      "Every REQ-004 acceptance criterion has at least one verification case",
+      "Each case names the exact script/command or exact route+viewport+theme+expected result — not 'check it looks right'",
+      "No TODO left in the spec"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
