@@ -8,8 +8,8 @@
   "file": "handoffs/WF02-REQ005-REQ006/step-10-reviewer-reverify.json",
   "created_at": "2026-08-28T06:52:16Z",
   "started_at": "2026-08-28T06:52:16Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-08-28T06:54:29Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-006"],
@@ -35,21 +35,43 @@
     ]
   },
   "result": {
-    "status": "",
-    "summary": "",
+    "status": "FAIL",
+    "summary": "Independently re-derived git diff 401080e..357d1c2 -- messages/kk.json and found it changes 17 keys, not the 15/16 CONTENT-BA's report claims (12 originally-flagged + Footer.licenseContent + 3 newly-found = 16 named keys; report additionally says 'exactly 15 changed lines'). The undisclosed 17th changed key is Events.lede ('Екі митапта жеті Talk' -> 'Екі митапта жеті баяндама'), which was silently modified without appearing in either the flagged list or the '3 newly found' list. On its own the Events.lede edit is CORRECT (баяндама matches ru.json's 'докладов' at the same key, same Talk->баяндама pattern as the other fixes) -- this is a self-report accuracy defect, not a translation-quality regression. Per core-directives.md's re-derive requirement, a validator must catch exactly this kind of mismatch between what was reported and what the artefact actually shows, independent of whether the undisclosed change happens to be benign. All other checks pass: (1) each of the 16 keys CONTENT-BA did name -- Nav.events, Nav.chapters, Hero.ctaPrimary, Band.lede, Creed.principle2Body, Metrics.sourceNote, Doors.door1Body, Doors.door2Link, Events.eyebrow, MapSection.nodeAlmatySub, MapSection.ctaLaunchChapter, Streams.stream1Title, Partners.partner1Desc, Partners.disclaimer, Team.team5Role, Footer.licenseContent -- independently checked against ru.json's actual meaning at that key: all are genuine, natural Kazakh translations (e.g. Nav.events 'Іс-шаралар' matches ru 'События'; Doors.door2Link 'Баяндама ұсыну' matches ru 'Подать доклад'; Footer.licenseContent 'МАЗМҰН' matches ru 'КОНТЕНТ' as a native Kazakh word, not a loanword duplicate). (2) Independent full re-scan of all 177 keys via a script matching whole-word 'Event(s)/Chapter(s)/Talk(s)/Speaker(s)' in kk.json values found zero remaining instances -- CONTENT-BA's re-scan for this specific pattern was complete. A broader scan for any other Latin word present in a kk value but absent from the corresponding ru value found only Kazakh case-suffix constructions glued onto proper nouns/acronyms already verbatim in ru.json (e.g. 'Verigram-да', 'Bank-та', 'story-ден') -- expected and legitimate, not new substitutions. (3) Footer.licenseCode='КОД'/licenseBrand='БРЕНД' judgment call assessed and AGREED: kk.json itself uses 'бренд' natively 6+ times elsewhere in unrelated prose (Metadata.description, Hero.subtitle, Creed.lede, MapSection.lede, Team.lede, Footer.about) and 'код' natively in Streams.foundationBody ('ашық код'), in both cases matching ru.json's own identical Cyrillic usage -- these are genuine established Kazakh loanwords per the file's own internal evidence, not a translation gap CONTENT-BA quietly avoided. (4) No regression on other REQ-006 criteria: Metadata.ogLocale is exactly 'kk_KZ'; all 8 status-label keys (chapter{1-4}Status, stream{1-4}Status) are plain lowercase Kazakh; zero exclamation marks or emoji anywhere in the file; Kazakh-specific letters (Ә/Ғ/Қ/Ң/Ө/Ұ/Ү/Һ/І) appear in 116/177 keys (up from 111/177 pre-rework) spread across all 13 namespaces, not clustered. messages/kk.json remains valid JSON with 177 keys matching ru.json's key set exactly.",
     "artifacts_out": [],
-    "issues": [],
+    "issues": [
+      {
+        "severity": "BLOCKING",
+        "description": "CONTENT-BA's step-09 result.summary claims 'exactly 15 changed lines' and names 16 changed keys (12 flagged + Footer.licenseContent + 3 newly-found), but git diff 401080e..357d1c2 -- messages/kk.json actually touches 17 keys. The undisclosed key is Events.lede ('жеті Talk' -> 'жеті баяндама'). The edit itself is correct and matches the same fix pattern applied elsewhere, but it was never named in the report, so the report's inventory of what changed is inaccurate and cannot be trusted at face value -- exactly the failure mode the re-derive rule in core-directives.md exists to catch. Rework must correct the report to disclose all 17 actually-changed keys (or explain why Events.lede's change is out of scope, if CONTENT-BA believes REVIEWER miscounted), not re-touch the translation content, which is already correct."
+      }
+    ],
     "git_evidence": {
-      "branch_name": null,
-      "commit_sha_list": [],
+      "branch_name": "feature/WF02-REQ005-REQ006",
+      "commit_sha_list": ["357d1c2495cd96cb8aa0cfa8fbea8c7eb5f82e3b"],
       "remote_branch": null,
       "push_status": "skipped",
       "pr_url": null,
       "pr_create_error": null
     },
-    "next_action": ""
+    "next_action": "Rework CONTENT-BA: reconcile the step-09 report against the actual diff (401080e..357d1c2 -- messages/kk.json shows 17 changed keys, including the undisclosed Events.lede), correct or explain the discrepancy, and resubmit for REVIEWER re-verification (rework iteration 2 of 3). No further translation changes needed -- all 17 changed values, including the undisclosed one, are substantively correct."
   },
   "rework_count": 1,
   "max_rework": 3,
-  "gate_history": []
+  "gate_history": [
+    {
+      "iteration": 0,
+      "gated_at": "2026-08-28T06:47:05Z",
+      "status": "FAIL",
+      "summary": "Domain-vocabulary rule misapplied: Event/Chapter/Talk left in literal English at 12 keys where ru.json actually translates these words natively into Russian; only CFP is a genuine verbatim-English term in ru.json. Also Footer license-line labels left untranslated.",
+      "issues": ["BLOCKING: 12 keys with wrongly-English domain terms", "MINOR: Footer.licenseCode/licenseContent/licenseBrand labels untranslated"],
+      "next_action": "Rework CONTENT-BA"
+    },
+    {
+      "iteration": 1,
+      "gated_at": "2026-08-28T06:54:29Z",
+      "status": "FAIL",
+      "summary": "Translation content for all 17 actually-changed keys (including the undisclosed Events.lede) independently verified correct against ru.json meaning. Full 177-key re-scan for the English-substitution pattern found no remaining instances -- CONTENT-BA's re-scan was complete. Footer.licenseCode/licenseBrand loanword judgment call independently confirmed correct via kk.json's own internal usage of 'бренд'/'код' elsewhere. No regression on ogLocale, status labels, exclamation/emoji, or letter distribution. BLOCKING: CONTENT-BA's report claims exactly 15/16 changed keys but the diff shows 17 -- Events.lede was changed but never disclosed in either the flagged list or the newly-found list, so the report's inventory cannot be trusted at face value even though the undisclosed edit is itself correct.",
+      "issues": ["BLOCKING: undisclosed 17th changed key (Events.lede) not named in CONTENT-BA's report"],
+      "next_action": "Rework CONTENT-BA"
+    }
+  ]
 }
