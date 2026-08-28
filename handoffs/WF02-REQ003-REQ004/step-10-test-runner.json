@@ -51,7 +51,7 @@
     ],
     "git_evidence": {
       "branch_name": "feature/WF02-REQ003-REQ004",
-      "commit_sha_list": [],
+      "commit_sha_list": ["805e964"],
       "remote_branch": null,
       "push_status": "skipped",
       "pr_url": null,
