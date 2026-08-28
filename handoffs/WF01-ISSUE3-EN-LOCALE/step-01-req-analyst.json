@@ -8,8 +8,8 @@
   "file": "handoffs/WF01-ISSUE3-EN-LOCALE/step-01-req-analyst.json",
   "created_at": "2026-08-28T02:36:38Z",
   "started_at": "2026-08-28T02:36:38Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-08-28T02:38:23Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": [],
@@ -43,10 +43,12 @@
     ]
   },
   "result": {
-    "status": "",
-    "summary": "",
-    "artifacts_out": [],
-    "issues": [],
+    "status": "PASS",
+    "summary": "Drafted two new requirements appended to docs/agents/requirements.yaml: REQ-003 (FRONTEND-DEV, depends_on [REQ-001a, REQ-001b]) adds 'en' to src/i18n/routing.ts's locales array and seeds messages/en.json with Russian-duplicated placeholders; REQ-004 (CONTENT-BA, depends_on [REQ-003]) writes real English copy into messages/en.json and decides the domain-vocabulary-in-English question explicitly. Verified current state myself before drafting rather than trusting the handoff's summary: src/i18n/routing.ts has locales=['ru','uz'], defaultLocale='ru'; messages/ru.json and messages/uz.json each have exactly 177 leaf keys with identical key sets (verified with a Python key-flattening script, not just line counts); src/i18n/request.ts's locale-resolution/fallback logic is locale-count-agnostic and needs no change. Found the handoff's artifacts_in/source_text description of the switcher was stale: the RU/UZ-only inline <div className=\"lang\"> block in Nav.tsx described by REQ-001a's text has since been extracted into src/components/landing/LocaleSwitcher.tsx, which now iterates routing.locales generically with no hardcoded per-locale JSX -- meaning REQ-003's mechanism work is simpler than the handoff assumed (adding 'en' to routing.locales alone produces a working three-way switcher; no switcher code change needed). Recorded this finding explicitly in REQ-003's description and in issues below rather than silently carrying the stale framing forward. Read docs/agents/anti-patterns.md and both decisions/ records (0001 full-pipeline-adopted, 0002 content-ba-owns-message-catalogs) -- 0002 confirms CONTENT-BA writing directly into messages/en.json (REQ-004) is consistent with established precedent, not a new call. Confirmed the YAML parses cleanly via a Python yaml.safe_load check and that REQ-003/REQ-004's depends_on ids (REQ-001a, REQ-001b, REQ-003) all reference existing entries -- no orphaned references. Did not validate the requirements myself -- that is REQ-VALIDATOR's job per WF-01 Step 2.",
+    "artifacts_out": ["docs/agents/requirements.yaml"],
+    "issues": [
+      {"severity": "MINOR", "description": "This handoff's context.source_text and context.artifacts_in described the locale switcher as still living inline in src/components/landing/Nav.tsx per REQ-001a's original wording ('the <div className=\"lang\"> block with RU/UZ/EN spans'). That is stale: the switcher was extracted into src/components/landing/LocaleSwitcher.tsx at some point after REQ-001a, and it now renders generically from routing.locales with no hardcoded locale list. REQ-003's description states the verified current state and adjusts its scope of work accordingly (no LocaleSwitcher.tsx change required, only a fallback instruction to fix and record if implementation finds otherwise). Flagging so ORCH updates the source-of-truth framing for future dispatches referencing this component.", "affected_requirement": null}
+    ],
     "git_evidence": {
       "branch_name": null,
       "commit_sha_list": [],
@@ -55,7 +57,7 @@
       "pr_url": null,
       "pr_create_error": null
     },
-    "next_action": ""
+    "next_action": "Route to REQ-VALIDATOR (WF-01 Step 2) to validate REQ-003 and REQ-004."
   },
   "rework_count": 0,
   "max_rework": 3,
