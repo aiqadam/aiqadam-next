@@ -1,0 +1,50 @@
+{
+  "handoff_id": "77797745-ca6b-4dbc-8e66-61a1bd46e4c5",
+  "run_id": "WF02-REQ003-REQ004",
+  "workflow_id": "WF-02",
+  "step": "03b",
+  "from_agent": "TEST-DESIGNER",
+  "to_agent": "TEST-DESIGN-VALIDATOR",
+  "file": "handoffs/WF02-REQ003-REQ004/step-03b-test-design-validator.json",
+  "created_at": "2026-08-28T02:57:11Z",
+  "started_at": "2026-08-28T02:57:11Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-003"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["0742182b-8722-4b25-b6d4-b480342fe64d"],
+    "artifacts_in": [
+      "docs/agents/test-specs/REQ-003.md",
+      "docs/agents/design/REQ-003.md"
+    ]
+  },
+  "task": {
+    "description": "Gate docs/agents/test-specs/REQ-003.md per WF-02 Step 3b. Read the spec independently. TEST-DESIGNER's handoff claims markup-exact assertions and the Node key-set/value-diff scripts were verified against a locally-booted npm run dev instance, and that a wrong assumption about /xx's 404 behavior was caught and corrected (it 307-redirects to /ru/xx first). Check the spec covers all 6 REQ-003 acceptance criteria (AC1-AC6, plus AC2b) with no TODO, and each case is precise enough to run without judgment (exact route/viewport/theme/expected result — not 'check it looks right').",
+    "acceptance_criteria": [
+      "Every REQ-003 acceptance criterion has at least one verification case (a) targeting it",
+      "No TODO left in the spec (b)",
+      "Each case is precise enough to run without judgment — exact route, viewport, theme, expected result (c)"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
