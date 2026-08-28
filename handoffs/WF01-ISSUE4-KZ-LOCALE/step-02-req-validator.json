@@ -8,8 +8,8 @@
   "file": "handoffs/WF01-ISSUE4-KZ-LOCALE/step-02-req-validator.json",
   "created_at": "2026-08-28T06:13:11Z",
   "started_at": "2026-08-28T06:13:11Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-08-28T06:14:52Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-005", "REQ-006"],
@@ -38,8 +38,8 @@
     ]
   },
   "result": {
-    "status": "",
-    "summary": "",
+    "status": "PASS",
+    "summary": "Read REQ-005 and REQ-006 directly from docs/agents/requirements.yaml (not summarized). Ran all five WF-01 Step 2 checks against both. (a) TESTABILITY: both requirements' acceptance criteria are concrete/scriptable (exact array contents, key-set diffs, non-empty-value checks, Cyrillic-code-point-presence checks, grep for exclamation marks) -- no vague language. (b) CONSISTENCY: no conflict with any `done` requirement; no docs/agents/decisions/ record addresses locale script choice (only 0001-full-pipeline-adopted.md and 0002-content-ba-owns-message-catalogs.md exist, both irrelevant to script). (c) DEPENDS_ON: REQ-005 -> [REQ-001a, REQ-001b] is correct (needs routing skeleton + full 177-key catalog structure to seed kk.json), matching REQ-003's identical dependency shape for the prior new-locale requirement. REQ-006 -> [REQ-005] is correct (content-writing depends only on its own seed step), matching REQ-002/REQ-004's pattern. (d) DESIGN-SYSTEM FIT: no new visual/copy pattern -- LocaleSwitcher.tsx already renders `locale.toUpperCase()` generically (read directly), Metadata.ogLocale is an existing key already holding ru_RU/uz_UZ/en_US-shaped values in messages/ru.json (grepped), so kk_KZ is a new value on an established pattern, not new structure. (e) SIZE: REQ-005 is a one-line array edit plus mechanical 177-key JSON generation, the same shape and scope as REQ-003 which passed this gate and completed in one turn previously; the FRONTEND-DEV/CONTENT-BA split mirrors the REQ-003/REQ-004 precedent exactly, no unrelated deliverables smuggled in. Independent re-verification beyond the checklist: read src/i18n/routing.ts directly (locales=[ru,uz,en], defaultLocale=ru, confirmed, no kk present yet). Read src/i18n/request.ts directly -- confirmed genuinely locale-count-agnostic (dynamic `import(...${locale}.json)` with hasLocale/defaultLocale fallback, no hardcoded locale list). Read src/app/[locale]/layout.tsx directly -- confirmed locale-count-agnostic (hasLocale() gate, <html lang={locale}> dynamic, ogLocale read from the translation catalog via getTranslations, no per-locale JSX branch). Read src/components/landing/LocaleSwitcher.tsx directly -- confirmed generic map over routing.locales, no hardcoded ru/uz/en list. Ran a Node script against messages/ru.json, messages/uz.json, messages/en.json counting leaf keys independently: all three are exactly 177, matching REQ-005's stated count (not stale) -- confirmed messages/kk.json does not yet exist, consistent with REQ-005 being unbuilt work. Gave the Cyrillic-vs-Latin script decision independent scrutiny rather than accepting REQ-ANALYST's framing: web-searched Kazakhstan's Latin transition status. Independently confirmed (The Diplomat, Astana Times, talkinkazakh.com) that Kazakhstan's transition deadline has slipped from 2025 to 2031, and that as of 2026 Cyrillic remains the script of ~99% of Kazakh books/websites/subtitles/learning resources and of native speakers' daily use -- the factual basis REQ-006 states is independently verifiable and correct. Assessed whether this required decisions/ escalation under core-directives.md's trigger (\"two or more genuinely equivalent options requiring a preference no agent can infer\") -- it does not: this is not a coin-flip between equivalent options, it is a checkable factual asymmetry (which script the actual reading audience uses today), the same kind of checkable basis REQ-002 itself used to choose Latin for Uzbek (Uzbekistan's completed 1990s official standard). Neither REQ-002 nor REQ-006's script choice was ever promoted to a docs/agents/decisions/ record, so REQ-006 cannot be reversing a decision record -- there is none to reverse, only an informal per-requirement precedent that a differently-grounded fact pattern legitimately does not extend to. This is a legitimate unilateral call, correctly reasoned and stated in-line in the requirement text, not an escalation case.",
     "artifacts_out": [],
     "issues": [],
     "git_evidence": {
@@ -50,7 +50,7 @@
       "pr_url": null,
       "pr_create_error": null
     },
-    "next_action": ""
+    "next_action": "PASS -- REQ-005 and REQ-006 are ready for WF-02 pickup by ORCH."
   },
   "rework_count": 0,
   "max_rework": 3,
