@@ -1,0 +1,50 @@
+{
+  "handoff_id": "d26ebe40-a4c5-4172-b19c-cd0e81bfaba2",
+  "run_id": "WF02-REQ003-REQ004",
+  "workflow_id": "WF-02",
+  "step": "10",
+  "from_agent": "TEST-DESIGN-VALIDATOR",
+  "to_agent": "TEST-RUNNER",
+  "file": "handoffs/WF02-REQ003-REQ004/step-10-test-runner.json",
+  "created_at": "2026-08-28T03:18:40Z",
+  "started_at": "2026-08-28T03:18:40Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-004"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["007ffc7e-f611-4fd1-ab91-9d9c78236153"],
+    "artifacts_in": [
+      "docs/agents/test-specs/REQ-004.md"
+    ]
+  },
+  "task": {
+    "description": "Execute docs/agents/test-specs/REQ-004.md's full verification spec (gated PASS by TEST-DESIGN-VALIDATOR) per WF-02 Step 4. Run npm run lint && npm run build first, quote real output. Then follow every case in the spec (AC1-AC5 plus AC6) exactly — report actual observed results. Write test-reports/report-<date>-WF02-REQ003-REQ004-REQ004.yaml with the actual output (distinct filename from REQ-003's report already at test-reports/report-2026-08-28-WF02-REQ003-REQ004.yaml — do not overwrite it).",
+    "acceptance_criteria": [
+      "npm run lint exits 0, output quoted",
+      "npm run build exits 0, output quoted",
+      "Every case in docs/agents/test-specs/REQ-004.md executed and its real outcome recorded",
+      "A new test report file written with actual results, not overwriting REQ-003's existing report"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
