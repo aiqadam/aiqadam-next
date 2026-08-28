@@ -8,8 +8,8 @@
   "file": "handoffs/WF02-REQ005-REQ006/step-09-content-ba-rework.json",
   "created_at": "2026-08-28T06:48:16Z",
   "started_at": "2026-08-28T06:48:16Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-08-28T06:50:51Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-006"],
@@ -35,19 +35,19 @@
     ]
   },
   "result": {
-    "status": "",
-    "summary": "",
-    "artifacts_out": [],
+    "status": "PASS",
+    "summary": "Fixed the domain-vocabulary misapplication REVIEWER flagged at all 12 keys (Nav.events, Nav.chapters, Hero.ctaPrimary, Band.lede, Doors.door1Body, Doors.door2Link, Events.eyebrow, Streams.stream1Title, Partners.partner1Desc, MapSection.ctaLaunchChapter, MapSection.nodeAlmatySub, Team.team5Role), translating literal English 'Event'/'Chapter'/'Talk' into natural Kazakh (іс-шара(лар), чаптер(лер)/чаптері, баяндама) matching what ru.json's corresponding key actually renders natively; CFP left English-verbatim per the decision. Fixed Footer.licenseContent 'КОНТЕНТ' -> 'МАЗМҰН' (native Kazakh); licenseCode/licenseBrand kept as 'КОД'/'БРЕНД' since those are established Kazakh Cyrillic loanwords already used natively elsewhere in this same file (e.g. Footer.about's 'Бренд'), matching ru.json's own loanword choice, not a translation gap. Full re-scan of all 177 keys against ru.json found 3 additional instances of the identical pattern REVIEWER's spot-check missed: Creed.principle2Body ('Speaker' -> 'Спикер', matching ru.json's native Cyrillic 'Спикер'), Metrics.sourceNote ('Event-тен' -> 'Іс-шарадан', matching ru.json's 'событий'), and Partners.disclaimer ('Talk-тарын' -> 'баяндамаларын', matching ru.json's 'доклады'). Verified all other English-appearing terms (MEETUP, FAIL STORIES, Global, Global Board, Founder Global, Country Lead, Co-founder, Board, CTO, CEO, Senior ML Engineer, Head of Speech Recognition, Head of Software Development, Engineering Manager, Senior PM, success story, governance, offensive security, low-code, AppSec, Suhbat, Qadam Flow) are kept English-verbatim in ru.json itself, so kk.json's matching English-verbatim rendering of these is correct, not a violation. messages/kk.json verified valid JSON, 177 keys matching ru.json's structure exactly (node key-count check). git diff shows exactly 15 changed lines, all in the keys listed above -- no unrelated key touched.",
+    "artifacts_out": ["messages/kk.json"],
     "issues": [],
     "git_evidence": {
-      "branch_name": null,
+      "branch_name": "feature/WF02-REQ005-REQ006",
       "commit_sha_list": [],
       "remote_branch": null,
       "push_status": "skipped",
       "pr_url": null,
       "pr_create_error": null
     },
-    "next_action": ""
+    "next_action": "Route to REVIEWER for re-verification"
   },
   "rework_count": 1,
   "max_rework": 3,
