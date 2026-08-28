@@ -1,0 +1,53 @@
+{
+  "handoff_id": "4c12f685-7fad-4b42-88c4-327edb1ab395",
+  "run_id": "WF02-REQ005-REQ006",
+  "workflow_id": "WF-02",
+  "step": "03",
+  "from_agent": "REVIEWER",
+  "to_agent": "TEST-DESIGNER",
+  "file": "handoffs/WF02-REQ005-REQ006/step-03-test-designer.json",
+  "created_at": "2026-08-28T06:26:09Z",
+  "started_at": "2026-08-28T06:26:09Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-005"],
+    "requirement_text": {
+      "REQ-005": "Add 'kk' to src/i18n/routing.ts's locales array (now [\"ru\",\"uz\",\"en\",\"kk\"]), defaultLocale stays \"ru\". Create messages/kk.json matching messages/ru.json's 177-leaf-key structure, every value duplicated verbatim from ru.json as a placeholder including Metadata.ogLocale=\"ru_RU\". Acceptance criteria: locales array correct; messages/kk.json key-set matches ru.json exactly with non-empty values; visiting /kk renders <html lang=\"kk\"> with /ru, /uz, /en unregressed; LocaleSwitcher renders four working options (RU/UZ/EN/KK) navigating correctly between all four locale prefixes with anchors preserved; npm run build has no type/routing errors; /kk renders all landing sections with no missing-translation-key errors."
+    },
+    "source_text": {},
+    "related_handoff_ids": ["a279c3ef-71cc-4f1c-a0ff-1df5cffbd3e9"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-005.md",
+      "docs/agents/test-specs/REQ-003.md"
+    ]
+  },
+  "task": {
+    "description": "This requirement has a real user-visible surface (a new /kk route and a fourth LocaleSwitcher option), so run the full Step 3 procedure. Use docs/agents/test-specs/REQ-003.md as your direct template (the analogous prior spec for adding a locale) — same shape of checks, updated for a fourth locale instead of a third. Write docs/agents/test-specs/REQ-005.md: a concrete, mechanically-runnable manual verification case for each REQ-005 acceptance criterion — exact route, exact viewport(s)/theme(s), exact expected result. Actually run every script/curl command against the real current files/server during authoring — no speculative 'expected' output (this project's own history has a real defect from REQ-004's test spec where expected values were fabricated rather than actually run — do not repeat that).",
+    "acceptance_criteria": [
+      "Every REQ-005 acceptance criterion has at least one verification case",
+      "Each case names the exact route, viewport(s), theme(s), and expected result — not 'check it looks right'",
+      "No TODO left in the spec",
+      "Every script/command's expected output was actually observed during authoring, not assumed"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
