@@ -48,10 +48,10 @@
     "artifacts_out": ["docs/agents/requirements.yaml"],
     "issues": [],
     "git_evidence": {
-      "branch_name": null,
-      "commit_sha_list": [],
-      "remote_branch": null,
-      "push_status": "pending",
+      "branch_name": "master",
+      "commit_sha_list": ["c334c5a", "b422ca4"],
+      "remote_branch": "origin/master",
+      "push_status": "ok",
       "pr_url": null,
       "pr_create_error": null
     },
