@@ -1,0 +1,56 @@
+{
+  "handoff_id": "706e5568-a40b-417d-a239-c4cc482ff385",
+  "run_id": "WF02-REQ003-REQ004",
+  "workflow_id": "WF-02",
+  "step": "08",
+  "from_agent": "CONTENT-BA",
+  "to_agent": "REVIEWER",
+  "file": "handoffs/WF02-REQ003-REQ004/step-08-reviewer.json",
+  "created_at": "2026-08-28T03:10:32Z",
+  "started_at": "2026-08-28T03:10:32Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-004"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["f76c4ff0-2c2a-4218-9db9-e0123cf1f2fe"],
+    "artifacts_in": [
+      "docs/guides/content_ba_guide.md",
+      "docs/agents/decisions/0002-content-ba-owns-message-catalogs.md",
+      "messages/ru.json",
+      "messages/en.json"
+    ]
+  },
+  "task": {
+    "description": "Review REQ-004's content per docs/agents/decisions/0002 — CONTENT-BA wrote real English translations directly into messages/en.json (no CODE-DESIGNER step, per that decision). Review against content_ba_guide.md's voice/casing/vocabulary rules (same checklist used for REQ-002's Uzbek translation review), all 5 of REQ-004's acceptance criteria (see CONTENT-BA's handoff at handoffs/WF02-REQ003-REQ004/step-07-content-ba.json for the full text), and scope (only messages/en.json should have changed, no drive-by src/ edits). CONTENT-BA reports 18 of 177 values intentionally left identical to ru.json as untranslatable literals (brand names, codes, URLs, job titles already English) — spot-check a sample of these yourself to confirm they're legitimate exceptions, not missed translations.",
+    "acceptance_criteria": [
+      "git diff master...HEAD reviewed directly; scoped to messages/en.json plus expected bookkeeping",
+      "Independent check that messages/en.json has no Cyrillic characters",
+      "Independent check that domain vocabulary terms use the exact stated casing/form with no synonym substitution",
+      "Independent check that status-label keys are plain lowercase English",
+      "Independent check for exclamation marks/slogans/emoji",
+      "Spot-check at least 5 of the 18 claimed-identical-to-ru.json values to confirm they're legitimate untranslatable literals, not missed translations",
+      "FAIL if a genuine violation found; otherwise PASS with any non-blocking notes"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
