@@ -1,0 +1,57 @@
+{
+  "handoff_id": "2f07489d-b558-4588-8e91-1dfa90424cca",
+  "run_id": "WF02-REQ005-REQ006",
+  "workflow_id": "WF-02",
+  "step": "08",
+  "from_agent": "CONTENT-BA",
+  "to_agent": "REVIEWER",
+  "file": "handoffs/WF02-REQ005-REQ006/step-08-reviewer.json",
+  "created_at": "2026-08-28T06:45:06Z",
+  "started_at": "2026-08-28T06:45:06Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-006"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["6db889d5-f5f8-4c12-b667-814222abd31a"],
+    "artifacts_in": [
+      "docs/guides/content_ba_guide.md",
+      "docs/agents/decisions/0002-content-ba-owns-message-catalogs.md",
+      "messages/ru.json",
+      "messages/kk.json"
+    ]
+  },
+  "task": {
+    "description": "Review REQ-006's content per docs/agents/decisions/0002 — CONTENT-BA wrote real Cyrillic-script Kazakh translations directly into messages/kk.json (no CODE-DESIGNER step, per that decision). Review against content_ba_guide.md's voice/casing/vocabulary rules, all 5 of REQ-006's acceptance criteria (see CONTENT-BA's handoff at handoffs/WF02-REQ005-REQ006/step-07-content-ba.json for the full text), and scope (only messages/kk.json should have changed, no drive-by src/ edits). CONTENT-BA reports several ru/kk identical values claimed as legitimate untranslatable literals (names, codes, brand/URL tokens, city names) -- spot-check a sample yourself to confirm they're genuine exceptions, not missed translations. Also spot-check that the Kazakh prose reads as genuine Kazakh (not a mechanical Russian transliteration) -- you don't need fluency to sanity-check this: confirm Kazakh-specific letters actually appear distributed across many different keys (not clustered in only 2-3 places), which would suggest real translation rather than token-swapping a few words.",
+    "acceptance_criteria": [
+      "git diff master...HEAD reviewed directly; scoped to messages/kk.json plus expected bookkeeping",
+      "Independent check that domain vocabulary terms use the exact stated casing/form with no synonym substitution",
+      "Independent check that status-label keys are plain lowercase Kazakh",
+      "Independent check for exclamation marks/slogans/emoji",
+      "Independent check that Metadata.ogLocale is exactly 'kk_KZ'",
+      "Independent check that Kazakh-specific letters (Ә/Ғ/Қ/Ң/Ө/Ұ/Ү/Һ/І) appear broadly distributed across the file, not clustered",
+      "Spot-check at least 5 of the claimed-identical-to-ru.json values to confirm they're legitimate untranslatable literals, not missed translations",
+      "FAIL if a genuine violation found; otherwise PASS with any non-blocking notes"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
