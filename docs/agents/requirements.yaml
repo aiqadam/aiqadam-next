@@ -379,7 +379,7 @@ requirements:
   - id: REQ-006
     title: Write real Kazakh (Cyrillic-script) translations for all landing page copy
     owner: CONTENT-BA
-    status: in_progress
+    status: done
     description: >
       Depends on REQ-005, which adds `"kk"` to src/i18n/routing.ts and seeds
       messages/kk.json with every messages/ru.json key populated with a

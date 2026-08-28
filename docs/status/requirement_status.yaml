@@ -83,3 +83,8 @@ history:
     run_id: WF02-REQ005-REQ006
     at: "2026-08-28T06:39:36Z"
     note: "RELEASE-VALIDATOR PASSed REQ-005 (add 'kk' locale to routing.ts, seed messages/kk.json placeholders mirroring REQ-003's shape). requirements.yaml's REQ-005 entry needed no content correction. README.md rechecked (grep for locale/i18n/translat/kazakh terms) -- still create-next-app boilerplate with no i18n mentions, no update needed. Status flipped to done. REQ-006 remains in_progress -- batched into this same WF-02 run per the batch cap, but its own CONTENT-BA/REVIEWER cycle has not run yet."
+  - requirement_id: REQ-006
+    event: done
+    run_id: WF02-REQ005-REQ006
+    at: "2026-08-28T07:14:45Z"
+    note: "RELEASE-VALIDATOR PASSed REQ-006 (real Cyrillic-script Kazakh copy for all 177 keys in messages/kk.json). requirements.yaml's REQ-006 entry needed no content correction; status flipped to done. Also corrected a MINOR documentation defect RELEASE-VALIDATOR carried forward: docs/agents/test-specs/REQ-006.md's AC1 brend/kod sub-check 'Expected' sample listed Footer.licenseBrand/Footer.licenseCode in the brend_keys/kod_keys output, but the script only matches lowercase/title-case forms (brend/Brend, kod/Kod) and both license values hold the word ALL-CAPS (BREND/KOD in Cyrillic), which the script's .includes() checks cannot match -- corrected the sample to omit those two keys and added a note explaining why. README.md rechecked (grep for locale/i18n/translat/kazakh terms) -- still create-next-app boilerplate with no i18n mentions, no update needed. Both REQ-005 and REQ-006 now done -- run WF02-REQ005-REQ006 ready for Step Final git merge."
