@@ -297,3 +297,143 @@ requirements:
       - "The status-label keys — Streams.tsx's stream{N}Status keys and MapSection.tsx's chapter{N}Status keys — hold plain lowercase English values in messages/en.json (e.g. \"upcoming\", \"live\", \"past\"), matching the lowercase convention already used for these keys in messages/ru.json and messages/uz.json; uppercase display comes from src/app/globals.css's `.status` class `text-transform:uppercase` rule, not from the JSON values themselves, consistent with content_ba_guide.md §4's casing rule."
       - "No exclamation marks, slogans, or emoji appear in any messages/en.json value (grepped), matching the tone rule in content_ba_guide.md §3."
     depends_on: [REQ-003]
+
+  - id: REQ-005
+    title: Add Kazakh (kk) locale to routing and seed messages/kk.json
+    owner: FRONTEND-DEV
+    status: pending
+    description: >
+      GitHub issue #4 ("Add KZ translation") asks for a Kazakh version of the
+      site. This is structurally identical to GitHub issue #3 ("translate to
+      en"), resolved by REQ-003 (routing/mechanism) + REQ-004 (real
+      translations) — this requirement mirrors REQ-003's split exactly, for
+      Kazakh. The design system readme's brand voice principle #6
+      (docs/guides/content_ba_guide.md §2) already commits to "Multilingual by
+      default — Russian, Uzbek, Kazakh, Kyrgyz, Tajik, English — equal weight,"
+      so Kazakh is a locale this project already committed to, not new scope.
+
+      Locale code decision: use ISO 639-1 code `"kk"` for Kazakh. This is the
+      standard ISO code for Kazakh (distinct from `"kz"`, which is not a
+      language code — `KZ` is the ISO 3166-1 country code for Kazakhstan, used
+      only in region-tagged locale variants like OpenGraph's `kk_KZ`, never as
+      the locale segment itself). `"kk"` matches how this project already uses
+      ISO 639-1 codes for `ru`/`uz`/`en`, and next-intl/Next.js both expect ISO
+      language codes as route segments.
+
+      Verified current state (2026-08-28, re-checked directly against the live
+      files, not trusted from any prior handoff summary): src/i18n/routing.ts
+      defines `locales: ["ru", "uz", "en"]`, `defaultLocale: "ru"`. No `"kk"`
+      locale exists anywhere in the codebase (confirmed by grep). messages/
+      ru.json, messages/uz.json, and messages/en.json each hold exactly 177
+      leaf keys with matching key sets (re-verified by script — REQ-004's
+      177-key count has NOT grown since its close). src/i18n/request.ts
+      resolves messages via `(await import(\`../../messages/${locale}.json\`))`
+      with a `hasLocale`/`routing.defaultLocale` fallback — fully generic,
+      confirmed by reading the file; it needs no change to support a fourth
+      locale. src/components/landing/LocaleSwitcher.tsx maps over
+      `routing.locales` generically (no hardcoded locale list, no per-locale
+      branches) — confirmed by reading the file; it needs no change.
+      src/app/[locale]/layout.tsx sets `<html lang={locale}>` dynamically from
+      the route param and reads OpenGraph's `locale` field from the message
+      catalog's own `Metadata.ogLocale` key (not hardcoded per-locale JSX) —
+      confirmed by reading the file; it needs no change. All three of
+      request.ts, LocaleSwitcher.tsx, and layout.tsx are locale-count-agnostic
+      by construction, matching what REQ-003 found for the ru/uz -> ru/uz/en
+      step and carrying forward unchanged for uz/en -> kk.
+
+      defaultLocale decision: stays `"ru"`. No source (GitHub issue #4, the
+      design system readme's voice principle #6, or any docs/agents/decisions/
+      record) states a reason to change the default locale — issue #4 only
+      asks for a Kazakh version to exist, not for Kazakh to become the entry
+      point. Adding a locale is not grounds to silently change default-locale
+      behavior, matching REQ-003's own explicit statement of this same point.
+
+      Scope of work:
+      - Add `"kk"` to the `locales` array in src/i18n/routing.ts, after `"en"`
+        (`locales: ["ru", "uz", "en", "kk"]`), keeping `defaultLocale: "ru"`
+        unchanged.
+      - Create messages/kk.json containing every key currently present in
+        messages/ru.json (same 177-key structure/nesting), with every value
+        set to the Russian source string duplicated verbatim as a placeholder
+        — translation content, including the `Metadata.ogLocale` value (seeded
+        as the placeholder `"ru_RU"`), is out of scope for this requirement.
+        REQ-006 (depends_on this requirement) replaces every kk placeholder,
+        including setting `Metadata.ogLocale` to `"kk_KZ"`, with real Kazakh
+        copy.
+      - No change expected to src/i18n/request.ts, src/components/landing/
+        LocaleSwitcher.tsx, or src/app/[locale]/layout.tsx per the
+        verified-current-state note above. If manual verification during
+        implementation finds any of the three does require a change (a
+        locale-count assumption this description missed), make the minimal
+        fix and state what was found and why in the handoff's result — don't
+        silently diverge from this description without recording it.
+    acceptance_criteria:
+      - "src/i18n/routing.ts's `locales` array is exactly `[\"ru\", \"uz\", \"en\", \"kk\"]` and `defaultLocale` remains `\"ru\"`, verified by reading the file after the change."
+      - "messages/kk.json exists with a key set identical to messages/ru.json's (same 177 leaf keys, same nesting), every value non-empty, verified by a diff/script comparing the two catalogs' key sets — matching this project's own verification method used for messages/uz.json and messages/en.json."
+      - "Visiting /kk renders the page with `<html lang=\"kk\">`, and /ru, /uz, /en continue to render their respective `<html lang>` values with no regression, verified by inspecting the rendered HTML output of `npm run build && npm run start` for all four paths."
+      - "The LocaleSwitcher.tsx control renders four options (RU, UZ, EN, KK); clicking KK from any other locale's page navigates to the equivalent /kk/* page with the same section anchors preserved, and clicking any other locale from /kk/* navigates back correctly, verified by manual click-through per TEST-DESIGNER's spec."
+      - "`npm run build` completes with no type or routing errors after the change."
+      - "Visiting /kk renders all landing sections with no missing-translation-key runtime errors or fallback warnings in the build/start output (placeholder Kazakh-as-Russian-duplicate values are acceptable content-wise at this stage, but must not be missing keys)."
+    depends_on: [REQ-001a, REQ-001b]
+
+  - id: REQ-006
+    title: Write real Kazakh (Cyrillic-script) translations for all landing page copy
+    owner: CONTENT-BA
+    status: pending
+    description: >
+      Depends on REQ-005, which adds `"kk"` to src/i18n/routing.ts and seeds
+      messages/kk.json with every messages/ru.json key populated with a
+      Russian-duplicated placeholder value (including `Metadata.ogLocale`
+      seeded as the placeholder `"ru_RU"`). This requirement replaces every
+      placeholder in messages/kk.json with actual Kazakh copy, following
+      docs/guides/content_ba_guide.md's voice/casing/vocabulary rules (§2's
+      seven voice principles — functional operator-facing tone, no exclamation
+      marks or slogans; §4's casing: sentence case for buttons/menu items,
+      Title Case for section/page titles mapping to a domain noun, UPPERCASE
+      MONO for status labels) applied to Kazakh prose, and sets
+      `Metadata.ogLocale` to `"kk_KZ"` (the OpenGraph region-tagged locale
+      code, matching the `ru_RU`/`uz_UZ`/`en_US` pattern already established
+      by REQ-001a/REQ-002/REQ-004). Scope covers every string sourced from
+      src/app/layout.tsx-derived `Metadata` keys and all 12 landing components
+      under src/components/landing/ (Band, Creed, Doors, Events, Footer, Hero,
+      MapSection, Metrics, Nav, Partners, Streams, Team) as carried into
+      messages/kk.json by REQ-005.
+
+      Script decision (stated explicitly, not silently copied from REQ-002's
+      Uzbek precedent — this is a genuinely different situation): Kazakh copy
+      on this site uses CYRILLIC script, not Latin. Kazakhstan's government has
+      an announced transition to a Latin alphabet, but as of this decision
+      that transition remains incomplete in actual practice — Cyrillic is
+      still the script used in Kazakhstan's day-to-day government documents,
+      education, media, and general public literacy, i.e. it is what the
+      large majority of the site's actual Kazakh-reading target audience
+      currently reads fluently. This differs from REQ-002's Uzbek decision:
+      Uzbekistan's Latin script is Uzbekistan's actual current official
+      standard orthography, taught in schools since the 1990s and used in
+      official contexts today, which is why REQ-002 correctly chose Latin for
+      Uzbek. The two locales are not analogous on this point and REQ-002's
+      choice is not extended here by default. If Kazakhstan's Latin transition
+      later reaches the point where Latin is the dominant script in practice,
+      revisit this decision in a new requirement rather than editing this
+      one's completed record.
+
+      Domain vocabulary decision (following REQ-002/REQ-004's precedent
+      pattern, restated for this locale rather than silently assumed): the
+      content_ba_guide.md §4 domain vocabulary terms — Event, Chapter, Talk,
+      Speaker, CFP, Agenda, Check-in, Going, Watching — STAY IN ENGLISH
+      VERBATIM in the Kazakh copy, exactly as they already do in the Russian,
+      Uzbek, and English copy. Rationale: unchanged from REQ-002's reasoning —
+      these are established cross-locale product/brand terms shared across all
+      AI Qadam surfaces regardless of body-copy language, not general
+      vocabulary; inventing Kazakh equivalents would break consistency with
+      the other three locales and the design system's own component/prop
+      naming. Surrounding sentence structure, headings, and connecting prose
+      around these terms are still fully translated into Kazakh — only the
+      specific vocabulary tokens listed above remain untranslated.
+    acceptance_criteria:
+      - "Every string key in messages/kk.json has a non-empty value that is not byte-for-byte identical to the corresponding messages/ru.json value (verified by a diff/script comparing values per key — a leftover placeholder duplicate fails this check), except where a key's value consists solely of an untranslatable literal — event/date codes, country/role/brand names, URLs, numeric values, or proper product names (including the content_ba_guide.md §4 domain-vocabulary terms Event, Chapter, Talk, Speaker, CFP, Agenda, Check-in, Going, Watching) — which are permitted to match verbatim per this requirement's domain-vocabulary decision."
+      - "messages/kk.json's `Metadata.ogLocale` value is exactly `\"kk_KZ\"` (not the placeholder `\"ru_RU\"`), verified by reading the key directly."
+      - "Every messages/kk.json value uses Cyrillic-script Kazakh (verified by a script checking for the presence of Kazakh-specific Cyrillic-extension code points — Ә, Ғ, Қ, Ң, Ө, Ұ, Ү, Һ, І and their lowercase forms — appearing somewhere across the file, confirming genuine Kazakh rather than a Russian-Cyrillic duplicate left in place), with no Latin-script prose sentences present, the sole exception being the verbatim English domain-vocabulary tokens and untranslatable literals permitted by the first criterion."
+      - "The status-label keys — Streams.tsx's stream{N}Status keys and MapSection.tsx's chapter{N}Status keys — hold plain lowercase Cyrillic-script Kazakh (or the verbatim English domain term) values in messages/kk.json, matching the lowercase convention already used for these keys in messages/ru.json/uz.json/en.json; uppercase display comes purely from src/app/globals.css's unconditional `.status` `text-transform:uppercase` rule, not from the JSON values themselves, consistent with content_ba_guide.md §4's casing rule."
+      - "No exclamation marks, slogans, or emoji appear in any messages/kk.json value (grepped), matching the tone rule in content_ba_guide.md §3."
+    depends_on: [REQ-005]
