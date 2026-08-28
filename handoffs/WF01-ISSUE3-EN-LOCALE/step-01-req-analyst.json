@@ -1,0 +1,63 @@
+{
+  "handoff_id": "eca3dc2d-b001-42d1-b7c5-745ac25715d9",
+  "run_id": "WF01-ISSUE3-EN-LOCALE",
+  "workflow_id": "WF-01",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "REQ-ANALYST",
+  "file": "handoffs/WF01-ISSUE3-EN-LOCALE/step-01-req-analyst.json",
+  "created_at": "2026-08-28T02:36:38Z",
+  "started_at": "2026-08-28T02:36:38Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": [],
+    "requirement_text": {},
+    "source_text": {
+      "GitHub issue #3": "Title: 'translate to en'. Body: 'translate to en'",
+      "docs/agents/requirements.yaml REQ-001a (done)": "...Replace the static language switcher already present in src/components/landing/Nav.tsx (the <div className=\"lang\"> block with RU/UZ/EN spans...) with a working switcher between ru and uz only (drop the non-functional EN option -- no English locale is in scope)..."
+    },
+    "related_handoff_ids": [],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "docs/guides/content_ba_guide.md",
+      "docs/guides/frontend_developer_guide.md",
+      "messages/ru.json",
+      "messages/uz.json",
+      "src/i18n/routing.ts",
+      "src/i18n/request.ts",
+      "src/components/landing/Nav.tsx"
+    ]
+  },
+  "task": {
+    "description": "GitHub issue #3 ('translate to en') asks for an English version of the site. This is NOT a bug -- REQ-001a explicitly dropped English from scope ('no English locale is in scope') when it built the ru/uz i18n mechanism, so there is no existing requirement specifying English-locale behavior. Per ORCHESTRATOR.md's decision tree this is a new-feature request: WF-01 (draft + validate) then WF-02 (implement), not WF-03.\n\nCurrent state (verified before this dispatch): locales are ['ru','uz'], defaultLocale 'ru' (src/i18n/routing.ts). messages/ru.json and messages/uz.json exist with the full landing-page copy (~177 keys per REQ-002's closeout); there is no messages/en.json. Nav.tsx's switcher currently offers RU/UZ only (the EN option was deliberately removed by REQ-001a). The design system readme's brand voice principle #6 commits to 'Multilingual by default -- Russian, Uzbek, Kazakh, Kyrgyz, Tajik, English -- equal weight', so adding English is realizing an existing brand commitment, not new scope invention (same framing REQ-ANALYST used for the original uz work).\n\nDraft this as one or more requirements sized to one agent turn each per WF-01 Step 1c (split with depends_on chaining if the routing/switcher-mechanism work and the actual translation-content work don't fit one turn together -- this project's own precedent from issue #2 split exactly this way: REQ-001a mechanism -> REQ-001b remaining-copy-extraction -> REQ-002 real translations). Concretely this likely means:\n1. A FRONTEND-DEV-owned requirement: add 'en' to the locales list in src/i18n/routing.ts, decide correct ordering/defaultLocale handling (defaultLocale stays 'ru' unless you find a stated reason to change it -- do not silently change default-locale behavior), restore a working EN control in Nav.tsx's switcher (three-way ru/uz/en), and seed messages/en.json with every key from messages/ru.json (English translations, or Russian-verbatim placeholders if you decide to split translation quality into its own follow-up requirement the way REQ-002 was split from REQ-001a/b -- your call, state the reasoning).\n2. If you split out translation quality: a CONTENT-BA-owned requirement, depends_on the first, producing real English copy for every messages/en.json key following content_ba_guide.md's voice rules, explicitly stating how domain vocabulary (Event/Chapter/CFP/etc., already English in ru/uz per precedent) is handled now that the target locale IS English (this is a genuinely new question the uz/ru precedent doesn't settle -- decide and state it, don't leave it implicit).\n\nRead docs/agents/requirements.yaml in full first (existing schema + the REQ-001a/b/REQ-002 entries as the direct precedent for how this exact kind of work was split and worded last time). Read docs/agents/anti-patterns.md and docs/agents/decisions/ for anything relevant. Verify current locale/message-catalog state yourself rather than trusting this summary (open src/i18n/routing.ts, messages/ru.json, Nav.tsx) per HANDOFF_PROTOCOL.md §1.1.",
+    "acceptance_criteria": [
+      "One or more new entries appended to docs/agents/requirements.yaml (next sequential REQ-NNN ids after REQ-002) following the exact existing schema, status: pending",
+      "If split into multiple requirements, the later one(s) depends_on the earlier one(s) correctly",
+      "Each requirement has >=2 concrete, testable acceptance criteria (no vague language -- e.g. 'every key in messages/en.json has a non-empty value, verified by a diff/script against messages/ru.json's key set', not 'translations look good')",
+      "The requirement(s) state explicitly what defaultLocale remains and why (do not silently imply a change to 'ru' as default)",
+      "If translation quality is split into its own requirement, that requirement explicitly decides and states the domain-vocabulary-in-English question (a genuinely new decision not settled by the ru/uz precedent)",
+      "Neither requirement contradicts REQ-001a's done status/description (i.e. do not describe this as 'fixing' or 'redoing' REQ-001a -- it is additive: a new locale REQ-001a explicitly scoped out)",
+      "Sized to one agent turn per requirement per WF-01 Step 1c -- split further if the routing+switcher+catalog-seeding+real-translation work doesn't fit one turn together, following the REQ-001a/b/REQ-002 precedent"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
