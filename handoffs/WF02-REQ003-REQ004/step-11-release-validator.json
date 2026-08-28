@@ -1,0 +1,69 @@
+{
+  "handoff_id": "47a8c922-14b1-4965-9560-b99d13a01b32",
+  "run_id": "WF02-REQ003-REQ004",
+  "workflow_id": "WF-02",
+  "step": "11",
+  "from_agent": "TEST-RUNNER",
+  "to_agent": "RELEASE-VALIDATOR",
+  "file": "handoffs/WF02-REQ003-REQ004/step-11-release-validator.json",
+  "created_at": "2026-08-28T03:23:41Z",
+  "started_at": "2026-08-28T03:23:41Z",
+  "completed_at": "2026-08-28T03:26:16Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-004"],
+    "requirement_text": {
+      "REQ-004": "CONTENT-BA wrote real English copy for all 177 keys in messages/en.json. Acceptance criteria: non-empty translated values (except stated literal exceptions); no Cyrillic; domain vocabulary (Event/Chapter/Talk/Speaker/CFP/Agenda/Check-in/Going/Watching) verbatim, no synonyms; status-label keys plain lowercase English; no exclamation marks/slogans/emoji."
+    },
+    "source_text": {},
+    "related_handoff_ids": ["d26ebe40-a4c5-4172-b19c-cd0e81bfaba2"],
+    "artifacts_in": [
+      "test-reports/report-2026-08-28-WF02-REQ003-REQ004-REQ004.yaml",
+      "docs/agents/requirements.yaml"
+    ]
+  },
+  "task": {
+    "description": "Independently re-verify REQ-004's acceptance criteria per WF-02 Step 5 — do not trust TEST-RUNNER's report alone. TEST-RUNNER reported PASS but filed ISSUE-A: docs/agents/test-specs/REQ-004.md's AC3 case states expected occurrence counts (Event=16/Chapter=17/Talk=22) that don't match the actual messages/en.json (9/3/6) — TEST-RUNNER attributes this to a spec-authoring transcription error, not a code defect, since the same case's spot-check values all matched exactly and manual inspection found no synonym substitution. You must resolve this yourself: re-run the domain-vocabulary check against the actual file and determine independently whether AC3 (the actual acceptance criterion, not the spec's possibly-wrong expected-count transcription) is genuinely satisfied. Also address ISSUE-B (recurring browser-automation gap, same as REQ-003/REQ-001a) explicitly in your result.",
+    "acceptance_criteria": [
+      "npm run lint && npm run build independently re-run",
+      "AC3 (domain vocabulary verbatim, no synonyms) independently re-verified against the actual messages/en.json content — resolve ISSUE-A's discrepancy explicitly, don't just pass it through",
+      "Every other REQ-004 acceptance criterion checked directly, spot-checking rather than trusting the report wholesale",
+      "docs/agents/requirements.yaml's REQ-004 entry checked for staleness",
+      "ISSUE-B acknowledged; state whether this makes three recurrences (REQ-001a, REQ-003, REQ-004) and should be escalated now"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Independently re-ran npm run lint (exit 0, 0 errors, 4 pre-existing warnings, none touching messages/en.json) and npm run build (exit 0, compiled successfully) - both match TEST-RUNNER's report exactly. AC3/ISSUE-A resolved independently: ran the spec's exact domain-vocabulary script myself against the actual messages/en.json and got Event=9/Chapter=3/Talk=6/Speaker=1/CFP=2/Agenda=0/Check-in=0/Going=1/Watching=0, identical to TEST-RUNNER's 'actual' figures and NOT matching the spec's stated 'Expected' block (16/17/22). Ruled out two alternative explanations for the discrepancy: (1) file drift - git log -- messages/en.json shows only one commit (4f64664) ever wrote the file's content, before the spec commit (631000a), with zero changes since, so the spec author had the exact same file I just checked; (2) wrong-source-file mixup - ran the same script against messages/ru.json and got Event=0/Chapter=0/Talk=0 (mostly Cyrillic), which also does not match 16/17/22, so the spec's numbers were not accidentally computed from ru.json either. The 16/17/22 figures cannot be reconciled with any real script run against any real file on this branch; they are erroneous/fabricated data in the spec's Expected block, not evidence of a REQ-004 content defect. Independently re-verified all 8 named AC3 spot-check values character-for-character (all match), and manually inspected every one of the 22 actual term hits across the file (Event, Chapter, Talk, Speaker, CFP, Going) - no synonym substitution anywhere; 'ongoing' (Doors.door3Tag) and generic 'talk about'/'meetup' usages are correctly non-domain generic English, not vocabulary violations. AC3's real acceptance criterion (verbatim vocabulary, no synonyms) is genuinely satisfied. Every other AC independently re-checked directly against the file/rendered page, not trusted from the report: AC1 (177 keys, empty_en_values=[], 18 identical-value keys, exact match), AC2 (0 Cyrillic matches), AC4 (source values exact match all 8, globals.css:152 .status selector confirmed unconditional text-transform:uppercase, rendered curl output exact match all 8 status spans), AC5a (0 exclamation marks), AC5b (0 emoji matches), AC5c (manually read title/lede/cta values across all 12 sections, confirmed plain functional tone, no slogans). AC6 rendered-page checks re-run against a freshly booted npm run start production server: 6a/6a-control (0 MISSING_MESSAGE/IntlError on /en and /ru), 6b all 4 spot-check strings exact match, 200 status, plus an additional independent check not in the report (raw namespaced-key leakage scan on rendered /en HTML: 0 matches; stray-Cyrillic scan on rendered /en HTML: 0 matches). docs/agents/requirements.yaml REQ-004 entry checked: status=in_progress, which is correct pre-DOC-UPDATER state (not stale - DOC-UPDATER flips it after this PASS). ISSUE-B (browser automation gap) independently reconfirmed via ToolSearch: no Playwright/Puppeteer/browser-automation MCP tool available in this environment. Checked handoffs/orchestrator.log: this is confirmed as the THIRD recurrence (REQ-001a step-04, REQ-003 step-04 and step-05, REQ-004 step-10 and this step-11) across two roles (TEST-RUNNER and RELEASE-VALIDATOR) each independently hitting the identical gap. Notably, the prior RELEASE-VALIDATOR run (step-05, REQ-003) already explicitly recommended escalating this to a system-level issue, but docs/issues/ contains no filed issue for it (only README.md) - the recommendation was never turned into a tracked issue. Recommending escalation now, reported to ORCH per ISSUE_QUEUE.md rather than self-filing an issue id.",
+    "artifacts_out": [],
+    "issues": [
+      {
+        "id": "ISSUE-A",
+        "severity": "minor",
+        "status": "resolved_by_release_validator",
+        "description": "docs/agents/test-specs/REQ-004.md AC3's Expected block states Event_count=16/Chapter_count=17/Talk_count=22; actual messages/en.json (independently re-verified, script run directly by RELEASE-VALIDATOR) produces 9/3/6. Ruled out file-drift (git log shows en.json unchanged since before the spec commit) and wrong-source-file mixup (ru.json produces 0/0/0 for these terms, not 16/17/22 either) as explanations - the spec's Expected numbers do not correspond to any real script run against any real file state on this branch and are erroneous/fabricated spec content, not a REQ-004 implementation defect. The substantive part of AC3 (verbatim vocabulary, no synonym substitution) is confirmed satisfied by both the 8 named spot-checks (exact match) and a full manual term-by-term review of all 22 actual hits.",
+        "recommendation": "File as an issue against TEST-DESIGNER's REQ-004 spec authoring and against TEST-DESIGN-VALIDATOR's gate (which passed the spec without independently re-running AC3's script, unlike the other cases it did re-run per its own step-09b note) for docs/agents/protocols tracking. Does not block REQ-004's PASS."
+      },
+      {
+        "id": "ISSUE-B",
+        "severity": "minor",
+        "status": "recurrence_confirmed_escalation_recommended",
+        "description": "No browser automation tool (Playwright/Puppeteer/browser MCP) is available in this execution environment, confirmed independently via ToolSearch. This is the THIRD recurrence of the identical gap: REQ-001a (TEST-RUNNER step-04), REQ-003 (TEST-RUNNER step-04 AND RELEASE-VALIDATOR step-05), REQ-004 (TEST-RUNNER step-10 AND this RELEASE-VALIDATOR step-11). The REQ-003 RELEASE-VALIDATOR run already explicitly recommended system-level escalation; docs/issues/ contains no filed issue for it (directory holds only README.md), meaning that recommendation was never acted on.",
+        "recommendation": "Escalate now - do not defer a fourth time. Recommend ORCH file a system-level issue in docs/issues/ (e.g. provisioning a headless-browser MCP tool or Playwright CLI for TEST-RUNNER/RELEASE-VALIDATOR use) so future requirements with theme/viewport-conditional acceptance criteria get literal browser verification instead of the HTML-based substitute this pipeline has relied on three times running. Non-blocking for REQ-004's own PASS since this requirement's spec explicitly documents the substitute check as valid for this requirement's theme/viewport-independent scope."
+      }
+    ],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ003-REQ004",
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Route to DOC-UPDATER to flip REQ-004 to done in docs/agents/requirements.yaml and append the status-history event; ORCH should also file a new issue for ISSUE-B's system-level escalation (browser automation tool provisioning) per docs/agents/protocols/ISSUE_QUEUE.md, and consider a lightweight issue for ISSUE-A (TEST-DESIGNER/TEST-DESIGN-VALIDATOR spec-authoring process gap)."
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}

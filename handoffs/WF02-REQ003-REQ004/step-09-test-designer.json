@@ -1,0 +1,52 @@
+{
+  "handoff_id": "bf31f3af-703e-4e7e-99b8-b204d94ef080",
+  "run_id": "WF02-REQ003-REQ004",
+  "workflow_id": "WF-02",
+  "step": "09",
+  "from_agent": "REVIEWER",
+  "to_agent": "TEST-DESIGNER",
+  "file": "handoffs/WF02-REQ003-REQ004/step-09-test-designer.json",
+  "created_at": "2026-08-28T03:13:20Z",
+  "started_at": "2026-08-28T03:13:20Z",
+  "completed_at": "2026-08-28T03:15:54Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-004"],
+    "requirement_text": {
+      "REQ-004": "CONTENT-BA wrote real English copy for all 177 keys in messages/en.json (previously Russian-duplicated placeholders from REQ-003). REVIEWER PASSed. Acceptance criteria: every key has a non-empty, translated value (except stated untranslatable literals); no Cyrillic anywhere; domain vocabulary (Event/Chapter/Talk/Speaker/CFP/Agenda/Check-in/Going/Watching) verbatim with no synonyms; status-label keys plain lowercase English; no exclamation marks/slogans/emoji."
+    },
+    "source_text": {},
+    "related_handoff_ids": ["706e5568-a40b-417d-a239-c4cc482ff385"],
+    "artifacts_in": [
+      "messages/en.json",
+      "messages/ru.json"
+    ]
+  },
+  "task": {
+    "description": "Write docs/agents/test-specs/REQ-004.md per WF-02 Step 3 procedure: a concrete verification case for each REQ-004 acceptance criterion, following the same pattern used for REQ-002's Uzbek translation test spec (script-based key/value/Cyrillic checks plus a rendered-page content-completeness check). This requirement has a user-visible surface (/en's rendered copy), so do not skip to the docs-only path.",
+    "acceptance_criteria": [
+      "Every REQ-004 acceptance criterion has at least one verification case",
+      "Each case names the exact script/command or exact route+viewport+theme+expected result — not 'check it looks right'",
+      "No TODO left in the spec"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Wrote docs/agents/test-specs/REQ-004.md covering all 5 REQ-004 acceptance criteria plus a supporting rendered-page check, following REQ-002's structure (script-based checks) and REQ-003's route/viewport conventions. AC1 (non-empty/translated values except untranslatable literals): independently re-derived the identical-value diff between messages/en.json and messages/ru.json (node script) -- confirmed exactly 18 identical keys, matching CONTENT-BA's and REVIEWER's claimed count precisely; each of the 18 individually justified as a literal (country/role codes, already-English job titles, brand/contact literals, a numeric value, an acronym). AC2 (no Cyrillic): node regex script, confirmed 0 matches against the current file. AC3 (domain vocabulary verbatim): node script counting occurrences of all 9 terms plus specific key/value assertions (Nav.events, Nav.chapters, Creed.principle2Body, Band.lede, Doors.door2Body, MapSection.ctaLaunchChapter/nodeAlmatySub) -- all verified against the actual current file content, not guessed. AC4 (status labels lowercase): node script dumping all 8 status keys' current values plus the CSS text-transform:uppercase rule confirmation (globals.css:152) plus a rendered curl/grep case against /en with exact expected 8-line output. AC5 (no exclamation/slogan/emoji): grep for '!' (confirmed exit 1, no matches), node emoji-range regex script (confirmed 0 matches), plus a manual slogan spot-check case with concrete example values (Band.title, Doors.title, Partners.cta) verified against the file. AC6 (supporting, rendered-page completeness): next-intl error-marker checks on /en and /ru control, 4 spot-check strings across 4 namespaces (Nav, Hero t.rich(), Doors, Footer) with exact expected HTML verified against REQ-003's precedent pattern, plus a full 12-section x 4-viewport/theme-combination content-completeness case per qa_testing_guide.md §5. Every script command in the spec was actually run during authoring and its real output recorded as the Expected value -- no case is speculative.",
+    "artifacts_out": ["docs/agents/test-specs/REQ-004.md"],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ003-REQ004",
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Route to TEST-DESIGN-VALIDATOR"
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}

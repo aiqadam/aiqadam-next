@@ -176,3 +176,124 @@ requirements:
       - "The status-label keys — Streams.tsx's stream{N}Status keys and MapSection.tsx's chapter{N}Status keys — hold plain lowercase Latin-script Uzbek (or the verbatim English domain term) values in messages/uz.json, matching the lowercase convention already used for these keys in messages/ru.json; uppercase display comes purely from src/app/globals.css line 152's unconditional \"text-transform:uppercase\" rule on the .status class, not from the JSON values themselves, consistent with content_ba_guide.md §4's casing rule."
       - "No exclamation marks, slogans, or emoji appear in any messages/uz.json value (grepped), matching the tone rule in content_ba_guide.md §3."
     depends_on: [REQ-001a, REQ-001b]
+
+  - id: REQ-003
+    title: Add English (en) locale to routing and seed messages/en.json
+    owner: FRONTEND-DEV
+    status: done
+    description: >
+      GitHub issue #3 ("translate to en") asks for an English version of the
+      site. REQ-001a explicitly scoped English out when it built the ru/uz i18n
+      mechanism ("no English locale is in scope") — this requirement is
+      additive, not a fix or redo of REQ-001a: it realizes a locale REQ-001a
+      deliberately deferred, matching the design system readme's brand voice
+      principle #6 ("Multilingual by default — Russian, Uzbek, Kazakh, Kyrgyz,
+      Tajik, English — equal weight," docs/guides/content_ba_guide.md §2).
+
+      Verified current state (2026-08-28, re-checked against this run's own
+      dispatch summary rather than trusted as-is): src/i18n/routing.ts defines
+      `locales: ["ru", "uz"]`, `defaultLocale: "ru"`. messages/ru.json and
+      messages/uz.json each hold exactly 177 leaf keys with matching key sets
+      (verified by script). The locale switcher is no longer the inline
+      `<div className="lang">` block described in REQ-001a's own text — it has
+      since been extracted into src/components/landing/LocaleSwitcher.tsx,
+      which renders one link per entry in `routing.locales` generically (no
+      hardcoded ru/uz list, no per-locale JSX branches). Consequence: adding
+      `"en"` to `routing.locales` is sufficient by itself to produce a working
+      three-way ru/uz/en switcher control — LocaleSwitcher.tsx requires no code
+      change for this requirement. This is a genuine change from REQ-001a's
+      framing (written when the switcher was still inline JSX needing an
+      explicit RU/UZ-only edit) and is stated here explicitly rather than
+      silently carried over.
+
+      defaultLocale decision: stays `"ru"`. No source (GitHub issue #3, the
+      design system readme's voice principle #6, or any decisions/ record)
+      states a reason to change the default locale — issue #3 only asks for an
+      English version to exist, not for English to become the entry point.
+      Adding a locale is not grounds to silently change default-locale
+      behavior per this run's own dispatch instruction.
+
+      Scope of work:
+      - Add `"en"` to the `locales` array in src/i18n/routing.ts, after `"uz"`
+        (`locales: ["ru", "uz", "en"]`), keeping `defaultLocale: "ru"` unchanged.
+      - Create messages/en.json containing every key currently present in
+        messages/ru.json (same 177-key structure/nesting), with every value set
+        to the Russian source string duplicated verbatim as a placeholder —
+        translation content is out of scope for this requirement. REQ-004
+        (depends_on this requirement) replaces every en placeholder with real
+        English copy.
+      - Confirm src/i18n/request.ts needs no change: it already resolves
+        messages via `(await import(\`../../messages/${locale}.json\`))` and
+        falls back to `routing.defaultLocale` for any unrecognized locale, so
+        it works for a third locale without modification — verify this by
+        reading the file, don't just assume it from this description.
+      - Confirm src/components/landing/LocaleSwitcher.tsx needs no change per
+        the verified-state note above; if manual verification during
+        implementation finds it does require a change (e.g. a hardcoded
+        two-locale assumption this description missed), make the minimal fix
+        and state what was found and why in the handoff's result — don't
+        silently diverge from this description without recording it.
+      - `src/app/[locale]/layout.tsx` (or wherever REQ-001a's dynamic
+        `<html lang={locale}>`/metadata logic now lives after REQ-001b's
+        extraction) must handle `en` the same way it already handles `ru`/`uz`
+        — verify by reading the current file rather than assuming REQ-001a's
+        original description still matches it exactly, since LocaleSwitcher.tsx
+        already diverged from that description once.
+    acceptance_criteria:
+      - "src/i18n/routing.ts's `locales` array is exactly `[\"ru\", \"uz\", \"en\"]` and `defaultLocale` remains `\"ru\"`, verified by reading the file after the change."
+      - "messages/en.json exists with a key set identical to messages/ru.json's (same 177 leaf keys, same nesting), every value non-empty, verified by a diff/script comparing the two catalogs' key sets — matching this run's own verification method for messages/ru.json vs messages/uz.json."
+      - "Visiting /en renders the page with `<html lang=\"en\">`, and /ru and /uz continue to render `<html lang=\"ru\">`/`<html lang=\"uz\">` respectively (no regression), verified by inspecting the rendered HTML output of `npm run build && npm run start` for all three paths."
+      - "The LocaleSwitcher.tsx control renders three options (RU, UZ, EN); clicking EN from any /ru/* or /uz/* page navigates to the equivalent /en/* page with the same section anchors preserved, and clicking RU/UZ from /en/* navigates back correctly, verified by manual click-through per TEST-DESIGNER's spec."
+      - "`npm run build` completes with no type or routing errors after the change."
+      - "Visiting /en renders all landing sections with no missing-translation-key runtime errors or fallback warnings in the build/start output (placeholder English-as-Russian-duplicate values are acceptable content-wise at this stage, but must not be missing keys)."
+    depends_on: [REQ-001a, REQ-001b]
+
+  - id: REQ-004
+    title: Write real English translations for all landing page copy
+    owner: CONTENT-BA
+    status: done
+    description: >
+      Depends on REQ-003, which adds `"en"` to src/i18n/routing.ts and seeds
+      messages/en.json with every messages/ru.json key populated with a
+      Russian-duplicated placeholder value. This requirement replaces every
+      placeholder in messages/en.json with actual English copy, following
+      docs/guides/content_ba_guide.md's voice/casing/vocabulary rules (§2's
+      seven voice principles — functional operator-facing tone, no exclamation
+      marks or slogans, §4's casing: sentence case for buttons/menu items,
+      Title Case for section/page titles mapping to a domain noun, UPPERCASE
+      MONO for status labels) applied directly, since English is the guide's
+      own drafting language already (§4: "draft with Russian and English both
+      in mind"). Scope covers every string sourced from src/app/layout.tsx
+      (title, description, OpenGraph/Twitter metadata) and all 12 landing
+      components under src/components/landing/ (Band, Creed, Doors, Events,
+      Footer, Hero, MapSection, Metrics, Nav, Partners, Streams, Team) as
+      carried into messages/en.json by REQ-003.
+
+      Domain vocabulary decision (REQ-002's decision covered Uzbek; this is a
+      genuinely new question REQ-002's precedent does not settle, because for
+      the first time the target locale itself IS English): content_ba_guide.md
+      §4 lists Event, Chapter, Talk, Speaker, CFP, Agenda, Check-in, Going,
+      Watching as domain vocabulary to "use verbatim, don't invent synonyms" —
+      a rule written for translating INTO a non-English locale while keeping
+      these terms in their original English form. For messages/en.json, these
+      terms are simply the correct English words in-language, not a
+      verbatim-preserved foreign insertion — there is no separate "translation"
+      step for them distinct from writing the surrounding English sentence.
+      Decision: use the exact same casing/form already established in
+      content_ba_guide.md §4 and in messages/ru.json/messages/uz.json's
+      verbatim usage (Event, Chapter, Talk, Speaker, CFP, Agenda, Check-in,
+      Going, Watching) — do not substitute synonyms (e.g. not "Session" for
+      "Talk," not "Registration" for "Check-in") even though English drafting
+      offers more synonym options than translation into another language does.
+      This keeps the vocabulary identical across all three locales' source
+      concepts, preserving the design system's own component/prop naming
+      consistency (the same rationale REQ-002 used for Uzbek, restated here for
+      English specifically since the "verbatim" framing no longer literally
+      applies once the base language is English).
+    acceptance_criteria:
+      - "Every string key in messages/en.json has a non-empty value that is not byte-for-byte identical to the corresponding messages/ru.json value (verified by a diff/script comparing values per key — a leftover placeholder duplicate fails this check), except where a key's value consists solely of an untranslatable literal — event/date codes, country/role/brand names, URLs, numeric values, or proper product names — which are permitted to match verbatim."
+      - "No Cyrillic characters appear anywhere in messages/en.json's values (verified by a script checking for Unicode Cyrillic code points, U+0400 to U+04FF)."
+      - "The domain vocabulary terms (Event, Chapter, Talk, Speaker, CFP, Agenda, Check-in, Going, Watching) appear in messages/en.json using exactly the casing/form stated in this requirement's domain-vocabulary decision, with no synonym substitutions, verified by checking each occurrence against content_ba_guide.md §4's list."
+      - "The status-label keys — Streams.tsx's stream{N}Status keys and MapSection.tsx's chapter{N}Status keys — hold plain lowercase English values in messages/en.json (e.g. \"upcoming\", \"live\", \"past\"), matching the lowercase convention already used for these keys in messages/ru.json and messages/uz.json; uppercase display comes from src/app/globals.css's `.status` class `text-transform:uppercase` rule, not from the JSON values themselves, consistent with content_ba_guide.md §4's casing rule."
+      - "No exclamation marks, slogans, or emoji appear in any messages/en.json value (grepped), matching the tone rule in content_ba_guide.md §3."
+    depends_on: [REQ-003]

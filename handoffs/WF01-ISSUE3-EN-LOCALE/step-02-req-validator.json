@@ -1,0 +1,59 @@
+{
+  "handoff_id": "4b0ac867-1cef-446a-91dc-dbb130b3f2c2",
+  "run_id": "WF01-ISSUE3-EN-LOCALE",
+  "workflow_id": "WF-01",
+  "step": "02",
+  "from_agent": "REQ-ANALYST",
+  "to_agent": "REQ-VALIDATOR",
+  "file": "handoffs/WF01-ISSUE3-EN-LOCALE/step-02-req-validator.json",
+  "created_at": "2026-08-28T02:39:18Z",
+  "started_at": "2026-08-28T02:39:18Z",
+  "completed_at": "2026-08-28T02:40:50Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-003", "REQ-004"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["eca3dc2d-b001-42d1-b7c5-745ac25715d9"],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "docs/guides/content_ba_guide.md",
+      "docs/guides/frontend_developer_guide.md",
+      "docs/agents/decisions/0002-content-ba-owns-message-catalogs.md",
+      "src/i18n/routing.ts",
+      "src/components/landing/LocaleSwitcher.tsx",
+      "messages/ru.json"
+    ]
+  },
+  "task": {
+    "description": "REQ-ANALYST drafted REQ-003 (owner FRONTEND-DEV, depends_on [REQ-001a, REQ-001b]: add 'en' to src/i18n/routing.ts's locales array, keep defaultLocale 'ru', seed messages/en.json with Russian-duplicated placeholders matching messages/ru.json's 177-key set) and REQ-004 (owner CONTENT-BA, depends_on [REQ-003]: write real English copy for all 177 messages/en.json keys, explicitly deciding the domain-vocabulary-in-English question) into docs/agents/requirements.yaml, in response to GitHub issue #3 ('translate to en'). Run WF-01 Step 2's full gate against both: TESTABILITY, CONSISTENCY, DEPENDS_ON CORRECTNESS, DESIGN-SYSTEM FIT, SIZE. Read both entries directly from docs/agents/requirements.yaml (grep for 'id: REQ-003' / 'id: REQ-004' — they start at lines 180 and 251) rather than trusting this summary.\n\nPay particular attention to: (a) REQ-ANALYST's own handoff (handoffs/WF01-ISSUE3-EN-LOCALE/step-01-req-analyst.json, result.issues) flagged a MINOR finding that the switcher mechanism is simpler than originally assumed — src/components/landing/LocaleSwitcher.tsx now iterates routing.locales generically, so adding 'en' to the array alone should produce a working three-way switcher with no separate switcher-code change needed. Verify this claim yourself by reading LocaleSwitcher.tsx directly, and check whether REQ-003's description/acceptance criteria correctly reflect this (not stale REQ-001a-era framing about hardcoded switcher JSX). (b) Whether REQ-003's decision to keep defaultLocale='ru' is stated with reasoning, not just asserted. (c) Whether REQ-004's acceptance criteria are mechanically checkable (script/diff against messages/ru.json's key set) as claimed. (d) Whether REQ-004's domain-vocabulary-in-English decision is a legitimate unilateral call or should have been escalated — note this is a genuinely different question from the ru/uz precedent (there, domain terms stayed English inside non-English copy; here the whole locale IS English, so 'keep verbatim' has a different meaning) — assess with real scrutiny, don't just accept REQ-ANALYST's framing. (e) depends_on correctness: REQ-003 lists [REQ-001a, REQ-001b] — confirm those are actually the right prerequisites (i.e. REQ-003 genuinely needs the locale-routing skeleton and the full copy-extraction to exist first, not just no-conflict). (f) SIZE: does REQ-003 (routing array edit + en.json seeding) still fit one turn now that the switcher-code work dropped out, or did REQ-ANALYST's finding change the SIZE calculus for the better without them re-checking whether REQ-003 is now almost too small to justify being separate from REQ-004 (assess, don't assume either way).",
+    "acceptance_criteria": [
+      "Checks a-e from WF-01_requirement_development.md Step 2 are each explicitly run and recorded against both REQ-003 and REQ-004",
+      "REQ-ANALYST's LocaleSwitcher.tsx staleness finding is independently re-verified by opening that file directly, not taken on trust",
+      "Any FAIL cites the specific requirement id and check letter, per HANDOFF_PROTOCOL.md's validator-fail example shape",
+      "If PASS, result.summary states what was independently re-derived (which file was opened, which specific criteria were checked against which text), not just 'looks good'"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Ran WF-01 Step 2's full checklist (a-e: TESTABILITY, CONSISTENCY, DEPENDS_ON, DESIGN-SYSTEM FIT, SIZE) against REQ-003 and REQ-004, reading both directly from docs/agents/requirements.yaml (REQ-003 at lines 180-249, REQ-004 at lines 251-299) rather than trusting the handoff's summary. Independently re-verified REQ-ANALYST's LocaleSwitcher.tsx claim by opening src/components/landing/LocaleSwitcher.tsx directly: it maps `routing.locales` generically (`{routing.locales.map((locale) => ...)}`) with no hardcoded ru/uz list and no per-locale JSX branches -- the claim that adding 'en' to routing.locales alone produces a working three-way switcher holds, and REQ-003's description text correctly reflects this rather than REQ-001a's stale inline-JSX framing. Also independently opened src/i18n/request.ts (locale-count-agnostic: hasLocale(routing.locales, requested) + dynamic import) and src/app/[locale]/layout.tsx (hasLocale-gated, <html lang={locale}> generic) -- both confirmed to need no change for a third locale, matching REQ-003's claims. Ran a Node key-flattening script directly against messages/ru.json and messages/uz.json (Python unavailable in this shell) -- confirmed exactly 177 leaf keys each with identical key sets, matching REQ-003's stated baseline; confirmed messages/en.json does not yet exist. Read docs/agents/decisions/0001 and 0002, docs/agents/anti-patterns.md, docs/guides/content_ba_guide.md, and the design system readme for consistency/design-fit checks. All five checks pass for both requirements -- see issues[] for the two specific judgment calls made with real scrutiny per the handoff's task.description points (d) and (f), both resolved as legitimate rather than defects.",
+    "artifacts_out": ["docs/agents/requirements.yaml"],
+    "issues": [
+      {"severity": "MINOR", "description": "Point (f) SIZE assessment for REQ-003: with the switcher-code work dropped (per the independently-verified LocaleSwitcher.tsx finding), REQ-003 is now a small routing-array edit plus mechanical JSON seeding. Considered merging it into REQ-004 given its reduced size, but the FRONTEND-DEV/CONTENT-BA owner split mirrors the project's own established REQ-001a/REQ-001b -> REQ-002 precedent (mechanism work vs. content-writing work, different owners, different skill) and decision 0002 treats content-writing as a distinct role concern from mechanism work. Owner-boundary alone justifies the split under this project's precedent even though REQ-003 is small in absolute terms -- not a SIZE failure, but noting the reasoning explicitly since the handoff asked for a real assessment rather than an assumption.", "affected_requirement": "REQ-003"},
+      {"severity": "MINOR", "description": "Point (d) domain-vocabulary-in-English decision for REQ-004: assessed with real scrutiny rather than accepting REQ-ANALYST's framing. REQ-002's Uzbek precedent kept domain terms in English inside non-English prose (a codeswitch); REQ-004's case is different in kind since the target locale itself is English, so the terms are just the correct English words, not a preserved foreign insertion. Concluded this does not need escalation to a decisions/ record: content_ba_guide.md §4 already prescribes this exact vocabulary list, and 'use the documented terms as-is, no synonym substitution' is the only reading consistent with the existing guide -- there is no genuine second option requiring a preference no agent can infer (core-directives.md's escalation trigger), unlike an actual undecided tradeoff. A legitimate unilateral call, correctly reasoned in REQ-004's own text.", "affected_requirement": "REQ-004"}
+    ],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "REQ-003 and REQ-004 are ready for WF-02 (routing/status stays 'pending' per WF-01's own scope -- WF-01 does not flip status further)."
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}

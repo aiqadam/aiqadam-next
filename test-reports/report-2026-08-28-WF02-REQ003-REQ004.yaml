@@ -1,0 +1,237 @@
+run_id: WF02-REQ003-REQ004
+workflow_id: WF-02
+step: "04"
+requirement_ids: ["REQ-003"]
+agent: TEST-RUNNER
+branch: feature/WF02-REQ003-REQ004
+executed_at_utc: "2026-08-28T02:59:33Z"
+spec_source: docs/agents/test-specs/REQ-003.md
+
+lint:
+  command: "npm run lint"
+  exit_code: 0
+  output: |
+    > app@0.1.0 lint
+    > eslint
+
+    C:\Users\tvolo\dev\aiqadam-next\docs\Design system for AI agents\components\primitives\Avatar.jsx
+      39:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+      59:9   warning  'color' is assigned a value but never used                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+
+    C:\Users\tvolo\dev\aiqadam-next\src\components\landing\Footer.tsx
+      11:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+    C:\Users\tvolo\dev\aiqadam-next\src\components\landing\Nav.tsx
+      10:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+    ✖ 4 problems (0 errors, 4 warnings)
+  result: PASS
+  notes: "0 errors, 4 warnings. All 4 warnings are in files untouched by REQ-003/REQ-004 (Avatar.jsx under docs/, Footer.tsx, Nav.tsx line numbers shifted slightly from the REQ-001a baseline report but same rule/file set) - none reference i18n/routing/next-intl/messages. Not attributable to this run."
+
+build:
+  command: "npm run build"
+  exit_code: 0
+  output: |
+    > app@0.1.0 build
+    > next build
+
+    ▲ Next.js 16.3.2 (Turbopack)
+    ✓ Running next.config.ts took 38ms
+
+      Creating an optimized production build ...
+    ✓ Compiled successfully in 190ms
+      Running TypeScript ...
+      Finished TypeScript in 1067ms ...
+      Collecting page data using 6 workers ...
+      Generating static pages using 6 workers (0/4) ...
+    ✓ Generating static pages using 6 workers (4/4) in 460ms
+      Finalizing page optimization ...
+
+    Route (app)
+    ┌ ○ /_not-found
+    ├ ƒ /[locale]
+    └ ƒ /health
+
+    ƒ Proxy (Middleware)
+
+    ○  (Static)   prerendered as static content
+    ƒ  (Dynamic)  server-rendered on demand
+  result: PASS
+  notes: "Exit 0. Contains '✓ Compiled successfully' and 'Finalizing page optimization'. No 'Failed to compile'/'Type error'/error lines. Route listing includes 'ƒ /[locale]' and 'ƒ Proxy (Middleware)' as required by AC5."
+
+verification_cases:
+  - id: AC1
+    description: "locales array in src/i18n/routing.ts is correct"
+    checks:
+      - step: "Read src/i18n/routing.ts directly"
+        expected: |
+          export const routing = defineRouting({
+            locales: ["ru", "uz", "en"],
+            defaultLocale: "ru",
+          });
+        actual: |
+          export const routing = defineRouting({
+            locales: ["ru", "uz", "en"],
+            defaultLocale: "ru",
+          });
+        result: PASS
+    result: PASS
+
+  - id: AC2
+    description: "messages/en.json key-set matches messages/ru.json exactly, all values non-empty"
+    checks:
+      - command: "node -e \"<recursive leaf-key comparison script per spec>\""
+        expected: "ru_count=177 / en_count=177 / missing=[] / extra=[] / empty=[]"
+        actual: "ru_count=177 / en_count=177 / missing=[] / extra=[] / empty=[]"
+        result: PASS
+    result: PASS
+
+  - id: AC2b
+    description: "Every en.json value is verbatim from ru.json except Metadata.ogLocale"
+    checks:
+      - command: "node -e \"<verbatim-value diff script per spec>\""
+        expected: 'diff_keys=["Metadata.ogLocale"] / en_ogLocale="en_US" / ru_ogLocale="ru_RU"'
+        actual: 'diff_keys=["Metadata.ogLocale"] / en_ogLocale="en_US" / ru_ogLocale="ru_RU"'
+        result: PASS
+    result: PASS
+
+  - id: AC3
+    description: "/en renders <html lang=\"en\">; /ru and /uz remain unregressed; / and /xx routing unchanged"
+    checks:
+      - command: "curl -s http://localhost:3000/en | grep -o '<html lang=\"[a-z]*\"'"
+        expected: '<html lang="en"'
+        actual: '<html lang="en"'
+        result: PASS
+      - command: "curl -s http://localhost:3000/ru | grep -o '<html lang=\"[a-z]*\"'"
+        expected: '<html lang="ru"'
+        actual: '<html lang="ru"'
+        result: PASS
+      - command: "curl -s http://localhost:3000/uz | grep -o '<html lang=\"[a-z]*\"'"
+        expected: '<html lang="uz"'
+        actual: '<html lang="uz"'
+        result: PASS
+      - command: "curl -s -o /dev/null -w '%{http_code} %{redirect_url}\\n' http://localhost:3000/"
+        expected: "307 http://localhost:3000/ru"
+        actual: "307 http://localhost:3000/ru"
+        result: PASS
+      - command: "curl -s -o /dev/null -w '%{http_code} %{redirect_url}\\n' http://localhost:3000/xx"
+        expected: "307 http://localhost:3000/ru/xx"
+        actual: "307 http://localhost:3000/ru/xx"
+        result: PASS
+      - command: "curl -s -o /dev/null -w '%{http_code}\\n' http://localhost:3000/ru/xx"
+        expected: "404"
+        actual: "404"
+        result: PASS
+    result: PASS
+
+  - id: AC4
+    description: "LocaleSwitcher renders three working options (RU/UZ/EN), navigates correctly between all three prefixes, anchors preserved"
+    checks:
+      - command: "curl -s http://localhost:3000/ru | grep -oE '<div class=\"lang\">.{1,300}' | grep -oE '.*</div></div>'"
+        expected: '<div class="lang"><a class="on" href="/ru">RU</a><a hrefLang="uz" href="/uz">UZ</a><a hrefLang="en" href="/en">EN</a></div></div>'
+        actual: '<div class="lang"><a class="on" href="/ru">RU</a><a hrefLang="uz" href="/uz">UZ</a><a hrefLang="en" href="/en">EN</a></div></div>'
+        result: PASS
+      - command: "curl -s http://localhost:3000/en | grep -oE '<div class=\"lang\">.{1,300}' | grep -oE '.*</div></div>'"
+        expected: '<div class="lang"><a hrefLang="ru" href="/ru">RU</a><a hrefLang="uz" href="/uz">UZ</a><a class="on" href="/en">EN</a></div></div>'
+        actual: '<div class="lang"><a hrefLang="ru" href="/ru">RU</a><a hrefLang="uz" href="/uz">UZ</a><a class="on" href="/en">EN</a></div></div>'
+        result: PASS
+      - command: "curl -s http://localhost:3000/ru (re-checked as the anchor-preservation case's markup source) | grep -oE '<div class=\"lang\">.{1,300}' | grep -oE '.*</div></div>'"
+        expected: "same markup as the /ru case above; no hash fragment on any of the three hrefs"
+        actual: "identical markup to the /ru case above; all three hrefs are bare paths (/ru, /uz, /en), no hash fragment present"
+        result: PASS
+      - step: "600px viewport load of /ru, click EN control, confirm URL becomes /en and document.documentElement.lang === \"en\"; 1024px viewport load of /en, click RU, confirm /ru and lang===\"ru\"; 1024px viewport load of /uz, click EN, confirm /en and lang===\"en\"; confirm .lang is not display:none at 600px"
+        method: "No interactive browser automation tool is available in this execution environment (confirmed via ToolSearch - no Playwright/Puppeteer/browser MCP tool present). Could not literally load a page in a sized viewport, click an anchor, and read document.documentElement.lang. Substituted with equivalent server-rendered/source/CSS evidence."
+        evidence:
+          - "The .lang div's server-rendered href targets are exactly /ru, /uz, /en for all three locale pages (verified above in this AC4's first three checks) - a real browser click on an <a href=\"/en\"> would navigate to /en, which independently returns <html lang=\"en\"> per AC3."
+          - "grep -n '@media' src/app/globals.css confirms only .nav-links is hidden at max-width:980px (line 254) and max-width:620px (line 263 area per spec's cited breakpoints); no '.lang' selector appears in any @media block in src/app/globals.css, so .lang remains visible (not display:none) at 600px, same as REQ-001a's precedent finding for the two-locale case."
+          - "src/components/landing/LocaleSwitcher.tsx (read directly) builds each link's href from the routing.locales array via next-intl's Link/pathname mechanism unchanged by this requirement - only the array gained a third entry - so the uz-to-en direction not otherwise curl-tested follows the same code path already confirmed correct for ru-to-uz, ru-to-en, and en-to-ru via the href values shown in the markup checks above."
+        result: PASS
+        notes: "Not an executed browser click-through; inferred PASS from server-rendered href targets (which resolve to independently-verified correct <html lang> pages) plus source/CSS inspection. Same category of gap as ISSUE-1 in test-reports/report-2026-08-27-WF02-REQ-001a.yaml. Flagged again below for RELEASE-VALIDATOR."
+    result: PASS
+
+  - id: AC6
+    description: "/en renders all landing sections with no missing-translation-key errors (600px/1024px x light/dark)"
+    checks:
+      - command: "curl -s http://localhost:3000/en -o /tmp/en_page.html; grep -c 'MISSING_MESSAGE' /tmp/en_page.html"
+        expected: "0 occurrences"
+        actual: "0 occurrences"
+        result: PASS
+      - command: "grep -oE '>[A-Z][a-zA-Z]*\\.[a-zA-Z]+<' /tmp/en_page.html (scan for a raw dotted key rendered as literal page text)"
+        expected: "no true raw-key matches (a literal string like 'Hero.title' must never appear as visible text)"
+        actual: "one match, '>IMPACT.T<' - inspected in context: '<div class=\"pn\">IMPACT.T</div><div class=\"pk\">площадка · UZ</div>' - this is a real partner brand name (\"IMPACT.T\", a Tashkent venue) in the Partners section, not a translation-key artifact. No genuine raw key string found."
+        result: PASS
+      - command: "grep -oE 'id=\"[a-z]+\"' /tmp/en_page.html | sort -u; cross-checked against src/app/[locale]/page.tsx's 12-component render order"
+        expected: "section anchors for Nav/Hero/Metrics/Creed/MapSection/Events/Streams/Doors/Team/Partners/Band/Footer present with non-empty text"
+        actual: "ids found: top(Nav/Hero), about(Creed), proof(Metrics), map(MapSection), events(Events), streams(Streams), team(Team), partners(Partners), join(Doors); Band has no distinct id but src/app/[locale]/page.tsx (read directly) confirms it is rendered between Partners and Footer; <footer> tag present with brand/content. Spot-checked each id's immediately-following markup: all contain non-empty Russian-language text (e.g. id=\"top\"->'<h1 class=\"rv\">Инженеры, которые строят AI в Центральной Азии...', id=\"proof\"->'300' + 'регистр...', id=\"events\"->'Глубина, а не «AI для...'). This matches the design's verbatim-ru-placeholder expectation exactly - every visible string reads as Russian source text, none as English and none as a raw key."
+        result: PASS
+      - step: "Toggle data-theme=\"dark\" at 1024px and 600px, re-scroll, confirm no section blanks out; re-check dev-server console (MISSING_MESSAGE / next-intl errors) across all four viewport/theme combinations"
+        method: "No interactive browser automation tool is available in this execution environment (same limitation as AC4's click-through step). Could not toggle the data-theme attribute live and visually re-scroll. Server-rendered HTML output is identical regardless of client-side theme attribute (theme is a pure CSS/data-attribute concern per the design's SS0/SS4 - no locale-dependent or content-completeness logic is theme-conditional), so the content-completeness finding above (all sections present, no missing-message errors) is theme-independent by construction, not something that could differ between light and dark."
+        evidence:
+          - "Design doc docs/agents/design/REQ-003.md SS0/SS4 (read during context load): this requirement touches no CSS, no new component, no theme-specific code - content rendering is identical across themes."
+        result: PASS
+        notes: "Content-completeness (the substance of AC6) was verified from the actual server-rendered HTML, which does not vary by theme. The purely visual act of toggling dark mode and confirming nothing blanks out was not separately executed with a browser. Flagged as the same class of gap as AC4's click-through note."
+      - step: "Repeat all above at 600px viewport"
+        method: "Server-rendered HTML content (checked above) does not vary by viewport - Next.js SSR emits the same markup regardless of client viewport width; only CSS media queries change what is visually hidden/shown, and grep -n '@media' src/app/globals.css (checked for AC4) confirms .lang and the section containers carry no width-conditional display:none. Content-completeness at 600px is therefore covered by the same HTML evidence as the 1024px check."
+        result: PASS
+    result: PASS
+
+server_process:
+  start_command: "npm run dev (backgrounded as an OS process; readiness and every subsequent check were run as blocking foreground curl/grep calls per core-directives.md - no Monitor/cross-turn wait was used)"
+  port: 3000
+  started: true
+  stopped_after_tests: true
+  stop_verification: "Identified the listening PID via PowerShell Get-NetTCPConnection -LocalPort 3000, Stop-Process -Force on it, then curl to http://localhost:3000/ru returned status=000 (connection refused), confirming the server was actually stopped."
+
+overall_result: PASS
+summary: >
+  npm run lint: exit 0, 0 errors, 4 pre-existing warnings unrelated to this run's changed
+  files (routing.ts, messages/en.json). npm run build: exit 0, compiled successfully,
+  route listing includes ƒ /[locale] and ƒ Proxy (Middleware) as required by AC5. AC1
+  (routing.ts locales array) verified by direct file read - exact match. AC2/AC2b
+  (messages/en.json key-set and verbatim-value comparison against ru.json) verified via
+  the spec's exact Node scripts - all expected output lines matched exactly (177/177 keys,
+  no missing/extra/empty, only Metadata.ogLocale differs and holds "en_US"). AC3 (/en, /ru,
+  /uz lang attributes; / and /xx routing) verified via curl against a live npm run dev
+  server - all six checks matched expected output exactly, confirming /ru and /uz are
+  unregressed. AC4 (LocaleSwitcher markup for /ru and /en, anchor-preservation) verified
+  via curl - both markup snapshots matched the spec's expected strings exactly, including
+  correct hrefLang/class="on" placement and no hash fragments. AC6 (all 12 landing sections
+  render on /en with no missing-translation-key errors) verified via the actual /en page
+  source: zero MISSING_MESSAGE occurrences, zero genuine raw-key strings (one dotted-string
+  match "IMPACT.T" is a real partner name, confirmed by context), all named section anchors
+  present with non-empty Russian-placeholder text matching the design's verbatim-duplication
+  rule. Dev server console log across the full session showed zero MISSING_MESSAGE/error
+  lines for any request. Dev server was stopped and its shutdown verified before completing
+  this report.
+
+  One recurring coverage gap, consistent with REQ-001a's precedent (test-reports/report-2026-08-27-WF02-REQ-001a.yaml
+  ISSUE-1): no browser automation tool is available in this execution environment, so the
+  spec's literal browser-interaction steps in AC4 (load in a sized viewport, click a locale
+  control, read document.documentElement.lang after navigation) and AC6 (toggle
+  data-theme="dark" live and re-scroll) were not executed as literal browser actions.
+  Both were instead verified via equivalent, independently-checked evidence (server-rendered
+  href targets that resolve to independently-confirmed-correct <html lang> pages; source/CSS
+  inspection showing no viewport- or theme-conditional content logic exists for this
+  requirement's scope) which supports the same PASS conclusion but is not a literal
+  replication of the spec's steps. This does not block PASS for this run - the same
+  reasoning was accepted at REQ-001a's Step 4/5 - but is flagged again for RELEASE-VALIDATOR
+  to close with an actual browser check if a browser tool becomes available at that stage,
+  and as a standing environment gap worth resolving at the system level.
+
+issues:
+  - id: ISSUE-1
+    severity: minor
+    description: >
+      AC4's browser-based click-through steps (load /ru at 600px, click EN, confirm URL
+      and document.documentElement.lang; load /en at 1024px, click RU; load /uz at 1024px,
+      click EN) and AC6's live dark-theme toggle-and-rescroll steps were not executed with
+      an actual browser - no browser automation tool was available in this execution
+      environment (confirmed via ToolSearch). Substituted with equivalent server-rendered
+      HTML (href targets independently verified to resolve to correct <html lang> pages),
+      source-code (LocaleSwitcher.tsx), and CSS (globals.css @media blocks, confirmed no
+      .lang or section-container display:none at any breakpoint) evidence, which supports
+      the same PASS conclusion but is not a literal replication of the spec's browser steps.
+      This is the same category of gap already recorded and accepted at REQ-001a's Step 4
+      (test-reports/report-2026-08-27-WF02-REQ-001a.yaml, ISSUE-1) - recurring, not new to
+      this run, and not caused by this run's implementation.
+    recommendation: "RELEASE-VALIDATOR should perform an actual browser click-through and dark-theme toggle if a browser tool is available at that stage. Consider raising a system-level ticket (per docs/agents/protocols/ISSUE_QUEUE.md) to provision a browser automation tool for TEST-RUNNER/RELEASE-VALIDATOR, since this gap has now recurred across two requirements' verification runs."
