@@ -1,0 +1,50 @@
+{
+  "handoff_id": "3d00b0a3-152d-4e01-b114-a48a2d96f83d",
+  "run_id": "WF02-REQ003-REQ004",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "RELEASE-VALIDATOR",
+  "to_agent": "DOC-UPDATER",
+  "file": "handoffs/WF02-REQ003-REQ004/step-06-doc-updater.json",
+  "created_at": "2026-08-28T03:06:22Z",
+  "started_at": "2026-08-28T03:06:22Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-003"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["a8353ccc-2f0e-4719-a653-f7951e7c8ac4"],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "docs/status/requirement_status.yaml"
+    ]
+  },
+  "task": {
+    "description": "RELEASE-VALIDATOR PASSed REQ-003. Flip REQ-003's status from 'in_progress' to 'done' in docs/agents/requirements.yaml. Append a 'done' event to docs/status/requirement_status.yaml with a real UTC timestamp (append only). REQ-004 stays 'in_progress' — it is NOT done yet, its own CONTENT-BA/REVIEWER steps haven't run in this run yet. Check README.md for whether it needs updating (it did not for REQ-001a/b/REQ-002 per those runs' precedent — confirm the same holds here, this change adds no new documented-behavior surface beyond what next-intl already covers).",
+    "acceptance_criteria": [
+      "REQ-003's status is 'done' in docs/agents/requirements.yaml, REQ-004 untouched (stays in_progress)",
+      "A 'done' event appended to docs/status/requirement_status.yaml for REQ-003 with a real UTC timestamp, prior entries untouched",
+      "README.md checked; updated only if it documents behavior this change altered"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
