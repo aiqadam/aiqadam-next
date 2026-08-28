@@ -1,0 +1,310 @@
+run_id: WF02-REQ003-REQ004
+workflow_id: WF-02
+step: "10"
+requirement_ids: ["REQ-004"]
+agent: TEST-RUNNER
+branch: feature/WF02-REQ003-REQ004
+executed_at_utc: "2026-08-28T03:21:31Z"
+spec_source: docs/agents/test-specs/REQ-004.md
+
+lint:
+  command: "npm run lint"
+  exit_code: 0
+  output: |
+    > app@0.1.0 lint
+    > eslint
+
+    C:\Users\tvolo\dev\aiqadam-next\docs\Design system for AI agents\components\primitives\Avatar.jsx
+      39:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+      59:9   warning  'color' is assigned a value but never used                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+
+    C:\Users\tvolo\dev\aiqadam-next\src\components\landing\Footer.tsx
+      11:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+    C:\Users\tvolo\dev\aiqadam-next\src\components\landing\Nav.tsx
+      10:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+    ✖ 4 problems (0 errors, 4 warnings)
+  result: PASS
+  notes: "0 errors, 4 warnings, all pre-existing and in files untouched by REQ-004 (messages/en.json only). Same warning set as REQ-003's report. Not attributable to this run."
+
+build:
+  command: "npm run build"
+  exit_code: 0
+  output: |
+    > app@0.1.0 build
+    > next build
+
+    ▲ Next.js 16.3.2 (Turbopack)
+    ✓ Running next.config.ts took 41ms
+
+      Creating an optimized production build ...
+    ✓ Compiled successfully in 191ms
+      Running TypeScript ...
+      Finished TypeScript in 1120ms ...
+      Collecting page data using 6 workers ...
+      Generating static pages using 6 workers (0/4) ...
+    ✓ Generating static pages using 6 workers (4/4) in 460ms
+      Finalizing page optimization ...
+
+    Route (app)
+    ┌ ○ /_not-found
+    ├ ƒ /[locale]
+    └ ƒ /health
+
+    ƒ Proxy (Middleware)
+
+    ○  (Static)   prerendered as static content
+    ƒ  (Dynamic)  server-rendered on demand
+  result: PASS
+  notes: "Exit 0. Compiled successfully, no type errors, route listing unchanged from REQ-003's baseline."
+
+verification_cases:
+  - id: AC1
+    description: "Every key has a non-empty, translated value, except stated untranslatable literals"
+    checks:
+      - command: "node -e \"<recursive key/value comparison script per spec>\""
+        expected: 'total_keys: 177 / empty_en_values: [] / identical_value_pairs: [18 named keys]'
+        actual: 'total_keys: 177 / empty_en_values: [] / identical_value_pairs: ["Events.talk1Role","Events.talk2Role","Events.talk3Role","Events.talk4Role","Footer.contactsTelegram","Footer.hashtag","Hero.eyebrow","Hero.nextEventWhatBold","Hero.pillKazakhstan","Hero.pillUzbekistan","Metrics.metric1Source","Metrics.metric3Label","Streams.foundationLink","Streams.foundationTitle","Team.team1Role","Team.team2Role","Team.team3Role","Team.team4Role"]'
+        result: PASS
+        notes: "Exact match to spec's expected output, all 3 lines, all 18 identical-value keys accounted for."
+    result: PASS
+
+  - id: AC2
+    description: "No Cyrillic characters anywhere in messages/en.json"
+    checks:
+      - command: "node -e \"<Cyrillic unicode-range scan script per spec>\""
+        expected: "cyrillic_matches: 0 / matched_chars: []"
+        actual: "cyrillic_matches: 0 / matched_chars: []"
+        result: PASS
+    result: PASS
+
+  - id: AC3
+    description: "Domain vocabulary appears verbatim, no synonym substitution"
+    checks:
+      - command: "node -e \"<domain-term count + spot-check script per spec>\""
+        expected: "Event_count=16 / Chapter_count=17 / Talk_count=22 / Speaker_count=1 / CFP_count=2 / Agenda_count=0 / Check-in_count=0 / Going_count=1 / Watching_count=0, plus 8 named spot-check values"
+        actual: "Event_count=9 / Chapter_count=3 / Talk_count=6 / Speaker_count=1 / CFP_count=2 / Agenda_count=0 / Check-in_count=0 / Going_count=1 / Watching_count=0; nav_events=\"Events\"; nav_chapters=\"Chapters\"; events_eyebrow=\"Events\"; creed_principle2Body=\"Speakers talk about what they did themselves. A real case beats a polished framework.\"; band_lede=\"Next event — August 26. Next meetup — September, CFP is open.\"; doors_door2Body=\"CFP for meetup #3 in September is open. We need your own case — what you did, what broke, what worked.\"; mapsection_ctaLaunchChapter=\"Launch a chapter in your city\"; mapsection_nodeAlmatySub=\"KZ CHAPTER · SINCE 06.20.2026\""
+        result: "PASS (with a flagged spec-data discrepancy, see issue below)"
+        notes: >
+          The 8 named spot-check string values (the part of AC3 that actually verifies
+          "no synonym substitution") match the spec's expected values exactly, character
+          for character. The three raw counts (Event_count, Chapter_count, Talk_count) do
+          NOT match the spec's "Expected" block (spec says 16/17/22, actual file contains
+          9/3/6). Investigated: git log -- messages/en.json shows exactly one commit
+          (4f64664) wrote the current content, and the spec commit (631000a) came
+          immediately after with no further en.json changes since - so messages/en.json
+          has not changed since the spec's own commit message claims "every script command
+          in the spec was actually run against the current messages/en.json ... during
+          authoring." The counts in the spec's Expected block do not match what the file
+          has ever contained on this branch. Manually enumerated every key contributing to
+          Event/Chapter/Talk/Speaker/CFP counts (listed in this run's working notes) and
+          found no synonym substitution in any of them - every use of a domain term is the
+          term itself, used correctly, just fewer occurrences than the spec's stale
+          Expected block claims. This is a TEST-DESIGNER spec-authoring defect (an
+          inaccurate "Expected" transcript that TEST-DESIGN-VALIDATOR's gate did not catch),
+          not a REQ-004 implementation defect - filed as an issue below rather than failing
+          this run over content that is structurally correct.
+    result: PASS
+
+  - id: AC4
+    description: "Status-label keys hold plain lowercase English values (source, CSS rule, rendered)"
+    checks:
+      - command: "node -e \"<8 status-key source dump per spec>\""
+        expected: 'stream1Status="live" / stream2Status="in progress" / stream3Status="planned" / stream4Status="planned" / chapter1Status="active" / chapter2Status="active" / chapter3Status="planned" / chapter4Status="planned"'
+        actual: 'stream1Status="live" / stream2Status="in progress" / stream3Status="planned" / stream4Status="planned" / chapter1Status="active" / chapter2Status="active" / chapter3Status="planned" / chapter4Status="planned"'
+        result: PASS
+      - command: "grep -n \"text-transform\" src/app/globals.css"
+        expected: ".status selector line includes text-transform:uppercase unconditionally"
+        actual: 'Line 152: ".status{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;" - present, unconditional, no :lang() scoping'
+        result: PASS
+      - command: "curl -s http://localhost:3000/en | grep -o -E '<span class=\"status[^\"]*\"[^>]*>[a-z ]+</span>' (npm run start, production server)"
+        expected: |
+          <span class="status live">active</span>
+          <span class="status live">active</span>
+          <span class="status">planned</span>
+          <span class="status">planned</span>
+          <span class="status live" style="align-self:flex-start">live</span>
+          <span class="status prog" style="align-self:flex-start">in progress</span>
+          <span class="status" style="align-self:flex-start">planned</span>
+          <span class="status" style="align-self:flex-start">planned</span>
+        actual: |
+          <span class="status live">active</span>
+          <span class="status live">active</span>
+          <span class="status">planned</span>
+          <span class="status">planned</span>
+          <span class="status live" style="align-self:flex-start">live</span>
+          <span class="status prog" style="align-self:flex-start">in progress</span>
+          <span class="status" style="align-self:flex-start">planned</span>
+          <span class="status" style="align-self:flex-start">planned</span>
+        result: PASS
+        notes: "Exact match, all 8 lines, correct order (MapSection chapters then Streams)."
+    result: PASS
+
+  - id: AC5
+    description: "No exclamation marks, slogans, or emoji anywhere in messages/en.json"
+    checks:
+      - id: 5a
+        command: "grep -n \"!\" messages/en.json"
+        expected: "no output, grep exits 1"
+        actual: "no output, grep exit code 1"
+        result: PASS
+      - id: 5b
+        command: "node -e \"<emoji unicode-range scan script per spec>\""
+        expected: "emoji_matches: 0 / matched_chars: []"
+        actual: "emoji_matches: 0 / matched_chars: []"
+        result: PASS
+      - id: 5c
+        method: "Manual full read of messages/en.json (205 lines), focused on title/lede/cta*/ctaPrimary/ctaSecondary keys across all 12 top-level sections."
+        expected: "Every such value is plain declarative/imperative, functional/factual tone, no hype slogans, no superlatives, no 'Don't miss out' framing."
+        actual: >
+          Confirmed every title/lede/cta value reads as plain functional copy, e.g.
+          Band.title="Let's take a Qadam toward trust.", Doors.title="Three doors. All
+          open.", Partners.cta="Discuss a partnership", Metrics section labels are plain
+          descriptive fragments. No exclamation-driven or sales-oriented phrasing found
+          anywhere in the file. Matches spec's named examples exactly.
+        result: PASS
+    result: PASS
+
+  - id: AC6
+    description: "/en renders with real English strings and no next-intl error markers (supporting check)"
+    checks:
+      - id: 6a
+        command: "curl -s http://localhost:3000/en | grep -o -E \"MISSING_MESSAGE|IntlError\" (production server, npm run build && npm run start)"
+        expected: "no output, grep exits 1"
+        actual: "no output, grep exit code 1"
+        result: PASS
+      - id: 6a-control
+        command: "curl -s http://localhost:3000/ru | grep -o -E \"MISSING_MESSAGE|IntlError\""
+        expected: "no output, grep exits 1"
+        actual: "no output, grep exit code 1"
+        result: PASS
+      - id: 6b-nav
+        command: "curl -s http://localhost:3000/en | grep -o '<a href=\"#events\"[^>]*>[^<]*</a>'"
+        expected: '<a href="#events">Events</a>'
+        actual: '<a href="#events">Events</a>'
+        result: PASS
+      - id: 6b-hero
+        command: "curl -s http://localhost:3000/en | grep -o '<h1 class=\"rv\">.*together\\.</em></h1>'"
+        expected: '<h1 class="rv">Engineers building AI in Central Asia — <em>together.</em></h1>'
+        actual: '<h1 class="rv">Engineers building AI in Central Asia — <em>together.</em></h1>'
+        result: PASS
+      - id: 6b-doors
+        command: "curl -s http://localhost:3000/en | grep -o '<h3>Show up</h3>'"
+        expected: '<h3>Show up</h3>'
+        actual: '<h3>Show up</h3>'
+        result: PASS
+      - id: 6b-footer
+        command: "curl -s http://localhost:3000/en | grep -o '<p style=\"[^\"]*\">A nonprofit community of Central Asian engineers\\. The brand belongs to the community\\.</p>'"
+        expected: '<p style="margin:0;max-width:34ch">A nonprofit community of Central Asian engineers. The brand belongs to the community.</p>'
+        actual: '<p style="margin:0;max-width:34ch">A nonprofit community of Central Asian engineers. The brand belongs to the community.</p>'
+        result: PASS
+      - id: 6b-status
+        command: "curl -s -o /dev/null -w '%{http_code}\\n' http://localhost:3000/en"
+        expected: "200"
+        actual: "200"
+        result: PASS
+      - id: 6c
+        method: >
+          npm run dev started; curl-fetched the server-rendered /en HTML and grepped for
+          each of the 12 sections' identifying content string (Nav "Chapters</a>", Hero
+          "Engineers building AI in Central Asia", Metrics "registrations across two
+          meetups", Creed "A community that builds, not just consumes.", MapSection
+          "Geography"/"TASHKENT", Events "Depth, not "AI for beginners."", Streams "Four
+          streams, one core.", Doors "Three doors. All open.", Team "Practitioners, not
+          community managers.", Partners "Partners invest in the community", Band "Let's
+          take a Qadam toward trust.", Footer "A nonprofit community of Central Asian
+          engineers"). Also scanned for raw namespaced-key leakage
+          (grep -oE '"[A-Z][a-zA-Z]*\.[a-zA-Z0-9]+"') and stray Cyrillic in the rendered
+          HTML, and inspected the npm run dev console log for MISSING_MESSAGE/next-intl
+          error lines.
+        expected: >
+          All 12 sections present with non-empty English content at 600px/light,
+          600px/dark, 1024px/light, 1024px/dark; no raw key leakage; no Russian text
+          outside the 18 documented literals; zero MISSING_MESSAGE console lines.
+        actual: >
+          All 12 sections' identifying content strings found present in the server-rendered
+          HTML. Zero raw namespaced-key matches. Zero stray Cyrillic characters in the
+          rendered page. Dev server console log (2 GET /en 200 requests) shows zero
+          MISSING_MESSAGE/IntlError/error lines. LIMITATION: no browser automation tool is
+          available in this execution environment (no Playwright/Puppeteer/browser MCP
+          tool present, consistent with REQ-003's report and REQ-001a's precedent) - could
+          not literally open devtools, resize to 600px/1024px, or toggle
+          data-theme="dark"/"light" interactively and visually re-scroll. Substituted with
+          server-rendered HTML content-completeness evidence, which this requirement's own
+          spec text states is theme/viewport-independent by construction ("this requirement
+          changes translated text content, not styling, and introduces no theme-conditional
+          rendering" - spec's own Summary section). This is the same accepted, recurring,
+          non-blocking gap already recorded in REQ-003's report (ISSUE-1) and REQ-001a's
+          report.
+        result: "PASS (with the same recurring browser-tool-unavailable limitation already accepted at REQ-003/REQ-001a)"
+    result: PASS
+
+server_process:
+  start_command_1: "npm run build && npm run start (production server, for AC4 rendered check and AC6a/6b) - backgrounded as an OS process; readiness and every subsequent check were run as blocking foreground curl calls, no Monitor/cross-turn wait used"
+  start_command_2: "npm run dev (for AC6c content-completeness + console check) - same blocking-foreground pattern"
+  port: 3000
+  started: true
+  stopped_after_tests: true
+  stop_verification: "Identified each listening PID via netstat -ano | grep ':3000' | grep LISTENING, taskkill //F //PID <pid> on each in turn (production server PID 31332, dev server PID 24608), then re-ran netstat and confirmed 'port 3000 free' both times."
+
+overall_result: PASS
+summary: >
+  npm run lint: exit 0, 0 errors, 4 pre-existing warnings unrelated to this run's only
+  changed file (messages/en.json). npm run build: exit 0, compiled successfully, no type
+  errors. AC1 (non-empty/translated values, 18 documented untranslatable-literal
+  exceptions): exact match to spec, all 177 keys accounted for, empty_en_values=[].
+  AC2 (no Cyrillic in en.json): 0 matches. AC3 (domain vocabulary verbatim): all 8 named
+  spot-check values match exactly and manual key-by-key inspection found no synonym
+  substitution anywhere domain terms appear; however the spec's three raw occurrence
+  counts (Event/Chapter/Talk) do not match the actual file content and never have on this
+  branch (git history shows en.json unchanged since the spec's own authoring commit) -
+  attributed to a TEST-DESIGNER spec-authoring defect, filed as an issue rather than
+  failing REQ-004's implementation over it. AC4 (status-label lowercase source + CSS rule
+  + rendered casing): exact match across all three sub-checks. AC5 (no exclamation marks/
+  emoji/slogans): 5a and 5b both zero matches; 5c manual full-file read found no slogan-
+  toned copy. AC6 (supporting rendered-page check): 6a/6a-control/6b all matched exactly
+  against a production server; 6c (content-completeness across viewport/theme) confirmed
+  via server-rendered HTML content presence and dev-console log inspection, with the same
+  browser-tool-unavailable limitation already accepted at REQ-003/REQ-001a (this
+  requirement's own spec confirms content-completeness is theme/viewport-independent by
+  construction, so the HTML-based check is a valid substitute for the literal browser
+  steps). Both servers (production and dev) were started and stopped as blocking
+  foreground operations, with shutdown independently verified via netstat.
+
+issues:
+  - id: ISSUE-A
+    severity: minor
+    description: >
+      docs/agents/test-specs/REQ-004.md AC3's "Expected" block states
+      Event_count=16 / Chapter_count=17 / Talk_count=22, but running the spec's own
+      verbatim script against the actual messages/en.json (on this branch, unchanged
+      since the spec was authored per git log) produces Event_count=9 / Chapter_count=3 /
+      Talk_count=6. The spec's commit message (631000a) claims "every script command in
+      the spec was actually run against the current messages/en.json ... during
+      authoring," but messages/en.json was not modified after that commit (verified via
+      git log --oneline -- messages/en.json: only 4f64664 wrote the content, before the
+      spec commit, with no changes since). The 8 named spot-check string values in the
+      same AC3 case are all correct and match the file exactly, so this is isolated to the
+      three raw counts, not the substantive vocabulary-correctness check. Root cause not
+      determined by TEST-RUNNER (out of role scope to diagnose spec-authoring internals) -
+      likely a counting-script discrepancy or a copy/paste error into the spec's Expected
+      block during authoring, not a difference in file content.
+    recommendation: >
+      TEST-DESIGNER should correct AC3's Expected block to the verified actual counts
+      (9/3/6) or re-derive and explain the discrepancy; TEST-DESIGN-VALIDATOR's gate
+      should re-run spec scripts against the actual repo state rather than trusting an
+      authored "was actually run" claim, consistent with core-directives.md's re-derive
+      rule. Does not block REQ-004's PASS - the underlying vocabulary-correctness property
+      the check exists to verify is confirmed correct by both the spot-check values and
+      manual inspection.
+  - id: ISSUE-B (recurring, not new)
+    severity: minor
+    description: >
+      Same recurring gap as REQ-003's report ISSUE-1 and REQ-001a's precedent: no browser
+      automation tool is available in this execution environment, so AC6c's literal
+      viewport-resize and theme-toggle browser steps were not executed as literal browser
+      actions. Substituted with server-rendered HTML content-completeness evidence, which
+      this requirement's own spec text confirms is theme/viewport-independent for this
+      requirement's scope.
+    recommendation: "Same as REQ-003's ISSUE-1: provision a browser automation tool for TEST-RUNNER/RELEASE-VALIDATOR at the system level; RELEASE-VALIDATOR should perform an actual browser check if a tool becomes available."
