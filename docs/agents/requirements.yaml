@@ -251,7 +251,7 @@ requirements:
   - id: REQ-004
     title: Write real English translations for all landing page copy
     owner: CONTENT-BA
-    status: in_progress
+    status: done
     description: >
       Depends on REQ-003, which adds `"en"` to src/i18n/routing.ts and seeds
       messages/en.json with every messages/ru.json key populated with a
