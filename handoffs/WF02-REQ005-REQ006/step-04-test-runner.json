@@ -1,0 +1,50 @@
+{
+  "handoff_id": "6c3216d5-5616-430e-b528-79ead553ab76",
+  "run_id": "WF02-REQ005-REQ006",
+  "workflow_id": "WF-02",
+  "step": "04",
+  "from_agent": "TEST-DESIGN-VALIDATOR",
+  "to_agent": "TEST-RUNNER",
+  "file": "handoffs/WF02-REQ005-REQ006/step-04-test-runner.json",
+  "created_at": "2026-08-28T06:32:19Z",
+  "started_at": "2026-08-28T06:32:19Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-005"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["379873e6-2bca-4b11-8771-1f6c4332c3ef"],
+    "artifacts_in": [
+      "docs/agents/test-specs/REQ-005.md"
+    ]
+  },
+  "task": {
+    "description": "Execute docs/agents/test-specs/REQ-005.md's full verification spec (gated PASS by TEST-DESIGN-VALIDATOR) per WF-02 Step 4. Run npm run lint && npm run build first, quote real output. Then follow every case in the spec (AC1-AC6/AC2b) exactly — report actual observed results, including the manual 4-viewport/theme browser pass the spec still requires for AC6. Write test-reports/report-<today's-date>-WF02-REQ005-REQ006.yaml with the actual output.",
+    "acceptance_criteria": [
+      "npm run lint exits 0, output quoted",
+      "npm run build exits 0, output quoted",
+      "Every case in docs/agents/test-specs/REQ-005.md executed and its real outcome recorded",
+      "test-reports/report-<date>-WF02-REQ005-REQ006.yaml written with actual results"
+    ]
+  },
+  "result": {
+    "status": "",
+    "summary": "",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": null,
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": ""
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
