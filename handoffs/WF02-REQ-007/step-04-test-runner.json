@@ -1,0 +1,38 @@
+{
+  "handoff_id": "8d324a01-ccd6-41a5-801d-17aa4b83e598",
+  "run_id": "WF02-REQ-007",
+  "workflow_id": "WF-02",
+  "step": "04",
+  "from_agent": "ORCH",
+  "to_agent": "TEST-RUNNER",
+  "file": "handoffs/WF02-REQ-007/step-04-test-runner.json",
+  "created_at": "2026-09-06T07:18:19Z",
+  "started_at": "2026-09-06T07:18:19Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-007"],
+    "requirement_text": {},
+    "source_text": {
+      "note": "Run docs/agents/test-specs/REQ-007.md's 5 cases exactly as written, synchronously in your own tool-call loop (no background waits for the dev-server checks, per core-directives.md's No Background Wait rule). Write a real test-reports/report-<date>-WF02-REQ-007.yaml with actual command output, not a summary of expected output."
+    },
+    "related_handoff_ids": ["72156118-7c25-4905-acf2-341b516a09e4"],
+    "artifacts_in": ["docs/agents/test-specs/REQ-007.md"]
+  },
+  "task": {
+    "description": "Step 4 of WF-02 for REQ-007. Execute all 5 cases in docs/agents/test-specs/REQ-007.md exactly as written. Write test-reports/report-<date>-WF02-REQ-007.yaml with per-case pass/fail and the real captured output.",
+    "acceptance_criteria": [
+      "All 5 cases executed with real commands, real output captured",
+      "Report written to test-reports/ following existing report schema",
+      "Any case that fails is reported as FAIL, not silently reinterpreted as pass"
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": null
+  }
+}
