@@ -1,0 +1,53 @@
+{
+  "handoff_id": "5c76aa0a-5ce1-4958-8579-5f4bb73aeeb1",
+  "run_id": "WF01-EVENTS-BOT-SPEC",
+  "workflow_id": "WF-01",
+  "step": "03",
+  "from_agent": "ORCH",
+  "to_agent": "REQ-VALIDATOR",
+  "file": "handoffs/WF01-EVENTS-BOT-SPEC/step-03-req-validator-recheck.json",
+  "created_at": "2026-09-06T04:11:13Z",
+  "started_at": "2026-09-06T04:11:13Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-009"],
+    "requirement_text": {},
+    "source_text": {
+      "why-this-recheck-exists": "REQ-009 passed your gate at step-02 as part of REQ-007..REQ-032. It has since been AMENDED by ORCH in commit 61a7861. A requirement that changes after passing a gate has not been gated in its current form — that is the whole reason this step exists rather than the amendment standing on ORCH's own say-so.",
+      "who-decided-and-why": "The project owner stated on 2026-09-06 that they have no software development background and delegated all unresolved technical decisions to ORCH as the professional. ORCH therefore wrote decisions/0004 (grammY), 0005 (Drizzle ORM + Drizzle Kit) and 0006 (Vitest), and reduced REQ-009's scope from WRITING those three records to IMPLEMENTING them. This delegation is real and recorded, but it is not a reason to relax the gate — an unreviewed decision made under delegation is exactly the kind that needs an independent check."
+    },
+    "related_handoff_ids": ["8eaeaf6d-14c5-46f6-a1b2-46ff3e41d9a1", "c46ce80c-84e6-4310-a13b-0e32dc7f0011"],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "docs/agents/decisions/0004-telegram-framework-grammy.md",
+      "docs/agents/decisions/0005-orm-drizzle.md",
+      "docs/agents/decisions/0006-test-framework-vitest.md",
+      "docs/agents/decisions/0003-events-bot-subproject.md",
+      "docs/agents/AGENT_SYSTEM.md",
+      "docs/agents/instructions/security-invariants.md",
+      "handoffs/WF01-EVENTS-BOT-SPEC/step-02-req-validator.json",
+      "C:/tmp/AI-Qadam-Events-Bot-Spec/PRD.md"
+    ]
+  },
+  "task": {
+    "description": "Re-gate the AMENDED REQ-009, and check the three new decision records it now depends on, per WF-01 Step 2.\n\nSTART FROM THE DIFF: `git show 61a7861` is the complete change. It touches docs/agents/requirements.yaml (REQ-009 only), docs/agents/AGENT_SYSTEM.md §7, and adds decisions/0004, 0005, 0006.\n\nPART 1 — RE-RUN CHECKS (a)-(e) ON THE AMENDED REQ-009. It is a different requirement than the one you passed: its title changed, its description now cites three decision records instead of mandating them, one acceptance criterion was replaced and one added (6 total, previously 5). Specifically verify:\n  - (a) TESTABILITY of the two changed/new criteria. The dependency-pinning criterion says an exact version with no `^` or `~`, and names forbidden alternatives — is that definitively checkable? The CI criterion requires pushing a deliberately failing test on a scratch branch and reading the actual red run before reverting — is that a runnable procedure, or does it describe something an agent cannot actually do in this repo's CI setup? A criterion that cannot be executed is a check-(a) FAIL even if it sounds rigorous.\n  - (b) CONSISTENCY with decisions/0003 (which left these three open — confirm 0004/0005/0006 genuinely fill that gap rather than contradicting anything 0003 decided, particularly its TypeScript/Node and apps/bot layout commitments) and with the now-amended AGENT_SYSTEM.md §7.\n  - (e) SIZE — the amendment REMOVED work (three records no longer written) and ADDED work (a CI change, verified by a real red run). Net, does REQ-009 still fit one agent turn?\n\nPART 2 — GATE THE THREE DECISION RECORDS THEMSELVES. They were written by ORCH without an independent check; you are it. For each of 0004, 0005, 0006 verify:\n  1. It names at least two options with a fair characterization of each — a record that strawmans the rejected option is not a decision, it is a justification. Attack this specifically: 0005 rejects Prisma, whose migration guardrails are genuinely better; 0006 rejects node:test, which has real advantages. Does each record state the cost of its own choice honestly, or does it only argue one side?\n  2. Its rationale rests on THIS project's actual stated constraints (PRD §1/§11, core-directives.md) rather than on general industry preference. A rationale that would read identically for any project is weak grounds for a binding record.\n  3. It does not contradict a `done` requirement (REQ-001a..REQ-006), decisions/0001-0003, or security-invariants.md.\n  4. Its factual claims about the libraries are plausible and not overstated. You have web access — spot-check the load-bearing ones. Two specifically worth testing: 0004's claim that grammY's conversations plugin fits FR-3's restart-safe partial-write requirement (does the plugin actually provide that, or does it merely manage dialogue state in memory, which would NOT satisfy 'a restart mid-form loses nothing'?), and 0006's claim that Vitest's fake timers make the T-24h/T-3h/T+2h logic testable. If either claim is overstated, that is a MAJOR finding — the rationale would be resting on a capability that does not exist as described.\n\nPART 3 — CONSEQUENTIAL CORRECTNESS. 0004 binds all later bot work to keeping domain logic in framework-free modules; 0005 requires SQL review of generated migrations plus SECURITY-REVIEWER sign-off under S13 for destructive ones; 0006 changes what TEST-DESIGNER and TEST-RUNNER produce from REQ-010 onward. Are those consequences actually reflected where they need to be — in REQ-009's text, in AGENT_SYSTEM.md, or in the records themselves — or are they stated in a record that nothing else points at? A consequence recorded nowhere the acting agent will read it has not been established.\n\nFAIL on any check failing, naming the requirement or record and the specific problem. If the decisions are sound but a consequence is unwired, that is a MINOR or MAJOR issue rather than a FAIL of the decision itself — say which and why.",
+    "acceptance_criteria": [
+      "Checks (a)-(e) were re-run against the amended REQ-009 in its current form, not carried over from the step-02 verdict.",
+      "Both changed/new acceptance criteria were assessed for whether an agent can actually execute them in this repo, with the CI-red-run criterion specifically judged runnable or not.",
+      "Each of decisions/0004, 0005 and 0006 was checked for fair option characterization, honest statement of its own choice's cost, and grounding in this project's stated constraints rather than general preference.",
+      "The two named library-capability claims (grammY conversations vs FR-3's restart-safe partial writes; Vitest fake timers vs the clock-dependent jobs) were spot-checked against real sources, with the finding stated either way.",
+      "Each record was checked against decisions/0001-0003, the done requirements, and security-invariants.md for contradiction.",
+      "Every consequence the three records impose on later work was traced to a place an acting agent will actually encounter it, or flagged as unwired.",
+      "The verdict states positively what was verified; any FAIL names the specific record or requirement and the problem."
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": null
+  }
+}
