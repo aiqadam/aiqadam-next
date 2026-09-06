@@ -1,0 +1,19 @@
+{
+  "handoff_id": "step-02c-backend-dev-rework",
+  "run_id": "WF02-REQ-014",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "ORCH",
+  "to_agent": "BACKEND-DEV",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Reordered apps/bot/src/handlers/start.ts so consent is shown immediately on /start (before any chapter query/write) and chapter assignment runs only after consent:agree is accepted. Extracted shared assignChapterOrPrompt helper. All 6 ACs re-verified with real grammY dispatch, plus a new explicit ordering check (chapter_id null immediately after consent tap, before the chapter step, and only set on the subsequent chapter callback). lint/build/test all pass. Flagged that docs/agents/design/REQ-014.md's SS2.3/2.4/2.8 still describe the rejected ordering -- ORCH added a correction note rather than rewriting the historical record, per this project's correction-history convention.",
+    "artifacts_out": ["apps/bot/src/handlers/start.ts"],
+    "issues": [
+      {"severity": "MINOR", "description": "AC4's consent wording is a provisional placeholder pending the product owner's real legal-review copy."},
+      {"severity": "MINOR", "description": "docs/agents/design/REQ-014.md's SS2.3/2.4/2.8 described the rejected chapter-then-consent ordering; ORCH added a correction note at the top of the doc rather than rewriting those sections, per the project's correction-history convention."}
+    ],
+    "next_action": "Route to REVIEWER (Step 2b) for re-gate"
+  }
+}

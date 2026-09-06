@@ -19,6 +19,20 @@ import { mapTelegramLanguageCode, resolveLang } from "../i18n/resolveLang.js";
 // signals come from framework-free domain modules
 // (domain/user.ts, domain/chapter.ts, domain/consent.ts) — this file only
 // sequences calls and sends replies (decisions/0004).
+//
+// WF02-REQ-014 SECURITY REWORK (iteration 1, handoffs/WF02-REQ-014/
+// step-02c-security-reviewer.json, S1 BLOCKER): the flow below has been
+// reordered so consent ALWAYS comes before any chapter write. The design
+// artefact's own §2.8 combined-flow diagram shows chapter-then-consent —
+// that ordering is what SECURITY-REVIEWER correctly rejected as writing
+// `users.chapter_id` before `consent_pd_at` on the majority deployment path
+// (single active chapter, or a user picking one of two). This file now
+// diverges from design §2.3/§2.4/§2.8's literal ordering on that one point;
+// the design artefact itself needs a follow-up correction (flagged in this
+// handoff's result.issues) so it stops documenting the rejected order.
+// Nothing about *what* chapter assignment does (the 0/1/2+ branches,
+// domain/chapter.ts's functions, the validation-before-write discipline)
+// changes — only *when* it runs relative to consent.
 
 const CHAPTER_CALLBACK_PATTERN = /^chapter:(.+)$/;
 const CONSENT_AGREE_CALLBACK = "consent:agree";
@@ -44,26 +58,51 @@ function buildConsentKeyboard(lang: BotLang): InlineKeyboard {
 }
 
 /**
- * Once chapter assignment is settled (silently assigned, zero-chapter
- * no-op, or resolved via the chapter callback), sends the consent prompt if
- * still outstanding, otherwise the greeting — design §2.4/§2.8's shared
- * tail, reused by `/start` itself and by the chapter callback handler.
+ * Chapter assignment (design §2.3's 0/1/2+ branches over
+ * `domain/chapter.ts`), run ONLY after consent has already been recorded —
+ * see this file's header note. Called from two places, both of which are
+ * already past the consent gate when they call it: `/start` itself (a
+ * returning, already-consented user who still has no chapter), and the
+ * `consent:agree` callback (immediately after `recordConsent` succeeds).
+ *
+ * Returns `"stopped"` when the 2+-chapter ask-once prompt was sent (the flow
+ * pauses and resumes in the chapter callback, §2.6); `"continue"` when the
+ * caller should proceed straight to the greeting (0 or 1 active chapter).
  */
-async function sendConsentOrGreeting(
+async function assignChapterOrPrompt(
   ctx: Context,
+  db: DbClient["db"],
+  userId: string,
   lang: BotLang,
-  consentPdAt: Date | null,
-): Promise<void> {
-  if (consentPdAt === null) {
-    await ctx.reply(getCatalog(lang).consent.prompt, {
-      reply_markup: buildConsentKeyboard(lang),
+): Promise<"stopped" | "continue"> {
+  const signal = await getActiveChapterSignal(db);
+
+  if (signal.length >= 2) {
+    const options = await listActiveChapters(db);
+    await ctx.reply(getCatalog(lang).chapter.prompt, {
+      reply_markup: buildChapterKeyboard(options),
     });
-    return;
+    return "stopped"; // resumes in the chapter callback (§2.6)
   }
-  await ctx.reply(getCatalog(lang).start.greeting);
+
+  if (signal.length === 0) {
+    await ctx.reply(getCatalog(lang).start.noActiveChapters);
+    return "continue";
+  }
+
+  const onlyChapter = signal[0];
+  if (onlyChapter !== undefined) {
+    await assignChapter(db, userId, onlyChapter.id);
+  }
+  return "continue";
 }
 
-/** `/start` — resolve-or-create the User row, then run the full onboarding flow. */
+/**
+ * `/start` — resolve-or-create the User row, then run the full onboarding
+ * flow: consent FIRST (if still outstanding — this always stops the flow
+ * here for a brand-new user), then chapter assignment (only reachable once
+ * consent is already recorded), then the greeting.
+ */
 export function makeStartHandler(db: DbClient["db"]) {
   return async (ctx: Context): Promise<void> => {
     const tgId = ctx.from?.id;
@@ -72,38 +111,12 @@ export function makeStartHandler(db: DbClient["db"]) {
     }
 
     const mappedLang = mapTelegramLanguageCode(ctx.from?.language_code);
-    const user = await resolveOrCreateUser(db, {
+    await resolveOrCreateUser(db, {
       tgId: BigInt(tgId),
       tgUsername: ctx.from?.username ?? null,
       lang: mappedLang,
     });
 
-    if (user.chapterId === null) {
-      const signal = await getActiveChapterSignal(db);
-
-      if (signal.length >= 2) {
-        const lang = resolveLang(user.lang, null);
-        const options = await listActiveChapters(db);
-        await ctx.reply(getCatalog(lang).chapter.prompt, {
-          reply_markup: buildChapterKeyboard(options),
-        });
-        return; // STOP — resumes in the chapter callback (§2.3/§2.6)
-      }
-
-      if (signal.length === 0) {
-        const lang = resolveLang(user.lang, null);
-        await ctx.reply(getCatalog(lang).start.noActiveChapters);
-        // continue — chapter presence and consent are independent gates
-      } else {
-        const onlyChapter = signal[0];
-        if (onlyChapter !== undefined) {
-          await assignChapter(db, user.id, onlyChapter.id);
-        }
-      }
-    }
-
-    // Re-resolve via the same read-only shape the rest of the flow uses, so
-    // resolveLang sees the (possibly just-assigned) chapter's default_lang.
     const flowUser = await getFlowUserByTgId(db, BigInt(tgId));
     if (flowUser === null) {
       // Unreachable: resolveOrCreateUser just guaranteed this row exists.
@@ -111,11 +124,45 @@ export function makeStartHandler(db: DbClient["db"]) {
     }
 
     const lang = resolveLang(flowUser.lang, flowUser.chapterDefaultLang);
-    await sendConsentOrGreeting(ctx, lang, flowUser.consentPdAt);
+
+    // Consent gate comes before anything chapter-related touches the
+    // database — no chapter query, no chapter write, nothing — for a
+    // brand-new user this is always still null and the flow stops here.
+    if (flowUser.consentPdAt === null) {
+      await ctx.reply(getCatalog(lang).consent.prompt, {
+        reply_markup: buildConsentKeyboard(lang),
+      });
+      return; // STOP — resumes in the consent callback (§2.5)
+    }
+
+    // Consent is already recorded (a returning, partially-onboarded user
+    // who has no chapter yet) — only now is it safe to run chapter
+    // assignment.
+    if (flowUser.chapterId === null) {
+      const outcome = await assignChapterOrPrompt(ctx, db, flowUser.id, lang);
+      if (outcome === "stopped") {
+        return;
+      }
+    }
+
+    // Re-resolve via the same read-only shape the rest of the flow uses, so
+    // resolveLang sees the (possibly just-assigned) chapter's default_lang.
+    const finalUser = await getFlowUserByTgId(db, BigInt(tgId));
+    const finalLang = resolveLang(
+      finalUser?.lang ?? flowUser.lang,
+      finalUser?.chapterDefaultLang ?? null,
+    );
+    await ctx.reply(getCatalog(finalLang).start.greeting);
   };
 }
 
-/** Handles the `chapter:<id>` callback tap (design §2.6). */
+/**
+ * Handles the `chapter:<id>` callback tap (design §2.6). Only ever reached
+ * via a keyboard sent from `/start` or the `consent:agree` callback, both of
+ * which only send that keyboard after consent is already recorded — so this
+ * handler's `assignChapter` write always happens with `consent_pd_at`
+ * already non-null.
+ */
 export function makeChapterCallbackHandler(db: DbClient["db"]) {
   return async (ctx: Context): Promise<void> => {
     const tgId = ctx.from?.id;
@@ -155,11 +202,17 @@ export function makeChapterCallbackHandler(db: DbClient["db"]) {
       refreshed?.lang ?? flowUser.lang,
       refreshed?.chapterDefaultLang ?? null,
     );
-    await sendConsentOrGreeting(ctx, lang, flowUser.consentPdAt);
+    await ctx.reply(getCatalog(lang).start.greeting);
   };
 }
 
-/** Handles the `consent:agree` callback tap (design §2.5). */
+/**
+ * Handles the `consent:agree` callback tap (design §2.5, reordered per this
+ * file's header note). Records consent FIRST, then — and only then — runs
+ * chapter assignment (§2.3's 0/1/2+ branches) if the user doesn't already
+ * have one, so `users.chapter_id` is never written while `consent_pd_at` is
+ * still null.
+ */
 export function makeConsentCallbackHandler(db: DbClient["db"]) {
   return async (ctx: Context): Promise<void> => {
     const tgId = ctx.from?.id;
@@ -181,6 +234,21 @@ export function makeConsentCallbackHandler(db: DbClient["db"]) {
     await ctx.answerCallbackQuery();
 
     const lang = resolveLang(flowUser.lang, flowUser.chapterDefaultLang);
-    await ctx.reply(getCatalog(lang).start.greeting);
+
+    // Consent is now recorded — safe to run chapter assignment (this is the
+    // ordering fix: chapter writes never precede consent_pd_at).
+    if (flowUser.chapterId === null) {
+      const outcome = await assignChapterOrPrompt(ctx, db, flowUser.id, lang);
+      if (outcome === "stopped") {
+        return; // resumes in the chapter callback (§2.6)
+      }
+    }
+
+    const finalUser = await getFlowUserByTgId(db, BigInt(tgId));
+    const finalLang = resolveLang(
+      finalUser?.lang ?? flowUser.lang,
+      finalUser?.chapterDefaultLang ?? null,
+    );
+    await ctx.reply(getCatalog(finalLang).start.greeting);
   };
 }
