@@ -728,7 +728,7 @@ requirements:
   - id: REQ-012
     title: Bot config loading, Postgres connection and migration runner wired into apps/bot startup
     owner: BACKEND-DEV
-    status: in_progress
+    status: done
     description: >
       Third slice of PRD 14 build-order step 1. REQ-010 and REQ-011 design the schema
       and produce migration files; this requirement makes them actually runnable and
