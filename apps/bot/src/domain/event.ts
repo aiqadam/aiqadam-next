@@ -1,7 +1,10 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, gt } from "drizzle-orm";
 import type { DbClient } from "../db/client.js";
-import { events, registrations, users } from "../db/schema.js";
+import { chapters, events, registrations, users, venues } from "../db/schema.js";
+import { formatDateTimeInTimezone } from "../i18n/formatTimeInTimezone.js";
+import type { BotLang } from "../i18n/catalog.js";
 import { writeAuditLog } from "./auditLog.js";
+import type { VenueRecord } from "./venue.js";
 
 // REQ-016 §2-§7 — event CRUD domain logic. Framework-free (decisions/0004):
 // no grammY import anywhere in this file. Every time-dependent predicate
@@ -691,4 +694,211 @@ export async function getPendingSource(
     .where(eq(users.id, userId))
     .limit(1);
   return rows[0]?.pendingSource ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// REQ-017 §1 — computed-never-stored predicates (AC3, AC4). Pure functions,
+// no I/O. None of the three may ever be written to a column, cached in a
+// variable that outlives a single request, or denormalized onto
+// EventRecord.
+// ---------------------------------------------------------------------------
+
+// §1 — seatsLeft = capacity - admittedCount. The admitted count is always
+// read fresh via countAdmittedRegistrations and passed in; this function
+// performs no I/O of its own.
+export function computeSeatsLeft(capacity: number, admittedCount: number): number {
+  return capacity - admittedCount;
+}
+
+// §1 — evaluationTime is an explicit parameter (decisions/0006); this
+// function never reads the clock itself.
+// registrationClosesAt === null (no deadline configured) -> always true.
+// Otherwise true when evaluationTime is strictly before registrationClosesAt.
+export function isRegistrationOpen(
+  registrationClosesAt: Date | null,
+  evaluationTime: Date,
+): boolean {
+  if (registrationClosesAt === null) {
+    return true;
+  }
+  return evaluationTime.getTime() < registrationClosesAt.getTime();
+}
+
+// §1 — same evaluation-time-as-parameter discipline. True when evaluationTime
+// is strictly after endsAt.
+export function isFinished(endsAt: Date, evaluationTime: Date): boolean {
+  return evaluationTime.getTime() > endsAt.getTime();
+}
+
+// ---------------------------------------------------------------------------
+// REQ-017 §1's seats-left-or-waitlist-open composition, used identically by
+// both the card and the list row.
+// ---------------------------------------------------------------------------
+export type SeatsLine = { kind: "seatsLeft"; count: number } | { kind: "waitlistOpen" };
+
+export function buildSeatsLine(seatsLeft: number): SeatsLine {
+  return seatsLeft > 0 ? { kind: "seatsLeft", count: seatsLeft } : { kind: "waitlistOpen" };
+}
+
+// ---------------------------------------------------------------------------
+// REQ-017 §2.2 — a second read shape carrying the event's chapter's
+// timezone, needed by the card and the deep-link handler for chapter-local
+// rendering. One join, no new table.
+// ---------------------------------------------------------------------------
+export interface EventWithChapterTimezone extends EventRecord {
+  chapterTimezone: string;
+}
+
+export async function getEventByIdWithChapterTimezone(
+  db: DbClient["db"],
+  eventId: string,
+): Promise<EventWithChapterTimezone | null> {
+  const rows = await db
+    .select({
+      id: events.id,
+      chapterId: events.chapterId,
+      title: events.title,
+      description: events.description,
+      format: events.format,
+      venueId: events.venueId,
+      startsAt: events.startsAt,
+      endsAt: events.endsAt,
+      registrationClosesAt: events.registrationClosesAt,
+      capacity: events.capacity,
+      requiresInvite: events.requiresInvite,
+      requiresApproval: events.requiresApproval,
+      status: events.status,
+      coverFileId: events.coverFileId,
+      agenda: events.agenda,
+      chapterTimezone: chapters.timezone,
+    })
+    .from(events)
+    .innerJoin(chapters, eq(chapters.id, events.chapterId))
+    .where(eq(events.id, eventId))
+    .limit(1);
+
+  const row = rows[0];
+  if (row === undefined) {
+    return null;
+  }
+  return {
+    ...row,
+    agenda: (row.agenda as AgendaItem[] | null) ?? null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// REQ-017 §3 — event card rendering (AC1, AC5). Pure assembly, no I/O, no
+// grammY import. Takes every already-fetched piece of data as a parameter;
+// the handler is responsible for fetching the event, its venue, its chapter
+// timezone, and the admitted count before calling this.
+// ---------------------------------------------------------------------------
+export interface EventCardContent {
+  title: string;
+  coverFileId: string | null;
+  dateTimeText: string;
+  venueName: string | null;
+  venueAddress: string | null;
+  yandexMapUrl: string | null;
+  googleMapUrl: string | null;
+  agendaLines: { timeText: string; label: string }[];
+  seatsLine: SeatsLine;
+  ctaText: string;
+}
+
+export function buildEventCardContent(
+  event: EventWithChapterTimezone,
+  venue: VenueRecord | null,
+  admittedCount: number,
+  lang: BotLang,
+): EventCardContent {
+  // §3.2 — date/time range: start and end formatted separately, joined with
+  // an en dash. Defensive fallback to an empty string mirrors this file's
+  // existing EventRecord shape (startsAt/endsAt typed nullable there even
+  // though createEvent enforces NOT NULL) — a card is only ever rendered for
+  // a published event, which findMissingPublishFields already guarantees has
+  // both.
+  const startsAtText =
+    event.startsAt !== null
+      ? formatDateTimeInTimezone(event.startsAt, event.chapterTimezone, lang)
+      : "";
+  const endsAtText =
+    event.endsAt !== null
+      ? formatDateTimeInTimezone(event.endsAt, event.chapterTimezone, lang)
+      : "";
+  const dateTimeText = `${startsAtText}–${endsAtText}`;
+
+  const agendaLines = (event.agenda ?? []).map((item) => ({
+    timeText: formatDateTimeInTimezone(new Date(item.at), event.chapterTimezone, lang),
+    label: item.label,
+  }));
+
+  const capacity = event.capacity ?? 0;
+  const seatsLine = buildSeatsLine(computeSeatsLeft(capacity, admittedCount));
+
+  return {
+    title: event.title,
+    coverFileId: event.coverFileId,
+    dateTimeText,
+    venueName: venue?.name ?? null,
+    venueAddress: venue?.address ?? null,
+    yandexMapUrl: venue?.yandexUrl ?? null,
+    googleMapUrl: venue?.googleUrl ?? null,
+    agendaLines,
+    seatsLine,
+    ctaText: "", // filled in by the handler from the catalog (events.cardCta)
+  };
+}
+
+// ---------------------------------------------------------------------------
+// REQ-017 §4.1 — /events upcoming list (AC6). Evaluation-time-as-parameter
+// rule (decisions/0006): never SQL now()/current_timestamp inside the
+// query.
+// ---------------------------------------------------------------------------
+export interface UpcomingEventListItem {
+  id: string;
+  title: string;
+  startsAt: Date;
+  endsAt: Date;
+  capacity: number;
+  venueName: string;
+  chapterTimezone: string;
+}
+
+export async function listUpcomingPublishedEvents(
+  db: DbClient["db"],
+  chapterId: string,
+  evaluationTime: Date,
+): Promise<UpcomingEventListItem[]> {
+  const rows = await db
+    .select({
+      id: events.id,
+      title: events.title,
+      startsAt: events.startsAt,
+      endsAt: events.endsAt,
+      capacity: events.capacity,
+      venueName: venues.name,
+      chapterTimezone: chapters.timezone,
+    })
+    .from(events)
+    .innerJoin(chapters, eq(chapters.id, events.chapterId))
+    .leftJoin(venues, eq(venues.id, events.venueId))
+    .where(
+      and(
+        eq(events.chapterId, chapterId),
+        eq(events.status, "published"),
+        gt(events.endsAt, evaluationTime),
+      ),
+    )
+    .orderBy(asc(events.startsAt));
+
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    startsAt: row.startsAt,
+    endsAt: row.endsAt,
+    capacity: row.capacity,
+    venueName: row.venueName ?? "",
+    chapterTimezone: row.chapterTimezone,
+  }));
 }

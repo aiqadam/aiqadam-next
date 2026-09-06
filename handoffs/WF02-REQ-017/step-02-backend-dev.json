@@ -1,0 +1,16 @@
+{
+  "handoff_id": "step-02-backend-dev",
+  "run_id": "WF02-REQ-017",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "ORCH",
+  "to_agent": "BACKEND-DEV",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Implemented formatDateTimeInTimezone, the computed-never-stored predicates, listUpcomingPublishedEvents, buildEventCardContent, the /events handler, and updated resolveEventDeepLink to render the real card (replacing REQ-016's placeholder) and add the isFinished check REQ-016's gate lacked. All 6 ACs verified with real live-DB output. AC2 proven with three separate node processes under different TZ env vars all producing byte-identical output. AC3 proven with events.updated_at byte-identical before/after an admission insert. lint/build/test all pass (101/101, up from 82).",
+    "artifacts_out": ["apps/bot/src/domain/event.ts", "apps/bot/src/domain/event.test.ts", "apps/bot/src/handlers/event.ts", "apps/bot/src/handlers/start.ts", "apps/bot/src/i18n/formatTimeInTimezone.ts", "apps/bot/src/i18n/formatTimeInTimezone.test.ts", "apps/bot/src/i18n/types.ts", "apps/bot/src/i18n/ru.ts", "apps/bot/src/i18n/en.ts", "apps/bot/src/index.ts"],
+    "issues": [],
+    "next_action": "Route to REVIEWER (Step 2b)"
+  }
+}

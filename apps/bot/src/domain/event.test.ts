@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildEventCardContent,
+  buildSeatsLine,
+  computeSeatsLeft,
   findMissingPublishFields,
+  isFinished,
+  isRegistrationOpen,
   parseAgendaText,
   parseEventFields,
   parseStartPayload,
@@ -8,7 +13,9 @@ import {
   validateEventCreateInput,
   validateEventUpdateInput,
   type EventRecord,
+  type EventWithChapterTimezone,
 } from "./event.js";
+import type { VenueRecord } from "./venue.js";
 
 // REQ-016 §2.1/§3.1/§6.2/§7.1 — framework-free, no-DB coverage for the
 // parsing/validation functions the handlers call. Mirrors the design's exact
@@ -278,5 +285,149 @@ describe("parseAgendaText", () => {
   it("reports an unparsable timestamp as an error", () => {
     const result = parseAgendaText("doors|not-a-date|Doors open");
     expect(result.ok).toBe(false);
+  });
+});
+
+// REQ-017 §1 — computed-never-stored predicates (AC3, AC4). Pure, no I/O.
+describe("computeSeatsLeft", () => {
+  it("is capacity minus admittedCount", () => {
+    expect(computeSeatsLeft(60, 12)).toBe(48);
+  });
+
+  it("goes negative when admittedCount exceeds capacity (an override case)", () => {
+    expect(computeSeatsLeft(10, 11)).toBe(-1);
+  });
+});
+
+describe("buildSeatsLine", () => {
+  it("renders seatsLeft when seatsLeft > 0", () => {
+    expect(buildSeatsLine(5)).toEqual({ kind: "seatsLeft", count: 5 });
+  });
+
+  it("renders waitlistOpen when seatsLeft is exactly 0", () => {
+    expect(buildSeatsLine(0)).toEqual({ kind: "waitlistOpen" });
+  });
+
+  it("renders waitlistOpen when seatsLeft is negative", () => {
+    expect(buildSeatsLine(-1)).toEqual({ kind: "waitlistOpen" });
+  });
+});
+
+describe("isRegistrationOpen", () => {
+  const evaluationTime = new Date("2026-09-01T00:00:00Z");
+
+  it("is always true when registrationClosesAt is null (no deadline configured)", () => {
+    expect(isRegistrationOpen(null, evaluationTime)).toBe(true);
+  });
+
+  it("is true when evaluationTime is strictly before registrationClosesAt", () => {
+    expect(isRegistrationOpen(new Date("2026-09-02T00:00:00Z"), evaluationTime)).toBe(true);
+  });
+
+  it("is false when evaluationTime is at or after registrationClosesAt", () => {
+    expect(isRegistrationOpen(evaluationTime, evaluationTime)).toBe(false);
+    expect(isRegistrationOpen(new Date("2026-08-31T00:00:00Z"), evaluationTime)).toBe(false);
+  });
+});
+
+describe("isFinished", () => {
+  const endsAt = new Date("2026-10-01T20:00:00Z");
+
+  it("is false when evaluationTime is before or exactly at endsAt", () => {
+    expect(isFinished(endsAt, new Date("2026-10-01T19:00:00Z"))).toBe(false);
+    expect(isFinished(endsAt, endsAt)).toBe(false);
+  });
+
+  it("is true when evaluationTime is strictly after endsAt", () => {
+    expect(isFinished(endsAt, new Date("2026-10-01T20:00:01Z"))).toBe(true);
+  });
+});
+
+// REQ-017 §3 — event card assembly. Pure composition, no I/O.
+describe("buildEventCardContent", () => {
+  const CHAPTER = "11111111-1111-1111-1111-111111111111";
+
+  function baseEventWithTz(
+    overrides: Partial<EventWithChapterTimezone> = {},
+  ): EventWithChapterTimezone {
+    return {
+      id: "e1",
+      chapterId: CHAPTER,
+      title: "LLM Engineering in Production",
+      description: "A practitioner's walkthrough",
+      format: "meetup",
+      venueId: "v1",
+      startsAt: new Date("2026-10-01T13:00:00Z"),
+      endsAt: new Date("2026-10-01T15:00:00Z"),
+      registrationClosesAt: null,
+      capacity: 60,
+      requiresInvite: false,
+      requiresApproval: false,
+      status: "published",
+      coverFileId: null,
+      agenda: null,
+      chapterTimezone: "Asia/Tashkent",
+      ...overrides,
+    };
+  }
+
+  function baseVenue(overrides: Partial<VenueRecord> = {}): VenueRecord {
+    return {
+      id: "v1",
+      chapterId: CHAPTER,
+      name: "Tashkent AI Hub",
+      address: "123 Amir Temur Ave",
+      lat: 41.3,
+      lon: 69.2,
+      yandexUrl: "https://yandex.ru/maps/?pt=69.2,41.3",
+      googleUrl: "https://maps.google.com/?q=41.3,69.2",
+      capacity: 80,
+      notes: null,
+      ...overrides,
+    };
+  }
+
+  it("renders both map links verbatim from the venue's stored URLs (AC1)", () => {
+    const content = buildEventCardContent(baseEventWithTz(), baseVenue(), 0, "en");
+    expect(content.yandexMapUrl).toBe("https://yandex.ru/maps/?pt=69.2,41.3");
+    expect(content.googleMapUrl).toBe("https://maps.google.com/?q=41.3,69.2");
+  });
+
+  it("computes seatsLine from capacity and the passed-in admittedCount, never storing anything", () => {
+    const content = buildEventCardContent(baseEventWithTz({ capacity: 60 }), baseVenue(), 48, "en");
+    expect(content.seatsLine).toEqual({ kind: "seatsLeft", count: 12 });
+  });
+
+  it("renders waitlistOpen once admittedCount reaches capacity", () => {
+    const content = buildEventCardContent(baseEventWithTz({ capacity: 60 }), baseVenue(), 60, "en");
+    expect(content.seatsLine).toEqual({ kind: "waitlistOpen" });
+  });
+
+  it("renders every agenda item (doors and non-doors) with a formatted time and label (AC5)", () => {
+    const content = buildEventCardContent(
+      baseEventWithTz({
+        agenda: [
+          { kind: "doors", at: "2026-10-01T12:30:00.000Z", label: "Doors open" },
+          { kind: "networking", at: "2026-10-01T14:30:00.000Z", label: "Networking" },
+        ],
+      }),
+      baseVenue(),
+      0,
+      "en",
+    );
+    expect(content.agendaLines).toHaveLength(2);
+    expect(content.agendaLines[0]?.label).toBe("Doors open");
+    expect(content.agendaLines[1]?.label).toBe("Networking");
+    // Asia/Tashkent is UTC+5 — 12:30 UTC -> 17:30 local (05:30 PM, en-US 12h clock).
+    expect(content.agendaLines[0]?.timeText).toContain("05:30 PM");
+    expect(content.agendaLines[1]?.timeText).toContain("07:30 PM");
+  });
+
+  it("renders no venue block at all when venue is null (defensive, §3.3)", () => {
+    const content = buildEventCardContent(baseEventWithTz(), null, 0, "en");
+    expect(content.venueName).toBeNull();
+    expect(content.venueAddress).toBeNull();
+    expect(content.yandexMapUrl).toBeNull();
+    expect(content.googleMapUrl).toBeNull();
   });
 });
