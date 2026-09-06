@@ -152,6 +152,7 @@ mediating this, unlike letflow. See §7 for why, and the trigger for revisiting 
 | Incidentally-discovered defects | [protocols/ISSUE_QUEUE.md](protocols/ISSUE_QUEUE.md) |
 | Visual design, tokens, components, copy rules | [Design system for AI agents/readme.md](../Design%20system%20for%20AI%20agents/readme.md) |
 | Frontend build/run/lint mechanics | [guides/frontend_developer_guide.md](../guides/frontend_developer_guide.md) |
+| Bot build/run/lint/dependency mechanics | [guides/backend_dev_guide.md](../guides/backend_dev_guide.md) |
 | Manual verification process | [guides/qa_testing_guide.md](../guides/qa_testing_guide.md) |
 | Content/copy/requirement drafting | [guides/content_ba_guide.md](../guides/content_ba_guide.md) |
 | Deploy mechanics | [guides/deploy_guide.md](../guides/deploy_guide.md) |

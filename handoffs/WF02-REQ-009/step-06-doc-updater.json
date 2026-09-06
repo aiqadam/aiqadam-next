@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-06-doc-updater",
+  "run_id": "WF02-REQ-009",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "ORCH",
+  "to_agent": "DOC-UPDATER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Flipped REQ-009 status in_progress -> done, appended a done event to requirement_status.yaml covering the skeleton, the rework (lockfile + Dockerfile fixes), and the ISS-0005 update/new REVIEWER checklist item. README.md updated to describe apps/bot as the second workspace member. ORCH independently confirmed all three file changes are actually present. Flagged gap (no backend_dev_guide.md) actioned separately by ORCH below rather than folded into this step.",
+    "artifacts_out": ["docs/agents/requirements.yaml", "docs/status/requirement_status.yaml", "README.md"],
+    "next_action": "ORCH writes the missing backend_dev_guide.md (system-extension item flagged by CODE-DESIGNER/DOC-UPDATER), then routes to FRONTEND-DEV for Step Final (git merge)"
+  }
+}
