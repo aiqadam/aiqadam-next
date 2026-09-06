@@ -1,0 +1,223 @@
+run_id: WF02-REQ-014
+date: 2026-09-06T16:10:38Z
+branch: feature/WF02-REQ-014
+head_sha: d9274ccbee9673b8255834893750ccb92e0999cf
+lint: pass
+build: pass
+unit_tests: pass
+ci: pass
+overall_result: pass
+
+lint_output: |
+  apps/web: 2 pre-existing warnings only (no-img-element in Footer.tsx, Nav.tsx) —
+  unrelated to apps/bot/REQ-014, 0 errors.
+  apps/bot: eslint . — clean, no output, exit 0.
+
+build_output: |
+  apps/web (next build, Turbopack): "Compiled successfully in 187ms", TypeScript
+  finished 1007ms, all 4 static/dynamic routes generated, exit 0.
+  apps/bot (tsc -p tsconfig.json): exit 0, no output (no type errors).
+
+unit_test_output: |
+  npm test (vitest run): Test Files 3 passed (3), Tests 18 passed (18). Duration 158ms.
+
+ci_check:
+  run_id: 34044325139
+  head_sha_verified: d9274ccbee9673b8255834893750ccb92e0999cf
+  jobs:
+    build: success
+    deploy-qa: skipped
+    deploy-prod: skipped
+  source: "gh run view 34044325139 --json headSha,jobs"
+
+harness:
+  method: "grammY-dispatch harness per docs/agents/test-specs/REQ-013.md shared setup,
+    scratch file apps/bot/scratch-verify-req014.ts, deleted after run (confirmed via
+    git status --porcelain, and by ls check post-delete)."
+  fixture_db: "apps/bot/docker-compose.yml, Postgres on host port 55432, migrated via
+    npx drizzle-kit migrate before any case; docker compose down -v after all cases,
+    confirmed via docker ps showing no bot-postgres-1 container remaining."
+  note: "AC2a's fixture chapter row could not be deleted directly ahead of AC2b due to
+    a live FK reference from the AC2a test user's chapter_id (users_chapter_id_chapters_id_fk)
+    -- the test spec's fixture SQL for AC2b/ORDERING assumed a clean slate but did not
+    account for this FK from a prior case's user row. Resolved by nulling the
+    referencing user's chapter_id before DELETE FROM chapters, each time this occurred
+    (before AC2b, before ORDERING-1, before ORDERING-2). This is a harness-setup gap,
+    not a product defect: production /start flow never deletes chapters underneath an
+    assigned user."
+
+cases:
+  - acceptance_criterion: AC1
+    result: pass
+    notes: >
+      Fresh /start (tg_id 700000001, username ac1_user). Before: users=0, profiles=0,
+      no pre-existing row. After: users=1 (U0+1 exactly), profiles=0 (unchanged).
+      New row: tg_id=700000001, tg_username=ac1_user, lang=NULL (blank in psql output),
+      role=member, chapter_id=NULL, broadcast_opt_in=f, consent_pd_at=NULL,
+      consent_pd_version=NULL, blocked=f -- every column exactly matches AC1's required
+      defaults. No S1 regression (no chapter_id/consent value leaked in).
+
+  - acceptance_criterion: AC2a
+    result: pass
+    notes: >
+      Fixture: exactly 1 active chapter (ac2a). Dispatch /start then consent:agree
+      (tg_id 700000002). Captured exactly 3 entries: consent prompt+keyboard,
+      answerCallbackQuery, then greeting "Это бот AI Qadam Events." -- zero
+      chapter-prompt message anywhere in captured array. DB read-back: chapter_id
+      non-NULL, equal to the ac2a chapter's id (9989b40d-dd7d-4bcc-8816-0253b2d569e0).
+      Silent assignment confirmed.
+
+  - acceptance_criterion: AC2b
+    result: pass
+    notes: >
+      Fixture: 2 active chapters, confirmed alphabetical order via
+      "SELECT id,name ... ORDER BY name" -> Almaty then Tashkent. Dispatch /start +
+      consent:agree (tg_id 700000003): captured consent prompt, answerCallbackQuery,
+      then chapter-prompt "Выберите отделение." with 2 buttons (Almaty ->
+      chapter:74bb8863-..., Tashkent -> chapter:f9d695eb-...) matching read-back ids
+      exactly; no greeting yet. chapter_id read NULL before the chapter tap. Chapter
+      tap (chapter:<almaty-id>) produced answerCallbackQuery + greeting; chapter_id
+      afterward equals the tapped Almaty id. All AC2b pass conditions (single prompt,
+      exactly 2 buttons matching by name/id, chapter_id NULL-until-tap then correctly
+      set) hold.
+      OBSERVATION (not a pass-condition failure per AC2b's stated button-count
+      criterion, but a real, reproducible deviation from the case's illustrated
+      "two rows" payload shape): the actual reply_markup.inline_keyboard array has
+      THREE row entries, not two -- [["Almaty" button], ["Tashkent" button], []] --
+      a trailing empty array as a third row. Root cause: apps/bot/src/handlers/start.ts
+      buildChapterKeyboard() (line ~48) calls `.text(option.name, ...).row()` inside
+      the for-loop, so grammY's InlineKeyboard leaves a dangling empty row open after
+      the final `.row()` call. This exact extra-empty-row payload also reproduced
+      verbatim in AC3's chapter-prompt capture and the ORDERING 2-chapter case (see
+      below). Recommend filing as an issue for BACKEND-DEV: drop the trailing
+      `.row()` after the loop's last iteration (or call `.row()` between buttons
+      only), since Telegram Bot API inline keyboards must consist of button rows and
+      a stray empty row is unnecessary payload sent on every 2+-chapter prompt.
+
+  - acceptance_criterion: AC3
+    result: pass
+    notes: >
+      tg_id 700000004. Before dispatch: profiles=0 (P0). After /start alone:
+      consent_pd_at NULL, consent_pd_version NULL, profiles still 0. After
+      consent:agree tap: consent_pd_at = non-null timestamp
+      (2026-09-06 16:08:01.776+00), consent_pd_version = 'v1' exactly, profiles still
+      0. Both consent columns set together, never independently; zero profiles rows
+      throughout.
+
+  - acceptance_criterion: AC4
+    result: pass
+    notes: >
+      ru.ts/en.ts consent.prompt text read verbatim and matches the spec's exact
+      strings character-for-character. Emoji/exclamation grep
+      (git grep -P '[!\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]' -- ru.ts en.ts) -> no
+      match (exit 1). CONSENT_WORDING_VERSION confirmed as
+      `export const CONSENT_WORDING_VERSION = "v1";` in domain/consent.ts, used in
+      recordConsent's .set({ consentPdVersion: CONSENT_WORDING_VERSION }) -- server
+      constant, not client-supplied. handoffs/WF02-REQ-014/step-02c-backend-dev-rework.json
+      result.issues[0].description is byte-identical to the spec's required
+      provisionality statement.
+      NOTE (spec-precision, not a product defect): the "(v1)" grep
+      (git grep -n "(v1)" -- ru.ts en.ts) returned 4 matches, not the spec's expected
+      "exactly 2" -- each file also carries a code comment
+      ("// explicit "(v1)" version identifier per AC4...") immediately above the
+      catalog entry that itself contains the substring "(v1)", so the match count is
+      2 per file (comment + string), not 1. The substantive requirement (both
+      consent.prompt strings literally contain "(v1)") is still satisfied; this is a
+      test-spec enumeration gap worth a MINOR filed note, not an AC4 failure.
+
+  - acceptance_criterion: AC5
+    result: pass
+    notes: >
+      Filtered grep (the spec's explicit pass/fail gate) --
+      git grep -n "tgId\|tg_id" -- apps/bot/src/domain/chapter.ts
+      apps/bot/src/domain/consent.ts | grep -v '^\s*//\|:\s*//' -- produced zero
+      output. Plain (unfiltered) grep on the same two files produced exactly the 2
+      expected comment-only hits (chapter.ts:53, consent.ts:17), matching the spec
+      verbatim. Exhaustive apps/bot/src grep also surfaced apps/bot/src/domain/setUserLang.ts
+      and apps/bot/src/handlers/lang.ts using tgId in the same entry-point-lookup
+      shape as domain/user.ts -- these are pre-existing REQ-013 files not enumerated
+      in the spec's permitted-shapes list (the list only names REQ-014's touched
+      files). Their usage is the same permitted "entry-point lookup by tg_id" pattern
+      (WHERE eq(users.tgId, tgId)), not a join/FK -- structurally consistent with the
+      AC5 principle, just outside the spec's REQ-014-scoped enumeration. Flagging as a
+      MINOR test-spec completeness gap, not an AC5 violation, since the actual
+      pass/fail gate (chapter.ts/consent.ts filtered grep) is the check the spec names
+      as authoritative and it passed cleanly.
+
+  - acceptance_criterion: AC6a
+    result: pass
+    notes: >
+      /help dispatched for tg_id 700000005 (lang=en) and 700000006 (lang=ru).
+      Captured payloads byte-identical to both the spec's literal expected JSON and
+      to en.ts/ru.ts's committed help.body strings -- no cross-wiring, truncation, or
+      appended text.
+
+  - acceptance_criterion: AC6b
+    result: pass
+    notes: >
+      git grep -n '"' -- apps/bot/src/handlers/help.ts shows only import-path
+      literals ("grammy", "../db/client.js", "../domain/user.js", "../i18n/catalog.js",
+      "../i18n/resolveLang.js") -- zero user-facing string literals.
+      git grep -n "ctx.reply" -- apps/bot/src/handlers/help.ts shows exactly one
+      match: "await ctx.reply(getCatalog(lang).help.body);" with no concatenation or
+      template literal.
+
+  - acceptance_criterion: ORDERING-1-chapter
+    result: pass
+    notes: >
+      Fixture: 1 active chapter (ord1). tg_id 700000007. After /start alone:
+      chapter_id NULL, consent_pd_at NULL. After consent:agree tap: chapter_id equals
+      the ord1 chapter's id (84e32c58-7837-433a-b290-ed670e322734), consent_pd_at
+      non-null (2026-09-06 16:09:12.409+00) -- both written only as a consequence of
+      the consent tap, never before. No S1 regression.
+
+  - acceptance_criterion: ORDERING-2-chapter
+    result: pass
+    notes: >
+      Fixture: 2 active chapters (ord2-1 Ord2 Almaty, ord2-2 Ord2 Tashkent). tg_id
+      700000008. After /start alone: chapter_id NULL, consent_pd_at NULL, captured
+      exactly 1 sendMessage (consent prompt). After consent:agree tap: consent_pd_at
+      now non-null (2026-09-06 16:09:35.432+00), chapter_id STILL NULL -- captured
+      entries added: answerCallbackQuery then the chapter-choice keyboard (2 buttons),
+      no greeting yet. After the chapter tap (chapter:<ord2-1-id>): chapter_id now
+      equals the tapped id (9104f22a-a536-4cab-9e7d-fc07e4ba740f), consent_pd_at
+      unchanged from the prior read (2026-09-06 16:09:35.432+00, not re-written).
+      Exactly reproduces the SECURITY-REVIEWER re-gate's required evidence shape.
+      Same trailing-empty-row payload artifact as AC2b observed here too (see AC2b
+      notes) -- reproducible, not case-specific.
+
+issues_found_not_blocking:
+  - description: >
+      apps/bot/src/handlers/start.ts's buildChapterKeyboard() leaves a trailing empty
+      row ([]) as the last element of reply_markup.inline_keyboard whenever 2+ active
+      chapters are prompted (reproduced in both AC2b and the ORDERING 2-chapter case).
+      Root cause: the for-loop calls `.text(option.name, ...).row()` per option,
+      leaving one extra open row after the final iteration. Does not violate any
+      AC2b/ORDERING pass condition as literally stated (button count/order/tap
+      behavior all correct), but is real extra payload sent to Telegram on every
+      2+-chapter prompt.
+    severity: MINOR
+    affected_files:
+      - apps/bot/src/handlers/start.ts
+  - description: >
+      docs/agents/test-specs/REQ-014.md AC4's "(v1)" grep instruction expects exactly
+      2 matches (one per file) but each file's committed code comment immediately
+      above the consent.prompt catalog entry also contains the literal substring
+      "(v1)", so the actual match count is 4. Substance of AC4 is unaffected (the
+      catalog string itself does contain "(v1)"); the spec's expected-match-count
+      example is imprecise.
+    severity: MINOR
+    affected_files:
+      - docs/agents/test-specs/REQ-014.md
+  - description: >
+      docs/agents/test-specs/REQ-014.md AC5's exhaustive-grep enumeration of
+      "permitted shapes" omits apps/bot/src/domain/setUserLang.ts and
+      apps/bot/src/handlers/lang.ts (both pre-existing REQ-013 files using tgId in the
+      same entry-point-lookup pattern as domain/user.ts). The spec's actual pass/fail
+      gate (filtered grep on chapter.ts/consent.ts only) is unaffected and passed, but
+      the "enumerated exhaustively" claim for the whole-tree grep is incomplete.
+    severity: MINOR
+    affected_files:
+      - docs/agents/test-specs/REQ-014.md
+
+routing_decision: "Route to RELEASE-VALIDATOR"
