@@ -1,0 +1,18 @@
+{
+  "handoff_id": "step-02c-security-reviewer",
+  "run_id": "WF02-REQ-016",
+  "workflow_id": "WF-02",
+  "step": "02c",
+  "from_agent": "ORCH",
+  "to_agent": "SECURITY-REVIEWER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "FAIL",
+    "summary": "S2/S7/S8/S11/S13 all PASS with real independent live-dispatch verification, including a control case proving the harness genuinely exercises the code (not a false negative). S1 FAIL, decisive: apps/bot/src/handlers/start.ts's deep-link branch calls setPendingSource BEFORE the consent gate is checked, persisting attacker/marketer-supplied free-text channel attribution against a brand-new user's row while consent_pd_at is still null -- reproduced live with a real published-event deep link. The same class of bug as REQ-014's S1 finding (data write ordered before consent), this time via a different write path. Also filed ISS-0009 (MINOR, forward-looking): the capacity-floor check is check-then-act with no atomicity guard against a concurrent registration-admission write -- currently unexercisable since no such write path exists yet, but must be closed by whichever future requirement adds one.",
+    "issues": [
+      {"severity": "BLOCKER", "description": "S1 violation: apps/bot/src/handlers/start.ts's deep-link branch writes users.pending_source before the consent gate is checked. Must reorder so the write either happens only after consent is recorded, or is deferred until consent exists."},
+      {"severity": "MINOR", "description": "Filed as ISS-0009: capacity-floor check-then-act has no atomicity guard against a concurrent registration-admission write. Currently unexercisable, must be closed by the requirement that first implements admission writes."}
+    ],
+    "next_action": "Rework BACKEND-DEV (iteration 1 of 3)"
+  }
+}

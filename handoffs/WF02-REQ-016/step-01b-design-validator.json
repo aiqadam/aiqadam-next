@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-01b-design-validator",
+  "run_id": "WF02-REQ-016",
+  "workflow_id": "WF-02",
+  "step": "01b",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "FAIL",
+    "summary": "All 10 substantive checks (online/offline finding, publish-validation generality, capacity floor, deep-link mechanism, agenda validation directions, authorization/audit, cancel boundary, schema artefact, AC mapping, open questions) PASS -- the reasoning throughout is sound and correctly grounded in the real schema. FAILs solely on check 10 (no implementation code): SS3.1 (findMissingPublishFields), SS3.4 (the capacity-edit block), and SS7.1 (validateAgenda) contain complete, directly-executable TypeScript control flow (loops, comparisons, array pushes, three return branches) rather than signatures + prose, a real regression from REQ-015.md's own established pattern (signature-only or SQL-as-comment).",
+    "issues": [{"severity": "MAJOR", "description": "docs/agents/design/REQ-016.md SS3.1/SS3.4/SS7.1 contain working implementation code, not design-artefact signatures+prose. Rewrite each to state the rule in prose plus a bare function signature, matching REQ-015.md's hasFutureEventReference/checkOrganizerForChapter precedent exactly. The schema artefact (REQ-016-schema.md) is not implicated."}],
+    "next_action": "Rework CODE-DESIGNER (iteration 1 of 3)"
+  }
+}

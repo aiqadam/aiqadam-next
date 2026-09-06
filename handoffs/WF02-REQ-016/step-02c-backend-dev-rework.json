@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-02c-backend-dev-rework",
+  "run_id": "WF02-REQ-016",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "ORCH",
+  "to_agent": "BACKEND-DEV",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Fixed the S1 finding: pending_source now gated on consent_pd_at !== null. Consented-user fast path unchanged. Unconsented users get the deep-link payload encoded into the consent:agree callback_data (consent:agree:e_<id>__<channel>, reusing parseStartPayload's existing grammar), byte-budget verified live (measured 62-64 bytes, event id never truncated, only the trailing channel text if needed). Chapter assignment (REQ-014's existing order) still runs first after consent, deep-link resolution runs after regardless of whether a chapter pick is still pending. All 5 verification points PASS with real captured output. lint/build/test unchanged at 82/82, no regression. docs/agents/design/REQ-016.md got an appended correction note, original sections preserved per the REQ-014 precedent.",
+    "artifacts_out": ["apps/bot/src/handlers/start.ts", "apps/bot/src/index.ts", "apps/bot/src/domain/event.ts", "docs/agents/design/REQ-016.md"],
+    "next_action": "Route to REVIEWER (Step 2b) for re-gate"
+  }
+}

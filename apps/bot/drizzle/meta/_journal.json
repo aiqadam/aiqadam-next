@@ -22,6 +22,13 @@
       "when": 1788708617953,
       "tag": "0002_optimal_mandrill",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788718331874,
+      "tag": "0003_absurd_blob",
+      "breakpoints": true
     }
   ]
 }

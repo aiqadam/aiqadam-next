@@ -1,0 +1,171 @@
+run_id: WF02-REQ-016
+date: 2026-09-06T19:06:53Z
+requirement: REQ-016
+branch: feature/WF02-REQ-016
+head_commit: 36d3626d0166002aed08fa5d7dc839093f9eb2d6
+lint: pass
+build: pass
+unit_tests: pass
+unit_tests_notes: >
+  npm run lint && npm run build && npm test all passed after fixing a pre-existing
+  environment defect (see issues_found below). Final npm test output: "Test Files 7
+  passed (7), Tests 82 passed (82)".
+ci:
+  run_id: 34053487719
+  conclusion: success
+  jobs:
+    build: success
+    deploy-qa: skipped
+    deploy-prod: skipped
+  source: gh run view 34053487719 --json jobs
+cases:
+  - acceptance_criterion: AC1a
+    result: pass
+    notes: >
+      Blank-title fixture (event a1) dispatched /event_publish; captured sendMessage
+      text exactly "Публикация отклонена. Не заполнены или некорректны: title, venue"
+      (title then venue, correct table order). Read-back: status still 'draft'.
+  - acceptance_criterion: AC1b
+    result: pass
+    notes: >
+      Non-positive-capacity fixture (event a2, capacity 0) dispatched /event_publish;
+      captured text exactly "Публикация отклонена. Не заполнены или некорректны:
+      capacity" (capacity only). Read-back: status still 'draft'.
+  - acceptance_criterion: AC1c
+    result: pass
+    notes: >
+      Ran `npx vitest run src/domain/event.test.ts -t "findMissingPublishFields"`
+      with --reporter=verbose. Confirmed test "findMissingPublishFields > names
+      'starts_at' when null" exists and passed (marked with checkmark in output).
+      Full filtered run: 6 passed, 26 skipped (32 total in file).
+  - acceptance_criterion: AC2
+    result: pass
+    notes: >
+      Venue-less draft event dispatched /event_publish; captured text exactly
+      "Публикация отклонена. Не заполнены или некорректны: venue". Read-back: status
+      still 'draft'.
+  - acceptance_criterion: AC3
+    result: pass
+    notes: >
+      Published event, capacity 5, two raw 'admitted' registrations. Dispatched
+      /event_edit reducing capacity to 1. Captured text exactly "Вместимость нельзя
+      снизить ниже числа уже подтверждённых участников: 2". After-state: capacity
+      still 5, both registration rows unchanged (ids b01/b02, both 'admitted'),
+      audit_log count 0.
+  - acceptance_criterion: AC4
+    result: pass
+    notes: >
+      Draft event, brand-new user dispatched "/start e_<draft-id>". Captured text
+      exactly "Это мероприятие сейчас недоступно.\nПосмотрите ближайшие мероприятия:
+      /events" -- no card, no inline keyboard. Read-back: pending_source and
+      consent_pd_at both NULL. The member-facing /events list-visibility half of AC4
+      is explicitly not applicable -- REQ-017 scope, per the spec's own instruction
+      (no /events command exists in this codebase; git grep confirms).
+  - acceptance_criterion: AC5a
+    result: pass
+    notes: >
+      Step 2 (unconsented user, channel-suffixed deep link e_<id>__linkedin):
+      captured exactly one sendMessage, text = consent.prompt verbatim,
+      callback_data = "consent:agree:e_<id>__linkedin". Intermediate read-back:
+      pending_source NULL, consent_pd_at NULL (write had not happened yet). Step 3
+      (consent:agree tap with that exact callback_data): captured
+      answerCallbackQuery then sendMessage with text "Мероприятие: AC5 Published
+      Event (<starts_at ISO>)". Read-back after: pending_source = 'linkedin' exactly,
+      consent_pd_at non-null.
+  - acceptance_criterion: AC5b
+    result: pass
+    notes: >
+      Pre-consented user dispatched channel-suffixed deep link e_<id>__newsletter in
+      a single message. Captured exactly one sendMessage (no consent prompt), text =
+      placeholder message. Read-back: pending_source = 'newsletter' exactly, written
+      on the single dispatch.
+  - acceptance_criterion: AC6a
+    result: pass
+    notes: >
+      Doors item at 18:30 (30 min after 18:00 starts_at) dispatched via
+      /event_agenda. Captured text exactly "Пункт открытия дверей не может быть
+      позже начала мероприятия: Doors Open". Read-back: agenda still NULL.
+  - acceptance_criterion: AC6b
+    result: pass
+    notes: >
+      Non-doors "close" item at 20:15 (after 20:00 ends_at) dispatched. Captured
+      text exactly "Пункт программы не может быть позже окончания мероприятия: Wrap
+      Up". Read-back: agenda still NULL -- proves ends_at bound applies to every
+      item kind.
+  - acceptance_criterion: AC6c
+    result: pass
+    notes: >
+      Setup item at 06:00 (12h before 18:00 starts_at, no lower bound) dispatched
+      and succeeded. Captured text exactly "Мероприятие обновлено, изменены поля:
+      agenda". Read-back: agenda = [{"at":"2026-10-01T06:00:00.000Z","kind":"setup",
+      "label":"Early Setup"}] -- persisted, proving no lower bound is enforced.
+  - acceptance_criterion: AC7
+    result: pass
+    notes: >
+      Two individually-timing-valid doors items in one /event_agenda replacement
+      array. Captured text exactly "В программе может быть только один пункт
+      открытия дверей." (multiple-doors reason, not a generic refusal). Read-back:
+      agenda still NULL -- no partial write.
+  - acceptance_criterion: AC8a
+    result: pass
+    notes: >
+      Sequential create/publish/cancel dispatches on the same event. audit_log
+      count went 0 -> 1 (event.create) -> 2 (event.publish) -> 3 (event.cancel),
+      each with the correct action and matching entity_id. Exactly +1 per action,
+      no 0 or 2+ deltas.
+  - acceptance_criterion: AC8b
+    result: pass
+    notes: >
+      Member (non-organizer) directly dispatched /event_publish against a fully
+      publish-ready draft event. Captured exactly one sendMessage, text =
+      "У вас нет прав на это действие." (notAuthorized verbatim). After-state:
+      event status still 'draft', audit_log count unchanged (3, same as before) --
+      zero side effects from the refused call.
+  - acceptance_criterion: ordering_case
+    result: pass
+    notes: >
+      Reproduced SECURITY-REVIEWER's re-gate evidence independently on a
+      freshly-constructed fixture (not reusing AC5's rows). Step 2 intermediate
+      read (mandatory, before any further step): pending_source NULL AND
+      consent_pd_at NULL immediately after the deep-link /start dispatch -- no
+      premature write. Step 3 (consent:agree tap): pending_source = 'twitter'
+      exactly and consent_pd_at non-null, both set only after this dispatch. Step 4
+      (pre-consented fast-path regression check): single dispatch, no consent
+      prompt, pending_source = 'twitter' immediately. All four pass conditions
+      confirmed; no regression of the S1 defect class.
+issues_found:
+  - id: pre-existing-env-rolldown-binding
+    severity: BLOCKER (environment, not this branch)
+    description: >
+      Root `npm test` and `apps/bot`'s `npx vitest run` initially failed at
+      startup with "Cannot find native binding" / "Cannot find module
+      '@rolldown/binding-wasm32-wasi'" -- the win32-x64 native binding for
+      rolldown (a vitest/vite transitive dependency) was missing from
+      node_modules (npm optional-dependencies bug, npm/cli#4828). Attribution:
+      structurally pre-existing -- node_modules is gitignored (not tracked),
+      and `git diff --name-only master...HEAD` shows no package.json or
+      package-lock.json changes in this branch, so this branch cannot have
+      caused it. Fixed for this run (Unblock-Everything) via
+      `npm install --no-save @rolldown/binding-win32-x64-msvc@1.2.7`, which
+      resolved it without touching package-lock.json (confirmed via `git status
+      --porcelain` showing no diff after). This is a local-machine dependency
+      install state issue, not a code defect -- filed for ORCH awareness in case
+      it recurs on another machine/CI runner, though CI's own green `build` run
+      confirms this does not affect the CI environment.
+  - id: test-spec-cleanup-gap-venues-not-deleted
+    severity: MINOR
+    description: >
+      The verification spec's (docs/agents/test-specs/REQ-016.md) cleanup
+      statements before AC2/AC3/etc. only `DELETE FROM audit_log; ... DELETE FROM
+      events; DELETE FROM users; DELETE FROM chapters;` -- they omit `DELETE FROM
+      venues`, so a prior case's venue row (which FK-references a chapter) causes
+      the `DELETE FROM chapters` statement to fail with a foreign-key violation
+      (chapters from earlier cases survive). This did not affect any case's
+      pass/fail outcome in this run (each case uses distinct chapter/event UUIDs
+      per its own -0000000X- prefix, so leftover rows from prior cases never
+      collided), but it left stray chapter/venue rows accumulating across cases
+      until manually corrected (added `DELETE FROM venues;` to this run's own
+      cleanup statements from AC3 onward). Recommend TEST-DESIGNER add `DELETE
+      FROM venues;` to the shared cleanup statement for future runs of this spec.
+overall_result: PASS
+routing_decision: Route to RELEASE-VALIDATOR

@@ -78,6 +78,12 @@ export const users = pgTable(
     // that discipline lives in the handler write (domain/consent.ts).
     consentPdVersion: text("consent_pd_version"),
     blocked: boolean("blocked").notNull().default(false),
+    // REQ-016-schema.md §3: the channel suffix (e.g. "linkedin") from the
+    // most recently opened `?start=e_<event_id>__<channel>` deep link, held
+    // against the user (not scoped to any one event, §2's decision) until
+    // REQ-020 copies it into registrations.source and clears this back to
+    // NULL. Nullable — the overwhelming majority of rows never set it.
+    pendingSource: text("pending_source"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

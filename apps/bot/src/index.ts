@@ -15,6 +15,13 @@ import {
   makeVenueNewHandler,
   makeVenuesListHandler,
 } from "./handlers/venue.js";
+import {
+  makeEventAgendaHandler,
+  makeEventCancelHandler,
+  makeEventEditHandler,
+  makeEventNewHandler,
+  makeEventPublishHandler,
+} from "./handlers/event.js";
 
 let config: BotConfig;
 
@@ -46,7 +53,12 @@ bot.callbackQuery(/^lang:(ru|en)$/, makeLangCallbackHandler(db));
 // its two callback handlers, and /help.
 bot.command("start", makeStartHandler(db));
 bot.callbackQuery(/^chapter:(.+)$/, makeChapterCallbackHandler(db));
-bot.callbackQuery("consent:agree", makeConsentCallbackHandler(db));
+// WF02-REQ-016 SECURITY REWORK — the callback_data may now carry a deep-link
+// payload appended after a `:` (see handlers/start.ts's own header note), so
+// this needs a pattern, not the old exact string; the handler itself
+// re-derives the exact match via its own regex against ctx.callbackQuery.data
+// (same discipline as the chapter:<id> callback below).
+bot.callbackQuery(/^consent:agree(?::.+)?$/, makeConsentCallbackHandler(db));
 bot.command("help", makeHelpHandler(db));
 
 // REQ-015: organizer-only venue CRUD, chapter-scoped.
@@ -54,5 +66,15 @@ bot.command("venue_new", makeVenueNewHandler(db));
 bot.command("venue_edit", makeVenueEditHandler(db));
 bot.command("venue_delete", makeVenueDeleteHandler(db));
 bot.command("venues", makeVenuesListHandler(db));
+
+// REQ-016: organizer-only event CRUD, chapter-scoped, draft/published/
+// cancelled transitions, publish validation, agenda validation. The
+// `?start=e_<id>[__channel]` deep link rides the existing /start
+// registration above (handlers/start.ts) — no new command for it.
+bot.command("event_new", makeEventNewHandler(db));
+bot.command("event_edit", makeEventEditHandler(db));
+bot.command("event_agenda", makeEventAgendaHandler(db));
+bot.command("event_publish", makeEventPublishHandler(db));
+bot.command("event_cancel", makeEventCancelHandler(db));
 
 bot.start();

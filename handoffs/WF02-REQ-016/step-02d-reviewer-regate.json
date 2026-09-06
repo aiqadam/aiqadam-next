@@ -1,0 +1,14 @@
+{
+  "handoff_id": "step-02d-reviewer-regate",
+  "run_id": "WF02-REQ-016",
+  "workflow_id": "WF-02",
+  "step": "02b",
+  "from_agent": "ORCH",
+  "to_agent": "REVIEWER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Re-gate confirms the S1 fix holds. Exhaustively read start.ts: only two call sites for resolveEventDeepLink, one gated on consentPdAt !== null (fast path), one hardcoded true placed textually after recordConsent succeeds. No path reaches the write with consent still null. Callback routing confirmed non-overlapping and correctly re-parsed. Independently rebuilt the dispatch harness and reproduced the exact negative case plus the 2-chapter interaction case -- both work correctly together. 82/82 tests unchanged, no regression.",
+    "next_action": "Route to SECURITY-REVIEWER (Step 2c) for re-gate"
+  }
+}

@@ -1,0 +1,28 @@
+id: ISS-0009
+title: Capacity-floor check is check-then-act, not atomic against a concurrent registration-admission write
+discovered_by: SECURITY-REVIEWER
+discovered_in_run: WF02-REQ-016
+discovered_at: "2026-09-06T00:00:00Z"
+severity: MINOR
+description: >
+  security-invariants.md S7's stated negative case is "two concurrent
+  registrations for the last seat both admitted" -- this cannot yet be
+  exercised because no code path in this repository writes
+  registrations.admission (that's a future requirement, registration
+  admission decisions). REQ-016's countAdmittedRegistrations-then-write
+  sequence (in updateEvent and publishEvent's callers) is a plain
+  check-then-act with no atomicity guard (no advisory lock, no
+  `SELECT ... FOR UPDATE`, no DB constraint) against a concurrent write to
+  registrations.admission.
+
+  This is a real, structural gap that must be closed -- not by REQ-016
+  itself, since there is nothing to race against yet -- but by whichever
+  future requirement first implements registration-admission writes
+  (concurrent admission decisions racing a capacity-reducing event edit,
+  or two admission decisions racing each other for the last seat). Filed
+  now, while the gap is fresh in mind, per SECURITY-REVIEWER's explicit
+  instruction that this must be a tracked issue before that requirement's
+  BACKEND-DEV step, not silently deferred a second time.
+affected_files:
+  - apps/bot/src/domain/event.ts
+status: open

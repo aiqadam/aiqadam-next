@@ -894,7 +894,7 @@ requirements:
   - id: REQ-016
     title: Event CRUD with draft/published/cancelled transitions, publish validation and e_ deep links
     owner: BACKEND-DEV
-    status: pending
+    status: done
     description: >
       Second slice of PRD 14 build-order step 2. Implements USER-STORIES F1 /
       STORY-DETAILS F1 (Put an event out into the world) and the event half of

@@ -1,0 +1,16 @@
+{
+  "handoff_id": "step-02-backend-dev",
+  "run_id": "WF02-REQ-016",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "ORCH",
+  "to_agent": "BACKEND-DEV",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Implemented domain/{eventAuthorization,event}.ts, handlers/event.ts, extended handlers/start.ts for the e_<id> deep link, added users.pending_source migration. All 8 ACs verified with real live-DB grammY dispatch. AC1's starts_at sub-case genuinely untestable against the NOT-NULL schema, covered by a unit test instead and stated explicitly. AC4 correctly split (REQ-016 half PASS, REQ-017 half not applicable). Cancel confirmed to contain zero notification code. lint/build/test all pass (82/82, up from 44).",
+    "artifacts_out": ["apps/bot/src/db/schema.ts", "apps/bot/drizzle/0003_absurd_blob.sql", "apps/bot/drizzle/meta/0003_snapshot.json", "apps/bot/drizzle/meta/_journal.json", "apps/bot/src/domain/eventAuthorization.ts", "apps/bot/src/domain/eventAuthorization.test.ts", "apps/bot/src/domain/event.ts", "apps/bot/src/domain/event.test.ts", "apps/bot/src/handlers/event.ts", "apps/bot/src/handlers/start.ts", "apps/bot/src/i18n/types.ts", "apps/bot/src/i18n/ru.ts", "apps/bot/src/i18n/en.ts", "apps/bot/src/index.ts"],
+    "issues": [],
+    "next_action": "Route to REVIEWER (Step 2b)"
+  }
+}

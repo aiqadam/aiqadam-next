@@ -1,0 +1,42 @@
+id: ISS-0010
+title: Deep-link channel attribution silently truncates for unconsented (first-time) users due to Telegram's 64-byte callback_data limit
+discovered_by: SECURITY-REVIEWER
+discovered_in_run: WF02-REQ-016
+discovered_at: "2026-09-06T00:00:00Z"
+severity: MINOR
+description: >
+  Discovered while independently re-verifying the REQ-016 S1 fix (which
+  encodes the deep-link payload into the consent:agree callback_data for
+  unconsented users, so pending_source can be written only after consent
+  is recorded). The fixed prefix `consent:agree:e_<36-char-uuid>__`
+  already consumes 54 of Telegram's 64-byte callback_data budget, leaving
+  only ~10 bytes for the channel string on every FIRST-TIME user's
+  deep-link tap -- regardless of how short or long the real channel value
+  is. Verified live: realistic channel names like "newsletter" (10 chars,
+  fits) or "conference_expo" (15 chars, does not) get silently truncated
+  by truncateToByteBudget, while a RETURNING (already-consented) user
+  gets the untruncated value via the fast path (pending_source written
+  directly from the /start deep link itself, no callback_data involved).
+
+  This is a real data-attribution quality defect (marketing/analytics
+  channel data becomes unreliable specifically for the majority case --
+  first-time users, which is the population the attribution exists to
+  measure) but is NOT a security invariant violation: no PII exposure, no
+  injection, no crash, and the S1 consent-ordering fix itself is sound
+  (confirmed by adversarial round-trip testing with 500-char, embedded
+  "__", multi-byte, and embedded ":" channel strings -- all handled
+  safely, no corruption, no ambiguity).
+
+  Possible fixes for whoever picks this up (not decided here): (a) store
+  the full pending payload transiently somewhere with more room than
+  callback_data allows (e.g. a short-lived server-side map keyed by
+  tg_id, or a dedicated column written at /start time even before
+  consent -- but the latter would reintroduce a consent-ordering
+  question that would need its own careful reasoning about what is safe
+  to store pre-consent), or (b) accept truncation but hash/shorten
+  channel values into short campaign codes at deep-link generation time
+  so the un-truncated form never needs more than the available budget.
+affected_files:
+  - apps/bot/src/handlers/start.ts
+  - apps/bot/src/domain/event.ts
+status: open

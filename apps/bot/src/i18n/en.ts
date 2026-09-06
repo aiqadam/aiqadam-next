@@ -46,4 +46,31 @@ export const en = {
     listEmpty: "No venues yet.",
     listHeader: "Venues in your chapter:",
   },
+  // Placeholder/provisional wording (REQ-016 design §9) — see ru.ts for the
+  // CONTENT-BA ownership note; same scope applies here.
+  event: {
+    notAuthorized: "You are not authorized to do this.",
+    notFound: "Event not found.",
+    createUsage:
+      "Send /event_new followed on the next lines by:\ntitle: ...\ndescription: ...\nformat: meetup|fail_stories|workshop|hackathon\nvenue: ... (optional)\nstarts: ISO start time\nends: ISO end time\nregistration_closes: ... (optional)\ncapacity: ...\nrequires_invite: true|false (optional)\nrequires_approval: true|false (optional)\ncover_file_id: ... (optional)",
+    missingFieldsPrefix: "Missing or invalid required field(s):",
+    createSuccessPrefix: "Event created (draft), id:",
+    editUsageNoId: "Provide the event id: /event_edit <id>",
+    editCurrentPrefix: "Current values (send /event_edit <id> plus the fields to change):",
+    editSuccessPrefix: "Event updated, changed field(s):",
+    publishUsageNoId: "Provide the event id: /event_publish <id>",
+    publishSuccessPrefix: "Event published:",
+    publishRefusedNotDraft: "Only a draft event can be published.",
+    publishRefusedMissingFields: "Publish refused. Missing/invalid:",
+    capacityBelowAdmittedFloor: "Capacity cannot be set below the number already admitted:",
+    cancelUsageNoId: "Provide the event id: /event_cancel <id>",
+    cancelSuccessPrefix: "Event cancelled:",
+    cancelRefusedNotPublished: "Only a published event can be cancelled.",
+    agendaRefusedDoorsAfterStart: "The doors item cannot be later than the event start:",
+    agendaRefusedItemAfterEnd: "An agenda item cannot be later than the event end:",
+    agendaRefusedMultipleDoors: "Only one doors item is allowed in the agenda.",
+    deepLinkNotAvailable: "This event isn't available right now.",
+    deepLinkSeeUpcoming: "See what's coming up with /events",
+    deepLinkPublishedPlaceholder: "Event:",
+  },
 } satisfies Catalog;
