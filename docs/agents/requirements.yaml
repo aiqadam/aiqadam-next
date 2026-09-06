@@ -941,7 +941,7 @@ requirements:
   - id: REQ-017
     title: Public event card and the /events upcoming list with computed seat counts
     owner: BACKEND-DEV
-    status: in_progress
+    status: done
     description: >
       Third slice of PRD 14 build-order step 2, completing "public event card".
       Implements PRD FR-2 (Event card), USER-STORIES A1 (See what's coming up) and A3
