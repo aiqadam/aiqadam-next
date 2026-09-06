@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-03-test-designer",
+  "run_id": "WF02-REQ-008",
+  "workflow_id": "WF-02",
+  "step": "03",
+  "from_agent": "ORCH",
+  "to_agent": "TEST-DESIGNER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Scope test: in scope (real HTTP-server behavioral surface). Wrote docs/agents/test-specs/REQ-008.md with precise, runnable cases for all 4 acceptance criteria (docker build exit 0; docker run + curl health/4 locales; docker compose config resolution; deploy.sh diff empty) plus a 5th regression case verifying the workspace symlink fix (readlink /app/node_modules/app == ../apps/web).",
+    "artifacts_out": ["docs/agents/test-specs/REQ-008.md"],
+    "next_action": "Route to TEST-DESIGN-VALIDATOR (Step 3b)"
+  }
+}
