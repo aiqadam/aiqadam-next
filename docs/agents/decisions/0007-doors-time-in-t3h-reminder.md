@@ -101,10 +101,16 @@ Until then the decision stands and implementation proceeds on it, per Zero Manua
 - **REQ-011** must make a doors item identifiable by a single query, not by loading the
   agenda and scanning it in application code.
 - **REQ-016** must validate agenda items now that one carries behavioural meaning: a doors
-  time later than `starts_at` is refused, and at most one doors item may exist — REQ-026
-  resolves exactly one doors time and has no rule for choosing among several.
-- **REQ-017** must render the card's doors time identically to the reminder's, since both
-  now read the same field and must not disagree.
+  time later than `starts_at` is refused, any item later than `ends_at` is refused, and at
+  most one doors item may exist — REQ-026 resolves exactly one doors time and has no rule
+  for choosing among several. **No lower bound** on how early an item may be: the spec
+  states none, and REQ-VALIDATOR's step-05 gate correctly caught an earlier draft of this
+  requirement inventing a `starts_at − 12h` cutoff, which would have refused a legitimate
+  all-day workshop's setup item. Both surviving bounds derive from PRD §5's own fields.
+- **REQ-017** renders every agenda item with its time and label in the chapter timezone.
+  The card-vs-reminder consistency check lives in **REQ-026**, not here: REQ-017 is a
+  transitive ancestor of REQ-026 and is built first, so only REQ-026 can compare itself
+  against an already-built card renderer. An earlier draft had this backwards.
 
 ## What this does not decide
 
