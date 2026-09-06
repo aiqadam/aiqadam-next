@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-03b-test-design-validator",
+  "run_id": "WF02-REQ-014",
+  "workflow_id": "WF-02",
+  "step": "03b",
+  "from_agent": "ORCH",
+  "to_agent": "TEST-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "FAIL",
+    "summary": "Checks 1/2/3/5/6/7 all PASS (AC4 wording byte-for-byte matches real files, ORDERING case reproduces SECURITY-REVIEWER's re-gate verbatim, AC6 confirmed, no harness committed). Check 4 (AC5) FAILs: the spec's exact grep command against domain/chapter.ts and domain/consent.ts, expected to output nothing, actually returns 2 real hits -- both are explanatory comments mentioning tg_id (to say it's NOT used), not actual code usage. The code is fine; the spec's mechanical pass condition is false as written, forcing TEST-RUNNER into a judgment call Step 3b exists to prevent.",
+    "issues": [{"severity": "MINOR", "description": "docs/agents/test-specs/REQ-014.md's AC5 grep command false-positives on two explanatory comment lines (domain/chapter.ts:53, domain/consent.ts:17). Fix by excluding comment lines from the grep, or explicitly naming these two lines as a permitted comment-only exception with exact text."}],
+    "next_action": "Rework TEST-DESIGNER (iteration 1 of 3)"
+  }
+}

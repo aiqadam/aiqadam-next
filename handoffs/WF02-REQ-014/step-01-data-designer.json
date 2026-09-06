@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-01-data-designer",
+  "run_id": "WF02-REQ-014",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "DATA-DESIGNER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Wrote docs/agents/design/REQ-014-schema.md: chapters.active (boolean NOT NULL DEFAULT true, additive, no S13 trigger). After CODE-DESIGNER surfaced a genuine schema gap, added users.consent_pd_version (text, nullable, mirrors consent_pd_at's pattern) rather than having CODE-DESIGNER invent it. Both columns confirmed additive/no-S13/no-PII-of-their-own. Recommended a single combined migration for both. Zero-active-chapters query shape (LIMIT 2) specified.",
+    "artifacts_out": ["docs/agents/design/REQ-014-schema.md"],
+    "next_action": "Route to CODE-DESIGNER for handler-flow design"
+  }
+}

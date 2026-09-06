@@ -15,6 +15,13 @@
       "when": 1788693666455,
       "tag": "0001_tired_annihilus",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788708617953,
+      "tag": "0002_optimal_mandrill",
+      "breakpoints": true
     }
   ]
 }

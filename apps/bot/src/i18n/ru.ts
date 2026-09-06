@@ -7,6 +7,20 @@ import type { Catalog } from "./types.js";
 export const ru = {
   start: {
     greeting: "Это бот AI Qadam Events.",
+    noActiveChapters: "Отделения пока недоступны.",
+  },
+  chapter: {
+    prompt: "Выберите отделение.",
+  },
+  // Placeholder/provisional wording (REQ-014 design §1) — carries an
+  // explicit "(v1)" version identifier per AC4; not final legal copy.
+  consent: {
+    prompt:
+      "Бот AI Qadam Events сохраняет ваш Telegram ID, имя пользователя и язык интерфейса для регистрации на мероприятия и связи с вами. Эта формулировка предварительная (v1) и будет заменена после согласования с ответственным лицом.",
+    agree: "Согласен",
+  },
+  help: {
+    body: "Этот бот ведёт сообщество AI Qadam. По вопросам обращайтесь к организаторам вашего отделения. (Плейсхолдер: точные контакты и ссылка на сообщество ещё не определены.)",
   },
   lang: {
     prompt: "Выберите язык интерфейса.",

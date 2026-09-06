@@ -38,6 +38,12 @@ export const chapters = pgTable(
     name: text("name").notNull(),
     timezone: text("timezone").notNull(),
     defaultLang: text("default_lang").notNull(),
+    // REQ-014-schema.md §1: the "one active chapter" / "two active chapters"
+    // predicate /start's chapter-assignment logic reads. Plain boolean (no
+    // status enum — nothing in scope describes a third chapter state),
+    // NOT NULL DEFAULT true so a freshly inserted chapter is immediately
+    // usable by the silent-assignment branch with no extra write.
+    active: boolean("active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -64,6 +70,13 @@ export const users = pgTable(
     }),
     broadcastOptIn: boolean("broadcast_opt_in").notNull().default(false),
     consentPdAt: timestamp("consent_pd_at", { withTimezone: true }),
+    // REQ-014-schema.md §10: which consent wording version this user
+    // accepted, set together with consentPdAt by the same write (both null
+    // until consent is accepted). Text, not an integer, since the eventual
+    // product-owner-supplied wording's versioning scheme is not yet known
+    // (§10's reasoning) — no schema-level constraint pairs the two columns;
+    // that discipline lives in the handler write (domain/consent.ts).
+    consentPdVersion: text("consent_pd_version"),
     blocked: boolean("blocked").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

@@ -1,0 +1,26 @@
+id: ISS-0007
+title: buildChapterKeyboard leaves a trailing empty row in the 2+-chapter /start prompt's inline keyboard
+discovered_by: TEST-RUNNER
+discovered_in_run: WF02-REQ-014
+discovered_at: "2026-09-06T00:00:00Z"
+severity: MINOR
+description: >
+  apps/bot/src/handlers/start.ts's buildChapterKeyboard() calls
+  `.text(chapter.name, callback_data).row()` once per chapter in a loop, which
+  leaves one dangling empty row ([]) in reply_markup.inline_keyboard after the
+  last real option -- reproduced verbatim in both AC2b's and the ORDERING
+  case's captured payloads during REQ-014's verification run. This does not
+  violate any of REQ-014's stated acceptance criteria (the buttons themselves
+  are correct: exactly one per active chapter, correct labels, correct
+  callback_data) and Telegram clients typically render an empty row as
+  nothing visible, but it is a real, fixable defect in the keyboard-building
+  helper.
+
+  Suggested fix: build the keyboard without calling .row() after the final
+  chapter, e.g. accumulate rows in an array and only call .row() between
+  items, or use grammY's InlineKeyboard.text(...).row() pattern correctly
+  (check grammY's own examples for the idiomatic multi-row-of-one-button
+  construction).
+affected_files:
+  - apps/bot/src/handlers/start.ts
+status: open

@@ -10,6 +10,26 @@
 export interface Catalog {
   start: {
     greeting: string;
+    // NEW, REQ-014: zero-active-chapters edge case (design §2.3) — shown
+    // instead of a chapter assignment, /start continues to the consent step.
+    noActiveChapters: string;
+  };
+  // NEW, REQ-014: shown only when >=2 active chapters exist (design §2.3).
+  chapter: {
+    prompt: string;
+  };
+  // NEW, REQ-014: the personal-data consent prompt (design §2.4). The
+  // wording carries its own "(v1)" version tag inline; the version actually
+  // recorded on acceptance comes from the server-side CONSENT_WORDING_VERSION
+  // constant (domain/consent.ts), never from this string.
+  consent: {
+    prompt: string;
+    agree: string;
+  };
+  // NEW, REQ-014: /help's entire visible response (design §4) — one lookup,
+  // no string concatenation.
+  help: {
+    body: string;
   };
   lang: {
     prompt: string;
