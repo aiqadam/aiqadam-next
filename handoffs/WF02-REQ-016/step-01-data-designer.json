@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-01-data-designer",
+  "run_id": "WF02-REQ-016",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "DATA-DESIGNER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Wrote docs/agents/design/REQ-016-schema.md: users.pending_source (nullable text, additive, no S13 trigger). Confirmed agenda[] needs no schema change for AC6/AC7 (application-level validation). Reasoned single-field (not per-event) design against AC5's literal 'held against the user' wording.",
+    "artifacts_out": ["docs/agents/design/REQ-016-schema.md"],
+    "next_action": "Route to CODE-DESIGNER for handler-flow design"
+  }
+}
