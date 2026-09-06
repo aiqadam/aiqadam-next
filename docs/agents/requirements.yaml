@@ -611,7 +611,7 @@ requirements:
   - id: REQ-010
     title: Bot data model and initial migration for Chapter, User and Profile
     owner: DATA-DESIGNER
-    status: in_progress
+    status: done
     description: >
       First slice of PRD 14 build-order step 1 ("Skeleton: bot, DB, migrations, config,
       /start, i18n scaffold, chapter assignment"). Step 1 is far larger than one agent
