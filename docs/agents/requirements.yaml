@@ -441,7 +441,7 @@ requirements:
   - id: REQ-007
     title: Move the Next.js site from the repo root into apps/web and establish the npm workspace root
     owner: FRONTEND-DEV
-    status: pending
+    status: in_progress
     description: >
       Implements the layout half of docs/agents/decisions/0003-events-bot-subproject.md
       ("Layout: the site moves to apps/web"). This is the FIRST requirement of the

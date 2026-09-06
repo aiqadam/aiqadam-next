@@ -88,3 +88,8 @@ history:
     run_id: WF02-REQ005-REQ006
     at: "2026-08-28T07:14:45Z"
     note: "RELEASE-VALIDATOR PASSed REQ-006 (real Cyrillic-script Kazakh copy for all 177 keys in messages/kk.json). requirements.yaml's REQ-006 entry needed no content correction; status flipped to done. Also corrected a MINOR documentation defect RELEASE-VALIDATOR carried forward: docs/agents/test-specs/REQ-006.md's AC1 brend/kod sub-check 'Expected' sample listed Footer.licenseBrand/Footer.licenseCode in the brend_keys/kod_keys output, but the script only matches lowercase/title-case forms (brend/Brend, kod/Kod) and both license values hold the word ALL-CAPS (BREND/KOD in Cyrillic), which the script's .includes() checks cannot match -- corrected the sample to omit those two keys and added a note explaining why. README.md rechecked (grep for locale/i18n/translat/kazakh terms) -- still create-next-app boilerplate with no i18n mentions, no update needed. Both REQ-005 and REQ-006 now done -- run WF02-REQ005-REQ006 ready for Step Final git merge."
+  - requirement_id: REQ-007
+    event: started
+    run_id: WF02-REQ-007
+    at: "2026-09-06T06:59:12Z"
+    note: "REQ-007 gate-passed at WF01-EVENTS-BOT-SPEC step-02/06 (Events Bot monorepo migration programme, docs/agents/decisions/0003). Starting WF-02: Step 00 (git setup) complete, branch feature/WF02-REQ-007 pushed. First requirement of the Events Bot programme -- REQ-008..REQ-032 depend on it transitively. GitHub issue #10 tracks it for the human owner."
