@@ -8,16 +8,45 @@
   "file": "handoffs/WF01-EVENTS-BOT-SPEC/step-02-req-validator.json",
   "created_at": "2026-09-06T03:51:39Z",
   "started_at": "2026-09-06T03:51:39Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-09-06T03:54:20Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
-    "requirement_ids": ["REQ-007", "REQ-008", "REQ-009", "REQ-010", "REQ-011", "REQ-012", "REQ-013", "REQ-014", "REQ-015", "REQ-016", "REQ-017", "REQ-018", "REQ-019", "REQ-020", "REQ-021", "REQ-022", "REQ-023", "REQ-024", "REQ-025", "REQ-026", "REQ-027", "REQ-028", "REQ-029", "REQ-030", "REQ-031", "REQ-032"],
+    "requirement_ids": [
+      "REQ-007",
+      "REQ-008",
+      "REQ-009",
+      "REQ-010",
+      "REQ-011",
+      "REQ-012",
+      "REQ-013",
+      "REQ-014",
+      "REQ-015",
+      "REQ-016",
+      "REQ-017",
+      "REQ-018",
+      "REQ-019",
+      "REQ-020",
+      "REQ-021",
+      "REQ-022",
+      "REQ-023",
+      "REQ-024",
+      "REQ-025",
+      "REQ-026",
+      "REQ-027",
+      "REQ-028",
+      "REQ-029",
+      "REQ-030",
+      "REQ-031",
+      "REQ-032"
+    ],
     "requirement_text": {},
     "source_text": {
       "note-on-source": "The requirements under gate were adapted from an EXTERNAL specification at C:/tmp/AI-Qadam-Events-Bot-Spec/ (README.md, PRD.md, USER-STORIES.md, STORY-DETAILS.md, RE-EVALUATION.md, DESIGN-REVIEW.md, JOURNEY-AUDIT.md). PRD.md is the authoritative document. You need it to run check (b) CONSISTENCY and to verify fidelity claims — a requirement that cites 'PRD FR-7' must actually say what FR-7 says. Read the spec; do not take REQ-ANALYST's characterization of it on trust."
     },
-    "related_handoff_ids": ["c46ce80c-84e6-4310-a13b-0e32dc7f0011"],
+    "related_handoff_ids": [
+      "c46ce80c-84e6-4310-a13b-0e32dc7f0011"
+    ],
     "artifacts_in": [
       "docs/agents/requirements.yaml",
       "handoffs/WF01-EVENTS-BOT-SPEC/step-01-req-analyst.json",
@@ -45,10 +74,31 @@
     ]
   },
   "result": {
-    "status": null,
-    "summary": null,
+    "status": "PASS",
+    "summary": "Gated REQ-007..REQ-032 by re-deriving every property from the artefacts, not from REQ-ANALYST's summary. All five WF-01 Step 2 checks were run against each of the 26. (a) TESTABILITY: every AC names a constructed state, a command, or a table/row read, and states what counts as evidence; many explicitly disqualify a non-exercising run (REQ-017 AC2 requires process TZ set to a different zone than the chapter's; REQ-019 AC1 requires an actual process kill mid-form; REQ-020 AC1 requires 20+ concurrent runs; REQ-023 AC2 requires the event inside T-24h; REQ-028 AC1 requires the stale-toggle interleaving). No vague terms ('appropriately', 'as needed', 'looks good') appear in any of the 26. (b) CONSISTENCY: checked against the three decision records and the six done requirements. REQ-007 implements decisions/0003's 'site moves to apps/web' and honours its 'REQ-001a..REQ-006 are not rewritten' rule, carrying the path-mapping note instead; verified byte-for-byte that they were not rewritten. REQ-009 resolves the three questions decisions/0003 explicitly left open (framework, ORM, test runner) as decision records rather than inline choices, per Zero Manual Work clause 1. REQ-013 correctly refuses to create packages/ per 0003's 'only when a second consumer exists' and leaves bot copy to CONTENT-BA per decisions/0002. Owners BACKEND-DEV and DATA-DESIGNER are legitimate: both are registered in AGENT_SYSTEM.md and .claude/agents/ per decisions/0003. SPEC FIDELITY (part of check b), checked against the actual PRD text at C:/tmp/AI-Qadam-Events-Bot-Spec/PRD.md: PRD 5's computed-never-stored list is honoured -- REQ-010 AC5 and REQ-011 AC5 grep the migrations for no_show, waitlist_position, seats_taken, registration_open and finished; REQ-017 AC4, REQ-021 AC3 and REQ-032 AC4 re-grep at the point each value would be tempting to cache; the list's other two members (speaker lineup, past talks) are Release 3 and correctly absent. REQ-011 correctly distinguishes the STORED no_show_reason (PRD 5 lists it on Registration, FR-16 ranks it) from the DERIVED no_show. PRD 6's state machine is reproduced exactly: five admission values, attendance modelled as checked_in_at and not a sixth enum (REQ-011 AC4 proves it by attempting admission='checked_in'), and the T-24h auto-promotion halt is a hard rule in REQ-023 with a negative-case AC. FR-7's two-row reminder table matches REQ-026 exactly (T-24h two buttons setting reconfirmed_at / withdrawn; T-3h address, both map links, start time, QR). FR-14's five-row refusal matrix maps case-for-case onto REQ-029, including the non-staff refusal that must WRITE an audit row (REQ-029 AC1 fails the criterion on zero audit rows). PRD 12's eight invariants are all covered: 12.1 REQ-011/REQ-020, 12.2 REQ-020/REQ-030, 12.3 REQ-028/REQ-029, 12.6 REQ-024, 12.7 across REQ-015/016/018/020/022/023/028/029/030, 12.8 REQ-025/026/027 (12.4 and 12.5 are Talk invariants, Release 3, correctly absent). REQ-030's organizer-only walk-in is confirmed against STORY-DETAILS C5's 'organizer' actor line, and its reconciliation with FR-14a is sound. REQ-028's noted variance between STORY-DETAILS C4 ('built alongside C3') and PRD 14/README ('before the QR scanner') is quoted accurately and resolved toward PRD as the authoritative document. (c) DEPENDS_ON: the graph was rebuilt independently from the parsed YAML. Zero orphaned references across all 33 entries, zero cycles (DFS over the whole graph), and every one of the 26 resolves transitively to exactly the single root REQ-007. The ordering is also semantically right where it matters: REQ-012 depends on REQ-011 (needs both migrations to run), REQ-019 on REQ-018, REQ-020 on REQ-019+REQ-017, REQ-028 on REQ-027+REQ-018, and PRD 14's 'manual list before QR' is enforced structurally by REQ-029 depends_on [REQ-028] -- verified in the file. USER-STORIES' INVEST sequencing B3->B5->B4 is mirrored by REQ-021->REQ-022->REQ-023. (d) DESIGN-SYSTEM FIT: applicable only where a visual surface exists. REQ-007 and REQ-008 move and repoint the site and assert it still renders identically (all four locales with matching <html lang>, /health 200, catalog key-set parity) -- no new colour, font or copy pattern is introduced, so the design system is unaffected. REQ-013 explicitly leaves apps/web/messages/*.json unchanged. The remaining 24 are backend/bot work with no apps/web surface; design-system fit is recorded as INAPPLICABLE for them rather than forced. (e) SIZE: verified in both directions. REQ-007 is a bounded mechanical git mv plus one new root package.json, with Docker/CI deliberately split into REQ-008 and the bot skeleton into REQ-009 -- one verifiable surface, correctly sized. REQ-009 is the largest and was scrutinised specifically: skeleton + three decision records + test runner is cohesive rather than three unrelated deliverables, because the skeleton cannot be written without choosing the framework and ORM, and AGENT_SYSTEM.md 7 makes the test-runner record a prerequisite of the first logic requirement; it stays one turn. PRD 14's six build-order steps are split 4/3/6/3/3/2 across the 26, which is the 'several requirements per step' the dispatch asked for. No requirement smuggles multiple unrelated deliverables. Two are on the thin side (recorded as MINOR, not FAIL). CLAIM RE-DERIVATION: all five of REQ-ANALYST's factual claims were independently re-derived and all five hold. (1) `git diff abcae05^ abcae05 --numstat` returns '1164 0 docs/agents/requirements.yaml'; a diff grep for deletion lines returns 0; and the old 439-line file compared byte-for-byte against the first 439 lines of the new one with `cmp` is identical, so REQ-001a..REQ-006 are genuinely untouched. (2) The file parses under yaml.safe_load; all 33 entries carry exactly the seven canonical fields with none invented; all 26 new ones are status pending with 4-7 acceptance criteria (claim said >=2). (3) Graph rebuilt as above. (4) Independently assessed -- see issues; the seven-without-an-S-number count is accurate for own-scope citations (REQ-032's three S-number hits occur only in its Release-boundary paragraph describing FUTURE requirements, not its own scope), and my own judgement agrees that none of the seven leaves a security property uncovered: REQ-007/REQ-008 are a file move and a path repoint with no personal data, auth, token, consent or audit surface; REQ-013 writes only users.lang, a display preference; REQ-017 renders event data (title, venue, agenda, computed seats) to the event's own chapter and surfaces no attendee-identifying field, with the FR-2 lineup element -- the only part that would engage S14 publish consent -- explicitly deferred to Release 3; REQ-021 shows the requesting user their own computed rank, not another person's data; REQ-026 and REQ-032 do engage S9/S10 and cover both properties behaviourally while citing PRD 9 / PRD 12.8 instead of the S-numbers, recorded as MINOR below. (5) REQ-029 depends_on [REQ-028] confirmed in the file. SCOPE BOUNDARY: confirmed held. No Release 2 or Release 3 requirement was drafted -- checked the 26 for approval requests, invite codes, +1 companions, invitation list, CFP/Talk, lineup, segmented broadcast, wishlist rows, CSV export and manual promotion; each appears only as an explicit out-of-scope statement (REQ-017 defers the FR-2 lineup, REQ-020 refuses requires_invite/requires_approval events rather than admitting, REQ-021 defers waitlist closure, REQ-031 omits 'want to speak', REQ-017 forbids creating a Wishlist row). REQ-032's description states the boundary explicitly and enumerates both later releases plus the never-draft Later/Non-goals lists.",
     "artifacts_out": [],
-    "issues": [],
-    "next_action": null
+    "issues": [
+      {
+        "severity": "MINOR",
+        "description": "S-number traceability gap, not a coverage gap. REQ-026 and REQ-032 each engage security-invariants.md S9 (notification idempotency per (registration,kind)) and S10 (transactional vs marketing) but cite only PRD 9 / PRD 12.8 for them. The properties themselves ARE covered behaviourally by their acceptance criteria (REQ-026 AC3 requires a kill-restart-rerun delivering exactly one message; REQ-026 AC7 and REQ-032 AC6 each require delivery to a broadcast_opt_in=false user). No gate hole results: security-reviewer.md requires SECURITY-REVIEWER to run every applicable item of security-invariants.md against the diff itself and to record a reason for any N/A, so it does not depend on the requirement citing the S-number. Recorded so the citation can be added when either requirement is next touched.",
+        "affected_requirement": "REQ-026"
+      },
+      {
+        "severity": "MINOR",
+        "description": "REQ-026 does not restate S10's third clause -- that `blocked` users are skipped. This is not a hole, because REQ-026 sends exclusively through REQ-025's send API and REQ-025 AC4 requires a blocked user to receive neither a transactional nor a marketing send. Noted only so a later reader does not conclude the reminder jobs were exempted from it.",
+        "affected_requirement": "REQ-026"
+      },
+      {
+        "severity": "MINOR",
+        "description": "Two requirements are thin relative to their neighbours -- bookkeeping-adjacent rather than oversized. REQ-021 (waitlist placement, 4 ACs) is essentially one query expression plus a message, and REQ-008 (Dockerfile/compose/CI repoint, 4 ACs) is a path fix. Both are still real, independently verifiable work with a genuine failure mode (a stored position column; a broken image build), and both sit at natural split points that keep REQ-020's and REQ-007's blast radius to one surface. Recorded per the dispatch's instruction to note thinness as MINOR; NOT a FAIL and no merge is recommended.",
+        "affected_requirement": "REQ-021"
+      },
+      {
+        "severity": "MINOR",
+        "description": "Six of the 26 (REQ-009, REQ-014, REQ-016, REQ-023, REQ-026, REQ-032) resolve an open question or record a provisional decision inside the requirement description rather than in a docs/agents/decisions/ record. For REQ-009 this is correct and explicit (it MANDATES three decision records as deliverables). For the others -- REQ-026's doors-open time, REQ-014's and REQ-032's provisional wording, REQ-016's and REQ-023's deliberately deferred notification/ledger splits -- the reasoning is written down and the deferral is visible, which satisfies the intent, but a future reader looking only in decisions/ will not find them. Consider whether ORCH wants REQ-026's doors-open resolution promoted to a decision record when it is implemented.",
+        "affected_requirement": "REQ-026"
+      }
+    ],
+    "next_action": "PASS -- REQ-007..REQ-032 are ready for WF-02. Recommend ORCH schedule them in dependency order starting with REQ-007, then REQ-008 and REQ-009 (both depend only on REQ-007). The four MINOR issues are traceability/bookkeeping notes requiring no rework of the requirement text before WF-02 picks it up."
   }
 }
