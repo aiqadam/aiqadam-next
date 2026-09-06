@@ -1,0 +1,178 @@
+run_id: WF02-REQ-011
+date: 2026-09-06T11:34:15Z
+branch: feature/WF02-REQ-011
+head_sha: 85db77003928af57dd87774273216d5f89e4ae57
+requirement: REQ-011 (Bot data model and migration: Venue, Event, Registration, EventStaff, AuditLog)
+spec: docs/agents/test-specs/REQ-011.md
+
+lint: pass
+lint_notes: >
+  `npm run lint` — 0 errors, 2 pre-existing warnings (no-img-element in
+  apps/web/src/components/landing/Footer.tsx and Nav.tsx), unrelated to this
+  requirement's scope (apps/bot data model/migration). No lint output at all for
+  apps/bot.
+
+build: pass
+build_notes: >
+  `npm run build` — apps/web Next.js build compiled successfully (Turbopack,
+  0 type errors); apps/bot `tsc -p tsconfig.json` completed with no output/errors.
+
+unit_tests: pass
+unit_tests_notes: >
+  `npm test` (vitest run) — 1 test file, 5 tests, all passed. Not related to
+  REQ-011 (no automated DB-fixture test suite exists yet per
+  docs/guides/qa_testing_guide.md §1/§7 and the spec's own "Verification kind" note) —
+  included per instructions to run `npm run lint && npm run build && npm test`.
+
+verification_method: >
+  Scratch Postgres 16-alpine container (req011-pg-verify) launched via `docker run`,
+  both migrations (apps/bot/drizzle/0000_tough_lilith.sql then
+  apps/bot/drizzle/0001_tired_annihilus.sql) applied via `psql -f` in order, then every
+  case in docs/agents/test-specs/REQ-011.md executed against it verbatim. Container
+  removed (`docker rm -f req011-pg-verify`) after the S6 CHECK case; confirmed absent
+  from `docker ps -a` afterward.
+
+migration_apply:
+  result: pass
+  notes: >
+    Both migration files applied with zero ERROR lines. Command-tag counts differ from
+    the spec's literal "Expected" listing for 0001 (spec lists 9 ALTER TABLE / 3 CREATE
+    UNIQUE INDEX / 1 CREATE INDEX; actual is 10 ALTER TABLE / 4 CREATE INDEX). This is a
+    TEST-DESIGNER spec-authoring inaccuracy, not a migration defect: (1) the real
+    0001_tired_annihilus.sql file has 10 FK ALTER TABLE statements (lines 79-88), not 9;
+    (2) PostgreSQL's real psql command tag for a `CREATE UNIQUE INDEX` statement is
+    always `CREATE INDEX` (Postgres has no separate "CREATE UNIQUE INDEX" tag) — so 3 of
+    the 4 actual `CREATE INDEX` lines correspond to unique indexes even though the tag
+    text doesn't say so. The substantive property under test (both migrations apply
+    without error, non-additively confirmed structurally correct by every downstream AC
+    below actually exercising the resulting schema) holds. Reported to ORCH as a MINOR
+    finding for docs/issues/ per core-directives.md "No Issue Left Local-Only" — not
+    blocking this run's PASS since it is a spec-text inaccuracy, not an implementation
+    defect, and every downstream AC independently re-verifies the real schema shape.
+
+cases:
+  - acceptance_criterion: AC1
+    description: UUID PKs + created_at/updated_at timestamptz on venues/events/registrations/event_staff/audit_log
+    result: pass
+    notes: >
+      `\d+` on all five tables confirms: id uuid not null default gen_random_uuid(),
+      listed as "<table>_pkey" PRIMARY KEY btree(id); created_at and updated_at both
+      timestamp with time zone, not null, default now(). Verified on venues, events,
+      registrations, event_staff, audit_log — all five match exactly.
+
+  - acceptance_criterion: AC2
+    description: UNIQUE(event_id, user_id) on registrations enforced
+    result: pass
+    notes: >
+      First insert -> INSERT 0 1. Second identical insert -> "ERROR: duplicate key value
+      violates unique constraint \"uq_registrations_event_user\" / DETAIL: Key
+      (event_id, user_id)=(<event>, <user>) already exists." Exact constraint name
+      matched.
+
+  - acceptance_criterion: AC3
+    description: registrations.qr_token UNIQUE and nullable
+    result: pass
+    notes: >
+      Two inserts with qr_token=NULL (distinct user_id each) both succeeded (INSERT 0 1
+      each). First non-null 'tok_abc123' insert succeeded. Second non-null 'tok_abc123'
+      insert (different user_id, so uq_registrations_event_user doesn't also fire) ->
+      "ERROR: duplicate key value violates unique constraint
+      \"registrations_qr_token_unique\" / DETAIL: Key (qr_token)=(tok_abc123) already
+      exists." Exact constraint name matched.
+
+  - acceptance_criterion: AC4
+    description: admission enum accepts exactly the 5 PRD 6 values, rejects a 6th
+    result: pass
+    notes: >
+      Insert with admission='checked_in' -> "ERROR: invalid input value for enum
+      admission: \"checked_in\"" (exact wording, matches the native `admission` ENUM
+      created in 0001_tired_annihilus.sql line 1). Positive confirmation: insert with
+      admission='withdrawn' -> INSERT 0 1.
+
+  - acceptance_criterion: AC5
+    description: no column for a PRD 5 computed-never-stored value; no_show_reason present and distinct
+    result: pass
+    notes: >
+      Forbidden-name grep (no_show[^_]|no_show$|waitlist_position|seats_taken|
+      registration_open|finished) against 0001_tired_annihilus.sql produced zero output,
+      exit code 1, as expected. Separate positive grep for no_show_reason produced
+      exactly one match at line 58 (`"no_show_reason" text,`); \d+ registrations lists
+      no_show_reason as a nullable text column. Design-doc grep for
+      "derived.*no_show|no_show.*derived" against docs/agents/design/REQ-011.md found 3
+      matches (lines 223, 479, 549), confirming the two concepts are kept distinct in
+      the design artefact.
+
+  - acceptance_criterion: AC6
+    description: "agenda[] doors-item single-query lookup; no doors_at column"
+    result: pass
+    notes: >
+      Inserted a second event with a 3-item agenda (doors/networking/close) matching
+      design doc §3's worked example. Query 1 (jsonb_path_query_first) returned exactly
+      one row/column: "2026-10-01T15:00:00Z". Query 2 (jsonb_array_elements + @>/->>)
+      returned exactly one row/column: "2026-10-01T15:00:00Z" as doors_at. Neither query
+      returned the networking (15:30) or close (19:00) items, nor the full array. grep
+      for doors_at against 0001_tired_annihilus.sql produced zero output, exit code 1.
+
+  - acceptance_criterion: AC7
+    description: design artefact states derivation expressions and S2/S11 statements
+    result: pass
+    notes: >
+      All 5 greps against docs/agents/design/REQ-011.md matched: no_show derivation
+      (line 268, exact text `admission = 'admitted' AND checked_in_at IS NULL AND
+      $evaluation_time > ends_at`); waitlist_position formula (line 269, RANK() OVER
+      (PARTITION BY event_id ORDER BY created_at ASC) / count-based); seats_taken
+      derivation (line 270, exact text `SELECT count(*) FROM registrations WHERE
+      event_id = $1 AND admission = 'admitted'`); S2 statement (line 290, "grants
+      check-in rights for" — scoped to exactly the one event_id on that row); S11
+      statement (line 325, "must never carry plaintext phone or email"). None of the
+      matched text is a hedge/deferral.
+
+  - acceptance_criterion: S6-CHECK
+    description: "chk_registrations_checked_in_only_if_admitted CHECK constraint (SECURITY-REVIEWER finding, not a literal AC)"
+    result: pass
+    notes: >
+      Insert with admission='requested' and non-null checked_in_at -> "ERROR: new row
+      for relation \"registrations\" violates check constraint
+      \"chk_registrations_checked_in_only_if_admitted\"" (exact constraint name).
+      Positive confirmation: same checked_in_at value with admission='admitted' ->
+      INSERT 0 1.
+
+ci:
+  head_sha: 85db77003928af57dd87774273216d5f89e4ae57
+  run_id: 34030495026
+  run_url: https://github.com/aiqadam/aiqadam-next/actions/runs/34030495026
+  status: completed
+  conclusion: success
+  jobs:
+    build: success
+    deploy-prod: skipped
+    deploy-qa: skipped
+  notes: >
+    `gh run list --branch feature/WF02-REQ-011` confirms the most recent run
+    (34030495026, triggered by the REQ-011 test-spec commit) matches the branch's
+    current HEAD sha exactly and is completed/success. `gh run view --json jobs`
+    confirms the `build` job itself succeeded (deploy-prod/deploy-qa correctly skipped,
+    not applicable on a feature branch).
+
+overall: PASS
+routing: "Route to RELEASE-VALIDATOR"
+
+issues_found:
+  - severity: minor
+    title: "REQ-011 test spec's literal migration-apply expected output undercounts ALTER TABLE and mislabels unique-index command tags"
+    description: >
+      docs/agents/test-specs/REQ-011.md's "Shared setup" section lists an exact expected
+      psql command-tag sequence for applying 0001_tired_annihilus.sql: 9x ALTER TABLE,
+      3x CREATE UNIQUE INDEX, 1x CREATE INDEX. The real migration file
+      (apps/bot/drizzle/0001_tired_annihilus.sql) contains 10 ALTER TABLE statements
+      (lines 79-88, one per FK constraint) and Postgres's actual psql command tag for
+      any CREATE INDEX statement — unique or not — is always "CREATE INDEX" (there is no
+      separate "CREATE UNIQUE INDEX" tag in real Postgres output). Actual observed output
+      when applying the migration against a real Postgres 16 instance: 10x ALTER TABLE,
+      4x CREATE INDEX. Not a migration defect — the migration itself applies cleanly
+      with zero errors, and every downstream AC (AC1-AC7, S6) independently re-verifies
+      the resulting schema shape and all pass. Recommend TEST-DESIGNER correct the
+      expected-output block in the spec's Shared Setup section.
+    affected_files:
+      - docs/agents/test-specs/REQ-011.md
+    reported_to: ORCH

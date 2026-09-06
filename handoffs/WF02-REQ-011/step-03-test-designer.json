@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-03-test-designer",
+  "run_id": "WF02-REQ-011",
+  "workflow_id": "WF-02",
+  "step": "03",
+  "from_agent": "ORCH",
+  "to_agent": "TEST-DESIGNER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Wrote docs/agents/test-specs/REQ-011.md with one case per AC (7) plus an extra S6 CHECK-constraint case. All constraint names/error text pulled from the real migration file, not guessed. AC5's forbidden-name grep correctly excludes no_show_reason via a word-boundary pattern. AC6 reuses the design doc's already-verified 3-item agenda example and both JSONB queries verbatim.",
+    "artifacts_out": ["docs/agents/test-specs/REQ-011.md"],
+    "next_action": "Route to TEST-DESIGN-VALIDATOR (Step 3b)"
+  }
+}
