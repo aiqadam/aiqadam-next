@@ -1,0 +1,25 @@
+id: ISS-0004
+title: Root .gitignore's /.next/ pattern does not cover apps/web/.next/ after the monorepo move
+discovered_by: FRONTEND-DEV
+discovered_in_run: WF02-REQ-007
+discovered_at: "2026-09-06T07:13:10Z"
+severity: MINOR
+description: >
+  REQ-007 moved the Next.js site into apps/web/. The repo-root .gitignore's /.next/
+  pattern is anchored to the repo root (leading slash) and does not match
+  apps/web/.next/, so the workspace's build output is no longer gitignored.
+
+  Not fixed in REQ-007 because .gitignore is explicitly out of scope per
+  docs/agents/design/REQ-007.md section 6 (only the file-move and workspace root were
+  in scope). Verified during REQ-007's Step 2 build: a stray apps/web/.next/ was
+  produced by the runtime verification and confirmed untracked-but-not-ignored before
+  being removed pre-commit, so this did not leak into the merged commit, but the next
+  requirement that runs a build without noticing could commit it.
+
+  Fix: change the root .gitignore's /.next/ entry to a repo-wide **/.next/ (or add an
+  explicit apps/web/.next/ / apps/bot/.next/ pair), whichever the implementing
+  requirement's design artefact specifies. Small enough to fold into REQ-008 (which
+  already touches deploy/CI path config) rather than filed as its own requirement.
+affected_files:
+  - .gitignore
+status: open
