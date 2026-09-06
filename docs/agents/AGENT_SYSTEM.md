@@ -127,14 +127,16 @@ mediating this, unlike letflow. See §7 for why, and the trigger for revisiting 
 - ~~**Security invariants gate**~~ — **added 2026-09-06.** The trigger fired: the Events
   Bot stores personal data under a consent model. `SECURITY-REVIEWER` and
   [instructions/security-invariants.md](instructions/security-invariants.md) now exist.
-- **Automated test framework / real TEST-RUNNER automation** — `package.json` has no test
-  runner today. TEST-DESIGNER/TEST-RUNNER operate against manual checklists (see
-  [guides/qa_testing_guide.md](../guides/qa_testing_guide.md)) until one is introduced;
-  see decision record trigger in §3. **This trigger is now imminent, not theoretical:**
-  the Events Bot's domain logic (admission state machine, auto-promotion, idempotent
-  notifications, capacity under concurrency) cannot be verified by a manual checklist,
-  so a test-framework decision record is a prerequisite of the bot's first logic
-  requirement — see `docs/agents/requirements.yaml` REQ-009.
+- ~~**Automated test framework / real TEST-RUNNER automation**~~ — **decided 2026-09-06.**
+  The trigger fired: the Events Bot's domain logic (admission state machine,
+  auto-promotion, idempotent notifications, capacity under concurrency) cannot be
+  verified by a manual checklist. **Vitest** is the runner —
+  [decisions/0006-test-framework-vitest.md](decisions/0006-test-framework-vitest.md).
+  It is *installed* by REQ-009, so until that requirement lands, TEST-DESIGNER and
+  TEST-RUNNER continue on manual checklists (see
+  [guides/qa_testing_guide.md](../guides/qa_testing_guide.md)); from REQ-010 onward
+  TEST-DESIGNER writes runnable test code for bot logic, and manual checklists remain
+  correct only for genuinely visual properties.
 - **Volume-rolling for `requirement_status.yaml`** — letflow splits its run-history file
   into bounded volumes once it grows large. This project's file starts empty; add a roll
   rule only once a full read genuinely becomes impractical (see the file's own header).

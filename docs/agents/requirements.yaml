@@ -526,37 +526,37 @@ requirements:
     depends_on: [REQ-007]
 
   - id: REQ-009
-    title: Create the apps/bot workspace skeleton with decision records for the Telegram framework, ORM and test runner
+    title: Create the apps/bot workspace skeleton on grammY, Drizzle and Vitest
     owner: BACKEND-DEV
     status: pending
     description: >
       Creates the empty-but-buildable apps/bot workspace that every later bot
-      requirement writes into, and — critically — is the requirement in which the three
-      still-open technology questions get DECIDED AND RECORDED, rather than silently
-      resolved by whichever agent writes the first handler.
+      requirement writes into.
 
-      THREE OPEN QUESTIONS THIS REQUIREMENT MUST RESOLVE AS docs/agents/decisions/
-      RECORDS (per core-directives.md's Zero Manual Work clause 1 — options named
-      explicitly, one chosen with a written rationale; never picked silently in code):
+      SCOPE CHANGE, 2026-09-06 — the three technology questions this requirement
+      originally had to resolve are now DECIDED, by ORCH, on the project owner's
+      explicit delegation of all open technical decisions. This requirement no longer
+      writes those decision records; it IMPLEMENTS them. Reversing or re-litigating any
+      of the three is forbidden here — a decisions/ record is never overridden by a
+      requirement, per core-directives.md's Instruction Precedence:
 
-      (a) TELEGRAM FRAMEWORK — grammY vs Telegraf. decisions/0003 "What this record
-          does not decide" leaves this open explicitly. Both are maintained
-          open-source TypeScript Bot API libraries and both satisfy PRD 11's
-          zero-licence-cost/self-hosted constraint; the choice is a genuine preference
-          between two viable options, so it needs a record, not an inline import.
+      (a) TELEGRAM FRAMEWORK — grammY. See
+          docs/agents/decisions/0004-telegram-framework-grammy.md. Note that record's
+          binding consequence for all later bot work: domain logic (admission state
+          machine, capacity, promotion, idempotency) lives in framework-free modules
+          that handlers call, NEVER inside grammY handler bodies. REVIEWER treats a
+          domain rule embedded in a handler as a finding.
 
-      (b) ORM / MIGRATION TOOL — likewise left open by decisions/0003. Whatever is
-          chosen must support the constraints PRD 1 and 11 state: UUID primary keys,
-          no Telegram-only business key, versioned migrations, and exportability
-          ("the AI Qadam platform will take this over later").
+      (b) ORM / MIGRATION TOOL — Drizzle ORM with Drizzle Kit. See
+          docs/agents/decisions/0005-orm-drizzle.md. Migrations are committed as
+          generated .sql files and reviewed as SQL; a migration dropping or rewriting a
+          column holding personal data or attendance history needs SECURITY-REVIEWER
+          sign-off under security-invariants.md S13.
 
-      (c) TEST FRAMEWORK — docs/agents/AGENT_SYSTEM.md 7 records that this project has
-          no test runner and names the trigger as now imminent, because the bot's
-          admission state machine (PRD 6), capacity atomicity (PRD 12.2) and
-          notification idempotency (PRD 12.8) cannot be verified by a manual
-          checklist. AGENT_SYSTEM.md 7 states the decision record is a prerequisite of
-          the bot's FIRST LOGIC requirement — that is REQ-020 (registration/admission),
-          so this requirement is where it is settled.
+      (c) TEST FRAMEWORK — Vitest, at the repo root, covering both workspaces. See
+          docs/agents/decisions/0006-test-framework-vitest.md. That record also adds a
+          `npm test` step to .github/workflows/ci-cd.yml, which THIS requirement makes,
+          since it is the requirement that first makes `npm test` meaningful.
 
       Scope of work:
       - Create apps/bot/package.json as a workspace member (picked up by the root
@@ -567,12 +567,15 @@ requirements:
       - Add root-level scripts so `npm run lint` and `npm run build` at the repo root
         cover BOTH workspaces, keeping .github/workflows/ci-cd.yml's existing
         invocations correct without editing the workflow.
-      - Write the three decision records under docs/agents/decisions/ (next free
-        numbers after 0003), each naming the options considered, the choice, and the
-        rationale against PRD 11's stated constraints.
-      - Wire the chosen test runner so `npm test` at the repo root runs and passes with
-        at least one real assertion, giving TEST-DESIGNER and TEST-RUNNER a runnable
-        target from REQ-010 onward.
+      - Add the decided dependencies to apps/bot/package.json, each pinned to an exact
+        version: `grammy`, `drizzle-orm`, `drizzle-kit`, a Postgres driver, and `vitest`
+        (vitest at the root, since it covers both workspaces). Do NOT add grammY plugins
+        (conversations, sessions, rate limiting, runner) at this stage — they are added
+        by the requirement that first needs each, keeping this requirement's
+        no-domain-logic boundary intact.
+      - Wire Vitest so `npm test` at the repo root runs and passes with at least one
+        real assertion, giving TEST-DESIGNER and TEST-RUNNER a runnable target from
+        REQ-010 onward.
       - NO domain logic, NO database schema, NO handlers beyond a health/liveness path.
         Those are REQ-010 onward.
       - Secrets: the bot token and database URL are read from the environment only.
@@ -580,8 +583,9 @@ requirements:
         (security-invariants.md S11 — PII and credentials never in plaintext logs).
     acceptance_criteria:
       - "apps/bot/package.json exists as a workspace member and `npm install` at the repo root resolves both apps/web and apps/bot without error; `npm run lint` and `npm run build` from the repo root both exit 0 and cover apps/bot (verified by deliberately introducing a type error in apps/bot/src and confirming `npm run build` then FAILS, then reverting — a build that passes without ever compiling apps/bot is not evidence)."
-      - "Three new docs/agents/decisions/ records exist (numbered after 0003) covering the Telegram framework, the ORM/migration tool and the test framework; each names at least two options considered, states the choice, and gives a rationale citing PRD 11's constraints. A record that names one option is a FAIL of this criterion."
-      - "`npm test` at the repo root runs the chosen test runner and reports at least one passing assertion, with the real command output captured in the verification report."
+      - "apps/bot/package.json depends on `grammy`, `drizzle-orm`, `drizzle-kit` and a Postgres driver, and the repo root depends on `vitest` — every one pinned to an exact version (no `^` or `~`), matching decisions/0004, 0005 and 0006. A dependency on Telegraf, Prisma, Jest or node:test is a FAIL, as is any grammY plugin added at this stage."
+      - ".github/workflows/ci-cd.yml runs `npm test` in the build job, and a deliberately failing test makes the workflow fail (verified by pushing a failing assertion on a scratch branch and reading the actual red run, then reverting — a test step that cannot fail the build is not a gate, per core-directives.md)."
+      - "`npm test` at the repo root runs Vitest and reports at least one passing assertion against REAL behaviour — the skeleton's environment-variable validation is the intended target. An assertion such as `expect(true).toBe(true)` is a FAIL of this criterion."
       - "Starting apps/bot with the bot-token environment variable unset exits non-zero and prints a message naming the missing variable; starting it with the variable set to a dummy value does NOT print that value anywhere in stdout/stderr (security-invariants.md S11), verified by running both cases and grepping the captured output for the dummy value."
       - "`git grep -n` over apps/bot finds no committed bot token, database password, or connection string literal — every such value comes from `process.env`."
     depends_on: [REQ-007]
