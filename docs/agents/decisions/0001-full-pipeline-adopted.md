@@ -58,3 +58,47 @@ active session. Add it if that changes — see `docs/agents/AGENT_SYSTEM.md` §7
   survives unchanged (`docs/agents/AGENT_SYSTEM.md` §2/`ORCHESTRATOR.md` §5) — full
   rigor now does not mean the roster is frozen; a genuinely new domain of work still gets
   its own role/workflow when it shows up.
+
+## Addendum, 2026-09-06 — GitHub branch protection makes the unified PR path structural
+
+**Decided by:** the project owner directly, stated reason: *"unified PR path to master.
+Automated, humanless development remains as one of the main project principles."*
+
+Until this date, "every merge goes through a PR, no PR waits for human approval" (see
+`core-directives.md`'s Humanless Operation section) was true because the pipeline always
+behaved that way — nothing on GitHub's side enforced it. As of 2026-09-06, `master` in
+`aiqadam/aiqadam-next` carries a GitHub branch protection rule:
+
+| Rule | State |
+|---|---|
+| Pull request required before merging | on |
+| Required approving reviews | **0** — this is the load-bearing number; it is what keeps merges humanless while still requiring the PR path |
+| Required status check | `build` (lint + build + docker-build verification, from `.github/workflows/ci-cd.yml`) |
+| Branch must be up to date with `master` before merge | on |
+| Force-push to `master` | blocked |
+| Deletion of `master` | blocked |
+| Applies to repo admins too (`enforce_admins`) | **true** — no bypass, `--admin` included |
+
+**Consequence for agents, stated plainly so this never reads as a surprise:** a direct
+`git push origin master` will now be rejected by GitHub (`GH006: Protected branch update
+failed`) regardless of who or what attempts it — this was verified directly, not assumed,
+by attempting exactly that push and reading the real rejection. This is not a bug, a
+misconfigured token, or a reason to retry with `--force` — it is the rule working as
+intended. **No pipeline mechanics changed as a result**, and none needed to:
+`docs/agents/protocols/GIT_MERGE.md`'s existing flow (branch → rebase → PR → wait for CI
+→ `gh pr merge --squash --delete-branch`) already satisfies every one of these rules on
+its own, because 0 required reviewers means "PR open, required check green" is already
+sufficient for `gh pr merge` to succeed — the same call the protocol always made.
+
+**If `gh pr merge` ever fails with a review-requirement or bypass-denied error where it
+previously succeeded:** that is a signal the ruleset itself changed (reviewers raised
+above 0, or `enforce_admins` altered), not a transient failure to retry past. Report it
+to ORCH as a BLOCKER rather than working around it — per `core-directives.md`'s
+Instruction Precedence, a safety/gate rule is never something a handoff's instructions
+override, and a GitHub-enforced rule is exactly that kind of rule now.
+
+**Why 0 reviewers rather than exempting admins instead:** the alternative considered was
+leaving `enforce_admins` off, which would let a `gh pr merge --admin` bypass everything
+else if a check were ever false-red. Rejected because the owner's stated reason for this
+whole change was for the restriction to be structural, not conditional on nobody
+exercising the escape hatch — an unexercised bypass is still a bypass.

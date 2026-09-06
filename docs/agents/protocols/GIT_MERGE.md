@@ -10,6 +10,15 @@ unconditionally, with no human review step, because every pipeline gate (lint, b
 REVIEWER, RELEASE-VALIDATOR) has already passed before this step runs. Per
 `docs/agents/decisions/0001-full-pipeline-adopted.md`, this is by design.
 
+**`master` carries GitHub branch protection** (added 2026-09-06, see decision 0001's
+addendum): PR required, `build` status check required, **0 required reviewers**, no
+admin bypass. This protocol's flow already satisfies it unchanged — nothing here needs
+to change to comply. A direct push to `master` (step 9's `git pull --ff-only`, not a
+push, is unaffected) would be rejected; this protocol never attempts one. If step 8's
+`gh pr merge` fails on a review-requirement or bypass-denied error, that signals the
+protection ruleset changed since this was written — report a BLOCKER, don't retry with
+`--admin` or force.
+
 ## Precondition
 
 CI must be green for this protocol's PR-checks step to mean anything. See
