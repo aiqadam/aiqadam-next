@@ -1,33 +1,55 @@
 run_id: WF02-REQ-009
-date: 2026-09-06T10:01:05Z
+date: 2026-09-06T10:35:28Z
 requirement: REQ-009
 branch: feature/WF02-REQ-009
 lint: pass
 build: pass
 test: pass
-overall_result: fail
+overall_result: pass
 overall_reason: >
-  All 6 acceptance criteria's local/static checks pass. AC3's real-CI attempt
-  uncovered a genuine, pre-existing, structural blocker: `npm ci` fails at the
-  Install step on this branch (esbuild lockfile desync), before the Test step
-  ever runs, on both a local clean install and real GitHub Actions runs. This
-  is not attributable to this run's own actions (it reproduces with the
-  correct, unmodified config.test.ts, and via `npm ci` at the merge-base
-  commit for apps/bot's addition). It must be fixed and CI must actually run
-  green before REQ-009 can be marked done, so this run reports FAIL rather
-  than deferring the residual gap to RELEASE-VALIDATOR as merely open.
+  RE-VERIFICATION after rework. The first-pass FAIL (see the superseded original
+  section below) was a genuine, pre-existing, structural blocker: `npm ci` failed
+  at the Install step (esbuild lockfile desync) before Test ever ran, reproduced
+  both locally and on real GitHub Actions. BACKEND-DEV fixed the lockfile
+  (commits afca58b regenerate package-lock.json, 1bfd26b pin esbuild via
+  overrides) and ORCH separately fixed an unrelated Docker verification-step gap
+  (commit 7ff4b4c, apps/bot/package.json not COPYed into the builder stage).
+  This run independently re-verified all of it from a clean state rather than
+  trusting those claims: pulled the branch (confirmed HEAD == 7ff4b4c, matching
+  the claimed fixed commit), ran a real clean `npm ci` (removed node_modules
+  first) which succeeded (exit 0, 561 packages, 0 vulnerabilities) where it
+  previously failed with EUSAGE, then re-ran lint/build/test and all 6
+  acceptance criteria's cases fresh against this HEAD. Independently queried
+  GitHub Actions via `gh run view 34027658021` (not just trusting the URL
+  existed): headSha 7ff4b4c5bca17e3f8177ff30411e9ba00f5fe6e9 matches this
+  branch's current HEAD exactly, and the `build` job's step-by-step conclusions
+  are Install/Lint/Test/Build/Docker-build all "success" in that order. AC3's
+  previously-named residual gap (no observed real red/green CI round-trip past
+  Install) is now closed with genuine remote evidence at the exact commit being
+  signed off. All 6 ACs re-verified PASS. Working tree left clean, HEAD
+  unchanged at 7ff4b4c.
 
 commands_run:
+  - command: "rm -rf node_modules && npm ci"
+    exit_code: 0
+    notes: >
+      Clean install from a fully removed node_modules (not `npm install`,
+      not reusing cached node_modules) -- succeeded: "added 561 packages,
+      and audited 564 packages in 18s", "found 0 vulnerabilities". This is
+      the exact scenario that failed with EUSAGE (esbuild lockfile desync)
+      in the prior run; it now passes cleanly.
   - command: "npm run lint"
     exit_code: 0
     notes: >
       0 errors, 2 pre-existing warnings (no-img-element in apps/web
-      Footer.tsx/Nav.tsx, unrelated to apps/bot / this requirement).
+      Footer.tsx/Nav.tsx) -- unrelated to apps/bot / this requirement,
+      unchanged from the prior run.
   - command: "npm run build"
     exit_code: 0
     notes: >
       Root build runs `next build` for apps/web then `tsc -p tsconfig.json`
-      for `bot@0.1.0` (per-workspace banner confirms apps/bot is compiled).
+      for `bot@0.1.0` -- per-workspace banner confirms apps/bot is compiled
+      as part of the root build.
   - command: "npm test"
     exit_code: 0
     notes: "Vitest: Test Files 1 passed (1), Tests 5 passed (5)."
@@ -36,169 +58,146 @@ cases:
   - acceptance_criterion: AC1
     result: pass
     notes: >
-      AC1.1: install/build/lint baseline all exit 0, apps/bot's `tsc`
-      workspace-run banner present in build output.
+      AC1.1: clean `npm ci` (not just `npm install`) + build + lint baseline
+      all exit 0, apps/bot's `tsc` workspace-run banner present in build
+      output.
       AC1.2: inserted `const req009TypeErrorCheck: number = "not-a-number";`
-      into apps/bot/src/index.ts -> `npm run build` exited 2 with
+      as line 3 of apps/bot/src/index.ts -> `npm run build` exited 2 with
       "src/index.ts(3,7): error TS2322: Type 'string' is not assignable to
-      type 'number'." (matches spec's TS2322 expectation, file+line differ
-      trivially from the spec's guess but the diagnostic is exact). Reverted
-      via `git checkout -- apps/bot/src/index.ts`; `git diff --stat` printed
+      type 'number'." -- exact match. Reverted via
+      `git checkout -- apps/bot/src/index.ts`; `git diff --stat` printed
       nothing (clean revert). Rebuilt: BUILD_EXIT 0 again, matching baseline.
   - acceptance_criterion: AC2
     result: pass
     notes: >
       AC2.1: apps/bot/package.json has "grammy": "1.46.0", "drizzle-orm":
-      "0.45.2", "pg": "8.23.0", "drizzle-kit": "0.31.10" (all exact, no ^/~);
-      root package.json has "vitest": "5.0.0" (exact).
+      "0.45.2", "pg": "8.23.0", "drizzle-kit": "0.31.10" (all exact, no
+      ^/~); root package.json has "vitest": "5.0.0" (exact).
       AC2.2: grep for telegraf/prisma/@prisma/client/jest across
       package.json, apps/bot/package.json, apps/web/package.json -> zero
       matches.
-      AC2.3: grep for "@grammyjs/" in apps/bot/package.json -> zero matches.
-      AC2.4: grep -rl "node:test" apps/bot/src apps/web/src -> zero matches.
+      AC2.3: grep for "@grammyjs/" in apps/bot/package.json -> zero
+      matches.
+      AC2.4: grep -rl "node:test" apps/bot/src apps/web/src -> zero
+      matches.
   - acceptance_criterion: AC3
-    result: fail
+    result: pass
     notes: >
-      AC3.1 (static wiring): confirmed exact match in
-      .github/workflows/ci-cd.yml -- Lint / Test (`run: npm test`) / Build
-      steps appear in that order inside the `build:` job.
+      AC3.1 (static wiring): confirmed .github/workflows/ci-cd.yml still
+      has Lint / Test (`run: npm test`) / Build steps in that order inside
+      the `build:` job, unchanged by the rework.
       AC3.2 (local proxy): baseline `npm test` -> TEST_EXIT 0, "Tests 5
       passed (5)". Broke apps/bot/src/config.test.ts line 7 to
       `expect(config).toEqual({ botToken: "WRONG", databaseUrl: "d" })` ->
       TEST_EXIT 1, "Test Files 1 failed (1)", "Tests 1 failed | 4 passed
       (5)", failure named
       "loadConfig > returns the config when both required variables are
-      present" with assertion diff showing expected "WRONG" vs received "t"
-      -- exact match to spec. Reverted; `git diff --stat` printed nothing;
-      re-ran -> TEST_EXIT 0, "Tests 5 passed (5)" again.
-      REAL CI ROUND-TRIP (this run's own addition, going beyond the spec's
-      local-proxy-only case since the task explicitly asked to close the
-      residual gap): committed the AC3.2 break (commit 6a06cf5), pushed to
-      origin/feature/WF02-REQ-009, and watched the real GitHub Actions run
-      (https://github.com/aiqadam/aiqadam-next/actions/runs/34025692089).
-      The `build` job DID go red (conclusion: failure) -- but at the
-      "Install dependencies" step (`npm ci`), NOT at the "Test" step:
-        npm error code EUSAGE
-        npm error `npm ci` can only install packages when your package.json
-        and package-lock.json or npm-shrinkwrap.json are in sync...
-        npm error Invalid: lock file's esbuild@0.25.12 does not satisfy
-        esbuild@0.28.2
-      The Test step never ran in that job at all. This is NOT evidence that
-      the Test step gates the build -- it is evidence CI cannot currently
-      run ANY step past Install on this branch. Reproduced the identical
-      `npm ci` EUSAGE error locally (repo root, clean node_modules removed)
-      with the config.test.ts assertion already reverted, i.e. independent
-      of the deliberate break -- confirming it is a pre-existing lockfile
-      desync, not caused by this run's test edit. Reverted the break
-      (commit f3b2677), pushed again, and watched a second real run
-      (https://github.com/aiqadam/aiqadam-next/actions/runs/34026192432):
-      also failed at "Install dependencies" with the same EUSAGE error, with
-      config.test.ts in its correct, original state -- proving the failure
-      is structural to the branch's package-lock.json, not to test content.
-      Attempted to fix the lockfile locally (full `node_modules` +
-      `package-lock.json` wipe + `npm install`) -- this produced a
-      genuinely different, large (~11,000-line) relock, and immediately
-      re-running `npm ci` against that fresh relock ALSO failed
-      non-deterministically on a second attempt (a different missing
-      optional esbuild platform package each time), and separately
-      triggered a known Windows-local npm optional-dependencies bug
-      (npm/cli#4828, "Cannot find native binding" for vitest's rolldown
-      dependency) that required a further full wipe+reinstall to clear
-      locally. Given this observed non-determinism, TEST-RUNNER did not
-      commit any lockfile change -- regenerating it safely (and confirming
-      it is stable across repeated `npm ci` runs, including on Linux, not
-      just this local Windows machine) is real dependency-resolution work
-      that risks masking or half-fixing the underlying issue if done
-      hastily under this role. FILED AS A NEW BLOCKING ISSUE (see below)
-      rather than resolved in this run.
-      Named residual gap from the spec is therefore NOT closed as the task
-      intended -- it is worse than "unverified": CI is confirmed unable to
-      reach the Test step at all in the current state of this branch.
+      present" with assertion diff showing expected "WRONG" vs received
+      "t" -- exact match to spec. Reverted; `git diff --stat` printed
+      nothing; re-ran -> TEST_EXIT 0, "Tests 5 passed (5)" again.
+      RESIDUAL GAP NOW CLOSED WITH REAL REMOTE EVIDENCE: independently ran
+      `gh run view 34027658021 --repo aiqadam/aiqadam-next --json
+      headSha,status,conclusion,jobs` (not trusting the URL's mere
+      existence as proof, per core-directives' "Never Call a Red Pipeline
+      OK Without a Source" applied in the affirmative direction too) ->
+      headSha 7ff4b4c5bca17e3f8177ff30411e9ba00f5fe6e9 exactly matches this
+      branch's current HEAD (`git log --oneline -1` -> 7ff4b4c), overall
+      conclusion "success". Drilled into step-level detail with
+      `gh run view 34027658021 --json jobs --jq '.jobs[]|select(.name==
+      "build")|.steps[]|"\(.name): \(.conclusion)"'` -> every step in
+      order: "Set up job: success", "Run actions/checkout@v4: success",
+      "Run actions/setup-node@v4: success", "Install dependencies:
+      success", "Lint: success", "Test: success", "Build: success",
+      "Build Docker image (verification only, not pushed): success",
+      plus the two Post-run steps and "Complete job: success". This is a
+      genuine observed green run at the exact commit under sign-off, with
+      Install/Lint/Test/Build/Docker-build all green in sequence -- the
+      previously-named residual gap (no real CI round-trip observed past
+      Install) is closed. Combined with AC3.2's local exit-code evidence
+      that `npm test` really does fail non-zero on a real broken
+      assertion, both halves of AC3's criterion (the workflow file wires
+      the gate; the gate is actually decisive) are now independently
+      confirmed.
   - acceptance_criterion: AC4
     result: pass
     notes: >
-      AC4.1: `npm test` -> "Test Files 1 passed (1)", "Tests 5 passed (5)",
-      exit 0.
+      AC4.1: `npm test` -> "Test Files 1 passed (1)", "Tests 5 passed
+      (5)", exit 0.
       AC4.2: read apps/bot/src/config.test.ts in full (30 lines) -- all 5
-      `it` blocks target real behavior (env-to-config mapping; missing-var
-      naming for BOT_TOKEN only, DATABASE_URL only, and both; and the
-      never-leaks-a-present-value security assertion via
-      "super-secret-token-value"). No tautological assertion anywhere in the
-      file.
+      `it` blocks target real behavior (env-to-config mapping;
+      missing-var naming for BOT_TOKEN only, DATABASE_URL only, and both;
+      and the never-leaks-a-present-value security assertion via
+      "super-secret-token-value"). No tautological assertion anywhere in
+      the file.
   - acceptance_criterion: AC5
     result: pass
     notes: >
-      Built apps/bot (`npm run build -w apps/bot`).
+      Rebuilt apps/bot (`npm run build -w apps/bot`) fresh against the
+      current lockfile/HEAD.
       AC5.1: `DATABASE_URL=... node apps/bot/dist/index.js` (BOT_TOKEN
-      unset) -> stderr "Missing required environment variable(s): BOT_TOKEN",
-      EXIT_CODE:1 -- exact match.
+      unset) -> stderr "Missing required environment variable(s):
+      BOT_TOKEN", EXIT_CODE:1 -- exact match.
       AC5.2: spawned apps/bot/dist/index.js with
       BOT_TOKEN=DUMMY_TOKEN_VALUE_12345 and a dummy DATABASE_URL, captured
       stdout+stderr for 4s then killed. Captured output contains "bot
       starting" (config validation passed) followed by an unhandled
       GrammyError (404 Not Found from Telegram's real getMe API, since the
       dummy token is not a real bot token) -- irrelevant to this case's
-      target. `grep -c "DUMMY_TOKEN_VALUE_12345"` on the capture printed 0 --
-      the dummy value never appears in stdout/stderr. Scratch capture file
-      deleted after reading.
+      target. `grep -c "DUMMY_TOKEN_VALUE_12345"` on the capture printed
+      0 -- the dummy value never appears in stdout/stderr. Scratch capture
+      file deleted after reading.
   - acceptance_criterion: AC6
     result: pass
     notes: >
-      AC6.1: `git grep -n -E "[0-9]{6,10}:[A-Za-z0-9_-]{30,40}" -- apps/bot`
-      -> zero matches.
+      AC6.1: `git grep -n -E "[0-9]{6,10}:[A-Za-z0-9_-]{30,40}" --
+      apps/bot` -> zero matches.
       AC6.2: `git grep -n -E
-      "postgres(ql)?://[^\"'[:space:]]+:[^\"'[:space:]]+@" -- apps/bot` ->
-      zero matches.
+      "postgres(ql)?://[^\"'[:space:]]+:[^\"'[:space:]]+@" -- apps/bot`
+      -> zero matches.
       AC6.3: `git grep -n "process.env" -- apps/bot/src` -> exactly one
       match, apps/bot/src/index.ts:8 (`loadConfig(process.env)`). Read
       apps/bot/src/config.ts directly: it reads `env.BOT_TOKEN` /
-      `env.DATABASE_URL` from its `NodeJS.ProcessEnv` parameter, no literal
-      credential assignment anywhere. config.test.ts's fixture values ("t",
-      "d", "super-secret-token-value") are synthetic and, by construction,
-      match neither the token-shape nor connection-string-shape patterns
-      (confirmed: AC6.1/AC6.2 already ran over all of apps/bot including the
-      test file and found zero matches).
+      `env.DATABASE_URL` from its `NodeJS.ProcessEnv` parameter, no
+      literal credential assignment anywhere. config.test.ts's fixture
+      values ("t", "d", "super-secret-token-value") are synthetic and, by
+      construction, match neither the token-shape nor
+      connection-string-shape patterns (confirmed: AC6.1/AC6.2 already ran
+      over all of apps/bot including the test file and found zero
+      matches).
 
-new_blocking_issue_filed_to_orch:
-  title: "package-lock.json out of sync with package.json blocks npm ci / all CI past Install"
-  description: >
-    `npm ci` fails at the repo root with npm error code EUSAGE ("lock file's
-    esbuild@0.25.12 does not satisfy esbuild@0.28.2", plus ~28 "Missing:
-    @esbuild/<platform>@0.25.12 from lock file" lines) on
-    feature/WF02-REQ-009. Reproduced identically: (1) locally via a clean
-    `npm ci` after removing node_modules, with config.test.ts in its correct
-    committed state; (2) on real GitHub Actions, run
-    https://github.com/aiqadam/aiqadam-next/actions/runs/34025692089
-    (commit 6a06cf5) and run
-    https://github.com/aiqadam/aiqadam-next/actions/runs/34026192432
-    (commit f3b2677, config.test.ts already reverted to correct content) --
-    both failed at the `build` job's "Install dependencies" step, before
-    Lint/Test/Build ever ran. `package-lock.json` is part of this branch's
-    diff (introduced/modified in commit 0938d38, the REQ-009 apps/bot
-    skeleton commit) so it is this branch's responsibility, not
-    pre-existing on master. A local attempt to regenerate the lockfile
-    (full node_modules + package-lock.json wipe, `npm install`) produced a
-    working local state once, but a second `npm ci` against that same fresh
-    lockfile failed again non-deterministically with a different missing
-    optional esbuild platform package, and separately triggered a known
-    Windows-local npm optional-dependencies bug (npm/cli#4828) requiring
-    another full wipe to clear -- this needs a developer to properly pin/
-    resolve the conflicting esbuild version requirement (likely between the
-    root's vitest 5.0.0 devDependency chain and something else demanding
-    esbuild 0.28.2) and verify the fix is stable across repeated `npm ci`
-    runs, ideally confirmed on the actual Linux CI runner, not just one
-    local Windows machine.
-  severity: blocker
-  affected_files:
-    - package-lock.json
-    - package.json
-    - apps/bot/package.json
-    - .github/workflows/ci-cd.yml (blocked by, not caused by)
+rework_reference:
+  prior_blocking_issue: >
+    "package-lock.json out of sync with package.json blocks npm ci / all CI
+    past Install" (filed to ORCH in this run's prior FAIL report, see the
+    superseded section below).
+  fix_commits:
+    - afca58b: "fix(deps): regenerate package-lock.json to resolve esbuild ci desync"
+    - 1bfd26b: "fix(deps): pin esbuild via overrides to stop npm's lockfile churn"
+    - 7ff4b4c: "fix(docker): COPY apps/bot/package.json in builder stage [WF02-REQ-009] (separate, unrelated Docker verification-step gap found by ORCH)"
+  verification_of_fix: >
+    This run's own clean `npm ci` (not reused from a cached state) succeeded
+    where the prior run's failed identically reproduced with EUSAGE. This is
+    independent confirmation, not trust in the commit messages' claims.
 
 cleanup_confirmation:
   git_status: clean (verified via `git status --short` -> no output)
   npm_test_final: "TEST_EXIT 0, Tests 5 passed (5)"
-  branch_head_commit: f3b2677 (revert of the deliberate break, config.test.ts matches its pre-break committed content)
-  temporary_break_commits_left_on_branch:
-    - 6a06cf5 (deliberate break, for the record -- not reverted via history rewrite, reverted via a new commit per git safety rules)
-    - f3b2677 (revert commit)
+  branch_head_commit: 7ff4b4c (unchanged by this run -- no new commits needed, only verification)
+  scratch_files_left: none (req009-ac5b-capture.txt created and deleted within this run)
+
+routing_decision: "PASS -> Route to RELEASE-VALIDATOR"
+
+superseded_original_report_2026-09-06T10:01:05Z:
+  overall_result: fail
+  overall_reason: >
+    All 6 acceptance criteria's local/static checks passed at that time. AC3's
+    real-CI attempt uncovered a genuine, pre-existing, structural blocker:
+    `npm ci` failed at the Install step (esbuild lockfile desync), before the
+    Test step ever ran, on both a local clean install and real GitHub Actions
+    runs (https://github.com/aiqadam/aiqadam-next/actions/runs/34025692089 and
+    .../34026192432). Filed as a new blocking issue to ORCH rather than fixed
+    in that run (regenerating the lockfile safely was judged out of
+    TEST-RUNNER's role and observed to be non-deterministic across attempts).
+    This blocker is what BACKEND-DEV's commits afca58b/1bfd26b and ORCH's
+    commit 7ff4b4c (see rework_reference above) fixed, and what this
+    re-verification run confirms is now actually resolved.
