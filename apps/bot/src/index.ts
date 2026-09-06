@@ -9,6 +9,12 @@ import {
 } from "./handlers/start.js";
 import { makeHelpHandler } from "./handlers/help.js";
 import { makeLangCallbackHandler, makeLangCommandHandler } from "./handlers/lang.js";
+import {
+  makeVenueDeleteHandler,
+  makeVenueEditHandler,
+  makeVenueNewHandler,
+  makeVenuesListHandler,
+} from "./handlers/venue.js";
 
 let config: BotConfig;
 
@@ -42,5 +48,11 @@ bot.command("start", makeStartHandler(db));
 bot.callbackQuery(/^chapter:(.+)$/, makeChapterCallbackHandler(db));
 bot.callbackQuery("consent:agree", makeConsentCallbackHandler(db));
 bot.command("help", makeHelpHandler(db));
+
+// REQ-015: organizer-only venue CRUD, chapter-scoped.
+bot.command("venue_new", makeVenueNewHandler(db));
+bot.command("venue_edit", makeVenueEditHandler(db));
+bot.command("venue_delete", makeVenueDeleteHandler(db));
+bot.command("venues", makeVenuesListHandler(db));
 
 bot.start();
