@@ -206,3 +206,5 @@
 2026-09-06T07:13:37Z WF02-REQ-007 dispatch step-02b to_agent=REVIEWER task="Review REQ-007 diff against design artefact, confirm git-mv history preservation and out-of-scope boundary held, confirm ISS-0004 finding accurate"
 2026-09-06T07:15:17Z WF02-REQ-007 complete step-02b from_agent=REVIEWER result=PASS commit=f5f7d07 note="Diff matches design exactly, git-mv rename evidence confirmed, out-of-scope boundary held byte-identical, ISS-0004 confirmed accurate"
 2026-09-06T07:15:17Z WF02-REQ-007 dispatch step-03 to_agent=TEST-DESIGNER task="Write manual verification spec for REQ-007 5 ACs, no automated framework yet"
+2026-09-06T07:17:20Z WF02-REQ-007 complete step-03 from_agent=TEST-DESIGNER result=PASS note="5 cases, one per AC, all expected values verified live before writing"
+2026-09-06T07:17:20Z WF02-REQ-007 dispatch step-03b to_agent=TEST-DESIGN-VALIDATOR task="Gate REQ-007 test spec, independently re-run AC4 key-set diff"
