@@ -1,0 +1,56 @@
+{
+  "handoff_id": "c46ce80c-84e6-4310-a13b-0e32dc7f0011",
+  "run_id": "WF01-EVENTS-BOT-SPEC",
+  "workflow_id": "WF-01",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "REQ-ANALYST",
+  "file": "handoffs/WF01-EVENTS-BOT-SPEC/step-01-req-analyst.json",
+  "created_at": "2026-09-06T03:35:02Z",
+  "started_at": "2026-09-06T03:35:02Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": [],
+    "requirement_text": {},
+    "source_text": {
+      "note-on-source": "The source specification is NOT in this repo. It is a read-only external directory at C:/tmp/AI-Qadam-Events-Bot-Spec/ containing README.md, PRD.md (the requirements — scope, data model, state machines, functional requirements FR-1..FR-17, invariants, acceptance criteria, build order), USER-STORIES.md (42 stories as 3C cards), STORY-DETAILS.md (per-story preconditions, flows, edge cases), RE-EVALUATION.md, DESIGN-REVIEW.md, JOURNEY-AUDIT.md. Read PRD.md in full first; it is the authoritative one. Do not copy the spec files into this repo.",
+      "spec-owner": "Viktor Drukker, v3, dated 2026-08-04. PRD's closing rule: 'if a requirement is ambiguous or contradicts reality, stop and ask. Do not invent business rules — especially around capacity, consent, and who may see personal data.' In this humanless pipeline, 'stop and ask' resolves to core-directives.md's Zero Manual Work clause 1: record the ambiguity and its options explicitly in the requirement's description, or as a decisions/ draft — never silently pick one."
+    },
+    "related_handoff_ids": [],
+    "artifacts_in": [
+      "docs/agents/decisions/0003-events-bot-subproject.md",
+      "docs/agents/instructions/security-invariants.md",
+      "docs/agents/requirements.yaml",
+      "docs/agents/workflows/WF-01_requirement_development.md",
+      "docs/agents/AGENT_SYSTEM.md",
+      "C:/tmp/AI-Qadam-Events-Bot-Spec/PRD.md",
+      "C:/tmp/AI-Qadam-Events-Bot-Spec/README.md",
+      "C:/tmp/AI-Qadam-Events-Bot-Spec/USER-STORIES.md",
+      "C:/tmp/AI-Qadam-Events-Bot-Spec/STORY-DETAILS.md",
+      "C:/tmp/AI-Qadam-Events-Bot-Spec/RE-EVALUATION.md"
+    ]
+  },
+  "task": {
+    "description": "Adapt the AI Qadam Events Bot specification into registered requirements in docs/agents/requirements.yaml, per WF-01 Step 1.\n\nDECIDED CONTEXT — read docs/agents/decisions/0003-events-bot-subproject.md first and treat it as settled (a decisions/ record is never overridden, per core-directives.md's Instruction Precedence). It establishes: (a) the bot is a SUBPROJECT of this repo, not a separate repo; (b) the repo becomes a monorepo with apps/web (the existing Next.js site, MOVED from the repo root) and apps/bot (new); (c) the bot is TypeScript/Node on Postgres. Do not re-litigate any of these three, and do not draft a requirement that contradicts them.\n\nWHAT TO DRAFT. Start ids at REQ-007 (REQ-001a..REQ-006 exist and are all done; never reuse or renumber). Cover, in dependency order:\n\n1. THE MONOREPO MIGRATION — moving the existing site from the repo root into apps/web (src/, messages/, public/, next.config.ts, tsconfig.json, eslint.config.mjs, Dockerfile, deploy/, and the CI workflow paths), establishing the workspace root, and creating the apps/bot skeleton. This MUST come first and everything else depends on it. It is a FRONTEND-DEV requirement (it is the site's own files moving) and must be sized to one agent turn — split it if it does not fit. Its acceptance criteria must include that the site still builds, still serves all four locales (ru/uz/en/kk), and that deploy/CI still resolves the moved paths.\n\n2. THE BOT'S RELEASE 1 — PRD §4 and §14 define Release 1 as the Meetup #3 scope (20 stories) and give an explicit build order: skeleton/DB/config/i18n → venues+events CRUD+event card → profile+registration+capacity+waitlist+promotion+withdraw → scheduler (T-24h 'Still coming?', T-3h route+QR) → check-in (MANUAL LIST FIRST, then QR, plus EventStaff and walk-ins) → feedback/NPS. Follow that order in your depends_on chain; the spec states twice that the manual check-in list is built before the QR scanner, and that ordering is a requirement, not a preference.\n\n3. Do NOT draft Release 2 or Release 3 requirements in this run. Registering ~20 more entries that cannot start until Release 1 lands is registry noise. Note in the final requirement's description that Releases 2-3 are a later WF-01 run, and what they cover.\n\nSIZING IS THE HARD PART. WF-01 Step 1.3.c requires each requirement to fit ONE agent turn. 'Registration + capacity + waitlist + auto-promotion + withdraw' is a build-order STEP, not one requirement — split such steps into several depends_on-chained requirements. Expect meaningfully more than one requirement per build-order step. Err toward smaller.\n\nEACH REQUIREMENT MUST: use the exact existing schema (id, title, owner, status: pending, description, acceptance_criteria, depends_on) — do not invent fields; name owner as BACKEND-DEV or FRONTEND-DEV (the new roles exist as of this run — see AGENT_SYSTEM.md §4); cite real paths (apps/bot/..., apps/web/...) and the PRD section/FR number it derives from; carry at least 2 concrete, verifiable acceptance criteria.\n\nTHREE THINGS THE SPEC IS EMPHATIC ABOUT — carry them into the requirement text, do not let them evaporate:\n- Values that are COMPUTED AND NEVER STORED: no_show, waitlist position, seats taken, registration_open, finished, speaker lineup, past talks. A requirement must not create a column for any of them.\n- The PRD §12 invariants and the PRD §10 privacy rules, which this repo has already codified as docs/agents/instructions/security-invariants.md S1-S14. Where a requirement implicates one, cite the S-number in its acceptance criteria so SECURITY-REVIEWER's Step 2c gate has something concrete to check.\n- tg_id is NULLABLE and is never a business key; always resolve to the internal user id.\n\nAMBIGUITIES YOU WILL HIT — record, do not resolve silently: the exact Telegram framework (grammY vs Telegraf) and the ORM/migration tool are explicitly left open by decision 0003; the doors-open time question is open in the spec's README ('Open questions for Viktor'); and this repo has NO TEST FRAMEWORK, which AGENT_SYSTEM.md §7 now flags as imminent because the bot's admission state machine and idempotency rules cannot be verified by a manual checklist. Handle each per Zero Manual Work clause 1 — a named decision to be made inside a specific requirement, or a decisions/ draft — never an invented answer.\n\nAppend only. Do not reorder, renumber, or rewrite REQ-001a..REQ-006, whose descriptions cite pre-migration root-relative paths and stand as historical records (decision 0003 says so explicitly).",
+    "acceptance_criteria": [
+      "Every new requirement has id, title, owner, status, description, >=2 concrete acceptance criteria, and depends_on — using the existing schema with no invented fields.",
+      "Ids start at REQ-007 and are sequential; REQ-001a..REQ-006 are byte-for-byte unchanged (verifiable by git diff showing only appended lines).",
+      "The monorepo migration requirement comes first in the dependency graph and every bot requirement transitively depends on it.",
+      "The Release 1 dependency chain follows PRD §14's stated build order, with the manual check-in list preceding the QR scanner.",
+      "No requirement creates stored state for a value PRD §5 lists as computed-never-stored.",
+      "Every requirement implicating a privacy/authz/token/consent/audit property cites the relevant security-invariants.md S-number in its acceptance criteria.",
+      "No orphaned depends_on references; no contradiction with a done requirement or with decisions/0001, 0002, or 0003.",
+      "Each of the three named open questions (Telegram framework + ORM, doors-open time, test framework) is recorded explicitly rather than silently answered.",
+      "No Release 2 or Release 3 requirement is drafted; the boundary is stated explicitly in the final requirement's description."
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": null
+  }
+}
