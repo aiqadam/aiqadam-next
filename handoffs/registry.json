@@ -660,6 +660,31 @@
           "result": "PASS"
         }
       ]
+    },
+    {
+      "run_id": "WF01-EVENTS-BOT-SPEC",
+      "workflow_id": "WF-01",
+      "source": "External spec C:/tmp/AI-Qadam-Events-Bot-Spec/ (AI Qadam Events Bot v3, 2026-08-04, owner Viktor Drukker) adapted into this repo's requirements registry",
+      "started_at": "2026-09-06T03:35:02Z",
+      "completed_at": "2026-09-06T03:54:20Z",
+      "status": "COMPLETED",
+      "current_step": "step-02-req-validator",
+      "steps": [
+        {
+          "step": "01",
+          "file": "handoffs/WF01-EVENTS-BOT-SPEC/step-01-req-analyst.json",
+          "to_agent": "REQ-ANALYST",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "02",
+          "file": "handoffs/WF01-EVENTS-BOT-SPEC/step-02-req-validator.json",
+          "to_agent": "REQ-VALIDATOR",
+          "status": "COMPLETED",
+          "result": "PASS"
+        }
+      ]
     }
   ]
 }
