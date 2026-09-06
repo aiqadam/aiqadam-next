@@ -27,4 +27,26 @@ export const ru = {
     confirmed: "Язык интерфейса: русский.",
     noProfile: "Профиль не найден. Язык не сохранён — отправьте /start, чтобы начать.",
   },
+  // Placeholder/provisional wording (REQ-015 design §1-§6) — CONTENT-BA owns
+  // final copy per decisions/0002; this is the minimal functional wording
+  // the venue CRUD flow needs.
+  venue: {
+    notAuthorized: "У вас нет прав на это действие.",
+    notFound: "Площадка не найдена.",
+    createUsage:
+      "Отправьте /venue_new и на следующих строках укажите поля:\nname: ...\naddress: ...\nyandex: ...\ngoogle: ...\ncapacity: ...\nlat: ... (необязательно)\nlon: ... (необязательно)\nnotes: ... (необязательно)",
+    missingFieldsPrefix: "Не заполнены обязательные поля:",
+    createSuccessPrefix: "Площадка создана, id:",
+    completeNudge:
+      "Добавьте координаты позже командой /venue_edit <id>, чтобы ссылка на карте была точной.",
+    editUsageNoId: "Укажите id площадки: /venue_edit <id>",
+    editCurrentPrefix: "Текущие значения (отправьте /venue_edit <id> и изменённые поля):",
+    editSuccessPrefix: "Площадка обновлена, изменены поля:",
+    deleteUsageNoId: "Укажите id площадки: /venue_delete <id>",
+    deleteSuccessPrefix: "Площадка удалена:",
+    deleteRefusedFutureEvent:
+      "Нельзя удалить площадку: на неё запланировано предстоящее мероприятие.",
+    listEmpty: "Площадок пока нет.",
+    listHeader: "Площадки вашего отделения:",
+  },
 } satisfies Catalog;

@@ -36,4 +36,29 @@ export interface Catalog {
     confirmed: string;
     noProfile: string;
   };
+  // NEW, REQ-015: venue CRUD for organizers, chapter-scoped (design §1-§6).
+  // `notAuthorized` is a single generic refusal string per §1 — the reason
+  // (no-user / not-organizer / wrong-chapter) is never disclosed to the
+  // caller. The `*Prefix` keys are plain reply-composition prefixes the
+  // handler concatenates with dynamic data (a venue id, a list of missing
+  // field names, a list of changed field names) — this is reply composition
+  // per §2.4's own precedent, not domain logic. Placeholder/minimal
+  // functional copy (CONTENT-BA owns final wording per decisions/0002, same
+  // provisional-copy precedent as REQ-014's consent.prompt).
+  venue: {
+    notAuthorized: string;
+    notFound: string;
+    createUsage: string;
+    missingFieldsPrefix: string;
+    createSuccessPrefix: string;
+    completeNudge: string;
+    editUsageNoId: string;
+    editCurrentPrefix: string;
+    editSuccessPrefix: string;
+    deleteUsageNoId: string;
+    deleteSuccessPrefix: string;
+    deleteRefusedFutureEvent: string;
+    listEmpty: string;
+    listHeader: string;
+  };
 }

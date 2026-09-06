@@ -1,0 +1,150 @@
+run_id: WF02-REQ-015
+date: 2026-09-06T17:45:21Z
+branch: feature/WF02-REQ-015
+head_sha: 30562ff6288c1d08b11bf8a51db8869a3c070bbe
+lint: pass
+build: pass
+unit_tests: pass
+ci: pass
+notes: |
+  npm run lint -> 0 errors, 2 pre-existing warnings (Footer.tsx, Nav.tsx img elements,
+  unrelated to apps/bot and not touched by this branch's diff).
+  npm run build -> apps/web and apps/bot both compiled/typechecked with exit 0.
+  npm test -> vitest run: 5 test files, 44 tests, all passed.
+  gh run list --branch feature/WF02-REQ-015: CI run 34049400894 for HEAD
+  (30562ff6288c1d08b11bf8a51db8869a3c070bbe) status=completed conclusion=success;
+  job breakdown build=success, deploy-qa/deploy-prod correctly skipped (feature branch).
+
+harness:
+  method: grammY-dispatch harness per docs/agents/test-specs/REQ-015.md, reusing
+    REQ-013/REQ-014's established method (real grammy.Bot, dummy token + manual
+    botInfo, bot.api.config.use() capturing outbound calls, bot.handleUpdate()
+    dispatching synthetic Update objects through the real command matcher).
+  fixture_db: apps/bot/docker-compose.yml Postgres (host port 55432), started via
+    `docker compose up -d`, readiness confirmed via bounded pg_isready polling
+    (accepting connections on attempt 1), migrated via `npx drizzle-kit migrate`
+    (exit 0, "migrations applied successfully").
+  scratch_script: apps/bot/scratch-verify-req015.ts -- written exactly per spec
+    (parameterized by case id for reruns across per-case fixtures), run via
+    `npx tsx scratch-verify-req015.ts <case>`, deleted at end of run.
+  teardown: `docker compose down -v` from apps/bot; confirmed via `docker ps`
+    that no bot-postgres container remains; `git status --porcelain` clean
+    (no stray scratch/fixture files).
+
+cases:
+  - acceptance_criterion: AC1
+    result: pass
+    notes: >
+      Member (tg 800000001, role member) sent a fully-valid /venue_new body.
+      captured == exactly one sendMessage to 800000001 with text
+      "У вас нет прав на это действие." (venue.notAuthorized verbatim).
+      venues count before/after: 0/0. audit_log count before/after: 0/0.
+      No venue created, no audit row, no other reply.
+
+  - acceptance_criterion: AC2-create
+    result: pass
+    notes: >
+      Chapter-A organizer (tg 800000002) attempted /venue_new with chapter
+      override set to Chapter B's id. captured == exactly one sendMessage
+      with venue.notAuthorized verbatim. venues count stayed at V0=1
+      (only the pre-seeded Chapter B venue; no "Cross Chapter Space" row
+      created).
+
+  - acceptance_criterion: AC2-edit
+    result: pass
+    notes: >
+      Same organizer attempted /venue_edit against the existing Chapter B
+      venue (44444444-...). captured == exactly one sendMessage with
+      venue.notAuthorized verbatim. Chapter B venue's name unchanged
+      ("Chapter B Venue"). audit_log count stayed at 0 across both
+      AC2 sub-cases.
+
+  - acceptance_criterion: AC3a
+    result: pass
+    notes: >
+      Organizer (tg 800000003) sent /venue_new missing yandex. captured ==
+      exactly one sendMessage, text "Не заполнены обязательные поля: yandex"
+      (missingFieldsPrefix + " yandex", exact match). venues count stayed 0.
+
+  - acceptance_criterion: AC3b
+    result: pass
+    notes: >
+      Same organizer sent /venue_new missing google. captured == exactly one
+      sendMessage, text "Не заполнены обязательные поля: google" (exact
+      match). venues count stayed 0.
+
+  - acceptance_criterion: AC3c
+    result: pass
+    notes: >
+      Same organizer sent /venue_new omitting lat/lon only (all required
+      fields present) -- success case. captured == exactly one sendMessage,
+      text "Площадка создана, id: 5c233a26-7a1b-41e6-a2f8-c997f1c5ca44\nДобавьте
+      координаты позже командой /venue_edit <id>, чтобы ссылка на карте была
+      точной." (createSuccessPrefix + uuid, newline, completeNudge verbatim,
+      single message not split). Read-back: name="No Coords Space", lat=NULL,
+      lon=NULL, yandex_url/google_url/capacity stored as given. venues count
+      after AC3a+AC3b+AC3c combined == 1 (only AC3c created a row).
+
+  - acceptance_criterion: AC4
+    result: pass
+    notes: >
+      Organizer (tg 800000004) attempted /venue_delete on a venue referenced
+      by a future-dated events row. captured == exactly one sendMessage,
+      text "Нельзя удалить площадку: на неё запланировано предстоящее
+      мероприятие." (deleteRefusedFutureEvent verbatim). Venue row count
+      unchanged (1 before/after). audit_log count unchanged (0 before/after)
+      -- future-event check intercepted before any DELETE was attempted.
+
+  - acceptance_criterion: AC5-create
+    result: pass
+    notes: >
+      Organizer (tg 800000005, user id aaaaaaaa-...) created a venue via
+      /venue_new. audit_log count delta exactly +1 (0 -> 1). Row content:
+      actor_user_id=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa, action=venue.create,
+      entity=venue, entity_id=<created uuid 3a87e39d-68e0-4591-a976-c61857e93a40>,
+      payload={"chapterId":"99999999-9999-9999-9999-999999999999","name":"Audit Space"}
+      -- matches spec exactly.
+
+  - acceptance_criterion: AC5-update
+    result: pass
+    notes: >
+      Same organizer ran /venue_edit <uuid> capacity: 20. audit_log count
+      delta exactly +1 (1 -> 2). Row content: actor_user_id matches,
+      action=venue.update, entity=venue, entity_id matches,
+      payload={"chapterId":"99999999-9999-9999-9999-999999999999","changedFields":["capacity"]}
+      -- matches spec exactly. venues.capacity confirmed == 20 after update.
+
+  - acceptance_criterion: AC5-delete
+    result: pass
+    notes: >
+      Same organizer ran /venue_delete <uuid>. audit_log count delta exactly
+      +1 (2 -> 3). Row content: actor_user_id matches, action=venue.delete,
+      entity=venue, entity_id matches,
+      payload={"chapterId":"99999999-9999-9999-9999-999999999999","name":"Audit Space"}
+      (pre-delete snapshot name, not the post-update capacity) -- matches
+      spec exactly. venues count for that id == 0 after (row actually
+      deleted).
+
+  - acceptance_criterion: ISS-0008-regression
+    result: pass
+    notes: >
+      Not an AC -- documented-behavior regression check per
+      docs/issues/ISS-0008.yaml. Organizer (tg 800000006) attempted
+      /venue_delete on a venue referenced ONLY by a PAST-dated events row.
+      The call threw a raw Postgres FK-violation error (DrizzleQueryError
+      wrapping "update or delete on table \"venues\" violates foreign key
+      constraint \"events_venue_id_venues_id_fk\" on table \"events\"",
+      code 23503, referencing events_venue_id_venues_id_fk) -- NOT a clean
+      venue.deleteRefusedFutureEvent reply, exactly as ISS-0008 describes
+      (hasFutureEventReference only checks starts_at > now, so a past-only
+      reference passes that check and the raw DELETE is attempted).
+      captured array was empty (no sendMessage sent to the user -- the
+      error was caught by grammY's own error path, not echoed to Telegram).
+      Rollback confirmed clean: venue row still exists afterward (count 1,
+      name still "Past Event Venue" unchanged). No spurious audit row
+      (audit_log count unchanged at 0). Confirmed apps/bot/src/index.ts has
+      no bot.catch() (grep returned no match), so no new regression beyond
+      ISS-0008's already-filed scope.
+
+overall: pass
+routing: Route to RELEASE-VALIDATOR

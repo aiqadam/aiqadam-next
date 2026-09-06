@@ -1,0 +1,40 @@
+id: ISS-0008
+title: Deleting a venue referenced only by a past event surfaces a raw FK-violation error instead of succeeding or a friendly message
+discovered_by: BACKEND-DEV
+discovered_in_run: WF02-REQ-015
+discovered_at: "2026-09-06T00:00:00Z"
+severity: MINOR
+description: >
+  Flagged as an open design question by REQ-015's design doc (SS9.2): PRD/
+  STORY-DETAILS F2 says deleting a venue attached to an UPCOMING event is
+  refused with a reason; it says nothing about a venue referenced only by
+  PAST events. deleteVenue's hasFutureEventReference check correctly returns
+  false for a past-only reference (time-parameterized, per decision 0006),
+  so the code proceeds to the actual DELETE -- which Postgres's
+  events.venue_id ON DELETE RESTRICT foreign key then rejects with a raw
+  FK-violation error ("Failed query: delete from venues..."), not the
+  application's designed refusal message.
+
+  This is not merely a theoretical future concern: BACKEND-DEV concretely
+  reproduced it during REQ-015's own verification by inserting a raw events
+  fixture row with a past starts_at (Event CRUD handlers don't exist yet,
+  but the events table and its FK already do, from REQ-011). Confirmed the
+  transaction rolls back atomically -- the venue row survives and no
+  spurious audit_log row is written -- so no data-integrity invariant is
+  violated, only the user-facing error is wrong-shaped for this specific
+  case.
+
+  No AC of REQ-015 tests or requires a specific behavior for past-event-only
+  deletion, so this did not block REQ-015's sign-off. The actual product
+  decision (should a venue referenced only by past events be deletable at
+  all, given past events presumably want their venue reference to remain
+  resolvable? Or should the RESTRICT FK simply be the final word, with the
+  application translating the FK-violation into a friendly message instead
+  of a raw error?) is DATA-DESIGNER's/REQ-016's to make, since REQ-016 is
+  the first point where a real Event row can be created through normal
+  product flow and the actual semantics of "does a past event still need
+  its venue resolvable" become concrete.
+affected_files:
+  - apps/bot/src/domain/venue.ts
+  - apps/bot/src/db/schema.ts
+status: open

@@ -1,0 +1,16 @@
+{
+  "handoff_id": "step-02-backend-dev",
+  "run_id": "WF02-REQ-015",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "ORCH",
+  "to_agent": "BACKEND-DEV",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Implemented domain/{venueAuthorization,venue,auditLog}.ts and handlers/venue.ts per the design. All 5 ACs verified with real live-DB grammY dispatch: AC1 member direct-call refused with zero rows created; AC2 cross-chapter refused on both create and edit; AC3 all three field-requirement cases; AC4 future-event deletion refused with the intended message; AC5 exactly one audit_log row per successful mutation, verified by count. Additionally reproduced the flagged RESTRICT-FK tension concretely (not just theoretically): a venue referenced only by a past event surfaces a raw FK-violation error on delete rather than a friendly message -- transaction rolls back cleanly, no invariant violated, but the error shape is wrong for that case. Filed as ISS-0008 for REQ-016 to reconcile. lint/build/test all pass (44/44, up from 18).",
+    "artifacts_out": ["apps/bot/src/domain/venueAuthorization.ts", "apps/bot/src/domain/venueAuthorization.test.ts", "apps/bot/src/domain/venue.ts", "apps/bot/src/domain/venue.test.ts", "apps/bot/src/domain/auditLog.ts", "apps/bot/src/handlers/venue.ts", "apps/bot/src/i18n/types.ts", "apps/bot/src/i18n/ru.ts", "apps/bot/src/i18n/en.ts", "apps/bot/src/index.ts"],
+    "issues": [{"severity": "MINOR", "description": "Filed as ISS-0008: deleting a venue referenced only by a past event surfaces a raw FK-violation error, not a friendly message. No AC requires specific behavior here; deferred to REQ-016/DATA-DESIGNER since that's the first point a real Event row exists through normal product flow."}],
+    "next_action": "Route to REVIEWER (Step 2b)"
+  }
+}

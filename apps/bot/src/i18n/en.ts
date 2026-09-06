@@ -25,4 +25,25 @@ export const en = {
     confirmed: "Interface language: English.",
     noProfile: "No profile found. Language not saved — send /start to begin.",
   },
+  // Placeholder/provisional wording (REQ-015 design §1-§6) — see ru.ts for
+  // the CONTENT-BA ownership note; same scope applies here.
+  venue: {
+    notAuthorized: "You are not authorized to do this.",
+    notFound: "Venue not found.",
+    createUsage:
+      "Send /venue_new followed on the next lines by:\nname: ...\naddress: ...\nyandex: ...\ngoogle: ...\ncapacity: ...\nlat: ... (optional)\nlon: ... (optional)\nnotes: ... (optional)",
+    missingFieldsPrefix: "Missing required field(s):",
+    createSuccessPrefix: "Venue created, id:",
+    completeNudge:
+      "Add coordinates later with /venue_edit <id> so the map link renders precisely.",
+    editUsageNoId: "Provide the venue id: /venue_edit <id>",
+    editCurrentPrefix: "Current values (send /venue_edit <id> plus the fields to change):",
+    editSuccessPrefix: "Venue updated, changed field(s):",
+    deleteUsageNoId: "Provide the venue id: /venue_delete <id>",
+    deleteSuccessPrefix: "Venue deleted:",
+    deleteRefusedFutureEvent:
+      "This venue cannot be deleted: it has an upcoming event scheduled.",
+    listEmpty: "No venues yet.",
+    listHeader: "Venues in your chapter:",
+  },
 } satisfies Catalog;

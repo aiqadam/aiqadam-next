@@ -859,7 +859,7 @@ requirements:
   - id: REQ-015
     title: Venue CRUD for organizers, chapter-scoped
     owner: BACKEND-DEV
-    status: pending
+    status: done
     description: >
       First slice of PRD 14 build-order step 2 ("Venues + Events CRUD + public event
       card"). Implements USER-STORIES F2 / STORY-DETAILS F2 (Reuse the places we run at)
