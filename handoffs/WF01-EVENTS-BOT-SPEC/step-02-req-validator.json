@@ -1,0 +1,54 @@
+{
+  "handoff_id": "8eaeaf6d-14c5-46f6-a1b2-46ff3e41d9a1",
+  "run_id": "WF01-EVENTS-BOT-SPEC",
+  "workflow_id": "WF-01",
+  "step": "02",
+  "from_agent": "ORCH",
+  "to_agent": "REQ-VALIDATOR",
+  "file": "handoffs/WF01-EVENTS-BOT-SPEC/step-02-req-validator.json",
+  "created_at": "2026-09-06T03:51:39Z",
+  "started_at": "2026-09-06T03:51:39Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-007", "REQ-008", "REQ-009", "REQ-010", "REQ-011", "REQ-012", "REQ-013", "REQ-014", "REQ-015", "REQ-016", "REQ-017", "REQ-018", "REQ-019", "REQ-020", "REQ-021", "REQ-022", "REQ-023", "REQ-024", "REQ-025", "REQ-026", "REQ-027", "REQ-028", "REQ-029", "REQ-030", "REQ-031", "REQ-032"],
+    "requirement_text": {},
+    "source_text": {
+      "note-on-source": "The requirements under gate were adapted from an EXTERNAL specification at C:/tmp/AI-Qadam-Events-Bot-Spec/ (README.md, PRD.md, USER-STORIES.md, STORY-DETAILS.md, RE-EVALUATION.md, DESIGN-REVIEW.md, JOURNEY-AUDIT.md). PRD.md is the authoritative document. You need it to run check (b) CONSISTENCY and to verify fidelity claims — a requirement that cites 'PRD FR-7' must actually say what FR-7 says. Read the spec; do not take REQ-ANALYST's characterization of it on trust."
+    },
+    "related_handoff_ids": ["c46ce80c-84e6-4310-a13b-0e32dc7f0011"],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "handoffs/WF01-EVENTS-BOT-SPEC/step-01-req-analyst.json",
+      "docs/agents/decisions/0003-events-bot-subproject.md",
+      "docs/agents/decisions/0001-full-pipeline-adopted.md",
+      "docs/agents/decisions/0002-content-ba-owns-message-catalogs.md",
+      "docs/agents/instructions/security-invariants.md",
+      "docs/agents/AGENT_SYSTEM.md",
+      "docs/agents/workflows/WF-01_requirement_development.md",
+      "C:/tmp/AI-Qadam-Events-Bot-Spec/PRD.md",
+      "C:/tmp/AI-Qadam-Events-Bot-Spec/README.md",
+      "C:/tmp/AI-Qadam-Events-Bot-Spec/STORY-DETAILS.md"
+    ]
+  },
+  "task": {
+    "description": "Gate REQ-007 through REQ-032 (26 new requirements adapting the AI Qadam Events Bot spec, drafted at step-01) per WF-01 Step 2. Run all five checks — (a) TESTABILITY, (b) CONSISTENCY, (c) DEPENDS_ON CORRECTNESS, (d) DESIGN-SYSTEM FIT, (e) SIZE — against EVERY one of the 26. FAIL on any single check failing; no partial credit. Name the specific requirement id and check letter for every FAIL.\n\nYou are the only gate on this batch, and it is a large one (1164 lines appended). Budget your effort accordingly: this is a real gate, not a formality.\n\nRE-DERIVE, DO NOT TRUST. core-directives.md's producer/validator rule and its 'Re-derive under the conditions the property is actually about' clause both bind you here. REQ-ANALYST's result.summary in step-01-req-analyst.json makes specific, checkable factual claims — treat every one as a CLAIM TO VERIFY, not as evidence:\n\n1. 'git diff shows 1164 insertions and zero deletions; REQ-001a..REQ-006 byte-for-byte untouched.' Verify yourself: `git diff abcae05^ abcae05 -- docs/agents/requirements.yaml --numstat` and confirm zero deletions.\n2. 'YAML parses; every entry uses exactly the seven canonical fields with no invented ones; all 26 are status: pending with >=2 acceptance criteria.' Parse the file and check, per entry.\n3. 'Dependency graph verified acyclic, no orphaned references, every requirement transitively rooted at REQ-007.' Re-derive the graph yourself and confirm both properties. An orphaned or cyclic depends_on is a check-(c) FAIL.\n4. 'S-numbers cited in 19 requirements; the 7 without one implicate no privacy/authz/token/consent/audit property.' This is the claim most worth attacking. For each of the seven named as needing none (REQ-007, 008, 013, 017, 021, 026, 032), decide INDEPENDENTLY whether that is true — REQ-017 renders an event card, REQ-026 sends reminders to real people, REQ-032 collects feedback. If any of them does implicate an invariant, that is a check-(a)/(b) FAIL naming the missing S-number.\n5. 'PRD §14's manual-list-before-QR ordering is enforced structurally via REQ-029 depends_on REQ-028.' Verify in the file.\n\nFIDELITY TO THE SPEC IS PART OF CHECK (b). A requirement citing a PRD section or FR number must actually match what that section says. Spot-check the load-bearing ones — the admission state machine and auto-promotion's T-24h cutoff (PRD §6), the reminder schedule (FR-7), the check-in refusal matrix (FR-14), the computed-never-stored list (PRD §5), and the eight invariants (PRD §12). A requirement that would create a stored column for no_show, waitlist position, seats taken, registration_open, finished, or the speaker lineup is a FAIL.\n\nCHECK (d) DESIGN-SYSTEM FIT — note the changed context. Most of these 26 requirements are backend/bot work with NO visual surface, so the design-system check is inapplicable to them and should be recorded as such rather than forced. It applies genuinely to REQ-007/REQ-008 (the site's own files moving — the site must still render identically) and to anything touching apps/web. Do not manufacture a design-system finding for a database migration.\n\nCHECK (e) SIZE deserves particular attention. The dispatch to REQ-ANALYST told it to err toward smaller and expect several requirements per PRD §14 build-order step; it produced 26. Verify that judgment held in BOTH directions: flag any requirement still smuggling multiple unrelated deliverables (too big), and note — as a MINOR issue, not a FAIL — any that is so thin it is bookkeeping rather than work. REQ-007 (moving the entire site into apps/web) and REQ-009 (bot skeleton PLUS three decision records PLUS a test runner) are the two most likely to be oversized; scrutinize them specifically.\n\nAlso confirm the run's stated scope boundary held: no Release 2 or Release 3 requirement was drafted, and REQ-032's description states the boundary explicitly.",
+    "acceptance_criteria": [
+      "All five WF-01 Step 2 checks (a-e) were actually run against each of REQ-007..REQ-032, and you can state what you checked for each.",
+      "Every one of REQ-ANALYST's five enumerated factual claims was independently re-derived, with the actual command output or file evidence cited — not accepted from its result.summary.",
+      "The dependency graph was rebuilt independently and confirmed acyclic, orphan-free, and rooted at REQ-007.",
+      "The seven requirements claimed to need no security-invariant citation were each independently assessed, with a stated reason per requirement.",
+      "Load-bearing spec-fidelity claims (PRD §5 computed-never-stored, §6 state machine and T-24h cutoff, §12 invariants, FR-7, FR-14) were checked against the actual PRD text.",
+      "Any FAIL names the specific requirement id and the check letter; a PASS states positively what was verified rather than that nothing looked wrong.",
+      "Design-system fit is assessed only where a visual surface genuinely exists, and recorded as inapplicable elsewhere rather than forced."
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": null
+  }
+}
