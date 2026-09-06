@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "migrate": "drizzle-kit migrate"
   },
   "dependencies": {
     "grammy": "1.46.0",

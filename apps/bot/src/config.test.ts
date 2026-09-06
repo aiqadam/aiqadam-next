@@ -4,7 +4,38 @@ import { loadConfig } from "./config.js";
 describe("loadConfig", () => {
   it("returns the config when both required variables are present", () => {
     const config = loadConfig({ BOT_TOKEN: "t", DATABASE_URL: "d" });
-    expect(config).toEqual({ botToken: "t", databaseUrl: "d" });
+    expect(config).toEqual({
+      botToken: "t",
+      databaseUrl: "d",
+      logLevel: "info",
+      defaultChapterCode: undefined,
+    });
+  });
+
+  it("defaults logLevel to info when LOG_LEVEL is unset", () => {
+    const config = loadConfig({ BOT_TOKEN: "t", DATABASE_URL: "d" });
+    expect(config.logLevel).toBe("info");
+  });
+
+  it("accepts a valid LOG_LEVEL", () => {
+    const config = loadConfig({ BOT_TOKEN: "t", DATABASE_URL: "d", LOG_LEVEL: "debug" });
+    expect(config.logLevel).toBe("debug");
+  });
+
+  it("throws naming the problem when LOG_LEVEL is invalid", () => {
+    expect(() =>
+      loadConfig({ BOT_TOKEN: "t", DATABASE_URL: "d", LOG_LEVEL: "verbose" }),
+    ).toThrow(/invalid value for LOG_LEVEL/);
+  });
+
+  it("leaves defaultChapterCode undefined when DEFAULT_CHAPTER_CODE is unset", () => {
+    const config = loadConfig({ BOT_TOKEN: "t", DATABASE_URL: "d" });
+    expect(config.defaultChapterCode).toBeUndefined();
+  });
+
+  it("passes through DEFAULT_CHAPTER_CODE when set", () => {
+    const config = loadConfig({ BOT_TOKEN: "t", DATABASE_URL: "d", DEFAULT_CHAPTER_CODE: "uz" });
+    expect(config.defaultChapterCode).toBe("uz");
   });
 
   it("throws naming the missing variable when BOT_TOKEN is absent", () => {

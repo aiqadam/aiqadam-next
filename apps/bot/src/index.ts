@@ -1,25 +1,28 @@
 import { Bot } from "grammy";
-import { loadConfig } from "./config.js";
+import { loadConfig, type BotConfig } from "./config.js";
+import { createDbClient } from "./db/client.js";
+import { createLogger } from "./log.js";
 
-let botToken: string;
-let databaseUrl: string;
+let config: BotConfig;
 
 try {
-  const config = loadConfig(process.env);
-  botToken = config.botToken;
-  databaseUrl = config.databaseUrl;
+  config = loadConfig(process.env);
 } catch (err) {
   console.error((err as Error).message);
   process.exit(1);
 }
 
-// databaseUrl is validated for presence only at this stage (REQ-009) — no
-// Drizzle/pg client is instantiated here until a schema exists (REQ-010+).
-void databaseUrl;
+const log = createLogger(config.logLevel);
 
-console.log("bot starting");
+// Pool is constructed after loadConfig succeeds, before bot.start() (REQ-012
+// §2.3). Not yet used by any handler in this requirement's scope — later
+// requirements (REQ-013+) consume `db` from this client.
+const { pool } = createDbClient(config.databaseUrl);
+void pool;
 
-const bot = new Bot(botToken);
+log.info("bot starting");
+
+const bot = new Bot(config.botToken);
 
 bot.command("health", (ctx) => ctx.reply("ok"));
 
