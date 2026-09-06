@@ -437,3 +437,1167 @@ requirements:
       - "The status-label keys — Streams.tsx's stream{N}Status keys and MapSection.tsx's chapter{N}Status keys — hold plain lowercase Cyrillic-script Kazakh (or the verbatim English domain term) values in messages/kk.json, matching the lowercase convention already used for these keys in messages/ru.json/uz.json/en.json; uppercase display comes purely from src/app/globals.css's unconditional `.status` `text-transform:uppercase` rule, not from the JSON values themselves, consistent with content_ba_guide.md §4's casing rule."
       - "No exclamation marks, slogans, or emoji appear in any messages/kk.json value (grepped), matching the tone rule in content_ba_guide.md §3."
     depends_on: [REQ-005]
+
+  - id: REQ-007
+    title: Move the Next.js site from the repo root into apps/web and establish the npm workspace root
+    owner: FRONTEND-DEV
+    status: pending
+    description: >
+      Implements the layout half of docs/agents/decisions/0003-events-bot-subproject.md
+      ("Layout: the site moves to apps/web"). This is the FIRST requirement of the
+      Events Bot programme: every subsequent requirement REQ-008..REQ-032 depends on it
+      transitively, because they all cite apps/web/** or apps/bot/** paths that do not
+      exist until this lands.
+
+      Scope is deliberately limited to the FILE MOVE plus the workspace root, so it fits
+      one agent turn. Deploy/Docker/CI path updates are REQ-008; the apps/bot skeleton is
+      REQ-009. Splitting this way keeps each turn's blast radius to one verifiable
+      surface: this one is "the site still builds and serves from its new location".
+
+      Scope of work:
+      - Move, with `git mv` so history is preserved, the following root entries into
+        apps/web/: src/, messages/, public/, next.config.ts, tsconfig.json,
+        eslint.config.mjs, next-env.d.ts, and the existing root package.json
+        (which becomes apps/web/package.json, keeping name/scripts/dependencies as-is).
+      - Create a NEW root package.json declaring `"private": true` and
+        `"workspaces": ["apps/*"]`, with root-level `dev`/`build`/`lint`/`start` scripts
+        that delegate to the web workspace (e.g. `npm run build -w apps/web`) so the
+        existing CI invocations `npm run lint` / `npm run build` at the repo root keep
+        working unchanged. Regenerate package-lock.json at the root via `npm install`
+        so the lockfile describes the workspace tree.
+      - Leave Dockerfile, deploy/, .github/workflows/ci-cd.yml, README.md, AGENTS.md,
+        CLAUDE.md, .gitignore and docs/ at the repo root. Dockerfile and deploy path
+        fixes are REQ-008's scope — this requirement must NOT edit them, and it is
+        expected and acceptable that `docker build` is broken between REQ-007 and
+        REQ-008 landing (they are sequenced and merged in that order).
+      - Do not rewrite or renumber REQ-001a..REQ-006. Per decision 0003, their
+        descriptions cite pre-migration root-relative paths and stand as historical
+        records. PATH MAPPING NOTE, recorded here as decision 0003 directs: any
+        root-relative source path cited by REQ-001a..REQ-006 (src/i18n/routing.ts,
+        messages/kk.json, src/components/landing/*.tsx, src/app/globals.css, ...) is
+        read after this requirement as apps/web/<old path>.
+    acceptance_criteria:
+      - "apps/web/package.json, apps/web/next.config.ts, apps/web/tsconfig.json, apps/web/eslint.config.mjs, apps/web/src/, apps/web/messages/ and apps/web/public/ all exist, and none of src/, messages/, public/, next.config.ts, tsconfig.json, eslint.config.mjs or next-env.d.ts remains at the repo root (verified by `ls` at the root plus `git status` showing renames, not delete+add)."
+      - "The repo-root package.json declares `\"workspaces\": [\"apps/*\"]` and `\"private\": true`, and `npm run build` and `npm run lint` executed FROM THE REPO ROOT both complete with exit code 0 and no type, routing or module-resolution errors — the same two commands .github/workflows/ci-cd.yml's `build` job runs."
+      - "`npm run build && npm run start` from the repo root serves all four locales: /ru, /uz, /en and /kk each render with the matching `<html lang>` value and no missing-translation-key errors, and /health returns HTTP 200 — matching the verification REQ-005 used, re-run after the move."
+      - "apps/web/messages/ contains exactly the four catalogs ru.json, uz.json, en.json, kk.json with identical key sets (re-verified by the same key-set diff script REQ-005's acceptance criteria used), proving the move lost no catalog content."
+      - "`git log --follow apps/web/src/i18n/routing.ts` shows the pre-migration commit history, proving `git mv` was used rather than a delete-and-recreate."
+    depends_on: []
+
+  - id: REQ-008
+    title: Repoint Dockerfile, deploy compose files and the CI workflow at the apps/web workspace
+    owner: FRONTEND-DEV
+    status: pending
+    description: >
+      Second half of the monorepo migration begun in REQ-007. REQ-007 moves the site's
+      source into apps/web/ and creates the workspace root but deliberately does not
+      touch the build/deploy surface; between REQ-007 and this requirement the Docker
+      image build is expected to be broken. This requirement repairs it.
+
+      Concrete current state, read from the live files at drafting time (verify before
+      changing, per HANDOFF_PROTOCOL.md 1.1 — do not trust this paragraph):
+      - Dockerfile (repo root) copies `package.json package-lock.json ./`, runs
+        `npm ci`, `COPY . .`, `npm run build`, then in the runtime stage copies
+        /app/public, /app/.next, /app/node_modules and /app/package.json. After
+        REQ-007, `public/` and `.next/` live under /app/apps/web/, so every one of
+        those runtime COPY paths is wrong.
+      - deploy/docker-compose.qa.yml and deploy/docker-compose.prod.yml both set
+        `build.context: ..` and `dockerfile: Dockerfile`, run `network_mode: host`,
+        PORT 3120, and health-check http://127.0.0.1:3120/health.
+      - .github/workflows/ci-cd.yml's `build` job runs `npm ci`, `npm run lint`,
+        `npm run build` at the repo root and then `docker build -t
+        aiqadam-next:ci-<sha> .` — the root scripts REQ-007 adds keep the first three
+        working; only the docker build needs this requirement.
+
+      Scope of work: update the Dockerfile's builder and runtime stages so the built
+      Next.js app is produced from and copied out of the apps/web workspace (root
+      package.json + package-lock.json + apps/web/package.json for `npm ci`, then the
+      app's build output and public assets from apps/web). Keep the runtime CMD serving
+      on PORT with the same /health contract, so deploy/docker-compose.*.yml need no
+      change beyond whatever the verified reality requires. Do not change the deploy
+      contract itself — deploy/deploy.sh's `deploy:<sha>` SSH forced-command interface,
+      the compose project names, the host networking mode and port 3120 all stay exactly
+      as they are; this requirement repoints paths, it does not redesign deployment.
+    acceptance_criteria:
+      - "`docker build -t aiqadam-next:req008 .` from the repo root completes with exit code 0 — the exact command .github/workflows/ci-cd.yml's `build` job runs (with a different tag)."
+      - "`docker run --rm -e PORT=3120 -p 3120:3120 aiqadam-next:req008` serves HTTP 200 at http://127.0.0.1:3120/health and renders /ru, /uz, /en and /kk with their matching `<html lang>` values, verified by actual curl output pasted into the verification report — this is the same health contract deploy/docker-compose.qa.yml's healthcheck asserts."
+      - "`docker compose -p aiqadam-next-qa -f deploy/docker-compose.qa.yml config` parses without error and still resolves `build.context: ..` plus `dockerfile: Dockerfile` to the repo-root Dockerfile."
+      - "deploy/deploy.sh is unchanged (verified by `git diff --stat` showing no modification to that file), preserving the `deploy:<7-40 hex>` SSH forced-command contract and its no-`git clean` hard rule."
+    depends_on: [REQ-007]
+
+  - id: REQ-009
+    title: Create the apps/bot workspace skeleton with decision records for the Telegram framework, ORM and test runner
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Creates the empty-but-buildable apps/bot workspace that every later bot
+      requirement writes into, and — critically — is the requirement in which the three
+      still-open technology questions get DECIDED AND RECORDED, rather than silently
+      resolved by whichever agent writes the first handler.
+
+      THREE OPEN QUESTIONS THIS REQUIREMENT MUST RESOLVE AS docs/agents/decisions/
+      RECORDS (per core-directives.md's Zero Manual Work clause 1 — options named
+      explicitly, one chosen with a written rationale; never picked silently in code):
+
+      (a) TELEGRAM FRAMEWORK — grammY vs Telegraf. decisions/0003 "What this record
+          does not decide" leaves this open explicitly. Both are maintained
+          open-source TypeScript Bot API libraries and both satisfy PRD 11's
+          zero-licence-cost/self-hosted constraint; the choice is a genuine preference
+          between two viable options, so it needs a record, not an inline import.
+
+      (b) ORM / MIGRATION TOOL — likewise left open by decisions/0003. Whatever is
+          chosen must support the constraints PRD 1 and 11 state: UUID primary keys,
+          no Telegram-only business key, versioned migrations, and exportability
+          ("the AI Qadam platform will take this over later").
+
+      (c) TEST FRAMEWORK — docs/agents/AGENT_SYSTEM.md 7 records that this project has
+          no test runner and names the trigger as now imminent, because the bot's
+          admission state machine (PRD 6), capacity atomicity (PRD 12.2) and
+          notification idempotency (PRD 12.8) cannot be verified by a manual
+          checklist. AGENT_SYSTEM.md 7 states the decision record is a prerequisite of
+          the bot's FIRST LOGIC requirement — that is REQ-020 (registration/admission),
+          so this requirement is where it is settled.
+
+      Scope of work:
+      - Create apps/bot/package.json as a workspace member (picked up by the root
+        `"workspaces": ["apps/*"]` REQ-007 adds), apps/bot/tsconfig.json,
+        apps/bot/eslint config, and apps/bot/src/index.ts that starts a bot process,
+        reads its token and database URL from environment variables, and exits
+        non-zero with a clear message if either is absent.
+      - Add root-level scripts so `npm run lint` and `npm run build` at the repo root
+        cover BOTH workspaces, keeping .github/workflows/ci-cd.yml's existing
+        invocations correct without editing the workflow.
+      - Write the three decision records under docs/agents/decisions/ (next free
+        numbers after 0003), each naming the options considered, the choice, and the
+        rationale against PRD 11's stated constraints.
+      - Wire the chosen test runner so `npm test` at the repo root runs and passes with
+        at least one real assertion, giving TEST-DESIGNER and TEST-RUNNER a runnable
+        target from REQ-010 onward.
+      - NO domain logic, NO database schema, NO handlers beyond a health/liveness path.
+        Those are REQ-010 onward.
+      - Secrets: the bot token and database URL are read from the environment only.
+        Neither may be committed, defaulted to a literal, or echoed in any log line
+        (security-invariants.md S11 — PII and credentials never in plaintext logs).
+    acceptance_criteria:
+      - "apps/bot/package.json exists as a workspace member and `npm install` at the repo root resolves both apps/web and apps/bot without error; `npm run lint` and `npm run build` from the repo root both exit 0 and cover apps/bot (verified by deliberately introducing a type error in apps/bot/src and confirming `npm run build` then FAILS, then reverting — a build that passes without ever compiling apps/bot is not evidence)."
+      - "Three new docs/agents/decisions/ records exist (numbered after 0003) covering the Telegram framework, the ORM/migration tool and the test framework; each names at least two options considered, states the choice, and gives a rationale citing PRD 11's constraints. A record that names one option is a FAIL of this criterion."
+      - "`npm test` at the repo root runs the chosen test runner and reports at least one passing assertion, with the real command output captured in the verification report."
+      - "Starting apps/bot with the bot-token environment variable unset exits non-zero and prints a message naming the missing variable; starting it with the variable set to a dummy value does NOT print that value anywhere in stdout/stderr (security-invariants.md S11), verified by running both cases and grepping the captured output for the dummy value."
+      - "`git grep -n` over apps/bot finds no committed bot token, database password, or connection string literal — every such value comes from `process.env`."
+    depends_on: [REQ-007]
+
+  - id: REQ-010
+    title: Bot data model and initial migration for Chapter, User and Profile
+    owner: DATA-DESIGNER
+    status: pending
+    description: >
+      First slice of PRD 14 build-order step 1 ("Skeleton: bot, DB, migrations, config,
+      /start, i18n scaffold, chapter assignment"). Step 1 is far larger than one agent
+      turn, so it is split across REQ-010..REQ-014; this one is the identity/consent
+      core of the schema, deliberately drafted before any handler exists so that the
+      computed-not-stored boundary is settled once rather than per-feature.
+
+      Derives from PRD 5 (data model), PRD 10 (privacy) and security-invariants.md
+      S1/S11/S13.
+
+      Scope of work — design and migration for exactly three entities, per PRD 5:
+      - Chapter: code (uz|kz) - name - timezone - default_lang.
+      - User: tg_id (UNIQUE, NULLABLE) - tg_username - lang (ru|en) -
+        role (member|organizer|owner) - chapter_id - broadcast_opt_in -
+        consent_pd_at - blocked.
+      - Profile: user_id (1:1) - first_name - last_name - phone (nullable) -
+        email (nullable) - company - position - is_student -
+        experience_level (user|builder|advanced|expert) - links{github,linkedin,site}
+        (all nullable) - public_bio (nullable) - photo_file_id (nullable) -
+        publish_consent (default FALSE).
+      Every entity carries a UUID primary key and created/updated timestamps
+      (PRD 5 preamble, PRD 1 "UUID keys, no Telegram-only assumptions").
+
+      HARD CONSTRAINTS this design must honour, stated so they cannot evaporate:
+      - `tg_id` is NULLABLE and is NEVER a business key (PRD 5 closing rule). It exists
+        so an organizer can pre-create a person who has never opened the bot; it links
+        on first /start. Every foreign key and every lookup in later requirements
+        resolves to User.id, not tg_id.
+      - THREE SEPARATE CONSENTS, one home each, never conflated into one boolean
+        (security-invariants.md S1): store-my-data = User.consent_pd_at (a timestamp,
+        required before any Profile row is written); message-me =
+        User.broadcast_opt_in (default false); publish-me = Profile.publish_consent
+        (default false).
+      - PRD 5's optionality rule: phone, email, all links, public_bio and photo_file_id
+        are NULLABLE at the database level. A NOT NULL constraint on any of them is a
+        defect, not a hardening.
+      This requirement produces the design artefact under docs/agents/design/ AND the
+      migration file under apps/bot/. It creates no handlers.
+    acceptance_criteria:
+      - "The migration creates chapters, users and profiles with UUID primary keys and created/updated timestamp columns on all three; verified by applying the migration to a scratch Postgres database and inspecting the resulting schema (the `\\d+` output pasted into the verification report)."
+      - "users.tg_id is nullable AND unique, verified by executing two inserts of users with NULL tg_id (both must succeed, proving nullability does not collide on the unique index) and one duplicate non-null tg_id insert (must fail) against the scratch database — a schema read alone is not sufficient evidence for the null-collision case."
+      - "profiles.phone, profiles.email, profiles.public_bio, profiles.photo_file_id and every links column are nullable, verified by inserting a profile row supplying only the PRD 5 required fields (first_name, last_name, company, position, is_student, experience_level) and confirming it succeeds (PRD 5 'if nothing uses it, it is optional')."
+      - "Three distinct consent columns exist in their PRD-specified homes — users.consent_pd_at (timestamp), users.broadcast_opt_in (boolean), profiles.publish_consent (boolean) — with broadcast_opt_in and publish_consent both DEFAULT FALSE, verified by inserting a row that supplies neither and reading back false for both (security-invariants.md S1, S14)."
+      - "No column exists anywhere in this migration for a PRD 5 computed-never-stored value — specifically no no_show, waitlist_position, seats_taken, registration_open or finished column — verified by grepping the migration file for each of those five names and finding zero matches."
+      - "The design artefact under docs/agents/design/ states explicitly that tg_id is never a business key and that every later lookup resolves to User.id (PRD 5)."
+    depends_on: [REQ-009]
+
+  - id: REQ-011
+    title: Bot data model and migration for Venue, Event, Registration, EventStaff and AuditLog
+    owner: DATA-DESIGNER
+    status: pending
+    description: >
+      Second schema slice of PRD 14 build-order step 1, separated from REQ-010 because
+      designing eight entities plus their constraints in one turn does not fit. REQ-010
+      covers identity and consent; this covers the event/attendance core that
+      REQ-015..REQ-032 write against.
+
+      Derives from PRD 5, PRD 6 (state machines), PRD 12 (invariants) and
+      security-invariants.md S4/S6/S7/S8.
+
+      Entities, per PRD 5:
+      - Venue: chapter_id - name - address - lat - lon - yandex_url - google_url -
+        capacity - notes (nullable).
+      - Event: chapter_id - title - description - format(meetup|fail_stories|workshop|
+        hackathon) - venue_id - starts_at - ends_at - registration_closes_at -
+        capacity - requires_invite - requires_approval -
+        status(draft|published|cancelled) - cover_file_id - agenda[] (NON-TALK items
+        only — doors, networking, close; the talk lineup is never duplicated here,
+        PRD 5).
+      - Registration: event_id - user_id - admission(requested|waitlisted|admitted|
+        rejected|withdrawn) - checked_in_at - checked_in_by - check_in_method(qr|manual)
+        - reconfirmed_at - invited_by_user_id - source - invite_code_id -
+        qr_token(UNIQUE, nullable) - no_show_reason - UNIQUE(event_id, user_id).
+      - EventStaff: event_id - user_id — check-in rights for that ONE event
+        (PRD 3, security-invariants.md S2).
+      - AuditLog: actor_user_id - action - entity - entity_id - payload - at.
+      All with UUID primary keys and created/updated timestamps. Registration.created_at
+      in particular is load-bearing: waitlist position is computed by ranking
+      created_at among waitlisted rows (PRD 5), so it must be non-null and indexed for
+      that query.
+
+      HARD CONSTRAINTS:
+      - PRD 12.1: exactly one Registration per (event_id, user_id) — a real database
+        UNIQUE constraint, not application-level checking.
+      - PRD 5 computed-never-stored: NO column for no_show, waitlist position, seats
+        taken, registration_open or finished. `no_show` is derived as
+        (admission='admitted' AND checked_in_at IS NULL AND now > ends_at);
+        seats_taken is count(admission='admitted'). Note that no_show_reason IS a
+        stored column (PRD 5 lists it on Registration and FR-16 ranks it) — the
+        derived boolean no_show is not, and the two must not be conflated.
+      - Attendance is NOT an admission state (PRD 6). checked_in_at is a timestamp
+        alongside admission, never a sixth enum value.
+      - AuditLog.payload must not become a home for plaintext phone or email
+        (security-invariants.md S11) — the design states this constraint explicitly for
+        the requirements that later write audit rows.
+    acceptance_criteria:
+      - "The migration creates venues, events, registrations, event_staff and audit_log with UUID primary keys and created/updated timestamps, verified by applying it to a scratch Postgres database and pasting the resulting schema into the verification report."
+      - "A UNIQUE constraint on registrations(event_id, user_id) exists and is enforced, verified by inserting the same (event_id, user_id) pair twice against the scratch database and confirming the second insert fails with a unique-violation error (PRD 12.1) — reading the schema is not sufficient; the duplicate insert must actually be attempted."
+      - "registrations.qr_token is UNIQUE and nullable, verified by inserting two registrations with NULL qr_token (both succeed) and two with the same non-null token (second fails)."
+      - "The registrations.admission enum/check accepts exactly the five PRD 6 values (requested, waitlisted, admitted, rejected, withdrawn) and rejects a sixth — verified by attempting an insert with admission='checked_in' and confirming it fails, proving attendance was not modelled as an admission state (PRD 6)."
+      - "No column named no_show, waitlist_position, seats_taken, registration_open or finished exists in any table created by this migration, verified by grepping the migration for each name (PRD 5 computed-never-stored); the stored column no_show_reason is present and is explicitly distinguished from the derived no_show in the design artefact."
+      - "The design artefact under docs/agents/design/ specifies the exact derivation expressions for no_show, waitlist position and seats_taken, and states that EventStaff grants rights for one event only (security-invariants.md S2) and that AuditLog.payload never carries plaintext phone or email (S11)."
+    depends_on: [REQ-010]
+
+  - id: REQ-012
+    title: Bot config loading, Postgres connection and migration runner wired into apps/bot startup
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Third slice of PRD 14 build-order step 1. REQ-010 and REQ-011 design the schema
+      and produce migration files; this requirement makes them actually runnable and
+      connects the bot process to Postgres.
+
+      Scope of work:
+      - apps/bot/src config module: reads bot token, database URL, log level and the
+        default chapter code from the environment; validates them at startup and exits
+        non-zero naming any missing variable. No literal defaults for the token or the
+        database URL.
+      - Postgres connection pooling sized for PRD 1's stated load (~1000 users, ~10
+        events/year, peak 0.06 rps, DB < 50MB, "one Postgres and one bot process are
+        sufficient. Do not add infrastructure"). A pool sized for this load is single
+        digits, not dozens; oversizing contradicts PRD 11's one-small-server
+        constraint.
+      - A migration runner command (`npm run migrate -w apps/bot` or the equivalent for
+        whichever tool REQ-009's decision record selected) that applies REQ-010's and
+        REQ-011's migrations, is idempotent when re-run against an already-migrated
+        database, and reports which migrations it applied.
+      - A local development docker-compose (under apps/bot/, NOT under deploy/, which
+        holds the site's production compose files) bringing up a Postgres instance the
+        test suite and the migration runner can target.
+      - Structured logging that never logs the connection string, the bot token, or any
+        phone/email value (security-invariants.md S11).
+    acceptance_criteria:
+      - "`npm run migrate -w apps/bot` (or REQ-009's chosen equivalent, named in the verification report) applied against an empty Postgres creates every table from REQ-010 and REQ-011, and running the SAME command a second time against the now-migrated database exits 0 and applies nothing further — verified by capturing both runs' output."
+      - "Starting apps/bot with the database URL environment variable unset exits non-zero and names that variable; the captured stdout/stderr from a start WITH a dummy URL containing the string `SECRETPW` does not contain `SECRETPW` anywhere (security-invariants.md S11), verified by grepping the captured output."
+      - "The connection pool's configured maximum is a single-digit value and the verification report cites PRD 1's load figures as the justification; a pool max of 20 or more fails this criterion absent a written load argument."
+      - "The local Postgres compose file lives under apps/bot/ and deploy/docker-compose.qa.yml and deploy/docker-compose.prod.yml are unchanged (verified by `git diff --stat`), keeping the site's production deploy surface untouched by bot work."
+    depends_on: [REQ-009, REQ-011]
+
+  - id: REQ-013
+    title: Bot i18n scaffold with RU and EN catalogs and the /lang command
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Fourth slice of PRD 14 build-order step 1 ("i18n scaffold"). PRD 11 requires
+      "two languages at launch (RU/EN), more addable without redesign" and PRD 13
+      acceptance criterion 13 requires "RU and EN render fully — no untranslated
+      strings". PRD 4's "Later" list explicitly defers UZ/KZ INTERFACE locales for the
+      bot — so this requirement adds exactly two, and adding a third is out of scope
+      here and does not contradict the site's four locales, which are a different
+      surface.
+
+      Scope of work:
+      - A message catalog mechanism under apps/bot/ holding ru and en catalogs with
+        matching key sets, resolved per User.lang (PRD 5: lang(ru|en)), falling back
+        to the user's Chapter.default_lang when User.lang is unset, and to ru when
+        neither resolves.
+      - The `/lang` command from PRD 8, offering ru | en, persisting the choice to
+        User.lang, and confirming in the newly selected language.
+      - A key-set parity check runnable in CI (the same shape of check REQ-005's
+        acceptance criteria used for the site's four catalogs) so a missing translation
+        is caught by a command, not by a reader.
+      - Every user-facing string added by REQ-014 onward goes through this mechanism.
+        This requirement establishes the mechanism and seeds it only with the strings
+        the /start and /lang flows themselves need; later requirements add their own
+        keys.
+
+      RELATIONSHIP TO decisions/0002 AND THE SITE'S CATALOGS, stated explicitly rather
+      than assumed: decisions/0003 cites the POSSIBILITY of sharing the site's
+      messages/*.json catalogs with the bot as part of its monorepo rationale. This
+      requirement does NOT implement that sharing — the site's catalogs are landing-page
+      marketing copy (177 keys of Hero/Creed/Partners prose) with no overlap with bot
+      conversational strings, and decisions/0003's layout section creates packages/
+      "only when a second consumer exists". Extracting a shared package with zero shared
+      keys would be structure without content. If genuine overlap appears later, that is
+      its own requirement. decisions/0002 gives CONTENT-BA ownership of message catalog
+      COPY; this requirement builds the mechanism only and seeds it with functional
+      strings, so any later bot copy pass is CONTENT-BA's, exactly as for the site.
+    acceptance_criteria:
+      - "apps/bot holds ru and en catalogs whose key sets are identical, verified by a runnable script (committed, and invoked in the verification report) that exits non-zero on any key present in one catalog and absent from the other."
+      - "A user whose User.lang is 'en' receives /start and /lang responses in English and a user whose lang is 'ru' receives them in Russian, verified against a live bot instance with two test users; the captured message text for both is pasted into the verification report."
+      - "`/lang` offers exactly two options (ru, en) per PRD 11 and PRD 4's deferral of UZ/KZ bot locales; selecting the other language persists to users.lang (verified by reading the row back from Postgres) and the confirmation message itself arrives in the newly selected language."
+      - "A user with User.lang NULL whose chapter has default_lang 'en' receives English, verified by constructing exactly that row state and sending /start — a test run where User.lang was already set does not exercise this fallback and is not evidence."
+      - "apps/web/messages/*.json are unchanged by this requirement (verified by `git diff --stat`), and no shared i18n package is created — per this requirement's stated decision and decisions/0003's 'only when a second consumer exists' rule for packages/."
+    depends_on: [REQ-012]
+
+  - id: REQ-014
+    title: /start entry point, first-contact User creation with consent gate, and chapter assignment
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Final slice of PRD 14 build-order step 1, and the first requirement that handles
+      a real person. Implements PRD FR-1's /start entry and story A4 (Land in the right
+      city). Deep-link PAYLOAD handling for `e_<event_id>` is deferred to REQ-016, which
+      is where an event card exists to open; this requirement establishes the /start
+      handler, the User row, and chapter assignment.
+
+      Derives from PRD FR-1, PRD 8, USER-STORIES A4, STORY-DETAILS A4, and
+      security-invariants.md S1.
+
+      Scope of work:
+      - /start creates or resolves the User row by tg_id, ALWAYS working in terms of
+        User.id thereafter (PRD 5: never key business logic on tg_id). A user
+        pre-created by an organizer with NULL tg_id links on first /start by whatever
+        matching rule the invitation flow establishes — that matching is a Release 2
+        requirement and out of scope here; this requirement must simply not make the
+        later linking impossible by, for example, making tg_id NOT NULL or treating it
+        as the primary key.
+      - Chapter assignment per STORY-DETAILS A4: exactly one active chapter → assigned
+        silently, never asked. More than one active chapter and no context → asked once,
+        briefly. Arrived via an event link → taken from that event silently (the event
+        link path itself lands in REQ-016; this requirement implements the
+        "one active chapter" and "asked once" branches and exposes the assignment
+        function REQ-016 calls).
+      - Chapter is changeable later via /profile (REQ-019's scope) — this requirement
+        only must not hard-code it as immutable.
+      - CONSENT (security-invariants.md S1, PRD 10): the personal-data consent prompt
+        and its wording version. A User row created at /start holds only what Telegram
+        supplies (tg_id, tg_username, lang) — no Profile row and no phone/email may be
+        written before consent_pd_at is set. The consent WORDING itself is copy that
+        USER-STORIES B1 says "needs Viktor's wording and a version number"; since there
+        is no human in this pipeline, the implementing agent uses a plain factual
+        placeholder wording carrying an explicit version identifier, and records in the
+        handoff result that the wording is provisional pending the product owner — it
+        does not invent legal-sounding terms.
+      - /help per PRD 8: contacts and the community link.
+    acceptance_criteria:
+      - "Sending /start from a Telegram account the bot has never seen creates exactly one users row with that tg_id and NO profiles row, verified by querying both tables before and after against a live bot instance (security-invariants.md S1 — consent precedes storage)."
+      - "With exactly one chapter row marked active, /start assigns that chapter to the new user WITHOUT prompting; with two active chapters and no arrival context, /start asks once and persists the answer to users.chapter_id — both branches verified by constructing each chapter-table state and running /start, with the captured conversation pasted into the report (a run with only one chapter present does not exercise the second branch and is not evidence for it)."
+      - "The personal-data consent prompt is shown, and until it is accepted no profiles row and no phone/email value exists for that user; accepting sets users.consent_pd_at to a non-null timestamp and records the consent wording version, verified by reading the row back (PRD 10, S1)."
+      - "The consent wording stored is a plain factual placeholder carrying an explicit version identifier, and the handoff result states it is provisional pending the product owner — verified by reading the committed wording and the handoff's result.issues entry."
+      - "`git grep` over apps/bot finds no query or branch that uses tg_id as a foreign key or as a join key between domain tables — every relationship resolves to users.id (PRD 5)."
+      - "/help responds with the community contact information in both ru and en per REQ-013's catalog mechanism, with no hardcoded string literals in the handler (verified by grepping the handler for literal user-facing text)."
+    depends_on: [REQ-013]
+
+  - id: REQ-015
+    title: Venue CRUD for organizers, chapter-scoped
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      First slice of PRD 14 build-order step 2 ("Venues + Events CRUD + public event
+      card"). Implements USER-STORIES F2 / STORY-DETAILS F2 (Reuse the places we run at)
+      and the venue half of PRD FR-12.
+
+      Scope of work:
+      - Organizer-only creation, listing and editing of Venues within THEIR OWN chapter
+        (PRD 3: organizer = "everything in their chapter"). Fields per PRD 5: name,
+        address, lat, lon, yandex_url, google_url, capacity, notes (optional).
+      - Both map URLs are required at creation — PRD FR-2 and story A3 both state
+        "both map links (Yandex and Google)" as a hard requirement of the event card,
+        and a venue missing one produces a broken card downstream.
+      - A venue without coordinates is permitted (STORY-DETAILS A3: "Venue without
+        coordinates -> address text only, and the organizer is nudged to complete it"),
+        so lat/lon are not creation blockers, but the nudge must exist.
+      - Refusal per STORY-DETAILS F2: deleting a venue attached to an upcoming event is
+        refused with the reason.
+      - Editing a venue affects future events; past events keep what they had
+        (STORY-DETAILS F2). The design artefact must state which mechanism achieves
+        this rather than leaving it implicit.
+      - AUTHORIZATION (security-invariants.md S2): the role check lives on the HANDLER
+        that performs the action, not only on the menu that renders the button. Every
+        venue mutation writes an AuditLog row (S8, PRD 12.7).
+    acceptance_criteria:
+      - "A user with role 'member' invoking the venue-create handler DIRECTLY (by sending the callback data / command the organizer menu would produce, not by tapping a rendered button) is refused, and the venue is not created — verified by constructing exactly that call against a live instance and querying the venues table (security-invariants.md S2: the negative path must be proven on the handler, not the menu)."
+      - "An organizer of chapter A attempting to create or edit a venue in chapter B is refused, verified by constructing two chapters and one organizer and attempting the cross-chapter action (security-invariants.md S2)."
+      - "Creating a venue without yandex_url or without google_url is refused with a message naming the missing field; creating one without lat/lon succeeds and produces the completion nudge (PRD FR-2, STORY-DETAILS A3) — all three cases run and captured."
+      - "Attempting to delete a venue referenced by an event whose starts_at is in the future is refused with the reason stated (STORY-DETAILS F2), verified by constructing that exact state."
+      - "Each successful venue create/edit/delete writes exactly one audit_log row naming the actor, action, entity and entity id — verified by counting rows before and after each of the three operations (PRD 12.7, security-invariants.md S8); zero rows or two rows both fail."
+    depends_on: [REQ-014]
+
+  - id: REQ-016
+    title: Event CRUD with draft/published/cancelled transitions, publish validation and e_ deep links
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Second slice of PRD 14 build-order step 2. Implements USER-STORIES F1 /
+      STORY-DETAILS F1 (Put an event out into the world) and the event half of
+      PRD FR-12. F1 is the head of PRD 11a's five-story critical path.
+
+      Scope of work:
+      - Organizer creates an Event as `draft` — invisible to members (STORY-DETAILS A1:
+        "Draft and cancelled events never appear to a member"; STORY-DETAILS A2: "A
+        draft event's link resolves to nothing — drafts are not addressable").
+      - Editing every PRD 5 Event field: title, description, format, venue_id,
+        starts_at, ends_at, registration_closes_at, capacity, requires_invite,
+        requires_approval, cover_file_id, agenda[] (NON-TALK items only — doors,
+        networking, close; PRD 5 states the talk lineup is the accepted Talks and is
+        never duplicated into agenda).
+      - Publish transition draft -> published, refused with the MISSING FIELDS NAMED
+        EXACTLY (STORY-DETAILS F1) and refused for an offline event with no venue.
+      - CAPACITY FLOOR (STORY-DETAILS F1, an explicit refusal): capacity can never be
+        set below the number already admitted. Reducing capacity governs future seats;
+        it never removes someone holding one.
+      - Cancel transition published -> cancelled. NOTIFYING registrants on cancellation
+        (PRD 6: "Cancelling notifies every non-withdrawn registrant") requires the
+        send-once notification ledger, which is REQ-025 — so this requirement
+        implements the STATE TRANSITION and its audit row, and the notification is
+        REQ-027's scope. This split is stated here so the gap is deliberate and visible
+        rather than silently dropped.
+      - Deep link `?start=e_<event_id>` resolution (PRD FR-1, story A2) — with the
+        channel suffix (`e_<id>__linkedin`) held against the user until they register,
+        at which point REQ-020 writes it to Registration.source. A draft, cancelled or
+        finished event's link yields a plain explanation plus the upcoming list
+        (STORY-DETAILS A2), never a silent dead end.
+      - Chapter-scoped authorization on the handler (security-invariants.md S2); every
+        status change writes exactly one AuditLog row (S8, PRD 12.7).
+    acceptance_criteria:
+      - "Publishing an event missing a required field is refused with a message NAMING each missing field (STORY-DETAILS F1); verified by attempting publication with title, starts_at and capacity each individually absent and confirming each refusal names the specific field, not a generic error."
+      - "Publishing an offline event whose venue_id is null is refused (STORY-DETAILS F1, A3), verified by constructing that state."
+      - "With N registrations at admission='admitted', setting capacity to N-1 is refused and no admitted registration is altered — verified by constructing exactly that state (at least 2 admitted rows), attempting the reduction, and re-querying the registrations table to confirm all N rows still read 'admitted' (STORY-DETAILS F1's explicit refusal)."
+      - "A draft event is invisible to a member: it does not appear in the member-facing event list, and opening `?start=e_<its id>` yields the plain explanation plus the upcoming list rather than the card — both verified against a live instance from a member account (STORY-DETAILS A1, A2)."
+      - "Opening `?start=e_<published id>__linkedin` records the channel against the user such that a subsequent registration would carry it as Registration.source; verified by reading whatever store holds the pending source after the deep link and before registration (PRD FR-1)."
+      - "Each of draft-create, publish and cancel writes exactly one audit_log row (counted before and after each), and a member invoking the publish handler directly is refused (security-invariants.md S2, S8)."
+    depends_on: [REQ-015]
+
+  - id: REQ-017
+    title: Public event card and the /events upcoming list with computed seat counts
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Third slice of PRD 14 build-order step 2, completing "public event card".
+      Implements PRD FR-2 (Event card), USER-STORIES A1 (See what's coming up) and A3
+      (Know where it is and how to get there).
+
+      Scope of work:
+      - `/events` lists published, unfinished events for the user's chapter, soonest
+        first, each row showing title, date and time IN THE CHAPTER'S TIMEZONE
+        (PRD 5 Chapter.timezone; STORY-DETAILS A1), venue name, and seats left or
+        "waitlist open".
+      - The event card per PRD FR-2: title, cover, date/time in chapter timezone, venue
+        name + address, BOTH map links (Yandex and Google), agenda, seats left or
+        "waitlist open", and the CTA. The LINEUP element of FR-2 is Release 3's Talks
+        scope and renders as absent in Release 1 — stated here so its omission is
+        deliberate, not forgotten.
+      - Empty state per STORY-DETAILS A1: no upcoming events -> an invitation to follow
+        the city, NOT an apology. The Wishlist entity that backs "follow this city" is
+        PRD 5's Wishlist and story G4, which is Release 3 — so in Release 1 this is a
+        plain informational message; the implementing agent must not create a Wishlist
+        row or table ahead of its requirement.
+      - Venue without coordinates renders address text only (STORY-DETAILS A3).
+
+      COMPUTED-NEVER-STORED (PRD 5, and the single most easily violated rule in this
+      requirement): seats left is derived at read time as
+      capacity - count(admission='admitted'); `registration_open` is derived from
+      now < registration_closes_at; `finished` is derived from now > ends_at. NONE of
+      the three may be stored, cached into a column, or denormalized onto Event. A
+      counter column added "for performance" at this project's stated load (PRD 1:
+      peak 0.06 rps, DB < 50MB) is unjustifiable and contradicts PRD 5 directly.
+    acceptance_criteria:
+      - "The event card renders BOTH the Yandex and the Google map link for a venue that has them, and both resolve to the venue's coordinates (PRD FR-2, story A3) — verified by opening both links from the rendered card and confirming each lands at the venue's lat/lon."
+      - "Displayed dates and times match the event's chapter timezone, not the server's or the viewer's — verified by running the check with the process TZ deliberately set to a DIFFERENT zone than the chapter's and confirming the rendered time is unchanged (a run where the two happen to match does not exercise this property and is not evidence)."
+      - "Seats left equals capacity minus the live count of admission='admitted' rows: verified by rendering the card, admitting one more registration directly in the database, re-rendering, and confirming the number decreased by exactly one WITHOUT any write to the events table (checked by comparing the events row's updated timestamp before and after) — PRD 5 computed-never-stored."
+      - "`git grep` over apps/bot finds no column, cached field or persisted store named for seats_taken, seats_left, registration_open or finished; each is computed at the point of use (PRD 5)."
+      - "Draft and cancelled events do not appear in /events for a member (STORY-DETAILS A1), and with zero upcoming events the response is the follow-this-city invitation rather than an apology — both verified by constructing each state; no wishlist row or table is created (that is Release 3's scope)."
+    depends_on: [REQ-016]
+
+  - id: REQ-018
+    title: EventStaff assignment by organizers and the staff-only check-in surface gate
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Implements USER-STORIES F7 (Put volunteers on the door) and F8 (Know I'm on the
+      door), plus PRD 3's EventStaff definition. Placed here — after events exist,
+      before check-in is built — because REQ-028 and REQ-029 both gate on EventStaff
+      and would otherwise each have to invent it.
+
+      Scope of work:
+      - An organizer adds a person as EventStaff for ONE event (PRD 3: "check-in rights
+        for that one event, nothing else"). Several volunteers per event is normal
+        (STORY-DETAILS F7). Removal is supported and the person is told
+        (STORY-DETAILS F8: "Removed -> told, and the screen is gone").
+      - F8's assignment notification: which event, what their role is, what happens at
+        the door, written so someone who has never done it can run the door unbriefed.
+        The idempotent send ledger is REQ-025; until it lands, this notification is a
+        direct send at the moment of assignment (a single synchronous action, not a
+        scheduled job), which is why it does not need the ledger. The design artefact
+        states this reasoning so a later reader does not mistake it for an oversight.
+      - THE AUTHORIZATION SURFACE (security-invariants.md S2 — the invariant this
+        requirement exists to establish): an EventStaff member sees ONLY check-in
+        screens for that one event. Not another event's check-in, not the organizer
+        panel, not registration lists, not exports. Rights expire with the event
+        (STORY-DETAILS F7: "Staff rights that outlive the event" is an explicit
+        refusal). "Speaker is not a role" (PRD 3) — no permission check anywhere may
+        read a speaker flag.
+      - Every assignment and removal writes an AuditLog row (S8).
+    acceptance_criteria:
+      - "A user who is EventStaff for event 1 and invokes event 2's check-in handler directly (by constructing the callback/command payload, not by tapping a button) is refused and no check-in is recorded — verified by constructing two events, staffing the user on one, and issuing the call for the other (security-invariants.md S2, STORY-DETAILS F7's 'leak to another one' refusal)."
+      - "The same EventStaff user invoking an organizer-only handler (venue create, event publish, registration list) is refused on each, verified by issuing all three calls directly (S2: 'staff see only check-in screens')."
+      - "After the event's ends_at has passed, that event's check-in handler refuses the EventStaff user, verified by constructing an event whose ends_at is in the past and issuing the call (STORY-DETAILS F7: rights expire with the event)."
+      - "Assigning a volunteer sends them a message naming the event, their role and what happens at the door, in their own language per REQ-013's catalogs; removal sends a message too — both captured from a live instance (STORY-DETAILS F8)."
+      - "Each assignment and each removal writes exactly one audit_log row, counted before and after (PRD 12.7, S8)."
+      - "`git grep` over apps/bot's permission checks finds no read of any speaker flag or derived speaker status (PRD 3: 'Speaker is not a role')."
+    depends_on: [REQ-016]
+
+  - id: REQ-019
+    title: Profile capture as a resumable step-by-step form with the consent gate and optional-field rule
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      First slice of PRD 14 build-order step 3 ("Profile + registration + capacity +
+      waitlist + promotion + withdraw"). That build-order step is five distinct
+      deliverables and is split across REQ-019..REQ-024. This one implements
+      USER-STORIES B1 / STORY-DETAILS B1 (Introduce myself once) and PRD FR-3, plus the
+      /profile view-and-edit surface from PRD 8. B1 is on PRD 11a's critical path.
+
+      Scope of work:
+      - Step-by-step collection, REQUIRED FIRST (PRD FR-3): first name, last name,
+        company, position, student flag, experience level. Then the OPTIONAL ones, each
+        skippable in ONE TAP: phone (Telegram's request_contact button or typed), email
+        (format-validated only if given), GitHub, LinkedIn, site.
+      - PARTIAL WRITES (PRD FR-3, STORY-DETAILS B1): each answer is written to the
+        Profile row AS IT ARRIVES. A bot restart mid-form resumes at the next
+        unanswered field with nothing lost — this is PRD 11's restart-safety
+        constraint applied to form state, and it means form progress lives in the
+        database, not in process memory.
+      - THE OPTIONALITY RULE (PRD 5, spec README rule 2): a person can finish
+        registering having skipped EVERY optional field. Blocking on an optional field
+        is an explicit refusal in STORY-DETAILS B1.
+      - CONSENT (security-invariants.md S1, PRD 10, STORY-DETAILS B1's refusal "No
+        consent -> no storage and no registration"): consent is requested once, before
+        anything is kept, and recorded with its wording version — REQ-014 establishes
+        consent_pd_at and the wording version; this requirement enforces that NO Profile
+        field is written until it is set.
+      - Already has a profile -> the form is skipped entirely (STORY-DETAILS B1).
+      - /profile view and edit, including changing chapter (the changeability REQ-014
+        deferred here).
+      - PII (security-invariants.md S11): phone and email are never written to logs,
+        never echoed into an error message, and never included in an audit payload.
+    acceptance_criteria:
+      - "Answering the first three required fields, KILLING the bot process, restarting it, and resuming the conversation continues at the fourth field with the first three already stored — verified by actually stopping and restarting the process mid-form (a run without a restart does not exercise the property and is not evidence) and by querying the profiles row between the two halves (PRD FR-3, PRD 11 restart-safe)."
+      - "Skipping every optional field (phone, email, github, linkedin, site) still completes the profile and permits registration to proceed — verified by walking the whole form choosing skip at each optional step (PRD 5, STORY-DETAILS B1's refusal 'Blocking on an optional field')."
+      - "Declining the personal-data consent leaves zero profiles rows for that user and blocks registration with a plain statement rather than an error — verified by querying the profiles table after the decline (security-invariants.md S1)."
+      - "A user who already has a complete profile registering for a second event is not asked any profile question — verified by constructing that state and running the registration flow (STORY-DETAILS B1)."
+      - "Entering a phone number and an email, then triggering an error path (e.g. an invalid subsequent input) produces log output and any audit_log payload containing NEITHER value — verified by grepping the captured logs and the audit rows for the exact phone and email strings used (security-invariants.md S11); a run that never entered a phone or email does not exercise this and is not evidence."
+      - "An email is accepted when absent and format-validated only when supplied — both branches run (PRD FR-3)."
+    depends_on: [REQ-014, REQ-018]
+
+  - id: REQ-020
+    title: Registration for an open event with atomic capacity enforcement and qr_token issuance
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Second slice of PRD 14 build-order step 3, and PRD 11a critical-path story B2
+      (Take a seat at an open event). Implements PRD FR-4's open-event row
+      (requires_invite=false, requires_approval=false -> admitted if seats remain, else
+      waitlisted) and the qr_token half of PRD FR-14.
+
+      Release-1 scope note: PRD FR-4's other three rows (requires_approval, and either
+      requires_invite case) belong to Release 2 and are NOT implemented here — PRD 4
+      states Meetup #3 is an open event and "invitations and approvals are not needed
+      here". This requirement must nonetheless not make them impossible: the flags exist
+      on Event (REQ-011) and this handler reads them, refusing clearly for a
+      requires_invite or requires_approval event rather than silently admitting.
+
+      Scope of work:
+      - Register -> admission='admitted' when seats remain; the waitlisted branch is
+        REQ-021. A confirmation naming the event, date, venue and what happens next
+        (STORY-DETAILS B2).
+      - PRD 12.1: already registered -> shown their CURRENT STATUS, never a duplicate
+        row. The database UNIQUE(event_id, user_id) from REQ-011 is the backstop; the
+        handler produces the friendly path.
+      - Registration closed, cancelled or finished -> say so AND offer an onward path
+        (STORY-DETAILS B2, JOURNEY-AUDIT's refusal-offramp principle), never a dead end.
+      - Registration.source written from the channel suffix REQ-016 held against the
+        user (PRD FR-1).
+      - qr_token: >=128 bits from a cryptographically secure source
+        (crypto.randomBytes — NEVER Math.random, never a sequential id, never a hash of
+        the user id) generated on admission, encoding `?start=ci_<qr_token>`
+        (security-invariants.md S4, PRD FR-14). The QR IMAGE rendering and its T-3h
+        re-send are REQ-026; /my's always-available copy is REQ-024.
+      - ATOMIC CAPACITY (security-invariants.md S7, PRD 12.2, PRD 13 criterion 3):
+        seats_taken = count(admission='admitted') and the check-and-write must be
+        ATOMIC, not read-then-write. Two concurrent registrations for the last seat must
+        not both be admitted. At PRD 1's stated load a serializable transaction or a
+        conditional insert is entirely sufficient; no queue or lock service is needed
+        and adding one contradicts PRD 1's "do not add infrastructure".
+      - Every admission writes exactly one AuditLog row (S8, PRD 12.7).
+    acceptance_criteria:
+      - "Two concurrent registrations for the LAST remaining seat result in exactly one admitted and one waitlisted (or one refused, per REQ-021's boundary), never two admitted — verified by an automated test using the REQ-009 test runner that issues both registrations concurrently against a real Postgres with capacity set so exactly one seat remains, repeated at least 20 times with zero over-admissions (security-invariants.md S7, PRD 12.2). A sequential two-call test does not exercise this and is not evidence."
+      - "Registering twice for the same event yields the current status and exactly one registrations row for that (event_id, user_id) — verified by querying the row count after the second attempt (PRD 12.1)."
+      - "Every issued qr_token carries at least 128 bits from a cryptographically secure source: verified by reading the generation code (it must call crypto.randomBytes or the chosen framework's CSPRNG equivalent, with a byte length of 16 or more) AND by generating 1000 tokens in a test and asserting zero collisions and the expected length (security-invariants.md S4). A `git grep` for Math.random in apps/bot must return no hit in any token path."
+      - "Registering after registration_closes_at, for a cancelled event, and for a finished event each produce a stated reason plus an onward path, verified by constructing all three states (STORY-DETAILS B2)."
+      - "A registration arriving after `?start=e_<id>__linkedin` carries source='linkedin' (or the agreed encoding, stated in the design artefact), verified by reading the registrations row (PRD FR-1)."
+      - "Attempting to register for an event with requires_invite=true or requires_approval=true produces a clear refusal naming the reason rather than an admission — verified by constructing both flags (PRD 4: these are Release 2)."
+      - "Each admission writes exactly one audit_log row, counted before and after (PRD 12.7, S8)."
+    depends_on: [REQ-019, REQ-017]
+
+  - id: REQ-021
+    title: Waitlist placement with computed position display
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Third slice of PRD 14 build-order step 3. Implements USER-STORIES B3 /
+      STORY-DETAILS B3 (Join the waitlist when it's full), PRD FR-6's waitlist half and
+      PRD 13 acceptance criterion 3.
+
+      Split from REQ-020 deliberately: REQ-020's hard problem is capacity atomicity,
+      this one's is position computation, and USER-STORIES section 12's INVEST
+      self-check itself sequences B3 -> B5 -> B4 as three separate stories.
+
+      Scope of work:
+      - Registering into a full event yields admission='waitlisted' and tells the person
+        their position.
+      - POSITION IS COMPUTED, NEVER STORED (PRD 5, PRD 13 criterion 8): position is
+        the rank by Registration.created_at among rows with admission='waitlisted' for
+        that event. It shifts up automatically as people ahead leave, because it is
+        recomputed at every read. A position column, a cached rank, or a renumbering
+        job would all be defects.
+      - The waitlist is unbounded — STORY-DETAILS B3 states it refuses nothing unless
+        the organizer closes registration. Waitlist CLOSURE is Release 2 (PRD 4) and
+        is not implemented here.
+      - The confirmation states the position and what happens next (auto-promotion,
+        REQ-023) so the person is not left refreshing — JOURNEY-AUDIT's no-dead-ends
+        principle.
+    acceptance_criteria:
+      - "With capacity fully taken, a new registration is created with admission='waitlisted' and the response states a position, verified against a live instance with a constructed at-capacity event (PRD 13 criterion 3)."
+      - "With three waitlisted people, withdrawing the first one causes the second person's displayed position to change from 2 to 1 on their NEXT READ with no write to their registrations row — verified by capturing that row's updated timestamp before and after and confirming it is unchanged while the displayed position changed (PRD 5 computed-never-stored, PRD 13 criterion 8)."
+      - "`git grep` over apps/bot finds no column, cache or persisted field holding a waitlist position or rank; the position appears only as a query expression over created_at (PRD 5)."
+      - "The waitlist accepts an unbounded number of registrations — verified by adding at least 5 waitlisted registrations past capacity with no refusal (STORY-DETAILS B3)."
+    depends_on: [REQ-020]
+
+  - id: REQ-022
+    title: Withdraw from a registration and free the seat
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Fourth slice of PRD 14 build-order step 3. Implements USER-STORIES B5 /
+      STORY-DETAILS B5 (Change my mind). Sequenced before REQ-023's auto-promotion
+      exactly as USER-STORIES section 12's INVEST self-check directs ("sequence
+      B3 -> B5 -> B4"), because auto-promotion has no trigger until a withdrawal exists.
+
+      Scope of work:
+      - From /my, the person withdraws: admitted | waitlisted | requested -> withdrawn.
+      - CONFIRMATION FIRST — this is destructive, and PRD 8 requires every destructive
+        action to confirm (STORY-DETAILS B5).
+      - Withdrawing from an admitted registration frees the seat IMMEDIATELY (the same
+        moment), which is the event REQ-023's auto-promotion consumes. This requirement
+        emits/exposes that seat-freed point; REQ-023 acts on it.
+      - Withdrawing kills all future notifications for that event (STORY-DETAILS B5) —
+        the scheduler requirements REQ-025..REQ-027 each re-check admission at send
+        time rather than trusting a list built earlier.
+      - REFUSAL (STORY-DETAILS B5): withdrawing after check-in is refused — "they were
+        there; history is not editable."
+      - A withdrawn person may register again later if seats reopen — the UNIQUE(event,
+        user) row is REUSED by transitioning admission, not deleted and recreated, so
+        history and created_at (which orders the waitlist) are preserved. The design
+        artefact must state this explicitly, since a delete-and-recreate would silently
+        move the person to the back of a waitlist queue they had earned a place in.
+      - Every transition writes exactly one AuditLog row (PRD 12.7, S8).
+    acceptance_criteria:
+      - "Withdrawing requires an explicit confirmation step; dismissing the confirmation leaves admission unchanged, verified by running both the confirm and the dismiss path and reading the row back (PRD 8)."
+      - "Withdrawing from admitted sets admission='withdrawn' and the event's computed seats-left increases by exactly one at the next read, verified by reading the seat count before and after (STORY-DETAILS B5)."
+      - "Attempting to withdraw a registration whose checked_in_at is non-null is refused and the row is unchanged, verified by constructing exactly that state (STORY-DETAILS B5's explicit refusal)."
+      - "Re-registering after withdrawing UPDATES the existing registrations row rather than inserting a new one — verified by capturing the row's primary key and created_at before withdrawal and after re-registration and confirming both are identical (preserving waitlist ordering; PRD 12.1)."
+      - "Each withdrawal writes exactly one audit_log row, counted before and after (PRD 12.7, S8)."
+    depends_on: [REQ-021]
+
+  - id: REQ-023
+    title: Waitlist auto-promotion on a freed seat, halting at T-24h
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Fifth slice of PRD 14 build-order step 3, and PRD 13 acceptance criterion 4.
+      Implements USER-STORIES B4 / STORY-DETAILS B4 (Get in when a seat frees up) and
+      PRD 6's auto-promotion rule. Sequenced after REQ-021 and REQ-022 per
+      USER-STORIES section 12's INVEST note ("the value only exists once all three
+      land").
+
+      Scope of work:
+      - When a registration LEAVES admitted while the event is published and
+        now < starts_at, the LONGEST-WAITING waitlisted registration (earliest
+        created_at) is promoted to admitted and notified, with their QR (PRD 6,
+        STORY-DETAILS B4).
+      - THE T-24h HALT (PRD 6, PRD 13 criterion 4, a hard rule, not a tuning knob):
+        auto-promotion STOPS at T-24h. Inside that window a freed seat promotes nobody;
+        the organizer promotes by hand from the waitlist screen. Manual promotion (story
+        F5) is Release 3 per USER-STORIES, so in Release 1 the freed seat inside T-24h
+        simply remains free and is VISIBLE to the organizer — the design artefact states
+        where it is visible so this is not a silent hole.
+      - Empty waitlist -> nothing happens and NO ERROR (STORY-DETAILS B4).
+      - REFUSALS (STORY-DETAILS B4): never promote past capacity; never promote into a
+        cancelled or finished event. Promotion re-checks capacity atomically at the
+        moment of the write, for the same reason REQ-020's registration does
+        (security-invariants.md S7) — a promotion racing a fresh registration must not
+        over-admit.
+      - The promotion notification is transactional (PRD 9) and therefore ignores
+        broadcast_opt_in (security-invariants.md S10). It must not double-send if the
+        promotion path runs twice — the idempotency ledger is REQ-025; until it lands,
+        this requirement guarantees at-most-once by making the promotion write and the
+        send-marker part of the same transaction, and the design artefact states this
+        so REQ-025 can later replace it rather than duplicate it.
+      - Each promotion writes exactly one AuditLog row (PRD 12.7, S8).
+    acceptance_criteria:
+      - "With an event 48h out, capacity full, and three waitlisted registrations created at distinct times, an admitted person withdrawing promotes exactly the EARLIEST-created waitlisted registration to admitted and notifies them — verified by reading all three rows afterwards and confirming the other two are untouched (PRD 6, STORY-DETAILS B4)."
+      - "With an event 12h out (inside T-24h), the same withdrawal promotes NOBODY: all waitlisted rows remain waitlisted and the freed seat stays free, verified by constructing exactly that timing and re-querying (PRD 6, PRD 13 criterion 4). A run with the event more than 24h out does not exercise this rule and is not evidence."
+      - "With an empty waitlist, a withdrawal completes with no error and no promotion, verified by running it and capturing a clean exit (STORY-DETAILS B4)."
+      - "A promotion running concurrently with a fresh registration for the same freed seat never results in admitted count exceeding capacity — verified by an automated concurrency test using the REQ-009 test runner, repeated at least 20 times (security-invariants.md S7)."
+      - "Promotion into a cancelled event and into an event whose ends_at has passed are both refused, verified by constructing both states (STORY-DETAILS B4)."
+      - "The promoted person receives the notification even with broadcast_opt_in=false, verified by setting that flag false before the promotion (PRD 9, security-invariants.md S10 — promotion is transactional)."
+      - "Each promotion writes exactly one audit_log row, and running the promotion path twice for the same freed seat sends exactly one notification, counted from the captured send log (PRD 12.7, 12.8)."
+    depends_on: [REQ-022]
+
+  - id: REQ-024
+    title: /my registrations view with live status, computed waitlist position and the QR pass
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Closes PRD 14 build-order step 3 by giving the member the surface every preceding
+      requirement wrote state into. Implements PRD 8's /my ("my registrations, waitlist
+      positions, QR codes, cancel") and STORY-DETAILS C2's requirement that the QR is
+      "always retrievable from /my — this message is a convenience, never the only copy."
+
+      Scope of work:
+      - /my lists the user's live registrations with, per row: the event, its date/time
+        in the chapter timezone, the current admission status, the computed waitlist
+        position when waitlisted, and the withdraw action (REQ-022's flow).
+      - The QR IMAGE: renders `?start=ci_<qr_token>` as a scannable image for an
+        admitted registration (PRD FR-14). This is where the QR image renderer is
+        introduced; REQ-026's T-3h message reuses it rather than reimplementing it.
+      - PRIVACY (security-invariants.md S3): /my shows the requesting user's OWN
+        registrations only. It is a list view, which S3 names as exactly the shape
+        through which the own-data-only invariant is most easily lost.
+      - A withdrawn or rejected registration shows its state plainly with an onward path
+        rather than vanishing (JOURNEY-AUDIT's no-dead-ends principle).
+    acceptance_criteria:
+      - "/my invoked by user A returns only user A's registrations — verified by constructing two users each registered for the same event and confirming neither sees the other's row, name, company, phone or email anywhere in the response (security-invariants.md S3)."
+      - "A waitlisted row shows the position computed live: verified by capturing the displayed position, withdrawing the person ahead, re-invoking /my, and confirming the position decreased with no write to the viewing user's registrations row (PRD 5)."
+      - "An admitted registration's /my row yields a QR image which, decoded by an actual QR decoder, contains exactly the deep link `?start=ci_<that registration's qr_token>` — verified by decoding the produced image, not by inspecting the string passed to the encoder (PRD FR-14)."
+      - "A waitlisted, withdrawn or rejected registration's /my row shows NO QR image (only admitted registrations carry a usable pass), verified by constructing all three states."
+      - "The QR image renderer is a single shared function under apps/bot that REQ-026 can call, verified by reading the module's export — not duplicated inline in the /my handler."
+    depends_on: [REQ-023]
+
+  - id: REQ-025
+    title: Scheduled job runner and the idempotent send-once notification ledger
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      First slice of PRD 14 build-order step 4 ("Scheduler: T-24h 'Still coming?' and
+      T-3h route + QR, both idempotent"). Split into REQ-025 (the mechanism),
+      REQ-026 (the two reminder jobs) and REQ-027 (cancellation notification), because
+      the idempotency mechanism is the enabler USER-STORIES section 11 lists separately
+      ("Send-once notification mechanism", "Scheduled job runner") and is where PRD
+      12.8's invariant actually lives.
+
+      Derives from PRD FR-7, PRD 9, PRD 12.8 and security-invariants.md S9/S10.
+
+      Scope of work:
+      - A scheduled job runner inside the single bot process (PRD 1: "one Postgres and
+        one bot process are sufficient. Do not add infrastructure" — no Redis, no worker
+        queue; PRD 4's "Later" list defers those explicitly).
+      - THE SEND LEDGER (PRD 12.8, security-invariants.md S9): a persisted record keyed
+        on (registration_id, kind) that makes every notification send at-most-once
+        ACROSS PROCESS RESTARTS. An in-memory set is explicitly insufficient — S9 names
+        exactly that as its negative case, and PRD 13 criterion 6 requires "restarting
+        the bot sends no duplicates". The ledger row and the send must be ordered so a
+        crash between them cannot produce a double send.
+      - TRANSACTIONAL vs MARKETING classification enforced at the send API level
+        (PRD 9, security-invariants.md S10): transactional sends (admission result,
+        waitlist promotion, reminders, feedback request, event cancelled) always send
+        and ignore broadcast_opt_in; marketing sends require it. Release 1 sends only
+        transactional messages — but the API must make the distinction explicit at the
+        call site so a Release 3 broadcast cannot inherit the transactional path by
+        default. `blocked` users are skipped in both cases.
+      - Telegram rate limiting (<=25 msg/s) with exponential backoff on HTTP 429
+        (PRD FR-15). At Release 1's volumes this is defensive, not hot-path, but the
+        wrapper belongs here so every later send inherits it.
+      - REQ-023's in-transaction promotion send-marker is REPLACED by this ledger rather
+        than left alongside it — the design artefact must state the migration path.
+    acceptance_criteria:
+      - "Sending a notification for (registration R, kind 'reminder_24h'), KILLING the process, restarting it, and running the same job again results in exactly ONE message delivered — verified by counting captured sends across both runs (PRD 12.8, PRD 13 criterion 6, security-invariants.md S9). A single-run test does not exercise restart-safety and is not evidence."
+      - "`git grep` over the ledger implementation finds no in-memory Set, Map or module-level variable serving as the sole idempotency record — the key (registration_id, kind) is enforced by a database UNIQUE constraint, verified by attempting a duplicate ledger insert directly and confirming it fails (security-invariants.md S9)."
+      - "A user with broadcast_opt_in=false receives a send classified transactional and does NOT receive one classified marketing — both branches run against that same user and captured (PRD 9, security-invariants.md S10)."
+      - "A user with blocked=true receives neither a transactional nor a marketing send, verified by running both against that user (security-invariants.md S10)."
+      - "The send API requires an explicit transactional/marketing classification argument at every call site — verified by reading the function signature and confirming the parameter has no default value; a default would let a later call inherit the transactional path silently."
+      - "An HTTP 429 response from the Telegram API triggers a backoff-and-retry rather than a dropped message, verified with a stubbed API returning 429 then 200 and confirming the message is ultimately delivered exactly once (PRD FR-15)."
+    depends_on: [REQ-024]
+
+  - id: REQ-026
+    title: T-24h "Still coming?" reconfirmation and T-3h route + QR reminder jobs
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Second slice of PRD 14 build-order step 4, and the show-rate feature the whole
+      product's primary metric depends on (PRD 2: raise show-rate from 70% to >=80%;
+      PRD 11a lists C1 as "critical for the show-rate goal"). Implements PRD FR-7,
+      USER-STORIES C1 and C2, and PRD 13 acceptance criterion 6.
+
+      Scope of work:
+      - T-24h job, for admission='admitted' registrations on a still-published event:
+        ONE message with two buttons (PRD FR-7, STORY-DETAILS C1).
+        "I'll be there" -> sets Registration.reconfirmed_at, nothing else changes.
+        "Can't make it" -> withdrawn, seat freed, REQ-023's auto-promotion fires.
+      - T-3h job, for still-admitted registrations: ONE message with the venue address,
+        BOTH map links, the start time in the chapter timezone, and the QR image —
+        rendered by REQ-024's shared renderer, not reimplemented (PRD FR-7, FR-14,
+        STORY-DETAILS C2).
+      - Both jobs go through REQ-025's ledger, keyed (registration_id, kind), so a
+        restart sends nothing twice (PRD 12.8, PRD 13 criterion 6).
+      - Both re-check admission AT SEND TIME. Already withdrawn -> nothing sent
+        (STORY-DETAILS C1, C2). Cancelled event -> REQ-027's message instead, not this
+        one.
+      - Both are transactional (PRD 9) and ignore broadcast_opt_in.
+
+      OPEN QUESTION RECORDED, NOT RESOLVED — DOORS-OPEN TIME. The spec's own README
+      lists this under "Open questions for Viktor": "the brochure says 19:30 doors /
+      20:00 start; the reminder currently quotes the start only." PRD 5 models a doors
+      item inside Event.agenda[] (a non-talk schedule item) but does not define a
+      doors_at field, and PRD FR-7 specifies the T-3h reminder's content as "address,
+      both map links, start time, QR code" — start time only. The two candidate
+      behaviours are: (a) quote Event.starts_at only, exactly as FR-7 literally states,
+      leaving doors information to the agenda on the event card; or (b) quote a doors
+      time as well, which requires either a new Event field or a convention for
+      extracting it from agenda[]. This requirement implements (a) — the literal FR-7
+      text — because it is what the authoritative PRD specifies, and because (b) would
+      mean inventing a data-model field the PRD does not define, which PRD's closing
+      rule forbids. The choice and the open question are recorded here per
+      core-directives.md's Zero Manual Work clause 1; when the product owner answers,
+      (b) is a small follow-up requirement, not a rework of this one.
+    acceptance_criteria:
+      - "With an event exactly 24h out and one admitted registration, the T-24h job sends exactly one message carrying both an 'I'll be there' and a 'Can't make it' control — verified against a live instance with the event timing constructed to that boundary (PRD FR-7)."
+      - "Tapping 'I'll be there' sets registrations.reconfirmed_at to a non-null timestamp and changes admission NOT AT ALL; tapping 'Can't make it' sets admission='withdrawn' and frees the seat — both verified by reading the row back after each (STORY-DETAILS C1)."
+      - "Running the T-24h job, killing the process, restarting, and running it again for the same registration delivers exactly ONE message total, counted from the captured sends (PRD 13 criterion 6, PRD 12.8)."
+      - "A registration that withdrew BEFORE the job runs receives nothing from either job, verified by constructing that state and running both (STORY-DETAILS C1, C2)."
+      - "The T-3h message contains the venue address, BOTH the Yandex and the Google map link, the start time rendered in the chapter's timezone, and a QR image that decodes to `?start=ci_<that registration's qr_token>` — every element verified in the captured message, with the QR decoded by an actual decoder (PRD FR-7, FR-14)."
+      - "The T-3h message quotes Event.starts_at and no separately-modelled doors time, and no doors_at column was added to the events table — verified by reading the message and grepping the migrations (this requirement's recorded decision on the open doors-open question)."
+      - "Both reminders reach a user with broadcast_opt_in=false, verified by setting that flag before the runs (PRD 9 — reminders are transactional)."
+    depends_on: [REQ-025]
+
+  - id: REQ-027
+    title: Event cancellation notifies every non-withdrawn registrant, once
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Closes PRD 14 build-order step 4 by supplying the notification REQ-016
+      deliberately deferred. PRD 6 states "Cancelling notifies every non-withdrawn
+      registrant"; REQ-016 implemented the published -> cancelled transition but the
+      send-once ledger did not exist yet. It exists as of REQ-025.
+
+      Implements PRD 6's cancellation rule and USER-STORIES F6's confirmation "every
+      non-withdrawn registrant is notified once" — F6 as a whole (the organizer-facing
+      cancel flow) is Release 3 in USER-STORIES, but its notification half is a PRD 6
+      invariant that must not be left unsatisfied once cancellation is reachable, which
+      it is from REQ-016. That scope boundary is stated here explicitly.
+
+      Scope of work:
+      - On published -> cancelled, every registration whose admission is not 'withdrawn'
+        receives exactly one notification, through REQ-025's ledger keyed
+        (registration_id, 'event_cancelled').
+      - Withdrawn registrants receive nothing.
+      - The message states plainly what happened and offers an onward path — the
+        upcoming events list (JOURNEY-AUDIT's no-dead-ends principle; STORY-DETAILS A2
+        applies the same rule to a cancelled event's deep link).
+      - Transactional (PRD 9): sent regardless of broadcast_opt_in
+        (security-invariants.md S10).
+      - A cancelled event's registrations are NOT deleted or mass-withdrawn — the
+        historical record and its aggregate counts stay intact (the same principle
+        security-invariants.md S13 protects for deletion).
+    acceptance_criteria:
+      - "Cancelling an event with 3 admitted, 2 waitlisted and 1 withdrawn registration delivers exactly 5 notifications — one to each non-withdrawn registrant and none to the withdrawn one — counted from the captured sends (PRD 6)."
+      - "Cancelling the same event twice (or re-running the notification path after a process restart) delivers no additional messages, counted across both runs (PRD 12.8, security-invariants.md S9)."
+      - "A registrant with broadcast_opt_in=false receives the cancellation message, verified by setting that flag before cancelling (PRD 9, security-invariants.md S10)."
+      - "After cancellation, every registrations row for that event still exists with its admission unchanged, verified by comparing the full row set before and after (S13's aggregate-preservation principle)."
+      - "The message offers the upcoming events list as an onward path, verified by reading the captured message text."
+    depends_on: [REQ-026]
+
+  - id: REQ-028
+    title: Manual check-in list — alphabetical, searchable, toggleable, with a live counter
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      First slice of PRD 14 build-order step 5 ("Check-in: manual list first, then QR,
+      plus EventStaff and walk-ins"). THE ORDERING IS A REQUIREMENT, NOT A PREFERENCE:
+      PRD 14 states it twice — "Build the manual check-in list before the QR scanner.
+      It is the fallback the whole door depends on, and it is the simpler of the two —
+      so it also proves the data model works before any scanning logic is added" — and
+      the spec README repeats it. C4 is also on PRD 11a's five-story critical path,
+      while C3 (QR) is only "critical for scale at the door" with C4 as its stated
+      fallback. Hence REQ-028 precedes REQ-029 in this chain.
+
+      Implements PRD FR-14a and USER-STORIES C4 / STORY-DETAILS C4.
+
+      NOTED SPEC VARIANCE, recorded rather than resolved: STORY-DETAILS C4's "Also" line
+      says the manual list is "Built alongside C3, never after it," while PRD 14 and
+      the spec README both say "before the QR scanner." These agree on the substance —
+      the manual list must not TRAIL the scanner — and differ only on whether it is
+      simultaneous or strictly prior. PRD.md is the authoritative document per the spec
+      README's own stated reading order, so this chain implements strictly prior. No
+      behaviour depends on the difference.
+
+      Scope of work:
+      - EventStaff (or organizer) for THAT event opens check-in and sees admitted
+        attendees alphabetically, with a search box (PRD FR-14a).
+      - Tapping a name marks them present: sets checked_in_at, checked_in_by and
+        check_in_method='manual'. Tapping again UNDOES it, and the undo is LOGGED
+        (STORY-DETAILS C4).
+      - A live counter of people in the room, computed as count(checked_in_at NOT NULL)
+        — never a stored counter (PRD 5's computed-never-stored discipline).
+      - S6 (PRD 12.3): checked_in_at may be set ONLY while admission='admitted'. Its
+        named negative case is precisely this screen — someone whose admission changed
+        between the list being rendered and the toggle being pressed. The check must
+        therefore happen at the WRITE, not only at render time.
+      - S2/S3: EventStaff see only this event's check-in screen (REQ-018 established
+        the gate) and the list must not surface another person's phone, email or
+        employer to someone without organizer rights — S3 names a check-in screen as
+        exactly this leak's shape. The list shows the name and, per USER-STORIES C3's
+        "enough to greet them properly", company; it must NOT show phone or email.
+      - Every check-in and every undo writes exactly one AuditLog row (PRD 12.7, S8).
+    acceptance_criteria:
+      - "Rendering the list, then changing that person's admission to 'withdrawn' directly in the database, then pressing the (now-stale) toggle results in NO check-in being written and a stated refusal — verified by constructing exactly that interleaving and reading the row back (security-invariants.md S6, PRD 12.3; a toggle pressed on a freshly-rendered list does not exercise this and is not evidence)."
+      - "Tapping an admitted attendee sets checked_in_at, checked_in_by (to the staff member's user id) and check_in_method='manual'; tapping again clears checked_in_at — both verified by reading the row after each tap, and each writing exactly one audit_log row (counted before and after; STORY-DETAILS C4, PRD 12.7)."
+      - "The rendered list contains no phone number and no email address for any attendee — verified by constructing an event where every admitted attendee has both stored, rendering the list as an EventStaff member, and grepping the captured output for each stored value (security-invariants.md S3)."
+      - "The live counter equals count(checked_in_at IS NOT NULL) at every read: verified by capturing the counter, setting one more checked_in_at directly in the database, re-rendering and confirming the counter incremented by exactly one with no write to the events table (PRD 5)."
+      - "The list shows only admission='admitted' attendees — a waitlisted and a withdrawn registration for the same event do not appear, verified by constructing both (STORY-DETAILS C4's refusal: 'Marking anyone not admitted')."
+      - "Search narrows the list by name, verified with at least 10 admitted attendees and a query matching exactly one (PRD FR-14a)."
+    depends_on: [REQ-027, REQ-018]
+
+  - id: REQ-029
+    title: QR check-in via ci_ deep link with the full refusal table and non-staff audit logging
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Second slice of PRD 14 build-order step 5, built AFTER REQ-028's manual list per
+      PRD 14's stated ordering rule. Implements PRD FR-14, USER-STORIES C3 /
+      STORY-DETAILS C3, PRD 13 acceptance criterion 7, and security-invariants.md S5.
+
+      Scope of work:
+      - A volunteer scans the attendee's QR with a PLAIN PHONE CAMERA. Telegram opens
+        and delivers `/start ci_<qr_token>` FROM THE VOLUNTEER'S OWN ACCOUNT (PRD FR-14).
+        No Mini App, no scanner hardware — PRD 4's "Later" list defers the Mini App
+        continuous scanner explicitly, and PRD 4's non-goals forbid a custom Telegram
+        client. A design proposing either contradicts the PRD and decisions/0003.
+      - THE REFUSAL TABLE, implemented case by case (PRD FR-14,
+        security-invariants.md S5) — each row is a distinct verifiable behaviour:
+        (1) valid token + scanner is staff for THAT event + admission='admitted' ->
+        set checked_in_at, checked_in_by, check_in_method='qr'; show the attendee's
+        name, company and the live counter.
+        (2) already checked in -> report WHEN and BY WHOM. NEVER a duplicate write.
+        (3) waitlisted / requested / withdrawn -> refuse with the reason; offer an
+        organizer override.
+        (4) unknown token, or now > event ends_at -> refuse.
+        (5) SCANNER IS NOT STAFF -> refuse AND WRITE AN AUDIT LOG ROW. S5 names this as
+        the case where the log matters most, and its negative case is precisely a
+        refusal that writes no audit row.
+      - S6 (PRD 12.3): checked_in_at settable only while admission='admitted', checked
+        at the write.
+      - S4: a qr_token authorizes exactly ONE thing — identifying one registration at
+        check-in. It is not an authentication credential for anything else, and it does
+        not remain usable after the event ends.
+      - S3: the scan result shows the attendee's name and company to the scanning staff
+        member (USER-STORIES C3: "enough to greet them properly"), and NOT their phone
+        or email.
+      - The organizer override for a refused non-admitted attendee writes an AuditLog
+        row (PRD 12.2's logged-override principle, S7/S8).
+    acceptance_criteria:
+      - "A user who is NOT EventStaff for that event scanning a valid token is refused AND an audit_log row is written naming the actor, the action and the registration — verified by counting audit rows before and after and reading the row's contents (security-invariants.md S5, PRD FR-14). A refusal with zero audit rows is a FAIL of this criterion."
+      - "A staff scan of an admitted attendee sets checked_in_at, checked_in_by and check_in_method='qr'; scanning the SAME token again reports the existing check-in time and the checker's name and leaves checked_in_at BYTE-FOR-BYTE unchanged — verified by capturing the timestamp after the first scan and re-reading it after the second (PRD 13 criterion 7)."
+      - "Scanning the token of a waitlisted, a requested and a withdrawn registration each produce a refusal STATING THAT SPECIFIC REASON and offering the organizer override — all three constructed and run, and in each case checked_in_at remains NULL (security-invariants.md S5, S6)."
+      - "Scanning an unknown token is refused, and scanning a valid admitted token after the event's ends_at has passed is refused — both constructed and run, with the second confirming the token does not outlive the event (security-invariants.md S4, S5)."
+      - "The scan-success screen shows the attendee's name, company and the live in-room counter, and contains NEITHER their phone NOR their email — verified by storing both on the attendee and grepping the captured screen output for each value (security-invariants.md S3)."
+      - "An organizer override admitting and checking in a previously-refused attendee writes exactly one audit_log row, counted before and after (PRD 12.2, security-invariants.md S7, S8)."
+      - "`git grep` over apps/bot finds no Mini App, WebApp scanner or custom-client scanning code path — check-in arrives solely as a `/start ci_<token>` deep link (PRD 4 'Later', PRD FR-14)."
+    depends_on: [REQ-028]
+
+  - id: REQ-030
+    title: Walk-in registration at the door with in-flow consent and logged capacity override
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Closes PRD 14 build-order step 5. Implements USER-STORIES C5 /
+      STORY-DETAILS C5 (Let a good walk-in in) and PRD FR-14a's "walk-in add".
+
+      Scope of work:
+      - An ORGANIZER (not plain EventStaff — STORY-DETAILS C5 states organizer rights,
+        and security-invariants.md S2 confines EventStaff to check-in screens) adds a
+        person at the door with a minimal field set: name, company, phone.
+      - CONSENT IS CAPTURED IN THE SAME STEP, BEFORE ANYTHING IS STORED
+        (STORY-DETAILS C5's explicit refusal "Storing personal data before consent";
+        security-invariants.md S1's negative case names exactly this — "a walk-in path
+        that skips the consent step because it is faster at the door"; and the spec
+        README's non-negotiable rule 3 says "including walk-ins at the door"). Note
+        that phone is one of the minimum door fields here even though PRD 5 marks it
+        optional generally — that is not a contradiction, it is the door's own minimum,
+        and it is still gated behind consent like every other stored field.
+      - A registration is created admitted AND marked present in ONE move, with
+        check_in_method='manual'.
+      - IF THE PERSON ALREADY HAS A PROFILE, IT IS REUSED, NOT DUPLICATED
+        (STORY-DETAILS C5). The match resolves to User.id; tg_id may be NULL for
+        someone who has never opened the bot (PRD 5), so tg_id must not be the matching
+        key on its own.
+      - OVER CAPACITY REQUIRES AN EXPLICIT, CONFIRMED, LOGGED OVERRIDE
+        (STORY-DETAILS C5's refusal "Silent over-capacity"; PRD 12.2 and
+        security-invariants.md S7: seats_taken exceeds capacity ONLY via an explicit
+        organizer override that writes an AuditLog row).
+      - S11: the phone collected at the door is never written to a log line or an audit
+        payload in plaintext.
+    acceptance_criteria:
+      - "Abandoning the walk-in flow at the consent step leaves ZERO new users, profiles and registrations rows — verified by capturing all three tables' row counts before and after the abandoned flow (security-invariants.md S1, STORY-DETAILS C5's refusal)."
+      - "Completing the walk-in flow with seats remaining creates a registration with admission='admitted' AND a non-null checked_in_at with check_in_method='manual' in one flow, verified by reading the row (STORY-DETAILS C5)."
+      - "Adding a walk-in when admitted count already equals capacity requires an explicit confirmation, and confirming writes exactly one audit_log row recording the override — verified by counting audit rows before and after and reading the row's payload; dismissing the confirmation creates no registration (PRD 12.2, security-invariants.md S7)."
+      - "Adding a walk-in whose person already exists (matched by the flow's stated matching rule) reuses the existing users and profiles rows rather than creating duplicates — verified by capturing both tables' row counts and the existing user's id before and after (STORY-DETAILS C5)."
+      - "The phone number entered at the door appears in NO log line and in NO audit_log payload — verified by grepping the captured process logs and every audit row written during the flow for the exact phone string used (security-invariants.md S11)."
+      - "An EventStaff member who is not an organizer invoking the walk-in handler directly is refused, verified by constructing that call (security-invariants.md S2)."
+    depends_on: [REQ-029]
+
+  - id: REQ-031
+    title: Post-event feedback request with NPS, comments and topic votes
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      First slice of PRD 14 build-order step 6 ("Feedback / NPS + no-show reasons"),
+      the final step of Release 1. Implements PRD FR-8, USER-STORIES D1 /
+      STORY-DETAILS D1, and PRD 13 acceptance criterion 9.
+
+      Scope of work:
+      - At T+2h after ends_at, EVERYONE WITH checked_in_at (and only them —
+        STORY-DETAILS D1's refusal is "Asking anyone who wasn't present") receives the
+        feedback request, through REQ-025's ledger.
+      - Content per PRD FR-8: NPS 0-10, what worked (Feedback.liked), what to improve
+        (Feedback.improve), topic votes (Feedback.topic_votes). Every question skippable
+        EXCEPT NPS (STORY-DETAILS D1). Keep it short — D1's Conversation note says
+        length is why response rates die, and PRD 2 targets >=40% response.
+      - Feedback is 1:1 with Registration (PRD 5), so this requirement adds the
+        Feedback entity's migration — it was deliberately left out of REQ-010/REQ-011
+        so its shape lands with the flow that fills it.
+      - ONE reminder at T+24h, then silence (PRD FR-8, STORY-DETAILS D1). Both sends go
+        through REQ-025's ledger with distinct kinds so neither can double-send.
+      - THE BROADCAST OPT-IN ASK (STORY-DETAILS D1): once, at the end — "may we message
+        you about future events?" — writing User.broadcast_opt_in. Declining is
+        remembered and NEVER ASKED AGAIN (D1's refusal: "Asking about contact more than
+        once"). This is security-invariants.md S1's message-me consent, stored in its
+        own home and never conflated with consent_pd_at or publish_consent.
+      - The "want to speak at a future event?" question (PRD FR-8's final element) is
+        story D2, which USER-STORIES marks R3 and which requires the Talk entity —
+        Release 3. It is OUT OF SCOPE here and the question is not asked in Release 1.
+        Stated explicitly so its absence is a decision, not an omission.
+      - The feedback request is transactional (PRD 9) and ignores broadcast_opt_in.
+    acceptance_criteria:
+      - "At T+2h, a registration with checked_in_at receives the feedback request and a registration that was admitted but never checked in receives NOTHING from this job — both constructed and the captured sends counted (STORY-DETAILS D1's refusal)."
+      - "Submitting NPS plus comments plus topic votes writes one feedback row linked 1:1 to that registration; attempting a second feedback row for the same registration fails on a database constraint, verified by attempting the duplicate insert directly (PRD 5)."
+      - "Every question except NPS can be skipped and the feedback still saves; skipping NPS does not save a feedback row — both paths run (STORY-DETAILS D1)."
+      - "A person who ignores the request receives exactly one reminder at T+24h and nothing thereafter — verified by running the job at T+24h and again at T+48h and counting the captured sends across both (PRD FR-8)."
+      - "The broadcast-opt-in question is asked once; after the person declines, re-running the whole feedback flow for a later event does not ask again, and users.broadcast_opt_in remains false — verified by constructing exactly that two-event sequence (STORY-DETAILS D1's refusal, security-invariants.md S1)."
+      - "No 'want to speak' question is asked and no talks table or Talk entity is created by this requirement, verified by reading the captured conversation and grepping the migrations (PRD 4 — Talks are Release 3)."
+      - "The feedback request reaches a user with broadcast_opt_in=false, verified by setting that flag before the run (PRD 9 — transactional)."
+    depends_on: [REQ-030]
+
+  - id: REQ-032
+    title: No-show reason capture, closing Release 1
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      FINAL REQUIREMENT OF RELEASE 1. Closes PRD 14 build-order step 6. Implements
+      USER-STORIES D3 / STORY-DETAILS D3 (Say what got in the way) and PRD 13
+      acceptance criterion 8's no_show half.
+
+      Scope of work:
+      - After the event ends, a registration that is admission='admitted' with
+        checked_in_at NULL — i.e. a computed no_show — receives ONE short, blame-free
+        message asking what got in the way.
+      - Fixed reasons plus optional free text (STORY-DETAILS D3): work ran over,
+        illness, forgot, transport, lost interest. The answer is stored in
+        Registration.no_show_reason (PRD 5 lists it there and PRD FR-16 ranks it in
+        the factsheet's "Why people missed it" line).
+      - ASKED ONCE. Silence is an acceptable answer — there is NO reminder
+        (STORY-DETAILS D3's refusal: "Reminding"). This differs deliberately from
+        REQ-031's feedback flow, which does send one reminder.
+      - WORDING: STORY-DETAILS D3's other refusal is "Any wording implying blame." The
+        implementing agent writes plain factual wording and records in its handoff
+        result that the exact copy is provisional pending the product owner — the same
+        treatment REQ-014 gives the consent wording, since USER-STORIES D3 says "Viktor
+        should write it" and there is no human in this pipeline.
+      - `no_show` ITSELF IS NEVER STORED (PRD 5, PRD 13 criterion 8). It is derived as
+        (admission='admitted' AND checked_in_at IS NULL AND now > ends_at). Only the
+        REASON is a stored column. A boolean no_show column, or a job that materializes
+        one, is a defect.
+      - Transactional (PRD 9), through REQ-025's ledger.
+
+      RELEASE BOUNDARY — READ BEFORE DRAFTING MORE REQUIREMENTS. REQ-007..REQ-032 are
+      the monorepo migration plus PRD 4's RELEASE 1 (Meetup #3, September) in PRD 14's
+      stated build order. RELEASE 2 AND RELEASE 3 ARE DELIBERATELY NOT DRAFTED IN THIS
+      WF-01 RUN — registering ~22 more entries that cannot start until Release 1 lands
+      would be registry noise, and their shape may legitimately change once Release 1 is
+      real. They are a LATER WF-01 run, and they cover:
+      (Release 2 — PRD 4 and PRD 14 step 7, next Fail Stories, Q4, 7 stories) approval
+      requests (FR-4's requires_approval rows, stories B6/F3); invite codes (FR-5,
+      stories B7/F4); +1 companions (FR-5, story B8); the invitation list with
+      invited/opened/registered/attended outreach status (FR-17, story F9); waitlist
+      closure notification (story B9).
+      (Release 3 — PRD 4 and PRD 14 steps 8-10, Meetup #4 onward, 15 stories) the
+      speaker CFP and pipeline (FR-9, FR-10, stories E1/E2/E4); lineup on the event card
+      with publish consent (FR-11, stories E3/E5, security-invariants.md S14); speaker
+      seats (story E6); segmented broadcast with the programme template and notification
+      preferences (FR-15, stories G1a/G2/G3, security-invariants.md S10); chapter
+      interest / wishlist (FR-6's wishlist half, story G4); full metrics matching the
+      partner factsheet and CSV export (FR-16, stories H1/H2, security-invariants.md
+      S12); manual waitlist promotion (story F5); the organizer-facing cancel flow
+      (story F6, whose notification half REQ-027 already covers); audit and hardening.
+      PRD 4's "Later" list (.ics files, materials archive, analytics dashboard, UZ/KZ
+      BOT interface locales, Telegram Mini App scanner, Redis/worker queue) and its
+      "Non-goals" list (payments, gamification, full CRM, custom Telegram client, a web
+      front-end for the bot, hackathon teams/judging) are NOT to be drafted at all — a
+      requirement proposing one contradicts decisions/0003 and PRD 4.
+    acceptance_criteria:
+      - "After ends_at, a registration that is admitted with checked_in_at NULL receives exactly one message offering the five fixed reasons plus a free-text option; a registration that WAS checked in receives nothing — both constructed and the captured sends counted (STORY-DETAILS D3)."
+      - "Selecting a reason writes it to registrations.no_show_reason, verified by reading the row back (PRD 5, FR-16)."
+      - "The job is re-run at T+24h and T+48h and delivers NO further message to the same registration — counted across all runs (STORY-DETAILS D3's refusal 'Reminding'); this differs from REQ-031's flow, which does remind once."
+      - "No boolean no_show column exists in any migration and no job writes one — verified by grepping every apps/bot migration for 'no_show' and confirming the only match is the no_show_reason column (PRD 5, PRD 13 criterion 8)."
+      - "The no_show derivation returns the correct set for a constructed event with one admitted-and-checked-in, one admitted-and-not-checked-in, and one withdrawn registration: exactly one row is a no-show, verified by running the derivation after ends_at has passed (PRD 13 criterion 8)."
+      - "The message reaches a user with broadcast_opt_in=false, verified by setting that flag before the run (PRD 9 — transactional)."
+      - "The handoff result records that the no-show wording is provisional pending the product owner, per USER-STORIES D3's 'Viktor should write it' (verified by reading the handoff's result.issues)."
+    depends_on: [REQ-031]
