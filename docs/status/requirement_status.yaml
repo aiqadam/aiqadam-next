@@ -133,3 +133,8 @@ history:
     run_id: WF02-REQ-010
     at: "2026-09-06T11:14:00Z"
     note: "Correction to the immediately preceding REQ-010 'done' entry, per append-only rule (the original entry is not rewritten): that entry incorrectly described users.tg_id's uniqueness as enforced by 'a partial/filtered unique index so multiple NULLs coexist without collision.' This is factually wrong -- the actual migration (apps/bot/drizzle/0000_tough_lilith.sql line 50: `CREATE UNIQUE INDEX \"users_tg_id_unique\" ON \"users\" USING btree (\"tg_id\")`) is a PLAIN unique index with no WHERE clause, relying on Postgres's default behavior of treating each NULL as distinct in a unique index -- not a partial/filtered index. Every other pipeline step (design doc, REVIEWER, SECURITY-REVIEWER, TEST-RUNNER, RELEASE-VALIDATOR) correctly described this as a plain unique index; only DOC-UPDATER's status-history note got it wrong. Caught by ORCH's independent verification before Step Final. The correct description: `CREATE UNIQUE INDEX \"users_tg_id_unique\" ON \"users\" USING btree (\"tg_id\")`, a plain (non-partial) unique index."
+  - requirement_id: REQ-011
+    event: started
+    run_id: WF02-REQ-011
+    at: "2026-09-06T11:16:00Z"
+    note: "Third requirement of Phase 2. depends_on REQ-010 (done). Starting WF-02: Step 00 (git setup) complete, branch feature/WF02-REQ-011 pushed off master. This is a substantially larger schema slice (5 entities: Venue, Event, Registration, EventStaff, AuditLog) with a non-trivial design challenge -- Event.agenda[] must support identifying a 'doors' item via a real SQL query (not app-side scanning), per PRD 5's ban on a separate doors_at column."
