@@ -7,9 +7,30 @@
   "to_agent": "CODE-DESIGN-VALIDATOR",
   "status": "COMPLETED",
   "result": {
-    "status": "FAIL",
-    "summary": "Empirically ran npx drizzle-kit migrate twice against a real scratch Postgres. The idempotency MECHANISM genuinely works (drizzle.__drizzle_migrations row count unchanged on second run, exit 0). But the design's SS3.3 claim that drizzle-kit's own CLI output lists which migration files it applied is factually false -- verified against the real pinned drizzle-kit@0.31.10 binary, both an empty-DB run and a no-op run print the identical '[check] migrations applied successfully!' line, no filenames, no distinguishing 'nothing to apply' message, and no --verbose flag exists to change this. All other checks (AC2/AC3/AC4, no-literal-defaults, open questions, no implementation code) PASS.",
-    "issues": [{"severity": "MAJOR", "description": "Design doc SS3.3 claims drizzle-kit migrate's CLI output can demonstrate 'which migrations it applied' -- false, verified against the real binary. Fix: revise SS3.3 to specify querying drizzle.__drizzle_migrations directly (row count / hashes before and after) as the verification method, since no CLI flag lists applied filenames."}],
-    "next_action": "Rework CODE-DESIGNER (iteration 1 of 3)"
-  }
+    "status": "PASS",
+    "summary": "Re-read docs/agents/design/REQ-012.md's current SS3.3 directly (not CODE-DESIGNER's summary) after rework commit b0d74a7. It now correctly states drizzle-kit migrate's CLI stdout does NOT distinguish the two runs (still verified true) and specifies querying drizzle.__drizzle_migrations (schema drizzle, table __drizzle_migrations, columns hash/created_at) before/after each run as the real verification method. Empirically re-ran the full sequence against a fresh scratch Postgres (postgres:16-alpine, container req012-scratch-pg, port 55433): before the first npx drizzle-kit migrate the table did not exist (0 rows / relation-does-not-exist, matching 'table does not exist / is empty, before' in the doc); after the first run it held exactly 2 rows (hash b37437a0...eb74df / bf62ae6d...db7426e0, created_at 1788692075668 / 1788693666455), matching the two committed .sql files 1:1. A second npx drizzle-kit migrate against the now-migrated DB exited 0, printed the identical '[check] migrations applied successfully!' line as the first run (no filenames/count), and left the table at 2 rows with the SAME hash/created_at values unchanged -- exactly the idempotency evidence SS3.3 claims. Diffed b0d74a7 against its parent: the only changes are SS3.3's body and the AC1 coverage-table cell that now cites SS3.3 -- SS1/SS2/SS4/SS5/open questions/AC2-4 rows are byte-identical to what iteration 0 PASSed. Re-scanned the full document for TBD language, unresolved props/types, unresolvable token references, and implementation code: none found, consistent with iteration 0. Scratch container removed after the test (docker rm -f req012-scratch-pg).",
+    "artifacts_out": ["docs/agents/design/REQ-012.md"],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-012",
+      "commit_sha_list": ["b0d74a7"],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Route to BACKEND-DEV (Step 2)"
+  },
+  "rework_count": 1,
+  "max_rework": 3,
+  "gate_history": [
+    {
+      "iteration": 0,
+      "gated_at": "2026-09-06T00:00:00Z",
+      "status": "FAIL",
+      "summary": "Empirically ran npx drizzle-kit migrate twice against a real scratch Postgres. The idempotency MECHANISM genuinely works (drizzle.__drizzle_migrations row count unchanged on second run, exit 0). But the design's SS3.3 claim that drizzle-kit's own CLI output lists which migration files it applied is factually false -- verified against the real pinned drizzle-kit@0.31.10 binary, both an empty-DB run and a no-op run print the identical '[check] migrations applied successfully!' line, no filenames, no distinguishing 'nothing to apply' message, and no --verbose flag exists to change this. All other checks (AC2/AC3/AC4, no-literal-defaults, open questions, no implementation code) PASS.",
+      "issues": ["MAJOR: Design doc SS3.3 claims drizzle-kit migrate's CLI output can demonstrate 'which migrations it applied' -- false, verified against the real binary. Fix: revise SS3.3 to specify querying drizzle.__drizzle_migrations directly (row count / hashes before and after) as the verification method, since no CLI flag lists applied filenames."],
+      "next_action": "Rework CODE-DESIGNER (iteration 1 of 3)"
+    }
+  ]
 }
