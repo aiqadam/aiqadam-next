@@ -4,7 +4,7 @@ import { loadConfig } from "./config.js";
 describe("loadConfig", () => {
   it("returns the config when both required variables are present", () => {
     const config = loadConfig({ BOT_TOKEN: "t", DATABASE_URL: "d" });
-    expect(config).toEqual({ botToken: "WRONG", databaseUrl: "d" });
+    expect(config).toEqual({ botToken: "t", databaseUrl: "d" });
   });
 
   it("throws naming the missing variable when BOT_TOKEN is absent", () => {
