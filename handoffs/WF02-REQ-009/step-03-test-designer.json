@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-03-test-designer",
+  "run_id": "WF02-REQ-009",
+  "workflow_id": "WF-02",
+  "step": "03",
+  "from_agent": "ORCH",
+  "to_agent": "TEST-DESIGNER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Wrote docs/agents/test-specs/REQ-009.md. AC4 points to existing config.test.ts; AC1/AC2/AC3/AC5/AC6 are scripted checklists with exact commands/expected output. AC3's residual gap (no real GitHub Actions red run performed by anyone yet) explicitly named and left to RELEASE-VALIDATOR to decide whether required.",
+    "artifacts_out": ["docs/agents/test-specs/REQ-009.md"],
+    "next_action": "Route to TEST-DESIGN-VALIDATOR (Step 3b)"
+  }
+}
