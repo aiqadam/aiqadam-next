@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-02c-security-reviewer",
+  "run_id": "WF02-REQ-014",
+  "workflow_id": "WF-02",
+  "step": "02c",
+  "from_agent": "ORCH",
+  "to_agent": "SECURITY-REVIEWER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "FAIL",
+    "summary": "S1 FAIL, decisive: independently verified with a real Postgres instance that chapter assignment (both the silent single-active-chapter branch AND the chapter-selection callback) writes users.chapter_id BEFORE consent_pd_at is set -- confirmed with a real fresh-user /start (chapter_id non-null, consent_pd_at still null) and this is the MAJORITY deployment path, not an edge case. The consent wording also never discloses chapter-membership storage. S2 PASS (callbacks scoped to ctx.from.id, forged-callback negative case constructed and confirmed safe). S11 PASS (no PII in any log call). All other invariants N/A by inspection. Migration confirmed additive, no S13 trigger.",
+    "issues": [{"severity": "BLOCKER", "description": "S1 violation: chapter assignment (apps/bot/src/handlers/start.ts lines 96-101 silent branch, and lines 156-176 the chapter callback) persists users.chapter_id before consent_pd_at is non-null, in the majority-path flow (single active chapter, or a returning user picking a chapter). Must defer chapter assignment until after consent is recorded, or disclose chapter-membership storage in the consent wording and gate the write behind acceptance."}],
+    "next_action": "Rework BACKEND-DEV (iteration 1 of 3)"
+  }
+}
