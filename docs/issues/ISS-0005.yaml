@@ -44,3 +44,24 @@ affected_files:
   - .claude/agents/reviewer.md
   - Dockerfile
 status: open
+recurrence:
+  - run_id: WF02-REQ-009
+    at: "2026-09-06T00:00:00Z"
+    description: >
+      Same gap recurred exactly as predicted: REQ-009 added apps/bot as a second
+      workspace member (grammy/drizzle-orm/pg deps), which made the root
+      package-lock.json describe both workspaces -- so `npm ci` in Dockerfile's
+      builder stage started failing (`apps/bot/package.json` never COPYed in,
+      grammy/drizzle-orm/pg unresolvable) the moment REQ-009's diff was tested
+      against real CI. BACKEND-DEV's Step 4 rework correctly identified this as
+      outside REQ-009's own acceptance criteria (which say nothing about Docker)
+      and forwarded rather than fixing it. ORCH applied the fix directly under
+      ORCHESTRATOR.md Sec.5's sizing rule (single file, 1-line diff, no design
+      decision, verified with a real `docker build` + `docker run` + curl
+      /health and /ru): added `COPY apps/bot/package.json ./apps/bot/package.json`
+      to the builder stage, mirroring the exact pattern REQ-008 used for
+      apps/web/package.json. The suggested fix from the original finding (a
+      standing REVIEWER/Step-2 checklist item for any diff that adds/renames a
+      workspace or changes build output layout) is still not implemented --
+      this is now the SECOND time it would have caught the regression before
+      CI did.
