@@ -1,0 +1,138 @@
+run_id: WF02-REQ-018
+date: 2026-09-06T21:06:52Z
+requirement_id: REQ-018
+branch: feature/WF02-REQ-018
+commit_at_run: e71c214
+lint: pass
+build: pass
+unit_test_suite:
+  command: "npx vitest run (apps/bot)"
+  result: pass
+  files: 20
+  tests: 236
+cases:
+  - acceptance_criterion: AC1
+    description: "EventStaff for event 1 invoking event 2's /checkin directly is refused, no check-in recorded"
+    result: pass
+    notes: >
+      Unit re-run (npx vitest run src/domain/eventStaffAuthorization.test.ts -t "AC1's
+      negative case"): 1 passed | 10 skipped, exit 0. Live dispatch: staffed-only-for-e1
+      user (tg_id 1000000101) calling /checkin against e2 got exactly one sendMessage,
+      text "You are not authorized to check people in for this event." (checkin.notAuthorized
+      verbatim), never authorizedStub. Same user's /checkin against e1 (the event they ARE
+      staffed for) succeeded: "You're authorized to check people in for \"Event One\"."
+      (checkin.authorizedStub). registrations count stayed 0 across both dispatches;
+      event_staff count for e1 stayed 1 (unchanged) -- confirmed via psql after both calls.
+  - acceptance_criterion: AC2
+    description: "EventStaff-only user invoking organizer-only handlers (/venue_new, /event_publish) is refused on both"
+    result: pass
+    notes: >
+      git grep -n "registration.*list|listRegistrations" apps/bot/src: zero matches,
+      confirming the third named surface still doesn't exist. Live dispatch: a
+      plain-member EventStaff user (tg_id 1000000102, staffed for a chapter-matching
+      event) sending /venue_new got "You are not authorized to do this." (venue.notAuthorized),
+      and venues WHERE name = 'AC2 Attempted Venue' -> 0 rows. Same user's /event_publish
+      against a draft event in their own chapter got "You are not authorized to do this."
+      (event.notAuthorized), and events.status for that event stayed 'draft'. Neither
+      handler treated the event_staff row as sufficient authorization.
+  - acceptance_criterion: AC3
+    description: "After event's ends_at has passed, /checkin refuses the EventStaff user"
+    result: pass
+    notes: >
+      Unit re-run (npx vitest run src/domain/eventStaffAuthorization.test.ts -t
+      "event-ended"): 2 passed | 9 skipped, exit 0. Unit re-run (-t "exactly at
+      endsAt"): 1 passed | 10 skipped, exit 0. Live dispatch: a real staffed user against
+      a real Postgres event row whose ends_at is 1 hour in the past (timestamptz column,
+      read back through requireEventStaffForEvent's live composition, not a hand-built
+      Date) got "You are not authorized to check people in for this event.", never
+      authorizedStub, despite a valid event_staff row existing for exactly that
+      event/user pair.
+  - acceptance_criterion: AC4
+    description: "Assigning/removing sends a message naming event/role/door-procedure in the target's language; removal sends a message too"
+    result: pass
+    notes: >
+      Fixture: organizer lang=en, target (volunteer4) lang=ru, deliberately mismatched.
+      /staff_add dispatch produced exactly two captured entries in order: (1) sendMessage
+      to chat_id 1000000105 (the volunteer) with the live ru.ts staff.assignmentNotificationBody
+      string interpolated to "AC4 Notify Event" -- verbatim match to the spec's quoted
+      Russian text, confirmed against the live file; (2) reply to the organizer (chat_id
+      1000000104) "Assigned as check-in staff for event: volunteer4" in English
+      (staff.addSuccessPrefix). event_staff row confirmed present (event_id/user_id
+      match). /staff_remove dispatch produced two more entries in order: sendMessage to
+      the volunteer with the live ru.ts staff.removalNotificationBody interpolated to
+      "AC4 Notify Event", then a reply to the organizer "Removed as check-in staff for
+      event: volunteer4" in English. event_staff count for that event after removal: 0.
+      Both languages independently resolved -- no cross-contamination.
+  - acceptance_criterion: AC5
+    description: "Each assignment/removal writes exactly one audit_log row; duplicate-assign and never-staffed-removal write none"
+    result: pass
+    notes: >
+      Live dispatch sequence (assign, remove, re-assign, duplicate re-assign,
+      remove-never-staffed) against real audit_log. Direct psql read of all 8 audit_log
+      rows accumulated across the whole run (shared fixture DB across AC1/AC3/AC4/AC5/AC7,
+      since REQ-018's own fixtures don't reset mid-run) confirmed: exactly one
+      event_staff.add row per successful assign (message 6's first assign, id
+      30348fed..., and message 14's re-assign after removal, id 9d5fefd2...); exactly one
+      event_staff.remove row for the one removal performed (message 7, id a39832bf...);
+      the immediate duplicate-assign (message 8, while already assigned) produced only
+      one sendMessage reply "This user is already assigned as check-in staff for this
+      event." (staff.alreadyAssigned) and wrote NO new event_staff.add row -- confirmed
+      event_staff.add count for this event stayed at 2 (not 3) after the duplicate
+      attempt. The remove-never-staffed dispatch (message 9, against a fresh event with
+      nobody assigned) produced only "This user is not assigned as check-in staff for
+      this event." (staff.notAssigned) and audit_log WHERE action='event_staff.remove'
+      AND payload->>'eventId' = the never-staffed event's id -> 0 rows.
+  - acceptance_criterion: AC6
+    description: "git grep finds no speaker-flag reads in permission checks"
+    result: pass
+    notes: >
+      git grep -n "speaker" apps/bot/src: zero matches. git grep -n "role"
+      apps/bot/src/domain/eventStaffAuthorization.ts: matches only ActingUser.role's
+      type declaration (line 17) and its assignment inside resolveActingUser (lines
+      32/43) plus explanatory comments -- read the full file directly; zero `.role`
+      accesses inside checkEventStaffAuthorization's body (lines 66-82) or
+      requireEventStaffForEvent's body (lines 130-147). No role-based short-circuit
+      exists in either function.
+  - acceptance_criterion: AC7
+    description: "/checkin writes an audit_log row on EVERY refusal branch (no-user / not-staff-for-event / event-ended); success path writes none"
+    result: pass
+    notes: >
+      Unit re-run (npx vitest run src/domain/eventStaffAuthorization.test.ts -t
+      "buildCheckinRefusalAudit"): 4 passed | 7 skipped, exit 0.
+      AC7a (no-user, tg_id 1000000107 with zero users rows): sendMessage refusal text
+      (resolved to Russian per resolveLang's documented "ru" fallback when no user row
+      and no chapter-scoped lookup exist -- not a bug, spec did not pin this case to
+      English, unlike AC1). audit_log row: action='checkin.refused', actor_user_id IS
+      NULL, entity='event', entity_id=the event's id, payload={"reason":"no-user"}.
+      AC7b (not-staff-for-event, a real user with no event_staff row for this event):
+      refusal text in English (this user's own stored lang). New row: actor_user_id=the
+      resolved internal user id (never the tg_id), payload={"reason":"not-staff-for-event"}.
+      checkin.refused count after AC7b: 2 (AC1's row + this one, since AC1's cross-event
+      refusal is itself a not-staff-for-event refusal that also wrote a row, correctly).
+      AC7c (event-ended, real staff row but event already ended): new row,
+      actor_user_id=same user's internal id, entity_id=the ended event's id,
+      payload={"reason":"event-ended"}. AC7d (success/negative-control): added a fresh
+      event_staff row for the same user against the non-ended event, dispatched /checkin
+      again -- got checkin.authorizedStub, and
+      "SELECT count(*) FROM audit_log WHERE action='checkin.refused'" stayed unchanged
+      (5, same as immediately before AC7d) -- success path wrote zero rows.
+  - acceptance_criterion: AC-schema
+    description: "No schema change"
+    result: pass
+    notes: "git diff master...HEAD -- apps/bot/src/db: empty output. No migration file added."
+  - acceptance_criterion: AC-catalog
+    description: "i18n parity for staff.*/checkin.* keys, and command registration"
+    result: pass
+    notes: >
+      types.ts's staff block has exactly 11 keys (notAuthorized, usageNoArgs,
+      eventNotFound, userNotFound, alreadyAssigned, notAssigned, addSuccessPrefix,
+      removeSuccessPrefix, notificationFailedNote, assignmentNotificationBody,
+      removalNotificationBody) and checkin block has exactly 4 keys (usageNoId,
+      notFound, notAuthorized, authorizedStub) -- confirmed identical key sets present
+      in both ru.ts and en.ts by direct read (grep -A 15/-A 6). index.ts lines 91-93:
+      exactly three registration lines, bot.command("staff_add", makeStaffAddHandler(db)),
+      bot.command("staff_remove", makeStaffRemoveHandler(db)),
+      bot.command("checkin", makeCheckInHandler(db)) -- all reachable, not commented out.
+issues_found: []
+overall_result: PASS
+next_action: "Route to RELEASE-VALIDATOR (Step 5)"
