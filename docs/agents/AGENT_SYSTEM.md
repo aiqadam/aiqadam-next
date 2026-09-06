@@ -2,7 +2,9 @@
 
 ## 1. Purpose
 
-This project is a Next.js marketing/community site for AI Qadam. It runs a full
+This project is a monorepo holding two AI Qadam surfaces: the Next.js marketing/community
+site (`apps/web`) and the Events Bot (`apps/bot`, a Telegram bot — see
+[decisions/0003-events-bot-subproject.md](decisions/0003-events-bot-subproject.md)). It runs a full
 producer/validator agent pipeline, adapted from the sibling project `letflow`'s pattern
 and sized for this project's actual tooling (npm/Next.js, no backend, no multi-tenant
 data) — see [decisions/0001-full-pipeline-adopted.md](decisions/0001-full-pipeline-adopted.md)
@@ -22,7 +24,9 @@ statement of this rule and what "independently re-derive" means in practice.
 |---|---|
 | REQ-ANALYST (requirement text) | REQ-VALIDATOR |
 | CODE-DESIGNER (design artefact) | CODE-DESIGN-VALIDATOR |
-| FRONTEND-DEV (`src/`, `public/`) | REVIEWER |
+| DATA-DESIGNER (schema/migration design) | CODE-DESIGN-VALIDATOR |
+| FRONTEND-DEV (`apps/web/`) | REVIEWER |
+| BACKEND-DEV (`apps/bot/`) | REVIEWER, then SECURITY-REVIEWER |
 | TEST-DESIGNER (test/checklist specs) | TEST-DESIGN-VALIDATOR |
 | TEST-RUNNER (verification run + report) | RELEASE-VALIDATOR re-verifies independently, does not trust the report alone |
 | DOC-UPDATER (status/doc updates) | ORCH verifies the specific files/fields changed, per the handoff's `artifacts_out`, before logging the run done |
@@ -54,10 +58,13 @@ Concretely:
 | ORCH | Orchestrator | Routes work, enforces gates, owns handoff/bookkeeping mechanics, extends the system as the project grows. Default role when none is stated. | `handoffs/**`, `docs/agents/requirements.yaml` (status/impl fields only), `docs/status/requirement_status.yaml` (append) |
 | REQ-ANALYST | Requirement Analyst | Drafts new requirements into `docs/agents/requirements.yaml`. Writes requirement text only. | `docs/agents/requirements.yaml` (new entries) |
 | REQ-VALIDATOR | Requirement Validator | Hard gate on REQ-ANALYST — testability, consistency, sizing, dependency correctness. | none (review only) |
+| DATA-DESIGNER | Data Designer | Designs the bot's persistent data model — entities, keys, migrations, the computed-not-stored boundary — before implementation. Design docs only. | `docs/agents/design/**` |
 | CODE-DESIGNER | Code/Content Designer | Produces the design artefact (component structure, props/types, content shape) before implementation. Design docs only — no implementation code. | `docs/agents/design/**` |
 | CODE-DESIGN-VALIDATOR | Design Validator | Hard gate on CODE-DESIGNER — every acceptance criterion maps to a concrete design element, no implementation code present. | none (review only) |
-| FRONTEND-DEV | Frontend Developer | Builds and changes `src/`, `public/` per the design artefact and the AI Qadam Design System. | `src/**`, `public/**` |
-| REVIEWER | Reviewer | Hard gate on FRONTEND-DEV — design-system compliance, code quality, scope creep, consistency with `decisions/`. | none (review only) |
+| FRONTEND-DEV | Frontend Developer | Builds and changes the site per the design artefact and the AI Qadam Design System. Also owns the git wrapper (Step 00/Final) for every run. | `apps/web/**` |
+| BACKEND-DEV | Backend Developer | Builds and changes `apps/bot/**` — bot handlers, domain logic, scheduled jobs, migrations — per an approved design artefact. | `apps/bot/**` |
+| SECURITY-REVIEWER | Security Reviewer | Hard gate on any change touching personal data, consent, authorization, tokens, or exports. Runs `instructions/security-invariants.md` item by item. | none (review only) |
+| REVIEWER | Reviewer | Hard gate on FRONTEND-DEV/BACKEND-DEV — design-system compliance, code quality, scope creep, consistency with `decisions/`. | none (review only) |
 | CONTENT-BA | Content & Requirements | Drafts/validates copy against brand voice; may also act as REQ-ANALYST for content-shaped requirements. | `docs/agents/requirements.yaml` (content entries) |
 | TEST-DESIGNER | Test Designer | Writes test/verification specs (manual checklists today; automated test code once a framework exists) for a change that passed REVIEWER. | `docs/agents/test-specs/**`, test code once a framework exists |
 | TEST-DESIGN-VALIDATOR | Test Design Validator | Hard gate on TEST-DESIGNER — every acceptance criterion has a runnable check, no coverage gaps. | none (review only) |
@@ -66,10 +73,14 @@ Concretely:
 | DOC-UPDATER | Documentation Updater | Flips requirement status, appends the status-history event, updates docs when behavior changed. | `docs/agents/requirements.yaml` (status field), `docs/status/requirement_status.yaml` (append), `README.md` |
 | ISSUE-FIXER | Issue Fixer | Diagnoses root cause of a reported/discovered defect. Diagnosis only — routes to CODE-DESIGNER/FRONTEND-DEV for the fix. | `docs/issues/**` |
 
-There is no dedicated backend, mobile, or DevOps role yet because none of that exists in
-the project — see §3. `SECURITY-REVIEWER` from letflow's pattern is likewise not present:
-this is a static site with no tenant data, auth, or user input handling to gate. The
-first backend/user-data feature is the trigger to add one (see §3 and §7 below).
+`BACKEND-DEV`, `SECURITY-REVIEWER` and `DATA-DESIGNER` were added on 2026-09-06 when the
+Events Bot became a subproject of this repo — the exact trigger §3 and §7 named ("the
+first backend/user-data feature"). See
+[decisions/0003-events-bot-subproject.md](decisions/0003-events-bot-subproject.md).
+
+There is still no dedicated mobile or DevOps role, because neither exists in the project
+— deployment stays FRONTEND-DEV's per §6 until the bot's own deployment proves that
+insufficient, which is the trigger to revisit it.
 
 ## 5. How work moves
 
@@ -87,8 +98,10 @@ mediating this, unlike letflow. See §7 for why, and the trigger for revisiting 
 
 | Artifact | Location | Owner |
 |---|---|---|
-| Application code | `src/` | FRONTEND-DEV |
-| Static assets | `public/` | FRONTEND-DEV |
+| Site application code | `apps/web/src/` | FRONTEND-DEV |
+| Site static assets | `apps/web/public/` | FRONTEND-DEV |
+| Bot application code | `apps/bot/` | BACKEND-DEV |
+| Security/privacy invariants | `docs/agents/instructions/security-invariants.md` | SECURITY-REVIEWER (gates against it), BACKEND-DEV (satisfies it) |
 | Design system reference | `docs/Design system for AI agents/` | external source, read-only to every role |
 | Design artefacts | `docs/agents/design/` | CODE-DESIGNER |
 | Test/verification specs | `docs/agents/test-specs/` | TEST-DESIGNER |
@@ -111,13 +124,17 @@ mediating this, unlike letflow. See §7 for why, and the trigger for revisiting 
   `requirements.yaml`'s status field becomes a real risk, not a theoretical one. Until
   then, ORCH reading and writing that file directly is the mechanism, and it is a single
   point of coordination because there is, in practice, one active session.
-- **Security invariants gate** — needed once there's a backend with auth, user data, or
-  tenant isolation to gate. Add a `SECURITY-REVIEWER` role and an
-  `instructions/security-invariants.md` doc at that point, not before.
+- ~~**Security invariants gate**~~ — **added 2026-09-06.** The trigger fired: the Events
+  Bot stores personal data under a consent model. `SECURITY-REVIEWER` and
+  [instructions/security-invariants.md](instructions/security-invariants.md) now exist.
 - **Automated test framework / real TEST-RUNNER automation** — `package.json` has no test
   runner today. TEST-DESIGNER/TEST-RUNNER operate against manual checklists (see
   [guides/qa_testing_guide.md](../guides/qa_testing_guide.md)) until one is introduced;
-  see decision record trigger in §3.
+  see decision record trigger in §3. **This trigger is now imminent, not theoretical:**
+  the Events Bot's domain logic (admission state machine, auto-promotion, idempotent
+  notifications, capacity under concurrency) cannot be verified by a manual checklist,
+  so a test-framework decision record is a prerequisite of the bot's first logic
+  requirement — see `docs/agents/requirements.yaml` REQ-009.
 - **Volume-rolling for `requirement_status.yaml`** — letflow splits its run-history file
   into bounded volumes once it grows large. This project's file starts empty; add a roll
   rule only once a full read genuinely becomes impractical (see the file's own header).

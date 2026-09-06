@@ -15,8 +15,12 @@
 └──────────┬───────────────┘
            │ PASS — ORCH flips status: pending → in_progress, logs "started" event
            ▼
+┌──────────────────────────┐
+│  STEP 0.9: SURFACE ROUTE │ ← ORCH picks the site or bot role set
+└──────────┬───────────────┘
+           ▼
 ┌──────────────────────┐
-│  STEP 1: DESIGN      │ ← CODE-DESIGNER
+│  STEP 1: DESIGN      │ ← CODE-DESIGNER (+ DATA-DESIGNER if stored data changes)
 │  Component structure,│
 │  props/types, content │
 │  shape                │
@@ -31,8 +35,7 @@
           YES
            ▼
 ┌──────────────────────┐
-│  STEP 2: BUILD       │ ← FRONTEND-DEV
-│  src/, public/       │
+│  STEP 2: BUILD       │ ← FRONTEND-DEV (apps/web) | BACKEND-DEV (apps/bot)
 └──────────┬───────────┘
       FAIL─► REWORK
            │ PASS
@@ -41,6 +44,13 @@
 │  STEP 2b: REVIEW     │ ← REVIEWER ⛔ HARD GATE
 │                      │   design-system compliance, code quality, scope creep
 └──────────┬───────────┘
+           │ PASS
+           ▼
+┌──────────────────────┐
+│  STEP 2c: SECURITY   │ ← SECURITY-REVIEWER ⛔ HARD GATE — bot requirements only
+│  (bot only)          │   security-invariants.md S1-S14, negative case each
+└──────────┬───────────┘
+      VALID?├── NO ──► REWORK (max 3, back to STEP 2)
            │ PASS
            ▼
 ┌──────────────────────┐
@@ -101,6 +111,55 @@ in-scope requirement's full `description` into `context.requirement_text` on thi
 every subsequent handoff. Steps 1 through 6 read the requirement from there, never open
 `docs/agents/requirements.yaml` themselves — see `core-directives.md`'s "Load Scoped
 Context, Not Whole Files."
+
+## Step 0.9 — Surface routing (which roles run this requirement)
+
+Added 2026-09-06 with `docs/agents/decisions/0003-events-bot-subproject.md`. This repo
+now holds two surfaces, and a requirement belongs to exactly one of them. ORCH decides
+which at dispatch, from the requirement's `owner` field and the paths its acceptance
+criteria cite — **not** from a judgment call about how "backend-ish" it feels.
+
+| | Site requirement (`apps/web/**`) | Bot requirement (`apps/bot/**`) |
+|---|---|---|
+| Step 1 — Design | `CODE-DESIGNER` | `CODE-DESIGNER`, **plus `DATA-DESIGNER`** when the requirement adds or alters stored data |
+| Step 1b — Design gate | `CODE-DESIGN-VALIDATOR` | `CODE-DESIGN-VALIDATOR` (gates both artefacts) |
+| Step 2 — Build | `FRONTEND-DEV` | `BACKEND-DEV` |
+| Step 2b — Review gate | `REVIEWER` | `REVIEWER` |
+| **Step 2c — Security gate** | *not run* (see below) | **`SECURITY-REVIEWER` ⛔ HARD GATE** |
+| Steps 3–6, Final | unchanged | unchanged |
+
+Everything else in this workflow — the git wrapper, the rework loop, the gate semantics,
+the parallel-execution rule — is identical for both surfaces. **Step 00 and Step Final
+stay `FRONTEND-DEV`'s for every run regardless of surface**, per its role file; they are
+git mechanics, not site work.
+
+A requirement whose acceptance criteria cite paths in *both* surfaces is mis-sized and
+goes back to WF-01 to be split — not run as a hybrid.
+
+**Why Step 2c does not run for site requirements:** `apps/web` collects no personal
+data, has no auth, and has no user-supplied input. That is a property of the site as it
+stands, not a permanent exemption — the day a site requirement adds a form, an auth
+flow, or any user data, Step 2c applies to it too, and
+`instructions/security-invariants.md`'s scope line is updated in the same run.
+
+## Step 2c — Security gate ⛔ HARD GATE *(bot requirements only)*
+
+**Agent:** `SECURITY-REVIEWER`
+**Runs:** after Step 2b PASS, before Step 3.
+
+```
+1. Read the actual diff (git diff master...HEAD) — never BACKEND-DEV's or REVIEWER's
+   summary as a substitute.
+2. Run every applicable item of docs/agents/instructions/security-invariants.md (S1-S14)
+   against it, constructing the NEGATIVE case for each — an authorization check verified
+   only on the authorized path has not been verified.
+3. For each item, record: PASS with what was checked and how the failing case was
+   constructed | N/A with the reason it does not apply. A silent skip is a FAIL of the
+   gate, not a pass of the item.
+4. FAIL on any single item failing, naming file, line, and invariant number.
+5. Complete the handoff: PASS -> "Route to TEST-DESIGNER (3)" |
+   FAIL -> "Rework BACKEND-DEV", issues listing every failed invariant.
+```
 
 ## Step 1 — Design
 
@@ -192,8 +251,9 @@ Context, Not Whole Files."
 5. Check consistency with any relevant docs/agents/decisions/ record.
 6. FAIL if a genuine violation is found; otherwise PASS with any non-blocking notes
    recorded for the record.
-7. Complete the handoff: PASS → "Route to TEST-DESIGNER (3)" |
-   FAIL → "Rework FRONTEND-DEV".
+7. Complete the handoff: PASS → "Route to TEST-DESIGNER (3)" — or, for a bot
+   requirement, "Route to SECURITY-REVIEWER (Step 2c)" per Step 0.9 |
+   FAIL → "Rework FRONTEND-DEV" (site) / "Rework BACKEND-DEV" (bot).
 ```
 
 ## Step 3 — Test design
