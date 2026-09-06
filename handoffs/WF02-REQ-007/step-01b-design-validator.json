@@ -1,0 +1,43 @@
+{
+  "handoff_id": "2462578d-2c43-4daa-86d5-4345b718a59d",
+  "run_id": "WF02-REQ-007",
+  "workflow_id": "WF-02",
+  "step": "01b",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "file": "handoffs/WF02-REQ-007/step-01b-design-validator.json",
+  "created_at": "2026-09-06T07:03:07Z",
+  "started_at": "2026-09-06T07:03:07Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-007"],
+    "requirement_text": {},
+    "source_text": {
+      "note": "REQ-007 is a structural (file-move/workspace-config) requirement, not a UI one. Your usual checks (design-system token usage, props/types) are largely N/A here — CODE-DESIGNER marked them so explicitly. Your real job on this one is verifying the file-move list and package.json shapes actually cover every acceptance criterion in requirements.yaml's REQ-007 entry, and that the out-of-scope boundary (Dockerfile/deploy/CI untouched) is stated clearly enough for FRONTEND-DEV to not drift into REQ-008's territory."
+    },
+    "related_handoff_ids": ["84c2371a-2f2f-4c57-809d-2e00f59a2f63"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-007.md",
+      "docs/agents/requirements.yaml",
+      "docs/agents/decisions/0003-events-bot-subproject.md"
+    ]
+  },
+  "task": {
+    "description": "Step 1b of WF-02 for REQ-007. Read docs/agents/design/REQ-007.md independently — not CODE-DESIGNER's result.summary. For each of REQ-007's five acceptance criteria in requirements.yaml, confirm the design artefact specifies a concrete element that satisfies it: (a) apps/web/* paths existing with none of the old root paths remaining, (b) the new root package.json's workspaces/private fields plus lint/build passing from root, (c) all four locales serving plus /health, (d) the four message catalogs surviving the move with identical key sets, (e) git history preserved via git mv (not delete+recreate). Confirm no implementation code is present (structure/shape descriptions only, no literal package.json JSON dumped as finished code — check this genuinely, since 'describing required fields' and 'pasting the file' can blur). Confirm the out-of-scope boundary is unambiguous.",
+    "acceptance_criteria": [
+      "Every one of REQ-007's 5 acceptance criteria maps to a concrete design element, checked individually",
+      "No TBD/deferral language for anything in scope",
+      "No implementation code present — verified as a genuine check, not assumed",
+      "Out-of-scope boundary (Dockerfile/deploy/ci-cd.yml) stated unambiguously"
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": null
+  }
+}
