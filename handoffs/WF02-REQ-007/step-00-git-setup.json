@@ -8,8 +8,8 @@
   "file": "handoffs/WF02-REQ-007/step-00-git-setup.json",
   "created_at": "2026-09-06T06:58:08Z",
   "started_at": "2026-09-06T06:58:08Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-09-06T06:59:12Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-007"],
@@ -32,10 +32,18 @@
     ]
   },
   "result": {
-    "status": null,
-    "summary": null,
-    "artifacts_out": [],
+    "status": "PASS",
+    "summary": "Followed GIT_SETUP.md exactly (non-worktree path -- confirmed single checkout via `git worktree list`). `git checkout master` succeeded; `git pull --ff-only origin master` exited 0 (already up to date; local master was 1 commit ahead of origin -- ORCH's own dispatch commit 8ca9360 creating this PENDING handoff, which does not block a fast-forward pull and is not a divergence). No prior feature/WF02-REQ-007 branch existed, so the `git branch -D` cleanup step was a no-op. Created `feature/WF02-REQ-007` off master, verified `git branch --show-current` outputs exactly `feature/WF02-REQ-007`, and pushed with `git push -u origin feature/WF02-REQ-007`, which exited 0 and set up tracking against the new remote branch.",
+    "artifacts_out": ["branch: feature/WF02-REQ-007"],
     "issues": [],
-    "next_action": null
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-007",
+      "commit_sha_list": [],
+      "remote_branch": "origin/feature/WF02-REQ-007",
+      "push_status": "ok",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "ORCH routes to Step 1"
   }
 }
