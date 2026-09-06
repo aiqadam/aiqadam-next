@@ -8,18 +8,26 @@
   "file": "handoffs/WF01-EVENTS-BOT-SPEC/step-05-req-validator-rework.json",
   "created_at": "2026-09-06T06:19:16Z",
   "started_at": "2026-09-06T06:19:16Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-09-06T06:21:17Z",
+  "status": "COMPLETED",
   "priority": "HIGH",
   "context": {
-    "requirement_ids": ["REQ-011", "REQ-016", "REQ-017", "REQ-026"],
+    "requirement_ids": [
+      "REQ-011",
+      "REQ-016",
+      "REQ-017",
+      "REQ-026"
+    ],
     "requirement_text": {},
     "source_text": {
       "rework-cycle": "This is rework cycle 1 on your step-04 FAIL. Per ORCHESTRATOR.md section 6 the max is 3 before escalation.",
       "what-you-found-at-step-04": "Three MAJOR defects: (1) REQ-026 cited REQ-010 three times where it meant REQ-011, REQ-010 having no agenda at all; (2) REQ-026's without-doors criterion was satisfiable by an EMPTY agenda, the case where nothing can go wrong; (3) REQ-011's 'by query' was satisfiable by loading the agenda blob and scanning it in TypeScript, the free-text outcome the constraint forbids. Plus two unwired consequences: REQ-017 had no agenda acceptance criterion at all, and REQ-016 allowed an organizer to save a malformed doors item that would then ship to every admitted registrant. Plus your Part 2 verdict that the MESSAGE half of the decision was not ORCH's to settle inside a requirement description, and belonged in a decisions/ record per Zero Manual Work clause 1 — explicitly NOT left parked.",
       "note-on-scope-growth": "ORCH's fix touched TWO requirements your FAIL did not cover — REQ-016 and REQ-017 — because your findings said they needed changes. Those two have not been gated in their amended form by anyone. They are in scope for you here."
     },
-    "related_handoff_ids": ["00a8ffc4-5c54-4887-88c9-0b6ea3747be9", "8eaeaf6d-14c5-46f6-a1b2-46ff3e41d9a1"],
+    "related_handoff_ids": [
+      "00a8ffc4-5c54-4887-88c9-0b6ea3747be9",
+      "8eaeaf6d-14c5-46f6-a1b2-46ff3e41d9a1"
+    ],
     "artifacts_in": [
       "docs/agents/requirements.yaml",
       "docs/agents/decisions/0007-doors-time-in-t3h-reminder.md",
@@ -43,10 +51,53 @@
     ]
   },
   "result": {
-    "status": null,
-    "summary": null,
-    "artifacts_out": [],
-    "issues": [],
-    "next_action": null
+    "status": "FAIL",
+    "summary": "FOUR of the five step-04 findings are genuinely fixed, re-derived independently from the requirement text rather than from the commit message. The FAIL is driven by ONE new MAJOR defect introduced by the fix itself, in REQ-017 - a requirement that had never been gated in its amended form. REQ-017's new criterion demands the card's doors rendering be byte-for-byte identical to 'REQ-026's T-3h reminder ... for that event', but REQ-017 is a transitive ANCESTOR of REQ-026 (026->025->024->023->022->021->020->017), so REQ-026 does not exist when REQ-017 is implemented and the criterion cannot be executed at that time. Separately, REQ-016's 'starts_at minus 12h' lower bound is an invented number: 'agenda' and 'doors' occur in the spec at exactly five places (PRD.md:98, PRD.md:164, RE-EVALUATION.md:71/73/93, README.md:64) and the strings '12h', '12 hours' and 'starts_at minus' occur nowhere in any spec file - grepped. That is MAJOR, and it is the kind of unsourced business rule PRD.md:358's closing rule forbids. decisions/0007 PASSES its gate: it decides unambiguously, names three concrete ways to overturn it, accurately quotes FR-7 (verified against PRD.md:193, 'T-3h | Route: address, both map links, start time, QR code'), and does not overstate its authority - it records ORCH's own earlier overstatement rather than repeating it. Its 'provisional' status is workable and is NOT a finding. REQ-007..REQ-032 are NOT yet ready for WF-02 as a set; REQ-007 itself is unaffected and separately dispatchable.",
+    "artifacts_out": [
+      "handoffs/WF01-EVENTS-BOT-SPEC/step-05-req-validator-rework.json"
+    ],
+    "issues": [
+      {
+        "id": "MAJOR-4",
+        "severity": "MAJOR",
+        "requirement": "REQ-017",
+        "check": "(a) testability / (c) depends_on correctness",
+        "description": "REQ-017's new agenda criterion is not executable at the time REQ-017 is implemented. It reads: '...the doors time shown on the card is byte-for-byte the same rendering REQ-026's T-3h reminder sends for that event - verified by rendering the card AND THE REMINDER for one event and comparing.' Verifying it requires REQ-026's reminder to exist. It does not: the depends_on graph, read link by link, makes REQ-017 an ANCESTOR of REQ-026 (REQ-026->REQ-025->REQ-024->REQ-023->REQ-022->REQ-021->REQ-020->REQ-017). REQ-017 is built five requirements before the thing it is told to compare against. This is a NEW defect created by the fix for step-04's MINOR-2, not a pre-existing one. It also inverts the natural direction of the constraint: REQ-026 is the later requirement and is the one that can compare itself against an already-built card renderer. FIX (either): (1) move the byte-for-byte clause to REQ-026, phrased as 'the doors time in the T-3h message is byte-for-byte the rendering REQ-017's event card shows for the same event', leaving REQ-017 with only the first half of its criterion - that every agenda item renders with its time and label in the chapter timezone, which IS executable at REQ-017 time; or (2) keep the clause in REQ-017 but restate it as a shared-renderer constraint checkable without REQ-026 existing (e.g. 'the card renders agenda times through the same shared renderer REQ-024 provides, verified by showing the call site'), noting REQ-026 already mandates using REQ-024's shared renderer.",
+        "affected_requirement": "REQ-017"
+      },
+      {
+        "id": "MAJOR-5",
+        "severity": "MAJOR",
+        "requirement": "REQ-016",
+        "check": "(a) testability / (b) consistency with the spec's closing rule",
+        "description": "ANSWERED DIRECTLY, as the task demands. The 'starts_at minus 12h' lower bound is an INVENTED business rule, not a legitimate implementation detail. Evidence: grepped every file in C:/tmp/AI-Qadam-Events-Bot-Spec for 'agenda' and 'doors' - they occur at exactly PRD.md:98, PRD.md:164, RE-EVALUATION.md:71, :73, :93 and README.md:64, and none of those states any bound on an agenda item's time. Grepped for '12h', '12 hours' and 'starts_at minus' - zero hits in any spec file. PRD.md:358 states: 'if a requirement is ambiguous or contradicts reality, stop and ask. Do not invent business rules.' THE DISTINCTION THAT MATTERS: the OTHER two bounds in the same criterion are NOT invented and must stay. 'A doors item later than starts_at is refused' is DERIVED - doors is the moment the room opens, so a doors time after the start is self-contradictory, and step-04's MINOR-3 asked for exactly this. 'Later than ends_at' is derived from PRD 5's own Event.ends_at, since an agenda is the event's own schedule. But '12h before starts_at' is a magic number with no source at all: it refuses a legitimate all-day workshop with an 08:00 setup item before a 21:00 close, and it admits an item 11 hours early that is equally nonsensical. It draws a line the spec never drew, in a place nothing justifies. It is also weakly testable in the way this gate cares about: an implementer given no rationale cannot tell whether 11h59m must pass or fail, nor whether the bound is a real product rule or a guard. FIX: drop the 'earlier than starts_at minus 12h' clause; keep the two sourced bounds. If a lower bound is genuinely wanted it needs a decisions/000x record naming the options, exactly as 0007 did for the message half - not a number chosen inside a requirement description.",
+        "affected_requirement": "REQ-016"
+      },
+      {
+        "id": "MINOR-5",
+        "severity": "MINOR",
+        "requirement": "REQ-016",
+        "check": "(b) consistency - agenda item shape across the four amended requirements",
+        "description": "REQ-016's new criteria are the only place in the registry presupposing an agenda item has a single 'time'. REQ-011 says each item 'carries at minimum a TIME and a LABEL' (singular), and REQ-017 renders 'every agenda[] item with its time and label', so all three agree - checked explicitly, no contradiction found. Recorded as MINOR only because REQ-016's phrase 'falls outside the event window' would read ambiguously if DATA-DESIGNER later gave an item both a start and an end; REQ-011 currently forbids that reading, so no action is required now.",
+        "affected_requirement": "REQ-016"
+      },
+      {
+        "id": "MINOR-6",
+        "severity": "MINOR",
+        "requirement": "REQ-011",
+        "check": "(a) testability - residual softness in 'exhibiting the query'",
+        "description": "Step-04 MAJOR-3 is FIXED, but by a different mechanism than I recommended, so judged afresh as the task asks. The new wording - 'a single database query returns the doors item's time and only that item - WITHOUT the application loading the whole agenda and scanning it in TypeScript ... Verified by exhibiting the actual query and its result' - is a check a validator CAN definitively fail, and that is the bar. 'A single database query returns ... and ONLY THAT ITEM' is falsifiable on the exhibited artefact alone: a query that returns the whole agenda blob visibly returns more than one item and fails, whatever the surrounding TypeScript does. So 'exhibiting the query' is NOT soft in the way bare 'by query' was: the old wording had no observable separating pass from fail, this one does, and the disqualifying case is named explicitly. Residual softness, hence MINOR not MAJOR: 'exhibiting' names no artefact location, so an agent could in principle paste a query it never ran. REQ-011's sibling criteria consistently say where evidence lands ('pasting the resulting schema into the verification report'). RECOMMENDED, not required for PASS: append 'in the verification report, alongside its actual returned rows'.",
+        "affected_requirement": "REQ-011"
+      },
+      {
+        "id": "INFO-1",
+        "severity": "MINOR",
+        "requirement": "REQ-026",
+        "check": "Part 2 - gate on decisions/0007",
+        "description": "decisions/0007 PASSES on all four criteria, recorded here because the task asks that it be gated rather than assumed. (a) CLARITY: 'The T-3h reminder quotes the doors time when, and only when, the event's agenda[] contains a doors item. Otherwise it quotes the start time alone' - an implementer needs nothing further; the conditional and both branches are stated. (b) OVERTURNABILITY: names three specific reversals in descending likelihood, each with the concrete edit required. This exceeds what records 0001-0006 offer. (c) AUTHORITY: does not overstate. It scopes itself explicitly ('What this does not decide' - T-24h untouched, the agenda item's shape left to DATA-DESIGNER at REQ-011), and it records ORCH's own prior overstatement ('PRD's no-invented-rules closing rule was never engaged ... true of the data model and false of the message') rather than repeating it. (d) FR-7 ACCURACY: verified against PRD.md:193, which reads 'T-3h | Route: address, both map links, start time, QR code' - 0007 quotes that row verbatim and correctly characterises it as a closed list not mentioning doors. ON THE 'RESTATES THE VALIDATOR RATHER THAN DECIDING' RISK the task names: it does cite the step-04 ruling, but the DECISION section is ORCH's own and settles something my ruling deliberately did not - I said explicitly 'I am NOT asking for the resolution to be reversed', and 0007 chooses both the resolution and its conditional form. It decides. ON 'PROVISIONAL': legitimate and workable, NOT a finding. It leaves no implementer in doubt because it states the operative interim instruction directly - 'Until then the decision stands and implementation proceeds on it, per Zero Manual Work.' A provisional status that names what to do in the meantime is precisely what Zero Manual Work clause 1 prescribes; the failure mode that clause forbids is stalling, and this does not stall. ONE DRIFT NOTE: 0007's Consequences section requires REQ-016 to refuse 'a doors time later than starts_at' - correct and sourced. REQ-016 as written goes BEYOND its own decision record with the unsourced 12h bound. The record is right; the requirement over-reached past it. See MAJOR-5.",
+        "affected_requirement": null
+      }
+    ],
+    "next_action": "Rework - route to REQ-ANALYST for two MAJOR corrections, then re-gate at WF-01 Step 2 (rework cycle 2 of 3). REQUIRED: (1) REQ-017 MAJOR-4 - the byte-for-byte clause is unexecutable at REQ-017's position in the dependency order; move it to REQ-026 or restate it as a shared-renderer constraint. (2) REQ-016 MAJOR-5 - drop the invented 'starts_at minus 12h' lower bound, keeping the two sourced bounds. Both are single-clause edits to one criterion each. VERIFIED POSITIVELY AND NEEDING NO REWORK: step-04 MAJOR-1 FIXED (all three role-references in REQ-026 now read REQ-011; the single surviving 'REQ-010' string is a deliberate disambiguation - 'NOT REQ-010, which covers Chapter, User and Profile only' - and REQ-010 was re-read to confirm zero occurrences of 'agenda'). Step-04 MAJOR-2 FIXED and strong enough to fail a first-agenda-item heuristic: it requires a NON-EMPTY agenda of networking and close only, forbids 'no doors time and no agenda item time of any kind', and explicitly disqualifies the empty-agenda variant in the criterion text itself. Step-04 MAJOR-3 FIXED - 'and only that item' is the observable the old wording lacked (MINOR-6 records the residual). Step-04 MINOR-4 FIXED - both halves of REQ-026's doors criteria now render 'in the chapter timezone'. decisions/0007 passes all four Part-2 checks (INFO-1). GRAPH RE-VERIFIED by machine toposort over all 33 entries: acyclic, zero orphan depends_on references, and REQ-007 is the sole dependency-free root of the REQ-007..REQ-032 subgraph with every node in that subgraph reaching REQ-007. SIZING: REQ-016 at 8 criteria and REQ-017 at 6 both remain within one agent turn - the additions are two and one criteria against the same handler and the same renderer respectively, adding no new deliverable, no new entity and no new integration. DESIGN-SYSTEM FIT: not applicable to any of the four; all are apps/bot data, handler and scheduler requirements touching no src/ component and no design token. AGENDA SHAPE AND DOORS SEMANTICS CONSISTENT ACROSS ALL FOUR: REQ-011 defines an item as time+label with a programmatically identifiable doors item, REQ-016 validates that item's time and caps doors at one, REQ-017 renders its time and label, REQ-026 reads its time and resolves exactly one - no competing convention introduced and all four agree exactly one doors item exists. REQ-007 IS UNAFFECTED by this FAIL and remains separately dispatchable to FRONTEND-DEV: it has an empty depends_on and shares no chain with REQ-011/016/017/026."
   }
 }
