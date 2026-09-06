@@ -15,7 +15,12 @@ import { auditLog } from "../db/schema.js";
 // - atomic: if this insert fails, the transaction rolls back the mutation
 //   too — never a changed row with zero audit rows.
 export interface WriteAuditLogInput {
-  actorUserId: string; // never null here — every venue mutation has an authenticated actor
+  // Nullable per db/schema.ts's own comment: a genuinely system-initiated
+  // action has no human actor. WF02-REQ-018 rework (S5) is the first caller
+  // that legitimately passes null — an unauthorized /checkin attempt where
+  // resolveActingUser found no User row at all ("no-user") has no actor to
+  // attribute the attempt to.
+  actorUserId: string | null;
   action: string; // e.g. "venue.create" | "venue.update" | "venue.delete"
   entity: string; // e.g. "venue"
   entityId: string;

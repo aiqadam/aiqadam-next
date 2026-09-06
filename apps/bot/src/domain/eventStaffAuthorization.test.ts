@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCheckinRefusalAudit,
   checkEventStaffAuthorization,
   type ActingUser,
 } from "./eventStaffAuthorization.js";
@@ -72,5 +73,56 @@ describe("checkEventStaffAuthorization", () => {
     const staffRow: EventStaffRow = { id: "s1", eventId: EVENT_1, userId: "u1" };
     const result = checkEventStaffAuthorization(member, staffRow, ENDS_AT, ENDS_AT);
     expect(result).toEqual({ ok: true });
+  });
+});
+
+// SECURITY-REVIEWER Step 2c FAIL (S5) rework — buildCheckinRefusalAudit is
+// the pure decision logic behind the audit row requireEventStaffForEvent now
+// writes on every refusal branch. Locked down per-reason so a future edit
+// that drops a branch, leaks the wrong actor, or lets PII into the payload
+// fails a test, not just a review.
+describe("buildCheckinRefusalAudit", () => {
+  const EVENT_ID = EVENT_1;
+
+  it("'no-user': actorUserId is null — there is no resolved User row to attribute the attempt to", () => {
+    const entry = buildCheckinRefusalAudit(null, EVENT_ID, "no-user");
+    expect(entry).toEqual({
+      actorUserId: null,
+      action: "checkin.refused",
+      entity: "event",
+      entityId: EVENT_ID,
+      payload: { reason: "no-user" },
+    });
+  });
+
+  it("'not-staff-for-event': actorUserId is the resolved user's internal id, never the tg_id", () => {
+    const member: ActingUser = { id: "u1", role: "member", chapterId: null };
+    const entry = buildCheckinRefusalAudit(member, EVENT_ID, "not-staff-for-event");
+    expect(entry).toEqual({
+      actorUserId: "u1",
+      action: "checkin.refused",
+      entity: "event",
+      entityId: EVENT_ID,
+      payload: { reason: "not-staff-for-event" },
+    });
+  });
+
+  it("'event-ended': same shape, actor still attributed since the user resolved and had a staff row", () => {
+    const member: ActingUser = { id: "u1", role: "member", chapterId: null };
+    const entry = buildCheckinRefusalAudit(member, EVENT_ID, "event-ended");
+    expect(entry).toEqual({
+      actorUserId: "u1",
+      action: "checkin.refused",
+      entity: "event",
+      entityId: EVENT_ID,
+      payload: { reason: "event-ended" },
+    });
+  });
+
+  it("payload never carries more than the fixed reason string — no PII, no free text (S11)", () => {
+    const owner: ActingUser = { id: "u2", role: "owner", chapterId: "c1" };
+    const entry = buildCheckinRefusalAudit(owner, EVENT_ID, "not-staff-for-event");
+    expect(Object.keys(entry.payload as Record<string, unknown>)).toEqual(["reason"]);
+    expect(entry).not.toHaveProperty("at");
   });
 });

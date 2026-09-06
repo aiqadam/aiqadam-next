@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { DbClient } from "../db/client.js";
 import { users } from "../db/schema.js";
+import { writeAuditLog, type WriteAuditLogInput } from "./auditLog.js";
 import { getEventStaffRow, type EventStaffRow } from "./eventStaff.js";
 import { isFinished } from "./event.js";
 
@@ -80,10 +81,52 @@ export function checkEventStaffAuthorization(
   return { ok: true };
 }
 
+// SECURITY-REVIEWER Step 2c FAIL (S5, handoffs/WF02-REQ-018/step-02c-security-reviewer.json):
+// every refusal branch of the check-in authorization gate (no-user,
+// not-staff-for-event, event-ended) writes no AuditLog row, even though
+// /checkin is a live, reachable command today. S5's negative case names this
+// exactly: "the non-staff refusal that returns an error but writes no audit
+// row -- the one case where the log matters most is an attempted
+// unauthorized scan." Pure-function shape kept separate from the DB write
+// itself (same discipline as checkEventStaffAuthorization above) so the
+// payload/actor-resolution logic is unit-testable without a DB — only the
+// single writeAuditLog call in requireEventStaffForEvent below needs a live
+// DB to exercise.
+//
+// No audit row is written on the ok=true branch: S5's table only requires a
+// log on a refusal ("scanner is not staff"); authorization succeeding here
+// is not itself a status change (S8) and discloses nothing (S3) — the stub
+// performs no check-in write of its own (design §0.3), so there is nothing
+// yet to log on success. Adding one would be inventing a business rule the
+// design/S5 does not ask for.
+export function buildCheckinRefusalAudit(
+  user: ActingUser | null,
+  eventId: string,
+  reason: Extract<CheckInAuthorizationResult, { ok: false }>["reason"],
+): Omit<WriteAuditLogInput, "at"> {
+  return {
+    // null exactly when resolveActingUser found no User row at all
+    // ("no-user") — there is no actor to attribute the attempt to. The
+    // schema's own actor_user_id column is nullable for precisely this
+    // reason (db/schema.ts).
+    actorUserId: user === null ? null : user.id,
+    action: "checkin.refused",
+    entity: "event",
+    entityId: eventId,
+    // No PII (S11): eventId is already a non-secret identifier (matches
+    // checkin.ts's own "not-found before authorization" precedent), and
+    // `reason` is one of the three fixed CheckInAuthorizationResult strings
+    // — never a free-text or user-supplied value.
+    payload: { reason },
+  };
+}
+
 // Composed entry point — the single function handlers/checkin.ts calls. No
 // handler ever calls checkEventStaffAuthorization directly, the same "one
 // composed entry point per handler" discipline requireOrganizerForChapter
-// already established.
+// already established. Writing the audit row here (not duplicated in
+// checkin.ts) means every future caller of this gate gets S5 coverage
+// uniformly, per the security finding's own suggested alternative.
 export async function requireEventStaffForEvent(
   db: DbClient["db"],
   tgId: bigint,
@@ -93,5 +136,12 @@ export async function requireEventStaffForEvent(
 ): Promise<CheckInAuthorizationResult> {
   const user = await resolveActingUser(db, tgId);
   const staffRow = user === null ? null : await getEventStaffRow(db, eventId, user.id);
-  return checkEventStaffAuthorization(user, staffRow, eventEndsAt, evaluationTime);
+  const result = checkEventStaffAuthorization(user, staffRow, eventEndsAt, evaluationTime);
+  if (!result.ok) {
+    await writeAuditLog(db, {
+      ...buildCheckinRefusalAudit(user, eventId, result.reason),
+      at: evaluationTime,
+    });
+  }
+  return result;
 }
