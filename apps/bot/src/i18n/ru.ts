@@ -49,4 +49,34 @@ export const ru = {
     listEmpty: "Площадок пока нет.",
     listHeader: "Площадки вашего отделения:",
   },
+  // Placeholder/provisional wording (REQ-016 design §9) — CONTENT-BA owns
+  // final copy per decisions/0002; this is the minimal functional wording
+  // the event CRUD/publish/cancel/deep-link flow needs.
+  event: {
+    notAuthorized: "У вас нет прав на это действие.",
+    notFound: "Мероприятие не найдено.",
+    createUsage:
+      "Отправьте /event_new и на следующих строках укажите поля:\ntitle: ...\ndescription: ...\nformat: meetup|fail_stories|workshop|hackathon\nvenue: ... (необязательно)\nstarts: ISO-время начала\nends: ISO-время окончания\nregistration_closes: ... (необязательно)\ncapacity: ...\nrequires_invite: true|false (необязательно)\nrequires_approval: true|false (необязательно)\ncover_file_id: ... (необязательно)",
+    missingFieldsPrefix: "Не заполнены или некорректны обязательные поля:",
+    createSuccessPrefix: "Мероприятие создано (черновик), id:",
+    editUsageNoId: "Укажите id мероприятия: /event_edit <id>",
+    editCurrentPrefix: "Текущие значения (отправьте /event_edit <id> и изменённые поля):",
+    editSuccessPrefix: "Мероприятие обновлено, изменены поля:",
+    publishUsageNoId: "Укажите id мероприятия: /event_publish <id>",
+    publishSuccessPrefix: "Мероприятие опубликовано:",
+    publishRefusedNotDraft: "Опубликовать можно только черновик мероприятия.",
+    publishRefusedMissingFields: "Публикация отклонена. Не заполнены или некорректны:",
+    capacityBelowAdmittedFloor:
+      "Вместимость нельзя снизить ниже числа уже подтверждённых участников:",
+    cancelUsageNoId: "Укажите id мероприятия: /event_cancel <id>",
+    cancelSuccessPrefix: "Мероприятие отменено:",
+    cancelRefusedNotPublished: "Отменить можно только опубликованное мероприятие.",
+    agendaRefusedDoorsAfterStart:
+      "Пункт открытия дверей не может быть позже начала мероприятия:",
+    agendaRefusedItemAfterEnd: "Пункт программы не может быть позже окончания мероприятия:",
+    agendaRefusedMultipleDoors: "В программе может быть только один пункт открытия дверей.",
+    deepLinkNotAvailable: "Это мероприятие сейчас недоступно.",
+    deepLinkSeeUpcoming: "Посмотрите ближайшие мероприятия: /events",
+    deepLinkPublishedPlaceholder: "Мероприятие:",
+  },
 } satisfies Catalog;

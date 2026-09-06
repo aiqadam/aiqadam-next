@@ -61,4 +61,31 @@ export interface Catalog {
     listEmpty: string;
     listHeader: string;
   };
+  // NEW, REQ-016: event CRUD, draft/published/cancelled transitions, publish
+  // validation, e_ deep links (design §9). Same placeholder/minimal-copy
+  // precedent as venue.* (CONTENT-BA owns final wording per decisions/0002).
+  event: {
+    notAuthorized: string;
+    notFound: string;
+    createUsage: string;
+    missingFieldsPrefix: string;
+    createSuccessPrefix: string;
+    editUsageNoId: string;
+    editCurrentPrefix: string;
+    editSuccessPrefix: string;
+    publishUsageNoId: string;
+    publishSuccessPrefix: string;
+    publishRefusedNotDraft: string;
+    publishRefusedMissingFields: string;
+    capacityBelowAdmittedFloor: string;
+    cancelUsageNoId: string;
+    cancelSuccessPrefix: string;
+    cancelRefusedNotPublished: string;
+    agendaRefusedDoorsAfterStart: string;
+    agendaRefusedItemAfterEnd: string;
+    agendaRefusedMultipleDoors: string;
+    deepLinkNotAvailable: string;
+    deepLinkSeeUpcoming: string;
+    deepLinkPublishedPlaceholder: string;
+  };
 }

@@ -15,6 +15,13 @@ import {
   makeVenueNewHandler,
   makeVenuesListHandler,
 } from "./handlers/venue.js";
+import {
+  makeEventAgendaHandler,
+  makeEventCancelHandler,
+  makeEventEditHandler,
+  makeEventNewHandler,
+  makeEventPublishHandler,
+} from "./handlers/event.js";
 
 let config: BotConfig;
 
@@ -54,5 +61,15 @@ bot.command("venue_new", makeVenueNewHandler(db));
 bot.command("venue_edit", makeVenueEditHandler(db));
 bot.command("venue_delete", makeVenueDeleteHandler(db));
 bot.command("venues", makeVenuesListHandler(db));
+
+// REQ-016: organizer-only event CRUD, chapter-scoped, draft/published/
+// cancelled transitions, publish validation, agenda validation. The
+// `?start=e_<id>[__channel]` deep link rides the existing /start
+// registration above (handlers/start.ts) — no new command for it.
+bot.command("event_new", makeEventNewHandler(db));
+bot.command("event_edit", makeEventEditHandler(db));
+bot.command("event_agenda", makeEventAgendaHandler(db));
+bot.command("event_publish", makeEventPublishHandler(db));
+bot.command("event_cancel", makeEventCancelHandler(db));
 
 bot.start();

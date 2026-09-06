@@ -7,6 +7,7 @@ import {
   listActiveChapters,
 } from "../domain/chapter.js";
 import { recordConsent } from "../domain/consent.js";
+import { getEventById, parseStartPayload, setPendingSource } from "../domain/event.js";
 import { getFlowUserByTgId, resolveOrCreateUser } from "../domain/user.js";
 import { getCatalog, type BotLang } from "../i18n/catalog.js";
 import { mapTelegramLanguageCode, resolveLang } from "../i18n/resolveLang.js";
@@ -36,6 +37,52 @@ import { mapTelegramLanguageCode, resolveLang } from "../i18n/resolveLang.js";
 
 const CHAPTER_CALLBACK_PATTERN = /^chapter:(.+)$/;
 const CONSENT_AGREE_CALLBACK = "consent:agree";
+
+function matchText(ctx: Context): string {
+  return typeof ctx.match === "string" ? ctx.match : "";
+}
+
+// REQ-016 §6.3 — deep-link resolution, extending the existing /start
+// handler rather than adding a new command (§6.1). Runs ONLY when the
+// payload parses as an `e_` deep link; the ordinary REQ-014 /start flow
+// (payload.kind === "none") is untouched by this function or its caller.
+//
+// Step 7's ordering: the acting user's row must already exist (the caller
+// has already run resolveOrCreateUser, same as the ordinary flow) before
+// this function is invoked, since a deep link is still someone's
+// first-ever contact with the bot.
+async function resolveEventDeepLink(
+  ctx: Context,
+  db: DbClient["db"],
+  userId: string,
+  lang: BotLang,
+  eventId: string,
+  channel: string | null,
+): Promise<void> {
+  const event = await getEventById(db, eventId);
+
+  // §6.3 step 4/5 — an unknown id and a draft/cancelled/finished event both
+  // yield the identical plain explanation; neither discloses whether the id
+  // ever existed or what state it's in.
+  if (event === null || event.status !== "published") {
+    await ctx.reply(
+      `${getCatalog(lang).event.deepLinkNotAvailable}\n${getCatalog(lang).event.deepLinkSeeUpcoming}`,
+    );
+    return;
+  }
+
+  // §6.5 — the pending-source write happens only for a published event's
+  // channel-suffixed link; a draft/cancelled/finished target never records
+  // one (handled above, this line is only reached once event is published).
+  if (channel !== null) {
+    await setPendingSource(db, userId, channel);
+  }
+
+  const startsAtText = event.startsAt?.toISOString() ?? "";
+  await ctx.reply(
+    `${getCatalog(lang).event.deepLinkPublishedPlaceholder} ${event.title} (${startsAtText})`,
+  );
+}
 
 function buildChapterKeyboard(
   options: { id: string; name: string }[],
@@ -124,6 +171,17 @@ export function makeStartHandler(db: DbClient["db"]) {
     }
 
     const lang = resolveLang(flowUser.lang, flowUser.chapterDefaultLang);
+
+    // REQ-016 §6.3 — deep-link payload branch, checked immediately after
+    // user creation (step 7) and before the ordinary REQ-014 flow's own
+    // logic runs at all (consent gate included) — the design's §6.3 does
+    // not route a deep-link open through onboarding, only through event
+    // resolution.
+    const payload = parseStartPayload(matchText(ctx));
+    if (payload.kind === "event") {
+      await resolveEventDeepLink(ctx, db, flowUser.id, lang, payload.eventId, payload.channel);
+      return;
+    }
 
     // Consent gate comes before anything chapter-related touches the
     // database — no chapter query, no chapter write, nothing — for a
