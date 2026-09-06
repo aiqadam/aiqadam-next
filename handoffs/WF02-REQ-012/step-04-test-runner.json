@@ -1,0 +1,16 @@
+{
+  "handoff_id": "step-04-test-runner",
+  "run_id": "WF02-REQ-012",
+  "workflow_id": "WF-02",
+  "step": "04",
+  "from_agent": "ORCH",
+  "to_agent": "TEST-RUNNER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Local lint/build/test all pass. All 4 ACs (plus AC2/AC3 sub-splits) verified using apps/bot's new docker-compose.yml for the scratch Postgres. Real CI confirmed green for current HEAD fed3047c. MINOR finding filed as ISS-0006: apps/bot/src/index.ts lacks a try/catch around bot.start(), so an invalid BOT_TOKEN crashes as an uncaught exception (first flagged as a forward note by REQ-009's SECURITY-REVIEWER, now confirmed still true) -- no secret leaks through it, robustness gap only, out of scope for both REQ-009 and REQ-012.",
+    "artifacts_out": ["test-reports/report-2026-09-06-WF02-REQ-012.yaml", "docs/issues/ISS-0006.yaml"],
+    "issues": [{"severity": "MINOR", "description": "Filed as ISS-0006: no try/catch around bot.start() in apps/bot/src/index.ts."}],
+    "next_action": "Route to RELEASE-VALIDATOR (Step 5)"
+  }
+}

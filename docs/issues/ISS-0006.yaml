@@ -1,0 +1,32 @@
+id: ISS-0006
+title: apps/bot/src/index.ts has no try/catch around bot.start(), invalid BOT_TOKEN crashes as an uncaught exception
+discovered_by: TEST-RUNNER
+discovered_in_run: WF02-REQ-012
+discovered_at: "2026-09-06T00:00:00Z"
+severity: MINOR
+description: >
+  First flagged as a forward-looking note by SECURITY-REVIEWER during REQ-009's
+  security gate (handoffs/WF02-REQ-009/step-02c-security-reviewer.json): the Bot
+  construction/start calls in apps/bot/src/index.ts sit outside the try/catch that
+  wraps only loadConfig, so an async failure there (e.g. Telegram rejecting an
+  invalid bot token) becomes an uncaught rejection with a full stack trace printed
+  by Node, rather than a clean, intentional exit. Confirmed to still be true at
+  REQ-012 (TEST-RUNNER's AC2b verification run: a dummy BOT_TOKEN produced an
+  uncaught GrammyError crash rather than a handled failure).
+
+  Not a security defect -- both REQ-009's SECURITY-REVIEWER and REQ-012's
+  TEST-RUNNER independently confirmed no secret value leaks through the crash
+  path -- but a real robustness gap: an operator running the bot with a bad token
+  gets a raw stack trace instead of an actionable error message, and the process's
+  exit behavior is whatever Node's default uncaught-exception handling does rather
+  than something the codebase chose deliberately.
+
+  Out of scope for both REQ-009 (skeleton, "no handlers beyond a health/liveness
+  path") and REQ-012 (config/pool/migration-runner wiring, not bot-startup error
+  handling) -- neither requirement's acceptance criteria mention this. Filed here
+  rather than fixed silently inside either run, per Failure Attribution Is
+  Structural core-directives.md rule and the Unblock-Everything exception not
+  applying (this did not block either run's own acceptance criteria).
+affected_files:
+  - apps/bot/src/index.ts
+status: open

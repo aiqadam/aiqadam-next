@@ -1,0 +1,176 @@
+run_id: WF02-REQ-012
+date: 2026-09-06T12:06:31Z
+branch: feature/WF02-REQ-012
+head_sha: fed3047ce818e3c7a93656843e9fb7298c46a2af
+requirement: REQ-012 (Bot config loading, Postgres connection and migration runner wired into apps/bot startup)
+spec: docs/agents/test-specs/REQ-012.md
+
+lint: pass
+lint_notes: >
+  `npm run lint` — 0 errors, 2 pre-existing warnings (no-img-element in
+  apps/web/src/components/landing/Footer.tsx and Nav.tsx), unrelated to this
+  requirement's scope (apps/bot config/db/migration wiring). No lint output at
+  all for apps/bot.
+
+build: pass
+build_notes: >
+  `npm run build` — apps/web Next.js build compiled successfully (Turbopack,
+  0 type errors); apps/bot `tsc -p tsconfig.json` completed with no
+  output/errors. Also re-ran `npm run build -w apps/bot` alone immediately
+  before AC2 to guarantee `apps/bot/dist/` was fresh relative to
+  `apps/bot/src/` per the spec's preamble — exit 0.
+
+unit_tests: pass
+unit_tests_notes: >
+  `npm test` (vitest run) — 1 test file, 10 tests, all passed. Per the spec's
+  method note, `apps/bot/src/config.test.ts` provides the pure-function
+  coverage referenced by AC2 (missing-DATABASE_URL message content and
+  secret-value redaction at the `loadConfig` level); all four ACs in this
+  spec are process/DB/file-level and covered below by scripted checklists.
+
+verification_method: >
+  All commands run from the repo root via the Bash tool per the spec's
+  preamble. Scratch Postgres brought up via
+  `docker compose -f apps/bot/docker-compose.yml down -v` then `up -d`
+  (bot-postgres-1, port 55432). No `psql` client is installed on this host,
+  so table/row queries used `docker compose -f apps/bot/docker-compose.yml
+  exec -T postgres psql -U bot -d bot -c "..."` instead of a host-side `psql
+  "$DATABASE_URL"` — same database, same queries, equivalent evidence.
+  Stack torn down (`down -v`) after AC1; confirmed absent via the down
+  command's own output (containers/volumes/network removed).
+
+cases:
+  - acceptance_criterion: AC1
+    description: Migration idempotency; reports which migrations applied via drizzle.__drizzle_migrations row state
+    result: pass
+    notes: >
+      Step 1: `docker compose down -v` then `up -d` both exited 0;
+      `bot-postgres-1` reported "Up" and accepted connections (confirmed via
+      a successful query in step 2, no explicit Docker healthcheck is
+      defined in this compose file so "running and accepting connections" is
+      the operative readiness signal). Step 2: querying
+      drizzle.__drizzle_migrations before any migration run correctly errored
+      "relation \"drizzle.__drizzle_migrations\" does not exist" (expected
+      pre-state). Step 3: `npm run migrate -w apps/bot` run 1 exited 0, log
+      contains "[✓] migrations applied successfully!". Step 4: tracking table
+      after run 1 has exactly 2 rows:
+        ROW1_AFTER_RUN1: hash=b37437a0f15e27912f173407fe299772624f93b9f1702aa08536096321eb74df, created_at=1788692075668
+        ROW2_AFTER_RUN1: hash=bf62ae6dc84529ffa2657c92651002418985cee02ff8740db4f6eac5db7426e0, created_at=1788693666455
+      Step 5: `\dt` lists exactly 8 tables — chapters, users, profiles
+      (REQ-010) and venues, events, registrations, event_staff, audit_log
+      (REQ-011) — all present. Step 6: run 2 of the identical migrate command
+      exited 0, log again contains "[✓] migrations applied successfully!".
+      Step 7: tracking table after run 2 still has exactly 2 rows, both
+      hash/created_at values byte-for-byte identical to ROW1_AFTER_RUN1 /
+      ROW2_AFTER_RUN1 above — no new row, no changed created_at. Step 8
+      teardown: `docker compose down -v` exited 0, confirmed
+      containers/volume/network removed in its own output.
+
+  - acceptance_criterion: AC2a
+    description: Missing DATABASE_URL exits non-zero and names the variable
+    result: pass
+    notes: >
+      `BOT_TOKEN=dummy-token node apps/bot/dist/index.js` with DATABASE_URL
+      unset -> EXIT:1 (non-zero). Captured stdout/stderr is exactly "Missing
+      required environment variable(s): DATABASE_URL" — matches
+      config.ts's message format naming only the actually-missing variable.
+      `grep -c "DATABASE_URL"` -> 1. `grep -c "BOT_TOKEN"` -> 0, confirming
+      BOT_TOKEN (which was supplied) is not reported as missing.
+
+  - acceptance_criterion: AC2b
+    description: Dummy DATABASE_URL containing SECRETPW never appears in captured output
+    result: pass
+    notes: >
+      `BOT_TOKEN=dummy-token DATABASE_URL="postgres://baduser:SECRETPW@127.0.0.1:1/nonexistent" node apps/bot/dist/index.js`,
+      backgrounded, killed after 8s per spec. `grep -c "SECRETPW"` on the
+      captured log -> 0. Observed deviation from the spec's anticipated
+      mechanism (informational, not a failure): the process actually crashed
+      on an unhandled GrammyError from `bot.start()`'s `deleteWebhook` call
+      (404, invalid dummy BOT_TOKEN) before the pg pool's 5000ms
+      connectionTimeoutMillis elapsed, rather than surfacing a
+      connection-refused error from the DB pool as the spec's commentary
+      expected. This does not affect the AC itself, which only requires
+      SECRETPW never appear in output (it doesn't, count is 0) — but it is
+      worth noting as a candidate follow-up: apps/bot's top-level startup has
+      no try/catch around `bot.start()`'s rejection, so an invalid token
+      currently produces an uncaught-exception crash rather than a clean
+      named-error exit. Reported to ORCH as a MINOR finding (see
+      issues_found below), not blocking this run's PASS since it is outside
+      REQ-012's stated acceptance criteria (which only govern DATABASE_URL
+      handling and secret redaction, not BOT_TOKEN validation).
+
+  - acceptance_criterion: AC3a
+    description: Pool max is a single-digit code value (code inspection)
+    result: pass
+    notes: >
+      `grep -n "max:" apps/bot/src/db/client.ts` -> line 39: `max: 5,` inside
+      `new Pool({...})`. Single ASCII digit, literal integer, not read from
+      an env var.
+
+  - acceptance_criterion: AC3b
+    description: Verification report cites PRD 1's load figures as justification
+    result: pass
+    notes: >
+      Per apps/bot/src/db/client.ts lines 9-17 and design §2.2, PRD 1's
+      load figures cited here as required: ~1,000 users; ~10 events/year;
+      peak throughput 0.06 requests/second; database under 50MB; PRD 1's
+      stated conclusion "one Postgres and one bot process are sufficient —
+      do not add infrastructure." A pool max of 5 is single-digit and
+      comfortably under Postgres's own default max_connections (100) at
+      this load, per the code comment's own reasoning (0.06 rps peak is
+      roughly one request every 17 seconds at busiest).
+
+  - acceptance_criterion: AC4
+    description: Compose file lives under apps/bot/; deploy/ compose files unchanged
+    result: pass
+    notes: >
+      `git diff --stat master -- deploy/docker-compose.qa.yml
+      deploy/docker-compose.prod.yml` -> empty output (deploy/ untouched).
+      `git status --short apps/bot/docker-compose.yml` -> empty output (file
+      tracked and clean, already committed on this branch).
+      `git diff --stat master -- apps/bot/docker-compose.yml` -> non-empty
+      ("apps/bot/docker-compose.yml | 25 +++++++++++++++++++++++++, 1 file
+      changed, 25 insertions(+)"), confirming the file is new content added
+      by this branch.
+
+ci:
+  head_sha: fed3047ce818e3c7a93656843e9fb7298c46a2af
+  run_id: 34032008497
+  run_url: https://github.com/aiqadam/aiqadam-next/actions/runs/34032008497
+  status: completed
+  conclusion: success
+  jobs:
+    build: success
+    deploy-prod: skipped
+    deploy-qa: skipped
+  notes: >
+    `gh run list --branch feature/WF02-REQ-012` confirms the most recent run
+    (34032008497) matches the branch's current HEAD sha (fed3047c) exactly
+    and is completed/success. `gh run view 34032008497 --json jobs` confirms
+    the `build` job itself succeeded (deploy-prod/deploy-qa correctly
+    skipped, not applicable on a feature branch).
+
+overall: PASS
+routing: "Route to RELEASE-VALIDATOR"
+
+issues_found:
+  - severity: minor
+    title: "apps/bot startup has no error handling around bot.start()'s rejection — invalid BOT_TOKEN crashes as an uncaught exception rather than a clean named exit"
+    description: >
+      Observed while running AC2b (dummy DATABASE_URL containing SECRETPW):
+      with a syntactically-valid but fake BOT_TOKEN, the process did not
+      reach the DB-pool-timeout failure path the REQ-012 test spec's
+      commentary anticipated. Instead grammY's `bot.start()` rejected with an
+      unhandled GrammyError (404 from Telegram's `deleteWebhook` call), which
+      Node printed as an uncaught-exception stack trace and crashed the
+      process with a non-zero exit — there is currently no try/catch around
+      `bot.start()` in apps/bot's startup path analogous to the one around
+      config/DB loading. This does not affect REQ-012's own acceptance
+      criteria (SECRETPW still never appears in the output — AC2b passes),
+      and it is out of REQ-012's stated scope (which governs DATABASE_URL
+      handling and secret redaction, not Telegram token validation). Filing
+      as a candidate follow-up for whichever requirement owns bot startup
+      error-handling hardening.
+    affected_files:
+      - apps/bot/src/index.ts
+    reported_to: ORCH
