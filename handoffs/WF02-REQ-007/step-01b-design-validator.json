@@ -8,8 +8,8 @@
   "file": "handoffs/WF02-REQ-007/step-01b-design-validator.json",
   "created_at": "2026-09-06T07:03:07Z",
   "started_at": "2026-09-06T07:03:07Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-09-06T07:04:28Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-007"],
@@ -34,10 +34,13 @@
     ]
   },
   "result": {
-    "status": null,
-    "summary": null,
+    "status": "FAIL",
+    "summary": "Read docs/agents/design/REQ-007.md directly (not CODE-DESIGNER's summary) and cross-checked it against REQ-007's 5 acceptance_criteria in docs/agents/requirements.yaml (lines 441-486). AC1 (file-move list, old paths gone) maps cleanly to §2's exact 8-row source->destination table plus the git mv command sequence. AC2 (root package.json workspaces/private + npm run build/lint exit 0 from root) maps cleanly to §3's fully-specified fields (`private: true`, `workspaces: [\"apps/*\"]`, required dev/build/lint/start scripts delegating via `-w apps/web`). AC5 (git history preserved via git mv, not delete+recreate) maps cleanly to §2's explicit git-mv-for-every-entry requirement, stated twice as a history-preservation rule. AC4 (four message catalogs survive with identical key sets) is only weakly covered: §1 lists the four filenames and §7 says 'messages/*.json moves unchanged', but the artefact never names key-set integrity as its own concrete verification point the way §3 does for build/lint or §2 does for history -- thin, but arguably subsumed by 'moves unchanged' plus the exact file identity in §2, so not treated as a standalone failure. AC3 (npm run build && npm run start from repo root serves /ru /uz /en /kk with correct <html lang> and no missing-translation-key errors, plus /health returns 200) has NO design element at all -- grepped the artefact for 'locale', '/health', 'health check', 'serve' and found zero matches outside the unrelated word 'preserve'. The artefact's own applicability section (§7) states 'no visual/behavioral surface changes' but never identifies post-move locale routing or the /health route as something to verify, unlike its treatment of build/lint (§3) and history (§2). This is a genuine coverage gap, not a legitimately-N/A item -- REQ-007 explicitly requires this runtime check in its AC3 text. Per WF-02 Step 1b's 'FAIL immediately on any single check failure -- no partial credit', this fails the gate. Separately verified: no TBD/deferral language (grepped, zero hits), no implementation code present (the 4 fenced blocks at lines 28, 43, 70, 80 are a directory listing and two git-mv command sequences, not JSON/TS application code -- appropriate for a structural requirement per its own §0 framing), and the out-of-scope boundary (Dockerfile/deploy/ci-cd.yml untouched, Docker breakage between REQ-007 and REQ-008 explicitly expected and accepted) is stated unambiguously in §6.",
     "artifacts_out": [],
-    "issues": [],
-    "next_action": null
+    "issues": [
+      {"severity": "BLOCKER", "description": "AC3 (docs/agents/requirements.yaml REQ-007, 3rd acceptance criterion): the design artefact has no element addressing post-move runtime serving. It must state, as a concrete design point (not left to FRONTEND-DEV to infer), that the app's locale routing structure (src/app/[locale]/... under the moved src/) and the /health route (src/app/health/route.ts per decision 0003's 'current state' section) move intact and must be verified after `npm run build && npm run start` from the repo root: all four locales (/ru /uz /en /kk) render with matching <html lang>, no missing-translation-key errors, and /health returns HTTP 200 -- mirroring the verification REQ-005 already established. This is not a legitimately-N/A section; REQ-007's own acceptance criteria require it.", "affected_requirement": "REQ-007"},
+      {"severity": "MINOR", "description": "AC4 (message catalogs retain identical key sets) is covered only implicitly via 'messages/*.json moves unchanged' (§7) plus the file list (§2). Recommend the artefact name key-set identity as an explicit verification point (e.g. a short line noting the same key-set diff script REQ-005 used applies here) so it reads as deliberately covered rather than assumed. Not blocking on its own -- raised alongside the AC3 BLOCKER for CODE-DESIGNER to address in the same rework pass.", "affected_requirement": "REQ-007"}
+    ],
+    "next_action": "Rework CODE-DESIGNER -- add a concrete design element for AC3 (post-move locale + /health serving verification) per the BLOCKER above, and tighten AC4's coverage per the MINOR note. Rework iteration 1 of 3."
   }
 }
