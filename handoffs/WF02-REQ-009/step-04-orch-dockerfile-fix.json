@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-04-orch-dockerfile-fix",
+  "run_id": "WF02-REQ-009",
+  "workflow_id": "WF-02",
+  "step": "04-orch-direct",
+  "from_agent": "ORCH",
+  "to_agent": "ORCH",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "BACKEND-DEV's rework fixed the npm-ci lockfile desync (real CI green on Install/Lint/Test/Build) but surfaced a separate, real regression outside REQ-009's own acceptance criteria: Dockerfile's builder stage never COPYs apps/bot/package.json, so npm ci there fails now that apps/bot is a workspace member -- the same class of gap recorded in ISS-0005 (recurred from REQ-007). This blocks the PR's required 'build' CI status check, so per ISS-0005's established precedent (fix in-scope at the blocking step rather than file-and-forward, since it blocks merge itself) and ORCHESTRATOR.md Sec.5's sizing rule (single file, 1-line diff, no design decision, not in the excluded-paths list), ORCH applied the fix directly: added `COPY apps/bot/package.json ./apps/bot/package.json` to Dockerfile's builder stage, mirroring REQ-008's identical pattern for apps/web. Verified with a real docker build + docker run + curl /health and /ru (200, correct <html lang>). npm run lint/build both still exit 0. Also updated ISS-0005.yaml with this recurrence, and added a standing checklist item to .claude/agents/reviewer.md (item 7): REVIEWER must run a scratch docker build whenever a diff adds/renames/removes a workspace or changes build output layout, since this is the second time this exact gap slipped past every existing gate.",
+    "artifacts_out": ["Dockerfile", "docs/issues/ISS-0005.yaml", ".claude/agents/reviewer.md"],
+    "next_action": "Push, confirm real CI goes fully green (including Docker build step) on feature/WF02-REQ-009, then re-route to TEST-RUNNER for re-verification of the Step-4 spec"
+  }
+}

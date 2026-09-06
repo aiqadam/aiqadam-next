@@ -4,6 +4,7 @@ FROM node:22.14.0-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/web/package.json ./apps/web/package.json
+COPY apps/bot/package.json ./apps/bot/package.json
 RUN npm ci
 COPY . .
 RUN npm run build

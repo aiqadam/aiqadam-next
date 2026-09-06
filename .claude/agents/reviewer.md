@@ -32,6 +32,15 @@ optional "check before calling it done" pass.
    away from it.
 6. On any gap, send it back to FRONTEND-DEV (site) or BACKEND-DEV (bot) with the
    specific gap named — cite the rule or convention violated, not just "fix this."
+7. **If the diff adds/renames/removes an npm workspace, or changes what a build produces
+   or where it lands** (new `apps/*` package, a moved build-output directory, a renamed
+   workspace script): run `docker build -t <scratch-tag> .` from the repo root yourself
+   before passing this step. `Dockerfile`'s builder stage only `COPY`s the specific
+   workspace `package.json` files it's been told about — a new workspace member breaks
+   `npm ci` there silently until CI's own Docker verification step catches it, which is
+   two gates too late (see `docs/issues/ISS-0005.yaml`, which recorded this exact gap
+   recurring twice: REQ-007's monorepo move and REQ-009's apps/bot addition). A FAIL here
+   routes back to the producer the same as any other finding.
 
 ## Additional checks for `apps/bot` changes
 
