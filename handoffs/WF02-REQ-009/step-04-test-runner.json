@@ -1,0 +1,16 @@
+{
+  "handoff_id": "step-04-test-runner",
+  "run_id": "WF02-REQ-009",
+  "workflow_id": "WF-02",
+  "step": "04",
+  "from_agent": "ORCH",
+  "to_agent": "TEST-RUNNER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "FAIL",
+    "summary": "Local lint/build/test all pass, and AC1/AC2/AC4/AC5/AC6 verified per spec. AC3's residual gap was closed for real via two actual GitHub Actions runs on this branch -- both failed, but not on the Test step: npm ci fails at Install dependencies (esbuild@0.25.12 in package-lock.json doesn't satisfy esbuild@0.28.2 required elsewhere in the tree), a structural pre-existing lockfile defect introduced in commit 0938d38, confirmed identical on a run with the deliberate test break and a run with it reverted -- proving it's not caused by the test edit itself. TEST-RUNNER attempted a local lockfile regeneration but hit non-deterministic npm ci results plus an unrelated Windows-local npm optional-deps bug, and correctly declined to hastily patch it in-session.",
+    "artifacts_out": ["test-reports/report-2026-09-06-WF02-REQ-009.yaml"],
+    "issues": [{"severity": "BLOCKER", "description": "package-lock.json is out of sync with package.json's dependency tree: esbuild@0.25.12 pinned in the lockfile does not satisfy esbuild@0.28.2 required by a transitive dependency (introduced when vitest 5.0.0 was added in commit 0938d38). npm ci fails in a clean environment (confirmed on 2 real GitHub Actions runs) even though npm install succeeds locally on a pre-existing node_modules. Needs a real, deterministic lockfile regeneration, not a hasty patch."}],
+    "next_action": "Rework BACKEND-DEV -- fix package-lock.json, re-verify with a clean npm ci both locally and on a real CI run, then re-route to TEST-RUNNER"
+  }
+}
