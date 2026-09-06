@@ -8,18 +8,25 @@
   "file": "handoffs/WF01-EVENTS-BOT-SPEC/step-06-req-validator-rework2.json",
   "created_at": "2026-09-06T06:24:45Z",
   "started_at": "2026-09-06T06:24:45Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-09-06T06:27:09Z",
+  "status": "COMPLETED",
   "priority": "HIGH",
   "context": {
-    "requirement_ids": ["REQ-016", "REQ-017", "REQ-026"],
+    "requirement_ids": [
+      "REQ-016",
+      "REQ-017",
+      "REQ-026"
+    ],
     "requirement_text": {},
     "source_text": {
       "rework-cycle": "Rework cycle 2 of a maximum 3 (ORCHESTRATOR.md section 6). A third FAIL escalates rather than loops again, so if something is still wrong, say so plainly — do not pass it to avoid the escalation.",
       "your-step-05-findings": "MAJOR-4: REQ-017's byte-for-byte criterion was unexecutable because REQ-017 is a transitive ANCESTOR of REQ-026 (chain 026->025->024->023->022->021->020->017) and is therefore built first, so it cannot compare against a reminder that does not exist yet. MAJOR-5: REQ-016's 'starts_at minus 12h' lower bound was an invented business rule -- you grepped every spec file and found zero hits for 12h or starts_at minus, and noted it would refuse a legitimate all-day workshop's early setup item while admitting an equally nonsensical 11-hour-early one. You also noted decisions/0007 itself only asked for the doors-later-than-starts_at bound, so REQ-016 had exceeded its own decision record. MINOR-6 (residual, from MAJOR-3): REQ-011's 'exhibiting the query' names no artefact location.",
       "what-orch-changed": "Commit d061248. (1) REQ-016's criterion now imposes ONLY the two sourced bounds -- doors later than starts_at, and any item later than ends_at -- and states explicitly that no lower bound exists, with the reason. (2) REQ-017's criterion is reduced to rendering every agenda item with time and label in the chapter timezone. (3) The card-vs-reminder byte-for-byte comparison moved to REQ-026 as a new criterion, with an inline note explaining why it lives there. (4) decisions/0007's consequences section updated to match both corrections."
     },
-    "related_handoff_ids": ["abee8420-5e0b-4b69-a6cb-3f96a739df3d", "00a8ffc4-5c54-4887-88c9-0b6ea3747be9"],
+    "related_handoff_ids": [
+      "abee8420-5e0b-4b69-a6cb-3f96a739df3d",
+      "00a8ffc4-5c54-4887-88c9-0b6ea3747be9"
+    ],
     "artifacts_in": [
       "docs/agents/requirements.yaml",
       "docs/agents/decisions/0007-doors-time-in-t3h-reminder.md",
@@ -40,10 +47,45 @@
     ]
   },
   "result": {
-    "status": null,
-    "summary": null,
-    "artifacts_out": [],
-    "issues": [],
-    "next_action": null
+    "status": "PASS",
+    "summary": "PASS. MAJOR-4 and MAJOR-5 are both independently re-derived as FIXED from the requirement text, not from the commit message, and this round introduced no new defect -- breaking the two-round pattern in which each fix created a fresh one. MAJOR-5: the 'starts_at minus 12h' clause is gone from REQ-016's criterion; the criterion now imposes exactly two bounds (a doors item later than starts_at is refused; any item later than ends_at is refused) and states explicitly that no lower bound exists, with the reason. The one surviving '12h' string in requirements.yaml is at line 1208 in REQ-023's auto-promotion criterion ('an event 12h out (inside T-24h)') -- a fixture timing chosen to sit inside the T-24h no-promotion window, unrelated to agenda validation and legitimate. MAJOR-4: the direction is now correct. REQ-017's criterion is render-only and executable at REQ-017 time. The byte-for-byte comparison sits in REQ-026, and REQ-017 is confirmed a genuine transitive ancestor of REQ-026 by machine traversal of depends_on (REQ-026 -> REQ-025 -> REQ-024 -> REQ-023 -> REQ-022 -> REQ-021 -> REQ-020, and REQ-020 depends_on [REQ-019, REQ-017]) -- so REQ-026 is built later and CAN compare against an already-built card renderer. The moved criterion lost no force: it still names both artefacts, still demands byte-for-byte equality, and still requires rendering both for one event and comparing. ON THE PUSHED QUESTION -- 'doors precedes start' is a SAFE derivation, not a second invented rule. It is not the 12h bound in better clothes, and the distinction is evidentiary rather than stylistic. The 12h figure had zero occurrences in any spec file: it was a magnitude conjured from nothing that drew a discriminating line (11h admitted, 13h refused) no source drew. The doors bound has a concrete spec instance -- README.md:64, the spec's ONLY concrete doors example, reads '19:30 doors / 20:00 start', placing doors 30 minutes before the start -- and it introduces no free parameter at all: it bounds against starts_at, a PRD 5 field, with no magnitude to choose. Decisively, decisions/0007's own Rationale is BUILT on doors preceding start ('telling someone 20:00 when the room opens at 19:30 sends them to arrive half an hour after they could have'); if doors could legitimately follow start, quoting it would mislead and 0007 would be incoherent. A doors item after starts_at is self-contradictory rather than merely unusual. The criterion's parenthetical gloss ('doors is when the room opens, so it precedes the start') is a fair statement of that derivation. SIZING: REQ-026 at 10 criteria is the largest in the registry (mean 5.8, median 6; next is REQ-016 at 8) but is judged WITHIN one agent turn -- it is not two deliverables smuggled together. All ten criteria serve the single PRD FR-7 reminder-chain deliverable; four of them (the doors conditional, the no-doors negative case, the byte-for-byte comparison, the no-doors_at-column grep) are narrow assertions about one field in one message rather than separate builds, and the T-24h/T-3h pair is a single job family the PRD specifies as one table. Splitting on criteria count alone would sever the ledger idempotency criterion from the jobs it governs. Recorded as a watch item, not a finding. CONSISTENCY: REQ-011, REQ-016, REQ-017 and REQ-026 describe one mutually consistent agenda shape -- an item carries a time and a label (REQ-011), a doors item is programmatically identifiable (REQ-011), at most one doors item exists (REQ-016), every item renders with time and label (REQ-017), the doors item drives the conditional (REQ-026) -- with no contradiction, and no duplication between REQ-026's new criterion and its other nine (the byte-for-byte criterion asserts card/reminder EQUALITY; the sixth asserts the reminder CONTAINS both times; distinct properties, neither implying the other). decisions/0007's consequences section now matches all four requirements in substance, including the no-lower-bound note and the relocated comparison. GRAPH re-verified mechanically: 33 unique ids, no duplicates, no dangling depends_on refs, no cycles (three-colour DFS), all 26 of REQ-007..REQ-032 reachable to REQ-007, REQ-007 the sole root.",
+    "artifacts_out": [
+      "handoffs/WF01-EVENTS-BOT-SPEC/step-06-req-validator-rework2.json"
+    ],
+    "issues": [
+      {
+        "id": "MAJOR-4",
+        "severity": "MAJOR",
+        "requirement": "REQ-017",
+        "check": "(a) testability / (c) depends_on correctness",
+        "status": "FIXED",
+        "description": "Re-derived as fixed from the requirement text. REQ-017's criterion now reads 'The event card renders every agenda[] item with its time and label in the chapter timezone ... verified by rendering a card for an event whose agenda holds a doors item and at least one non-doors item' -- executable with nothing but REQ-017 built. The comparison moved to REQ-026 criterion 7 and points BACKWARD to REQ-017, the correct direction, confirmed by traversing depends_on rather than trusting the commit message: REQ-020 depends_on [REQ-019, REQ-017] is the link that makes REQ-017 an ancestor of REQ-026. No loss of force in the move -- byte-for-byte equality preserved, both artefacts named, both rendered and compared for one event."
+      },
+      {
+        "id": "MAJOR-5",
+        "severity": "MAJOR",
+        "requirement": "REQ-016",
+        "check": "(a) testability / (b) consistency with PRD.md:358 no-invented-rules",
+        "status": "FIXED",
+        "description": "The 'earlier than starts_at minus 12h' clause is absent from REQ-016's criterion. Two bounds survive, both sourced, and the criterion states affirmatively that NO lower bound is imposed and why. The surviving '12h' at requirements.yaml:1208 was checked and judged unrelated: it is REQ-023 auto-promotion fixture timing inside the T-24h window, not an agenda bound."
+      },
+      {
+        "id": "MINOR-6",
+        "severity": "MINOR",
+        "requirement": "REQ-011",
+        "check": "(a) testability",
+        "status": "CARRY-FORWARD -- not addressed this round, still MINOR, NOT blocking",
+        "description": "REQ-011's agenda criterion ends 'Verified by exhibiting the actual query and its result' without naming where the query is exhibited. ORCH did not address it this round. It remains MINOR and does not block: REQ-011's final criterion already requires a design artefact under docs/agents/design/, so the artefact location is determinable from the requirement's own other criterion, and DATA-DESIGNER owns both. Recommend ORCH fold the words 'in the design artefact under docs/agents/design/' into that criterion opportunistically -- a six-word edit that does not warrant a third rework cycle."
+      },
+      {
+        "id": "MINOR-7",
+        "severity": "MINOR",
+        "requirement": "REQ-026",
+        "check": "(e) sizing",
+        "status": "CARRY-FORWARD -- watch item, NOT blocking",
+        "description": "REQ-026 now carries 10 acceptance criteria, the most of any requirement in the registry (mean 5.8, median 6; next highest REQ-016 at 8). Judged within one agent turn because all ten serve the single FR-7 deliverable and four are narrow single-field assertions rather than separate builds. Recorded so that if WF-02 finds REQ-026 does not fit one BACKEND-DEV turn in practice, the natural split line is already identified: the T-24h job (criteria 1-3) from the T-3h job (criteria 5-9), with the ledger and opt-in criteria attaching to both. No split is recommended now -- splitting a coherent deliverable pre-emptively on a count is the error the sizing rule guards against in the other direction."
+      }
+    ],
+    "next_action": "PASS -- requirement ready for WF-02. REQ-007..REQ-032 are ready for dispatch and nothing blocks. Two carry-forward MINORs (MINOR-6 on REQ-011's artefact location, MINOR-7 on REQ-026's sizing as a watch item) should be registered per ISSUE_QUEUE.md and folded into the relevant WF-02 run rather than triggering a third rework cycle."
   }
 }
