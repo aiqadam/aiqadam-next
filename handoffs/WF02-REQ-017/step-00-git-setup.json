@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-00-git-setup",
+  "run_id": "WF02-REQ-017",
+  "workflow_id": "WF-02",
+  "step": "00",
+  "from_agent": "ORCH",
+  "to_agent": "FRONTEND-DEV",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "git checkout master; git pull --ff-only origin master exited 0. Created feature/WF02-REQ-017 off master (now includes REQ-009 through REQ-016), verified git branch --show-current, pushed with -u.",
+    "artifacts_out": ["branch: feature/WF02-REQ-017"],
+    "next_action": "ORCH flips REQ-017 to in_progress, logs started event, routes to Step 1 (CODE-DESIGNER only -- no new schema expected, all needed fields already exist from REQ-010/011). This requirement finally builds the real /events list and event card that REQ-013/014/016 all deferred to it -- their placeholder/stub logic gets replaced here, not extended."
+  }
+}
