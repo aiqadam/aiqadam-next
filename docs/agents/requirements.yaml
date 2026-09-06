@@ -662,7 +662,7 @@ requirements:
   - id: REQ-011
     title: Bot data model and migration for Venue, Event, Registration, EventStaff and AuditLog
     owner: DATA-DESIGNER
-    status: in_progress
+    status: done
     description: >
       Second schema slice of PRD 14 build-order step 1, separated from REQ-010 because
       designing eight entities plus their constraints in one turn does not fit. REQ-010
