@@ -8,11 +8,14 @@
   "file": "handoffs/WF01-EVENTS-BOT-SPEC/step-04-req-validator-doors.json",
   "created_at": "2026-09-06T06:12:58Z",
   "started_at": "2026-09-06T06:12:58Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-09-06T06:17:03Z",
+  "status": "COMPLETED",
   "priority": "HIGH",
   "context": {
-    "requirement_ids": ["REQ-011", "REQ-026"],
+    "requirement_ids": [
+      "REQ-011",
+      "REQ-026"
+    ],
     "requirement_text": {},
     "source_text": {
       "why-this-gate-exists": "REQ-011 and REQ-026 both passed your gate at step-02. Commit d087237 then AMENDED both (49 insertions, 17 deletions) without any gate. ORCH wrote that amendment itself. A requirement that changed after passing a gate has not been gated in its current form, and ORCH's own edit is not self-certifying — the same reasoning that produced the step-03 recheck applies here. This is the last gate before implementation begins, so anything wrong here reaches real code.",
@@ -20,7 +23,10 @@
       "PRD-5-agenda-line": "Event ... agenda[]  <- non-talk items only (doors, networking, close). The talk line-up is the accepted Talks, never duplicated here.",
       "PRD-FR-7-reminder-row": "T-3h | Route: address, both map links, start time, QR code"
     },
-    "related_handoff_ids": ["8eaeaf6d-14c5-46f6-a1b2-46ff3e41d9a1", "5c76aa0a-5ce1-4958-8579-5f4bb73aeeb1"],
+    "related_handoff_ids": [
+      "8eaeaf6d-14c5-46f6-a1b2-46ff3e41d9a1",
+      "5c76aa0a-5ce1-4958-8579-5f4bb73aeeb1"
+    ],
     "artifacts_in": [
       "docs/agents/requirements.yaml",
       "handoffs/WF01-EVENTS-BOT-SPEC/step-02-req-validator.json",
@@ -47,10 +53,77 @@
     ]
   },
   "result": {
-    "status": null,
-    "summary": null,
-    "artifacts_out": [],
-    "issues": [],
-    "next_action": null
+    "status": "FAIL",
+    "summary": "PREMISE VERIFIED (Part 1 a and b are both TRUE). PRD.md line 98 reads '· agenda[]  <- non-talk items only (doors, networking, close).' with line 99 'The talk line-up is the accepted Talks, never duplicated here.' - doors is the first named example. RE-EVALUATION.md R7 (lines 71-73) reads 'Registration.answers{}, Profile.expertise[] and Event.agenda[] had no story using them. agenda was worse than unused - it duplicated the line-up, which is the accepted talks.' / 'answers{} and expertise[] deleted. agenda redefined as *non-talk* schedule items only (doors, networking, close), so it cannot contradict the line-up.', and line 93 lists 'agenda redefined as non-talk items' among the six deliberate v1 changes. ORCH's factual premise therefore stands and the amendment is NOT reverted wholesale. PART 2 VERDICT (stated separately below and in the summary of issue PROCESS-1): resolving the question was DEFENSIBLE rather than scope creep, because the data-model half was genuinely already decided by PRD 5 plus R7 and README's entry is phrased as an observation ('the reminder currently quotes the start only'), not as a request to choose a field. But ORCH overstated the result: the remaining half - whether FR-7's closed content list gains a sixth element - IS a product preference over a spec-defined message with a named human owner, and core-directives Zero Manual Work clause 1 prescribes a decisions/000x draft for exactly that, which ORCH did not file. The FAIL verdict is driven by three MAJOR mechanical defects, all correctable without reopening the product question.",
+    "artifacts_out": [
+      "handoffs/WF01-EVENTS-BOT-SPEC/step-04-req-validator-doors.json"
+    ],
+    "issues": [
+      {
+        "id": "MAJOR-1",
+        "severity": "MAJOR",
+        "requirement": "REQ-026",
+        "check": "(b) consistency with done requirements and decision records",
+        "title": "REQ-026's amended text names the WRONG requirement three times: REQ-010 instead of REQ-011",
+        "detail": "The amended description says the doors time is 'already stored (REQ-010)', and then: 'The agenda[] item shape (how a doors item is distinguished from networking or close) is DATA-DESIGNER's to specify at REQ-010, since that is the requirement that models agenda[]; this requirement consumes whatever shape REQ-010 defines and must not invent a competing convention. If REQ-010's shape turns out not to support identifying a doors item, that is a BLOCKER to report against REQ-010, not a licence to add a field here.' REQ-010 does not model agenda[] at all - verified by reading REQ-010 in full (lines 598-648): zero occurrences of the string 'agenda', and its stated scope is exactly Chapter, User and Profile. agenda[] is modelled in REQ-011 (line 668), which is also where ORCH placed the new constraint, and ORCH's own commit message correctly says REQ-011. The requirement text as committed therefore instructs a downstream agent to consume a shape from a requirement that defines none, and to raise a BLOCKER against a requirement that has nothing to do with the field. Under this project's stated weak-model tolerance constraint this is not a slip a reader can be assumed to silently correct. FIX: replace all three REQ-010 references inside REQ-026 with REQ-011."
+      },
+      {
+        "id": "MAJOR-2",
+        "severity": "MAJOR",
+        "requirement": "REQ-026",
+        "check": "(a) testability",
+        "title": "The without-doors acceptance criterion does not pin the behaviour it claims to pin",
+        "detail": "The criterion reads: 'For an event whose agenda[] contains a doors item, the T-3h message quotes BOTH the doors time and Event.starts_at; for an event whose agenda[] has no doors item, it quotes starts_at alone and mentions no doors time - both cases verified by constructing the two events and reading the actual messages sent.' The with-doors half is sound: it constructs the event and reads the real message. The without-doors half is not. 'An event whose agenda[] has no doors item' is satisfiable by an event with an EMPTY agenda, which is the case where nothing could have gone wrong. The case the behaviour is actually about is a NON-EMPTY agenda holding only networking and close - precisely the other two items PRD 5 names - where a loose identification (substring match, first-item heuristic, or a free-text scan) could still emit a doors time. Testing the empty-agenda variant and calling it PASS is a passing run of a different test, which core-directives' 'Re-derive under the conditions the property is actually about' explicitly forbids. FIX: require the without-doors event to have a non-empty agenda containing at least one non-doors item and no doors item, and to assert the sent message text contains no doors time."
+      },
+      {
+        "id": "MAJOR-3",
+        "severity": "MAJOR",
+        "requirement": "REQ-011",
+        "check": "(a) testability",
+        "title": "REQ-011's new acceptance criterion is not circular, but its load-bearing phrase 'by query' is under-specified and passes for the outcome it exists to forbid",
+        "detail": "Assessed specifically for circularity as the task asks. It is NOT circular in the fatal sense: storing an event whose agenda contains a doors item plus a networking or close item and reading the doors item's time back is a real, constructible experiment that whatever shape DATA-DESIGNER picks either supports or does not, and the second half (grep every migration for a doors_at or equivalently-named column) is fully mechanical and needs no design decision to execute. So the criterion does not presuppose the design it constrains. The defect is elsewhere: 'retrieving specifically the doors item's time by query' carries the entire weight of the constraint, because 'by query' is the only thing separating a queryable shape from the 'free-text-only agenda' the description explicitly rejects - and nothing states what disqualifies a result. Loading the whole agenda blob into application code and scanning it in TypeScript satisfies 'retrieving the doors item's time' on a plain reading, while being exactly the free-text-equivalent outcome the constraint was added to prevent. FIX: state that the doors item must be identifiable from the stored shape itself - a typed field, enum, or reserved key - rather than by parsing free text, and that the verification records which mechanism was used."
+      },
+      {
+        "id": "MINOR-1",
+        "severity": "MINOR",
+        "requirement": "REQ-011",
+        "check": "(b) consistency / scope of authority",
+        "title": "ORCH's new REQ-011 constraint sits at the edge of DATA-DESIGNER's design authority but does not cross it",
+        "detail": "Answered directly because the task asks for a direct answer on whether ORCH made a design decision under the guise of a requirement. It did not. The constraint states a required PROPERTY (each agenda item carries at minimum a time and a label; a doors item is programmatically identifiable) and explicitly reserves the mechanism: 'Whether that identification is a typed kind/enum, a reserved label, or something else is DATA-DESIGNER's call at design time; that it is possible at all is not optional.' That is the correct requirement/design boundary, and it is the same boundary REQ-011 already uses elsewhere - it mandates a real database UNIQUE constraint on (event_id, user_id) and a five-value admission enum without dictating types. The residual concern is narrower: the LABEL half is stated more concretely than any consuming requirement needs. REQ-026 needs a time only; the label requirement is inferred from PRD 5's examples happening to be labelled, not from a consumer. RECOMMEND: REQ-ANALYST either ties the LABEL requirement to REQ-017, which does render the agenda on the card, or drops it."
+      },
+      {
+        "id": "MINOR-2",
+        "severity": "MINOR",
+        "requirement": "REQ-017",
+        "check": "unwired consequence",
+        "title": "REQ-017 renders agenda but has no acceptance criterion covering it, now that a doors item carries behavioural meaning",
+        "detail": "REQ-017's description lists 'agenda' among the PRD FR-2 card elements it renders, but its acceptance criteria cover the two map links, the computed seat count, the empty state and the coordinate-less venue, and never assert that the agenda renders at all - verified by reading REQ-017 in full (lines 926-1003), where the string 'agenda' appears exactly once, in prose. That was tolerable while agenda[] was inert display data. After this amendment the same doors item is simultaneously card content and the source of a reminder's contents, so the card and the T-3h message can disagree about the same event with no check in the requirement set capable of catching it. This is a genuine unwired consequence of the amendment. MINOR rather than MAJOR because it is a missing check on already-in-scope behaviour, not incorrect specified behaviour."
+      },
+      {
+        "id": "MINOR-3",
+        "severity": "MINOR",
+        "requirement": "REQ-016",
+        "check": "unwired consequence",
+        "title": "REQ-016 lets an organizer edit agenda[] with no validation, now that a doors item drives a sent message",
+        "detail": "REQ-016 lists 'agenda[] (NON-TALK items only - doors, networking, close; PRD 5 states the talk lineup is the accepted Talks and is never duplicated into agenda)' among the editable Event fields, and none of its six acceptance criteria touch agenda at all - they cover the named-missing-fields publish refusal, the offline-venue refusal, the capacity floor, draft invisibility, the channel suffix, and the audit rows. Before the amendment, an organizer typing a malformed or nonsensical agenda item produced a cosmetically odd event card. After it, the same edit silently changes what every admitted registrant is told about when to arrive, and a doors item whose time falls AFTER starts_at is a nonsense the system will now happily send to everyone. REQ-016 needs either a criterion validating a doors item's time relative to starts_at, or an explicit statement that no such validation is intended and why. Reported per core-directives 'No Issue Left Local-Only'; ORCH allocates the issue id, not this role."
+      },
+      {
+        "id": "MINOR-4",
+        "severity": "MINOR",
+        "requirement": "REQ-026",
+        "check": "(b) consistency with decision records - 0006 clock injection",
+        "title": "The doors time's interaction with 0006's clock-injection rule is real but narrow, and the resulting timezone gap is unstated",
+        "detail": "Checked directly because the task asks whether reading a doors TIME engages 0006's clock rule. Answer: it does not engage the binding rule. 0006's rule is 'any predicate whose truth depends on the current time takes the evaluation time as an explicit parameter - passed in from the application, never read as SQL now() inside the query.' A doors time read out of agenda[] is stored data being rendered, not a predicate evaluated against the current time, so the rule is untouched by it. The rule IS engaged by the T-3h window selection itself, which REQ-026 already inherits from its existing criteria. What the amendment did leave unstated is rendering: the pre-existing FR-7 criterion requires the start time 'rendered in the chapter's timezone' (PRD 5 Chapter.timezone), while the new doors criterion says only 'quotes the doors time' with no timezone clause - so the two times could render in different zones inside one message. FIX: add 'in the chapter's timezone' to the doors half. Also checked and found clean: no conflict with decision 0005 (Drizzle), and none with security-invariants.md - agenda[] carries no personal data, so S11's plaintext-phone/email rule is not implicated."
+      },
+      {
+        "id": "PROCESS-1",
+        "severity": "MINOR",
+        "requirement": "REQ-026",
+        "check": "process - core-directives Zero Manual Work clause 1",
+        "title": "PART 2 VERDICT: ORCH was entitled to close the data-model half, but not to close the message half without filing a decision record",
+        "detail": "Stated separately from the mechanical checks, as the task requires. THE DATA-MODEL HALF: ORCH was right, and its earlier framing really was wrong. The options it had previously recorded were (a) quote starts_at only, or (b) invent a doors_at field - and (b) is a false option, because PRD 5 line 98 already names doors as the first example of what agenda[] holds and RE-EVALUATION R7 shows that definition was chosen deliberately after agenda[] had been cut. Closing that half required no product preference; it required reading the spec correctly, which is squarely an agent's job. THE MESSAGE HALF: ORCH overstated. FR-7's T-3h row is a closed content list - 'Route: address, both map links, start time, QR code' - and adding a sixth element changes a message the PRD specifies exactly. 'Reading an existing field for the purpose the spec assigned it' is a fair description of where the DATA comes from, but it is not a fair description of the CHANGE, which is to the message, not to the field. PRD's closing rule ('if a requirement is ambiguous or contradicts reality, stop and ask. Do not invent business rules') plus core-directives clause 1 together prescribe filing the options as a decisions/000x draft rather than silently picking one. SHOULD IT HAVE STAYED PARKED? No - parking it indefinitely is not what clause 1 says either; clause 1 says file a decision record with the options named and do not stall. That is the option ORCH did not consider and the one that was correct. ON WHETHER A VALIDATOR SHOULD ACCEPT ORCH'S PRD 2 REASONING: the reasoning is sound on its merits - PRD 2 targets show-rate 70 percent to 80 percent, FR-7's T-3h message exists to get a person to the right place at the right time, and telling someone 20:00 when the room opens at 19:30 does work against that. I accept it as reasoning. I do not accept it as authority, and the distinction is the point: sound reasoning from a non-owner belongs in a decision record the owner can overturn in one place, not buried in a requirement description where overturning it means re-reading REQ-026. I am NOT asking for the resolution to be reversed. I am recording that it must be visible as a decision. NOTE ON THE COMMIT MESSAGE: it claims 'PRD's no-invented-rules closing rule was never engaged' - that is true of the data model and false of the message, and that overstatement is the same pattern caught at step-03."
+      }
+    ],
+    "next_action": "Route to REQ-ANALYST for correction of REQ-011 and REQ-026, then re-gate at WF-01 Step 2. Required corrections are the three MAJOR items: (1) replace all three REQ-010 references inside REQ-026 with REQ-011; (2) rewrite REQ-026's without-doors criterion to require a non-empty agenda containing at least one non-doors item and no doors item; (3) tighten REQ-011's new criterion so 'by query' excludes free-text scanning. Also fold in MINOR-4's timezone clause. ORCH to allocate issue ids for MINOR-2 (REQ-017 has no agenda acceptance criterion) and MINOR-3 (REQ-016 does not validate an edited doors item), and to file the decision record called for by PROCESS-1. VERIFIED POSITIVELY, needing no rework: both premise claims, quoted from PRD.md lines 98-99 and RE-EVALUATION.md lines 71-73 and 93; REQ-011 IS already a transitive dependency of REQ-026 - chain read link by link from depends_on: REQ-026 -> REQ-025 -> REQ-024 -> REQ-023 -> REQ-022 -> REQ-021 -> REQ-020 -> REQ-019 -> REQ-018 -> REQ-016 -> REQ-015 -> REQ-014 -> REQ-013 -> REQ-012 -> REQ-011, so ORCH's claim is correct and no depends_on edit is needed; SIZING - neither requirement grew beyond one agent turn, REQ-011 gained one criterion and a description constraint, REQ-026 replaced one criterion with two; DESIGN-SYSTEM FIT - not applicable, both are bot-side data/scheduler requirements touching no src/ component or design token; and no contradiction was found with PRD 5's de-duplication rule (the amendment actively reinforces it by forbidding a doors_at column), decision 0005, or security-invariants.md. This FAIL concerns REQ-011 and REQ-026 only and does not block the separate REQ-007 dispatch, which is in an unrelated chain."
   }
 }
