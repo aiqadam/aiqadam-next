@@ -1,0 +1,44 @@
+{
+  "handoff_id": "26f43951-159d-4f18-87ea-608663d5fc37",
+  "run_id": "WF02-REQ-007",
+  "workflow_id": "WF-02",
+  "step": "03",
+  "from_agent": "ORCH",
+  "to_agent": "TEST-DESIGNER",
+  "file": "handoffs/WF02-REQ-007/step-03-test-designer.json",
+  "created_at": "2026-09-06T07:15:00Z",
+  "started_at": "2026-09-06T07:15:00Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-007"],
+    "requirement_text": {
+      "REQ-007": "Implements the layout half of docs/agents/decisions/0003-events-bot-subproject.md (\"Layout: the site moves to apps/web\"). Scope of work: move src/, messages/, public/, next.config.ts, tsconfig.json, eslint.config.mjs, next-env.d.ts, and package.json into apps/web/ via git mv; create a new root package.json with workspaces:[apps/*] and delegating scripts; regenerate package-lock.json. Leave Dockerfile, deploy/, .github/workflows/ci-cd.yml, README.md, AGENTS.md, CLAUDE.md, .gitignore and docs/ untouched — those are REQ-008's scope."
+    },
+    "source_text": {
+      "note": "This repo has no automated test framework yet (Vitest arrives at REQ-009, still ahead of this run in the dependency chain) — write a manual verification spec per docs/guides/qa_testing_guide.md, not test code. Genuinely no scope test needed here: REQ-007 has a real user-visible surface (four locale routes, /health) so this is not the docs-only skip case."
+    },
+    "related_handoff_ids": ["5bde89dd-779b-4263-ac41-90c695e843c7"],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "docs/guides/qa_testing_guide.md",
+      "docs/agents/design/REQ-007.md"
+    ]
+  },
+  "task": {
+    "description": "Step 3 of WF-02 for REQ-007. Write docs/agents/test-specs/REQ-007.md: one precise, runnable-without-judgment case per REQ-007's 5 acceptance criteria in requirements.yaml. Each case must specify exact commands/steps and exact expected output so TEST-RUNNER can execute it mechanically.",
+    "acceptance_criteria": [
+      "One test case per acceptance criterion, no coverage gaps",
+      "Each case specifies exact commands and exact expected results, not vague description",
+      "No case requires judgment calls TEST-RUNNER can't make mechanically"
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": null
+  }
+}
