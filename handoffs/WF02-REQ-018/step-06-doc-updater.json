@@ -1,0 +1,19 @@
+{
+  "handoff_id": "step-06-doc-updater",
+  "run_id": "WF02-REQ-018",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "ORCH",
+  "to_agent": "FRONTEND-DEV",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Flipped REQ-018's status from pending to done in docs/agents/requirements.yaml (id: REQ-018, EventStaff assignment by organizers and the staff-only check-in surface gate), matching REQ-017's exact field/value convention. Appended one 'done' event to docs/status/requirement_status.yaml (append-only, real UTC timestamp 2026-09-06T21:11:05Z; confirmed via `git diff --numstat` before committing that deletions = 0 for both files touched: 1/1 requirements.yaml, 5/0 requirement_status.yaml). The appended note records, verified directly against the real shipped files rather than from memory: no schema change (design's own decision); domain/eventStaff.ts's addEventStaff()/removeEventStaff() each writing exactly one audit_log row inside the same transaction as the INSERT/DELETE, removal being a hard DELETE with the historical record living in audit_log; domain/eventStaffAuthorization.ts's checkEventStaffAuthorization() as a pure 4-step predicate with NO role short-circuit anywhere (establishing security-invariants.md S2 for this codebase, per the requirement's own description of that invariant); the /staff_add, /staff_remove (handlers/staff.ts) and /checkin (handlers/checkin.ts, deliberately authorize-and-acknowledge-only, reserving real check-in recording for future REQ-028/REQ-029) commands; the SECURITY-REVIEWER Step 2c S5 rework (checkin refusals were not audit-logging, fixed via buildCheckinRefusalAudit()/requireEventStaffForEvent()); and ISS-0012 (test-spec i18n key miscount, MINOR, non-blocking, filed this run per the RELEASE-VALIDATOR handoff). Checked docs/agents/requirements.yaml for a 'Phase 3 complete' marker or separate phase-tracking mechanism: none exists there -- phases are tracked only in docs/status/requirement_status.yaml's narrative notes (e.g. REQ-014's 'PHASE 2 COMPLETE' note), so a matching 'PHASE 3 COMPLETE' note was added to REQ-018's entry there, without inventing a new tracking file/field. Checked for a bot command reference doc (grepped docs/ for staff_add/checkin/'command reference'/'Bot commands'): none exists anywhere in docs/ for any prior bot requirement either -- consistent with that established absence, none was created. README.md rechecked (grep for staff/checkin/event_staff/apps-bot terms): contains no bot-flow-specific content at all (only monorepo/workspace layout and apps/web's landing page description), so no README update was warranted -- same reasoning applied at every prior bot requirement (REQ-010/011/012/014/015/016/017).",
+    "next_action": "Route to Step Final (git merge)"
+  },
+  "artifacts_out": [
+    "docs/agents/requirements.yaml",
+    "docs/status/requirement_status.yaml",
+    "handoffs/WF02-REQ-018/step-06-doc-updater.json"
+  ]
+}
