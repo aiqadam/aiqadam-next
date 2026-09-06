@@ -1,0 +1,38 @@
+{
+  "handoff_id": "72156118-7c25-4905-acf2-341b516a09e4",
+  "run_id": "WF02-REQ-007",
+  "workflow_id": "WF-02",
+  "step": "03b",
+  "from_agent": "ORCH",
+  "to_agent": "TEST-DESIGN-VALIDATOR",
+  "file": "handoffs/WF02-REQ-007/step-03b-test-design-validator.json",
+  "created_at": "2026-09-06T07:17:04Z",
+  "started_at": "2026-09-06T07:17:04Z",
+  "completed_at": "2026-09-06T07:17:54Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-007"],
+    "requirement_text": {},
+    "source_text": {
+      "note": "TEST-DESIGNER's spec claims it verified every expected value LIVE against the current working tree before writing it in (e.g. the AC4 key-set counts). Treat that claim itself as something to re-check, not take on trust — re-run at least AC4's diff script yourself and confirm the numbers in the spec match what you get."
+    },
+    "related_handoff_ids": ["26f43951-159d-4f18-87ea-608663d5fc37"],
+    "artifacts_in": ["docs/agents/test-specs/REQ-007.md", "docs/agents/requirements.yaml"]
+  },
+  "task": {
+    "description": "Step 3b of WF-02 for REQ-007. Read docs/agents/test-specs/REQ-007.md directly. Verify every one of REQ-007's 5 acceptance criteria has a precise, runnable case with no coverage gaps. Verify no case requires a judgment call TEST-RUNNER can't make mechanically. Re-run the AC4 key-set diff yourself and confirm the spec's embedded expected numbers are actually correct, not merely plausible.",
+    "acceptance_criteria": [
+      "Every AC has a corresponding case, checked individually",
+      "Every case's expected output is precise enough to pass/fail without judgment",
+      "AC4's embedded expected numbers independently re-verified against a live run"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Read docs/agents/test-specs/REQ-007.md directly (not TEST-DESIGNER's summary). Confirmed all 5 of REQ-007's acceptance criteria (verified verbatim against docs/agents/requirements.yaml) map 1:1 to a dedicated case (AC1-AC5), each with an exact command/route and a literal expected output (exact file lists, exact exit codes, exact 'error TS'/'Cannot find module' absence checks, exact <html lang> values, exact HTTP 200, exact commit-message substrings) -- no case relies on 'looks right' or unstated judgment. Grepped for 'TODO' and vagueness phrases ('looks right', 'should work', 'as expected'): the only match is the spec's own closing disclaimer stating it avoided such language, not an instance of it. Independently re-ran AC4's key-set diff script myself (not trusted from the spec): `ls apps/web/messages/` returned exactly en.json, kk.json, ru.json, uz.json, and the Node leaves()-diff script produced ru_count=177, uz_count=177 missing=[] extra=[], en_count=177 missing=[] extra=[], kk_count=177 missing=[] extra=[] -- matches the spec's embedded expected output exactly, character for character.",
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": "Route to TEST-RUNNER (Step 4)"
+  }
+}

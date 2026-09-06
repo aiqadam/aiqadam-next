@@ -1,0 +1,57 @@
+{
+  "handoff_id": "00d6ab37-dbbc-4b2f-8bf4-16eb77981e68",
+  "run_id": "WF02-REQ-007",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "ORCH",
+  "to_agent": "FRONTEND-DEV",
+  "file": "handoffs/WF02-REQ-007/step-02-frontend-dev.json",
+  "created_at": "2026-09-06T07:08:41Z",
+  "started_at": "2026-09-06T07:08:41Z",
+  "completed_at": "2026-09-06T07:12:09Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-007"],
+    "requirement_text": {
+      "REQ-007": "Implements the layout half of docs/agents/decisions/0003-events-bot-subproject.md (\"Layout: the site moves to apps/web\"). This is the FIRST requirement of the Events Bot programme: every subsequent requirement REQ-008..REQ-032 depends on it transitively, because they all cite apps/web/** or apps/bot/** paths that do not exist until this lands.\nScope is deliberately limited to the FILE MOVE plus the workspace root, so it fits one agent turn. Deploy/Docker/CI path updates are REQ-008; the apps/bot skeleton is REQ-009. Splitting this way keeps each turn's blast radius to one verifiable surface: this one is \"the site still builds and serves from its new location\".\nScope of work:\n- Move, with `git mv` so history is preserved, the following root entries into apps/web/: src/, messages/, public/, next.config.ts, tsconfig.json, eslint.config.mjs, next-env.d.ts, and the existing root package.json (which becomes apps/web/package.json, keeping name/scripts/dependencies as-is).\n- Create a NEW root package.json declaring \"private\": true and \"workspaces\": [\"apps/*\"], with root-level dev/build/lint/start scripts that delegate to the web workspace (e.g. `npm run build -w apps/web`) so the existing CI invocations `npm run lint` / `npm run build` at the repo root keep working unchanged. Regenerate package-lock.json at the root via `npm install` so the lockfile describes the workspace tree.\n- Leave Dockerfile, deploy/, .github/workflows/ci-cd.yml, README.md, AGENTS.md, CLAUDE.md, .gitignore and docs/ at the repo root. Dockerfile and deploy path fixes are REQ-008's scope — this requirement must NOT edit them, and it is expected and acceptable that `docker build` is broken between REQ-007 and REQ-008 landing (they are sequenced and merged in that order).\n- Do not rewrite or renumber REQ-001a..REQ-006. Per decision 0003, their descriptions cite pre-migration root-relative paths and stand as historical records. PATH MAPPING NOTE, recorded here as decision 0003 directs: any root-relative source path cited by REQ-001a..REQ-006 (src/i18n/routing.ts, messages/kk.json, src/components/landing/*.tsx, src/app/globals.css, ...) is read after this requirement as apps/web/<old path>."
+    },
+    "source_text": {
+      "note": "This requirement was originally drafted assuming FRONTEND-DEV also owns Step 00/Final git mechanics for this run — that already happened (branch feature/WF02-REQ-007 exists, pushed). This handoff is Step 2 (BUILD) only: implement per docs/agents/design/REQ-007.md, which is now gate-passed (2 iterations, both closed). Follow the design artefact's file-move list and both package.json shapes exactly; do not deviate from it without reporting why in result.issues."
+    },
+    "related_handoff_ids": ["2ce7909e-7de7-4cae-8764-e59fedc97dca", "13486ff0-e58e-4d6b-9cb2-0a5fe9c2dfd8"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-007.md",
+      "docs/guides/frontend_developer_guide.md"
+    ]
+  },
+  "task": {
+    "description": "Step 2 of WF-02 for REQ-007. Verify branch is feature/WF02-REQ-007 (STOP and report FAIL if not, per WF-02 Step 2's own instruction — do not touch any file first). Implement per docs/agents/design/REQ-007.md exactly: §2's file-move list via git mv, §3's root package.json shape, §5a's runtime verification (run it, don't just design for it), §7's key-set identity check (run it too). Then npm run lint and npm run build from the repo root — both must exit 0.",
+    "acceptance_criteria": [
+      "All 5 of REQ-007's acceptance criteria in docs/agents/requirements.yaml are independently verified true by actually running the checks (not asserted) — old root paths gone / apps/web/* paths present; root package.json workspaces+private fields correct and npm run build/lint exit 0 from root; npm run build && npm run start serves all 4 locales with correct <html lang> and no missing-key errors, /health returns 200; the 4 message catalogs have identical key sets; git log --follow shows pre-migration history on a moved file",
+      "npm run lint exits 0",
+      "npm run build exits 0",
+      "Nothing outside docs/agents/design/REQ-007.md's scope was touched (Dockerfile, deploy/, .github/workflows/ci-cd.yml, REQ-001a..REQ-006 in requirements.yaml all untouched)"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Implemented docs/agents/design/REQ-007.md exactly. Moved src/, messages/, public/, next.config.ts, tsconfig.json, eslint.config.mjs, next-env.d.ts and package.json into apps/web/ via git mv (next-env.d.ts is gitignored/untracked, so plain mv was used for it, matching the design's expectation that it is a non-source build artifact). Created a new root package.json (name aiqadam-next per design SS9 open question 1's stated default, private:true, workspaces:[apps/*], dev/build/lint/start scripts delegating via `npm run <script> -w apps/web`). Regenerated package-lock.json at the root via `npm install` (confirmed lockfile's root package entry now lists workspaces:[apps/*] and an apps/web workspace member). All 5 acceptance criteria independently verified by actually running the checks: AC1 (ls at root shows src/messages/public/next.config.ts/tsconfig.json/eslint.config.mjs/next-env.d.ts absent, apps/web/ has all 7 present; git status showed 100% renames, not delete+add). AC2 (npm run build and npm run lint from repo root both exit 0 -- build compiled successfully with no type/routing/module-resolution errors, lint produced only 2 pre-existing no-img-element warnings, 0 errors). AC3 (ran npm run build && npm run start from repo root; curled /ru /uz /en /kk -- all HTTP 200 with <html lang> matching ru/uz/en/kk respectively; server log had no missing-key or warning output; curled /health -- HTTP 200 {\"status\":\"ok\",\"service\":\"aiqadam-next\"}; server stopped after verification). AC4 (ran the REQ-005 key-set-diff Node script, extended to all four catalogs pairwise against ru.json: ru/uz/en/kk each have exactly 177 leaf keys, zero missing, zero extra in every comparison). AC5 (git log --follow --oneline apps/web/src/i18n/routing.ts shows the full pre-migration history: the move commit plus the three prior commits from REQ005/REQ004/REQ001a, proving git mv preserved history). Removed stray untracked apps/web/.next and root .next build-artifact directories before finalizing so they were never staged (root .gitignore's /.next/ pattern is anchored and does not cover apps/web/.next/ -- flagged below, not fixed, since .gitignore is explicitly out of scope for this requirement). Nothing outside the design's file-move list and root package.json was touched: git diff HEAD~1 HEAD against Dockerfile, deploy/, .github/workflows/ci-cd.yml, README.md, AGENTS.md, CLAUDE.md, .gitignore and docs/agents/requirements.yaml is empty.",
+    "artifacts_out": [
+      "apps/web/package.json",
+      "apps/web/next.config.ts",
+      "apps/web/tsconfig.json",
+      "apps/web/eslint.config.mjs",
+      "apps/web/next-env.d.ts",
+      "apps/web/src/",
+      "apps/web/messages/",
+      "apps/web/public/",
+      "package.json",
+      "package-lock.json"
+    ],
+    "issues": [
+      {"severity": "MINOR", "description": "Root .gitignore's `/.next/` pattern is anchored to the repo root and does not match apps/web/.next/, so the new workspace's build output is not gitignored post-move. Not fixed here because .gitignore is explicitly listed as out-of-scope for REQ-007 in docs/agents/design/REQ-007.md SS6. Recommend a follow-up (REQ-008 or a small standalone fix) add an apps/web/.next/ or a repo-wide **/.next/ entry.", "affected_requirement": "REQ-007"}
+    ],
+    "next_action": "Route to REVIEWER (Step 2b)"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "handoff_id": "13486ff0-e58e-4d6b-9cb2-0a5fe9c2dfd8",
+  "run_id": "WF02-REQ-007",
+  "workflow_id": "WF-02",
+  "step": "01b-rework-1",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "file": "handoffs/WF02-REQ-007/step-01b-rework-validator.json",
+  "created_at": "2026-09-06T07:07:20Z",
+  "started_at": "2026-09-06T07:07:20Z",
+  "completed_at": "2026-09-06T07:08:06Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-007"],
+    "requirement_text": {},
+    "source_text": {
+      "rework-cycle": "Re-gating rework iteration 1 of 3. Your prior FAIL is at handoffs/WF02-REQ-007/step-01b-design-validator.json; CODE-DESIGNER's fix is at handoffs/WF02-REQ-007/step-01-rework-code-designer.json, claiming a new §5a covers the AC3 BLOCKER and an extended §7 line covers the AC4 MINOR."
+    },
+    "related_handoff_ids": ["0ce73961-f9cf-41fd-b38f-d84cc561e145"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-007.md",
+      "docs/agents/requirements.yaml",
+      "handoffs/WF02-REQ-007/step-01b-design-validator.json"
+    ]
+  },
+  "task": {
+    "description": "Re-gate docs/agents/design/REQ-007.md. Verify §5a genuinely closes the AC3 BLOCKER — does it name that src/app/[locale]/... and src/app/health/route.ts move intact, and does it state the exact post-move verification (build+start from root, all 4 locales, <html lang>, no missing-key errors, /health 200)? Verify §7's extension genuinely closes the AC4 MINOR — is key-set identity now an explicit, named verification point? Also confirm nothing else in the artefact was altered beyond what the rework asked (per your own prior FAIL's scope). This is the final design gate before Step 2 build begins.",
+    "acceptance_criteria": [
+      "AC3's BLOCKER is independently confirmed closed by reading §5a directly",
+      "AC4's MINOR is independently confirmed closed by reading the extended §7 directly",
+      "No unrelated section was altered",
+      "A clear PASS or FAIL, with next_action"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Re-read docs/agents/design/REQ-007.md directly (not CODE-DESIGNER's result.summary) and diffed it against the pre-rework version (`git diff a8b04bd 0951e45 -- docs/agents/design/REQ-007.md`). AC3 BLOCKER: new §5a 'Post-move runtime verification (locale routing + /health)' names both moving runtime elements by exact path -- `src/app/[locale]/...` (including `layout.tsx`, which sets `<html lang={locale}>` dynamically per REQ-005's findings) and `src/app/health/route.ts` (cited to decision 0003's 'current state' section) -- and states them as part of the existing §2 row-1 src/ move, not a new/undocumented move. It then states the exact post-move verification procedure as a 4-step numbered list: `npm run build && npm run start` from repo root; request all four locale routes and confirm `<html lang>` matches each segment; confirm no missing-translation-key errors/fallback warnings across all four; request /health and confirm HTTP 200 -- explicitly citing this as the same method REQ-005 already established, matching REQ-007 AC3's exact wording in requirements.yaml (lines 441-486). This closes the BLOCKER: the gap was zero coverage of post-move runtime serving, and §5a now states it as a concrete, named verification point rather than left to FRONTEND-DEV to infer. AC4 MINOR: the extended §7 content-shape line now names message-catalog key-set identity as its own explicit verification point -- 'apps/web/messages/ must contain exactly the four catalogs ru.json, uz.json, en.json, kk.json with identical key sets, re-verified by the same key-set diff script REQ-005's acceptance criteria used ... proving the move itself lost no catalog content, distinct from the runtime check in §5a' -- no longer merely implicit under 'moves unchanged'. This closes the MINOR. Scope check: the diff shows exactly three changes and nothing else -- (1) new §5a inserted between §5 and §6, (2) §7's content-shape bullet extended with the key-set-identity sentence, (3) §8's mapping table row updated to point each of the 5 ACs at its specific section (previously AC3/AC4 were silently unmapped). No other section, table row, or sentence in the artefact was touched. Re-confirmed no implementation code was introduced by the rework (§5a and the §7 addition are prose/numbered-list only, no JSON/TS code blocks) and no design-token/color/spacing reference appears anywhere in the new text (this remains a structural, non-UI requirement, correctly N/A as before -- nothing to resolve against docs/Design system for AI agents/tokens/tokens.css). All 5 ACs now have a named section in §8's mapping table. Out-of-scope boundary (§6, unchanged by this rework) remains unambiguous. Gate PASSES.",
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": "Route to FRONTEND-DEV (Step 2)"
+  },
+  "gate_history": [
+    {"iteration": 0, "gated_at": "2026-09-06T07:04:28Z", "status": "FAIL", "summary": "AC3 had zero design coverage for post-move locale/health runtime verification; AC4's message-catalog key-set identity was only weakly/implicitly covered.", "issues": ["BLOCKER: AC3 no design element for post-move runtime serving verification", "MINOR: AC4 key-set identity not named as its own explicit verification point"], "next_action": "Rework CODE-DESIGNER -- add concrete design element for AC3, tighten AC4 coverage. Rework iteration 1 of 3."}
+  ]
+}

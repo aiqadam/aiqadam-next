@@ -1,0 +1,33 @@
+id: ISS-0004
+title: Root .gitignore's /.next/ pattern does not cover apps/web/.next/ after the monorepo move
+discovered_by: FRONTEND-DEV
+discovered_in_run: WF02-REQ-007
+discovered_at: "2026-09-06T07:13:10Z"
+severity: MINOR
+description: >
+  REQ-007 moved the Next.js site into apps/web/. The repo-root .gitignore's /.next/
+  pattern is anchored to the repo root (leading slash) and does not match
+  apps/web/.next/, so the workspace's build output is no longer gitignored.
+
+  Not fixed in REQ-007 because .gitignore is explicitly out of scope per
+  docs/agents/design/REQ-007.md section 6 (only the file-move and workspace root were
+  in scope). Verified during REQ-007's Step 2 build: a stray apps/web/.next/ was
+  produced by the runtime verification and confirmed untracked-but-not-ignored before
+  being removed pre-commit, so this did not leak into the merged commit, but the next
+  requirement that runs a build without noticing could commit it.
+
+  Fix: change the root .gitignore's /.next/ entry to a repo-wide **/.next/ (or add an
+  explicit apps/web/.next/ / apps/bot/.next/ pair), whichever the implementing
+  requirement's design artefact specifies. Small enough to fold into REQ-008 (which
+  already touches deploy/CI path config) rather than filed as its own requirement.
+
+  RESOLVED 2026-09-06 by ORCH directly during WF02-REQ-007 Step 5 bookkeeping (commit
+  a0e9760), ahead of REQ-008: ORCH's own `git add -A` after TEST-RUNNER's build check
+  accidentally committed apps/web/.next/ into the branch, which is this exact issue
+  materializing. Fixed on the spot rather than shipping the polluted commit: added
+  **/.next/ and **/out/ to .gitignore's next.js section (kept the existing root-anchored
+  /.next/ and /out/ entries too, no reason to remove them) and untracked the
+  accidentally-committed tree via `git rm --cached`.
+affected_files:
+  - .gitignore
+status: resolved

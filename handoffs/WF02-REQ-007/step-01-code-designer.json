@@ -1,0 +1,47 @@
+{
+  "handoff_id": "84c2371a-2f2f-4c57-809d-2e00f59a2f63",
+  "run_id": "WF02-REQ-007",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGNER",
+  "file": "handoffs/WF02-REQ-007/step-01-code-designer.json",
+  "created_at": "2026-09-06T07:00:25Z",
+  "started_at": "2026-09-06T07:00:25Z",
+  "completed_at": "2026-09-06T07:02:35Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-007"],
+    "requirement_text": {
+      "REQ-007": "Implements the layout half of docs/agents/decisions/0003-events-bot-subproject.md (\"Layout: the site moves to apps/web\"). This is the FIRST requirement of the Events Bot programme: every subsequent requirement REQ-008..REQ-032 depends on it transitively, because they all cite apps/web/** or apps/bot/** paths that do not exist until this lands.\nScope is deliberately limited to the FILE MOVE plus the workspace root, so it fits one agent turn. Deploy/Docker/CI path updates are REQ-008; the apps/bot skeleton is REQ-009. Splitting this way keeps each turn's blast radius to one verifiable surface: this one is \"the site still builds and serves from its new location\".\nScope of work:\n- Move, with `git mv` so history is preserved, the following root entries into apps/web/: src/, messages/, public/, next.config.ts, tsconfig.json, eslint.config.mjs, next-env.d.ts, and the existing root package.json (which becomes apps/web/package.json, keeping name/scripts/dependencies as-is).\n- Create a NEW root package.json declaring \"private\": true and \"workspaces\": [\"apps/*\"], with root-level dev/build/lint/start scripts that delegate to the web workspace (e.g. `npm run build -w apps/web`) so the existing CI invocations `npm run lint` / `npm run build` at the repo root keep working unchanged. Regenerate package-lock.json at the root via `npm install` so the lockfile describes the workspace tree.\n- Leave Dockerfile, deploy/, .github/workflows/ci-cd.yml, README.md, AGENTS.md, CLAUDE.md, .gitignore and docs/ at the repo root. Dockerfile and deploy path fixes are REQ-008's scope — this requirement must NOT edit them, and it is expected and acceptable that `docker build` is broken between REQ-007 and REQ-008 landing (they are sequenced and merged in that order).\n- Do not rewrite or renumber REQ-001a..REQ-006. Per decision 0003, their descriptions cite pre-migration root-relative paths and stand as historical records. PATH MAPPING NOTE, recorded here as decision 0003 directs: any root-relative source path cited by REQ-001a..REQ-006 (src/i18n/routing.ts, messages/kk.json, src/components/landing/*.tsx, src/app/globals.css, ...) is read after this requirement as apps/web/<old path>."
+    },
+    "source_text": {
+      "note-on-this-being-a-structural-design-not-a-component-design": "REQ-007 has no new UI component, prop, or content shape — it is a file-layout and workspace-config change. Your design artefact for this requirement is therefore STRUCTURAL: exactly which paths move where, the exact shape of the new root package.json (scripts, workspaces field), and the exact shape of the moved apps/web/package.json. Skip the 'design-token usage' and 'responsive/theme behavior' sections of your usual template as not applicable to this requirement — state that explicitly rather than omitting them silently. Do not skip the step itself; a design gate still needs something concrete to check REQ-007's acceptance criteria against.",
+      "current-root-package-json": "The current repo-root package.json (to become apps/web/package.json unchanged) has name: app, scripts: dev/build/lint/start via next, dependencies: next 16.3.2, next-intl ^4.13.7, react 19.2.8, react-dom 19.2.8; devDependencies: @types/node ^20, @types/react ^19, @types/react-dom ^19, eslint ^9, eslint-config-next 16.3.2, typescript ^5."
+    },
+    "related_handoff_ids": ["2ce7909e-7de7-4cae-8764-e59fedc97dca"],
+    "artifacts_in": [
+      "docs/agents/decisions/0003-events-bot-subproject.md",
+      "docs/guides/frontend_developer_guide.md",
+      "package.json",
+      ".github/workflows/ci-cd.yml"
+    ]
+  },
+  "task": {
+    "description": "Step 1 of WF-02 for REQ-007. Produce docs/agents/design/REQ-007.md specifying the exact file-move plan and the exact shape of both package.json files (root and apps/web) needed to satisfy REQ-007's acceptance criteria. This is a structural design artefact, not a component one — see context note above. Verify branch is feature/WF02-REQ-007 before writing anything.",
+    "acceptance_criteria": [
+      "Every acceptance criterion in REQ-007's requirement text maps to a concrete element of the design artefact — the exact list of root paths that move, the exact new root package.json content (workspaces field, delegating scripts), and confirmation that apps/web/package.json keeps REQ-007's cited name/scripts/dependencies unchanged.",
+      "The artefact explicitly states what is OUT of scope (Dockerfile, deploy/, .github/workflows/ci-cd.yml untouched) so CODE-DESIGN-VALIDATOR and FRONTEND-DEV both see the boundary.",
+      "No implementation code (no actual package.json JSON block copy-pasted as 'the code' — describe its required fields/values instead).",
+      "Open questions, if any, are listed explicitly rather than silently resolved."
+    ]
+  },
+  "result": {
+    "status": "COMPLETED",
+    "summary": "Wrote docs/agents/design/REQ-007.md: a structural design specifying (1) the 8-entry git-mv file-move list from repo root into apps/web/ (src/, messages/, public/, next.config.ts, tsconfig.json, eslint.config.mjs, next-env.d.ts, package.json), (2) required shape of a new root package.json (private:true, workspaces:[\"apps/*\"], delegating dev/build/lint/start scripts via `npm run <script> -w apps/web`, no root deps), (3) required unchanged shape of apps/web/package.json (name app, existing scripts/deps/devDeps verbatim), (4) explicit out-of-scope list (Dockerfile, deploy/, ci-cd.yml, README/AGENTS/CLAUDE.md, docs/, apps/bot/, packages/, REQ-001a..REQ-006 untouched), and (5) four open questions (root package name choice, tsconfig path-alias verification, eslint config resolution under -w delegation, stale root .next/ artifact). No implementation code included; component/prop/content/token/responsive-theme sections explicitly marked N/A per requirement's structural nature.",
+    "artifacts_out": ["docs/agents/design/REQ-007.md"],
+    "issues": [],
+    "next_action": "Route to CODE-DESIGN-VALIDATOR"
+  }
+}

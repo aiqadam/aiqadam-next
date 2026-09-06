@@ -1,0 +1,50 @@
+{
+  "handoff_id": "8d324a01-ccd6-41a5-801d-17aa4b83e598",
+  "run_id": "WF02-REQ-007",
+  "workflow_id": "WF-02",
+  "step": "04",
+  "from_agent": "ORCH",
+  "to_agent": "TEST-RUNNER",
+  "file": "handoffs/WF02-REQ-007/step-04-test-runner.json",
+  "created_at": "2026-09-06T07:18:19Z",
+  "started_at": "2026-09-06T07:18:19Z",
+  "completed_at": "2026-09-06T07:20:49Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-007"],
+    "requirement_text": {},
+    "source_text": {
+      "note": "Run docs/agents/test-specs/REQ-007.md's 5 cases exactly as written, synchronously in your own tool-call loop (no background waits for the dev-server checks, per core-directives.md's No Background Wait rule). Write a real test-reports/report-<date>-WF02-REQ-007.yaml with actual command output, not a summary of expected output."
+    },
+    "related_handoff_ids": ["72156118-7c25-4905-acf2-341b516a09e4"],
+    "artifacts_in": ["docs/agents/test-specs/REQ-007.md"]
+  },
+  "task": {
+    "description": "Step 4 of WF-02 for REQ-007. Execute all 5 cases in docs/agents/test-specs/REQ-007.md exactly as written. Write test-reports/report-<date>-WF02-REQ-007.yaml with per-case pass/fail and the real captured output.",
+    "acceptance_criteria": [
+      "All 5 cases executed with real commands, real output captured",
+      "Report written to test-reports/ following existing report schema",
+      "Any case that fails is reported as FAIL, not silently reinterpreted as pass"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Executed all 5 cases in docs/agents/test-specs/REQ-007.md with real commands from the repo root on branch feature/WF02-REQ-007. AC1: apps/web/{package.json,next.config.ts,tsconfig.json,eslint.config.mjs,next-env.d.ts,src,messages,public} all exist; all 7 equivalent root paths gone (No such file or directory); git log --follow on apps/web/src/i18n/routing.ts shows the move commit plus 3 pre-migration commits, confirming a real rename. AC2: root package.json has private:true and workspaces:['apps/*'] exactly; npm run build exit 0 with no type/routing/module-resolution errors; npm run lint exit 0 with 0 errors (2 pre-existing no-img-element warnings only). AC3: npm run build && npm run start served all four locales (/ru,/uz,/en,/kk) with matching <html lang>, zero MISSING_MESSAGE/IntlError markers across all 4 responses, /health returned 200; server was then confirmed stopped (post-kill curl to /health failed with connection error). AC4: apps/web/messages/ has exactly en.json,kk.json,ru.json,uz.json; key-set diff script output exactly ru_count=177 / uz_count=177 missing=[] extra=[] / en_count=177 missing=[] extra=[] / kk_count=177 missing=[] extra=[]. AC5: git log --follow shows all 4 required commits (the move commit plus the kk, en, and original ru/uz i18n commits) in order. All 5 cases PASS, no failures, no environment limitations encountered.",
+    "artifacts_out": [
+      "test-reports/report-2026-09-06-WF02-REQ-007.yaml"
+    ],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-007",
+      "commit_sha_list": [],
+      "remote_branch": null,
+      "push_status": "skipped",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Route to RELEASE-VALIDATOR (Step 5)"
+  },
+  "rework_count": 0,
+  "max_rework": 3
+}

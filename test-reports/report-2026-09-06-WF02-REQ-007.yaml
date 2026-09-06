@@ -1,0 +1,144 @@
+run_id: WF02-REQ-007
+date: 2026-09-06T07:20:20Z
+requirement_ids:
+  - REQ-007
+spec: docs/agents/test-specs/REQ-007.md
+lint: pass
+build: pass
+
+lint_output: |
+  > lint
+  > npm run lint -w apps/web
+
+  > app@0.1.0 lint
+  > eslint
+
+  C:\Users\tvolo\dev\aiqadam-next\apps\web\src\components\landing\Footer.tsx
+    11:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. ... @next/next/no-img-element
+
+  C:\Users\tvolo\dev\aiqadam-next\apps\web\src\components\landing\Nav.tsx
+    10:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. ... @next/next/no-img-element
+
+  ✖ 2 problems (0 errors, 2 warnings)
+  exit code: 0
+  note: both warnings pre-existing (img/no-img-element convention), unrelated to
+    REQ-007's file-move/workspace-config scope. No error-level ESLint output.
+
+build_output: |
+  > build
+  > npm run build -w apps/web
+
+  > app@0.1.0 build
+  > next build
+
+  ▲ Next.js 16.3.2 (Turbopack)
+  ✓ Running next.config.ts took 52ms
+  ✓ Compiled successfully in 3.2s
+    Running TypeScript ...
+    Finished TypeScript in 1713ms ...
+    Collecting page data using 6 workers ...
+  ✓ Generating static pages using 6 workers (4/4) in 483ms
+    Finalizing page optimization ...
+
+  Route (app)
+  ┌ ○ /_not-found
+  ├ ƒ /[locale]
+  └ ƒ /health
+
+  ƒ Proxy (Middleware)
+  exit code: 0
+  note: no TypeScript error, no Next.js routing error, no module-resolution error
+    (no "Cannot find module", "Module not found", or "error TS" lines present).
+
+cases:
+  - acceptance_criterion: AC1
+    result: pass
+    notes: >
+      Step 1: `ls apps/web/package.json apps/web/next.config.ts
+      apps/web/tsconfig.json apps/web/eslint.config.mjs apps/web/next-env.d.ts`
+      and `ls -d apps/web/src apps/web/messages apps/web/public` — all 8 paths
+      listed successfully, src/messages/public confirmed as directories.
+      Step 2: `ls src messages public next.config.ts tsconfig.json
+      eslint.config.mjs next-env.d.ts` at repo root — all 7 paths returned
+      "No such file or directory" (exit code 2), confirming none remain at
+      root. Step 3: `git log --oneline --follow -- apps/web/src/i18n/routing.ts`
+      output includes commit e47760a "feat: move site into apps/web and
+      establish npm workspace root [WF02-REQ-007]" (message contains both
+      "apps/web" and "workspace") plus 3 earlier commits beneath it
+      (a1dc520, 6ca9863, 69b7958) — history did not stop at the move commit,
+      confirming git tracked this as a rename, not delete+add.
+
+  - acceptance_criterion: AC2
+    result: pass
+    notes: >
+      Step 1: `cat package.json` at repo root shows exactly
+      `"private": true` and `"workspaces": ["apps/*"]` (one-element array,
+      literal "apps/*"). Step 2: `npm run build` from repo root — exit code 0.
+      Output shows "✓ Compiled successfully in 3.2s", TypeScript finished
+      cleanly, all 4 routes generated. Zero occurrences of "Cannot find
+      module", "Module not found", or "error TS". Step 3: `npm run lint` from
+      repo root — exit code 0. Only 2 pre-existing @next/next/no-img-element
+      warnings (0 errors line explicitly reported: "✖ 2 problems (0 errors,
+      2 warnings)").
+
+  - acceptance_criterion: AC3
+    result: pass
+    notes: >
+      Ran `npm run build` (reused AC2 step 2's passing build) then `npm run
+      start` from repo root, polled synchronously until "✓ Ready in 158ms"
+      appeared in the server's own log output (no fixed sleep-and-hope).
+      Server bound to http://localhost:3000. curl results:
+      /ru -> `<html lang="ru"`; /uz -> `<html lang="uz"`; /en ->
+      `<html lang="en"`; /kk -> `<html lang="kk"` — each matches its own
+      route segment, no cross-locale mismatch. grep -c "MISSING_MESSAGE" and
+      grep -c "IntlError" against all four full response bodies -> 0 matches
+      in every case (8 checks total, all zero). /health ->
+      `curl -s -o /dev/null -w "%{http_code}"` returned exactly `200`.
+      Server then stopped: identified the actual listening PID via
+      `netstat -ano | grep ':3000'` (32912) since the bash job's own $! did
+      not map 1:1 to the Windows process tree, force-killed it with
+      `taskkill //F //PID 32912 //T`, and confirmed teardown — a subsequent
+      curl to /health returned curl exit code 28 (connection failed/timeout),
+      proving the server was actually down before this run ended, not left
+      orphaned.
+
+  - acceptance_criterion: AC4
+    result: pass
+    notes: >
+      `ls apps/web/messages/` lists exactly 4 entries: en.json, kk.json,
+      ru.json, uz.json — no more, no fewer. Ran the spec's exact Node
+      key-set-diff script (extended ru-baseline comparison against uz/en/kk).
+      Output exactly:
+      "ru_count=177" / "uz_count=177 missing=[] extra=[]" /
+      "en_count=177 missing=[] extra=[]" / "kk_count=177 missing=[] extra=[]"
+      — character-for-character match to the spec's expected output, zero
+      missing/extra keys, all four catalogs at count 177.
+
+  - acceptance_criterion: AC5
+    result: pass
+    notes: >
+      `git log --oneline --follow -- apps/web/src/i18n/routing.ts` output:
+      e47760a "feat: move site into apps/web and establish npm workspace
+      root [WF02-REQ-007]", a1dc520 "feat: add Kazakh (kk) locale to i18n
+      routing and translate all landing copy [WF02-REQ005-REQ006] (#9)",
+      6ca9863 "feat: add English (en) locale to i18n routing and translate
+      all landing copy [WF02-REQ003-REQ004] (#8)", 69b7958 "feat: add
+      next-intl i18n mechanism, ru/uz locale routing and switcher
+      [WF02-REQ-001a] (#5)". All 4 required commits present, in the expected
+      order, by message substring — confirms git tracked apps/web/src/i18n/routing.ts
+      as a rename carrying forward its full pre-migration history, not a
+      new file.
+
+summary: >
+  All 5 spec cases (AC1-AC5) pass. Lint and build both exit 0 from the repo
+  root via the npm workspace. The file move into apps/web is a real git
+  rename with preserved history (git log --follow shows 4 commits, not just
+  the move commit). Root package.json correctly declares
+  "private": true and "workspaces": ["apps/*"]. All four locales (/ru, /uz,
+  /en, /kk) serve with correct <html lang> and zero MISSING_MESSAGE/IntlError
+  markers post-move; /health returns 200. apps/web/messages/ has exactly 4
+  catalogs with identical 177-key sets. No environment limitations
+  encountered this run — every case in the spec was a filesystem/CLI/HTTP
+  check as designed (no browser step required, per the spec's own framing),
+  and every command specified in the spec was executed for real, synchronously,
+  with output captured above.
