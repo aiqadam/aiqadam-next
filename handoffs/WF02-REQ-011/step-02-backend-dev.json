@@ -1,0 +1,16 @@
+{
+  "handoff_id": "step-02-backend-dev",
+  "run_id": "WF02-REQ-011",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "ORCH",
+  "to_agent": "BACKEND-DEV",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Extended apps/bot/src/db/schema.ts with venues/events/registrations/event_staff/audit_log per docs/agents/design/REQ-011.md, generated migration 0001_tired_annihilus.sql via drizzle-kit. All 7 ACs verified against a real scratch Postgres: AC1 UUID PKs+timestamps on all 5; AC2 UNIQUE(event_id,user_id) enforced with real duplicate-key error; AC3 qr_token nullable-unique behaves correctly; AC4 admission enum rejects 'checked_in'; AC5 zero matches for the 5 forbidden names, no_show_reason present; AC6 both agenda JSONB queries return exactly the doors item's time; AC7 design-artefact derivation expressions and S2/S11 statements confirmed present. lint/build exit 0.",
+    "artifacts_out": ["apps/bot/src/db/schema.ts", "apps/bot/drizzle/0001_tired_annihilus.sql", "apps/bot/drizzle/meta/0001_snapshot.json", "apps/bot/drizzle/meta/_journal.json"],
+    "issues": [],
+    "next_action": "Route to REVIEWER (Step 2b)"
+  }
+}
