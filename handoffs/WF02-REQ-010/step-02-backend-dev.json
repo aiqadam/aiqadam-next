@@ -1,0 +1,16 @@
+{
+  "handoff_id": "step-02-backend-dev",
+  "run_id": "WF02-REQ-010",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "ORCH",
+  "to_agent": "BACKEND-DEV",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Implemented apps/bot/src/db/schema.ts (chapters/users/profiles per design), apps/bot/drizzle.config.ts, and a drizzle-kit-generated migration apps/bot/drizzle/0000_tough_lilith.sql (not hand-written, per decision 0005). All 6 ACs verified against a real scratch Postgres container: AC1 \\d+ output shows UUID PKs + timestamptz on all three; AC2 two NULL tg_id inserts succeeded, duplicate non-null failed on the unique constraint; AC3 minimal profile insert succeeded with nullable fields reading back NULL; AC4 bare user insert reads back broadcast_opt_in=f, consent_pd_at=NULL, and the profile's publish_consent=f; AC5 git grep for the 5 forbidden computed-value names against the generated SQL returned zero matches; AC6 design artefact's explicit sentence confirmed present. lint/build both exit 0.",
+    "artifacts_out": ["apps/bot/src/db/schema.ts", "apps/bot/drizzle.config.ts", "apps/bot/drizzle/0000_tough_lilith.sql", "apps/bot/drizzle/meta/0000_snapshot.json", "apps/bot/drizzle/meta/_journal.json"],
+    "issues": [],
+    "next_action": "Route to REVIEWER (Step 2b)"
+  }
+}
