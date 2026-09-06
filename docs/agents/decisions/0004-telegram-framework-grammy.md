@@ -25,8 +25,7 @@ choice would be negligent.
   rather than merely present.
 - First-party plugin ecosystem maintained under the same `grammyjs` organization —
   notably **sessions**, **conversations**, **rate limiting**, and **runner** (concurrency
-  for long polling). Three of those map directly onto requirements in this project's
-  registry.
+  for long polling).
 - Steady release cadence and active maintenance as of this decision.
 - Larger dependency surface than Telegraf.
 
@@ -47,12 +46,30 @@ choice would be negligent.
 
 Against PRD §11's stated constraints and this project's actual shape:
 
-1. **The conversations plugin maps onto a real, repeated requirement.** PRD FR-3 requires
-   a multi-step profile form where *"partial answers are written to the Profile row as
-   they arrive — a restart mid-form loses nothing,"* and PRD §11 makes **restart-safe** an
-   explicit product constraint. Multi-step stateful dialogue is exactly what grammY's
-   conversations plugin exists for. With Telegraf this is hand-rolled scene management.
-   This is the single strongest reason and it is requirement-driven, not taste.
+1. **The conversations plugin covers the dialogue half of FR-3's multi-step form.** PRD
+   FR-3 requires a multi-step profile form, and PRD §11 makes **restart-safe** an explicit
+   product constraint. grammY's conversations plugin manages that dialogue state — which
+   step the person is on, and the updates received so far — through a pluggable storage
+   adapter. With Telegraf this is hand-rolled scene management.
+
+   **Corrected 2026-09-06, after REQ-VALIDATOR's gate (step-03) found this rationale
+   overstated as first written.** Two limits an implementer must know, because the earlier
+   wording ("exactly what the plugin exists for", "the single strongest reason") implied
+   more than the plugin delivers:
+
+   - **The default storage backend is an in-memory `Map`.** Restart-survival requires
+     explicitly configuring a persistent adapter. It is not free, and REQ-014 (the profile
+     form) must configure one.
+   - **The plugin does not satisfy FR-3's actual partial-write sentence.** FR-3 says
+     *"partial answers are written to the Profile row as they arrive — a restart mid-form
+     loses nothing."* Writing each answer to the Profile row is **application code**, in
+     `conversation.external()` or equivalent, and it is the same work under either
+     framework. The plugin gives restart-safe *dialogue position*, not restart-safe
+     *domain data*.
+
+   What survives is narrower but still real: grammY supplies the dialogue-state machinery
+   Telegraf makes you build. This is no longer claimed as the single deciding reason —
+   reasons 2 through 4 carry at least as much weight.
 2. **Typed correctness matters more than usual here** because of this project's humanless
    pipeline. `core-directives.md` states weak-model tolerance as a design constraint: the
    pipeline must produce correct work even when the executing agent has limited judgment.
@@ -89,11 +106,23 @@ a constraint PRD §11 states, and its own documentation is strong.
   separation is a reviewable property, and REVIEWER should treat a domain rule embedded
   in a grammY handler as a finding.
 
+## Correction history
+
+**2026-09-06** — rationale 1 was overstated in the record as originally written; corrected
+above following REQ-VALIDATOR's independent check
+(`handoffs/WF01-EVENTS-BOT-SPEC/step-03-req-validator-recheck.json`, MINOR finding). The
+decision itself did not change: the remaining rationale, particularly reasons 2-4, still
+selects grammY. This history is kept rather than the text being silently amended, because
+a record whose reasoning changed without trace is not auditable.
+
 ## Sources consulted
 
 - grammY's own framework comparison — https://grammy.dev/resources/comparison
 - grammY repository — https://github.com/grammyjs/grammy
 - Telegraf's library comparison discussion — https://github.com/telegraf/telegraf/discussions/386
+- grammY conversations plugin documentation — https://grammy.dev/plugins/conversations
+  (consulted at the 2026-09-06 correction; source of the storage-adapter and
+  in-memory-default facts above)
 
 grammY's comparison page is written by grammY's own authors and was read as an
 interested source; the specific claim relied upon (Telegraf v4's TypeScript migration

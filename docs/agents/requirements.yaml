@@ -575,7 +575,12 @@ requirements:
         no-domain-logic boundary intact.
       - Wire Vitest so `npm test` at the repo root runs and passes with at least one
         real assertion, giving TEST-DESIGNER and TEST-RUNNER a runnable target from
-        REQ-010 onward.
+        REQ-010 onward. Note for every later bot requirement, from
+        decisions/0006's "fake timers do not reach Postgres" boundary: a time-dependent
+        predicate takes the evaluation time as an explicit parameter from the
+        application, never SQL now() inside the query, or the property cannot be tested
+        at all. REVIEWER, BACKEND-DEV and DATA-DESIGNER all carry this rule in their
+        role files.
       - NO domain logic, NO database schema, NO handlers beyond a health/liveness path.
         Those are REQ-010 onward.
       - Secrets: the bot token and database URL are read from the environment only.
@@ -583,7 +588,7 @@ requirements:
         (security-invariants.md S11 — PII and credentials never in plaintext logs).
     acceptance_criteria:
       - "apps/bot/package.json exists as a workspace member and `npm install` at the repo root resolves both apps/web and apps/bot without error; `npm run lint` and `npm run build` from the repo root both exit 0 and cover apps/bot (verified by deliberately introducing a type error in apps/bot/src and confirming `npm run build` then FAILS, then reverting — a build that passes without ever compiling apps/bot is not evidence)."
-      - "apps/bot/package.json depends on `grammy`, `drizzle-orm`, `drizzle-kit` and a Postgres driver, and the repo root depends on `vitest` — every one pinned to an exact version (no `^` or `~`), matching decisions/0004, 0005 and 0006. A dependency on Telegraf, Prisma, Jest or node:test is a FAIL, as is any grammY plugin added at this stage."
+      - "apps/bot/package.json depends on `grammy`, `drizzle-orm`, `drizzle-kit` and a Postgres driver, and the repo root depends on `vitest` — every one pinned to an exact version (no `^` or `~`), matching decisions/0004, 0005 and 0006. A dependency on `telegraf`, `prisma`/`@prisma/client` or `jest` is a FAIL, as is any grammY plugin added at this stage; separately, no test file may import `node:test` (it is a Node built-in, so it would never appear as a dependency — grep the test files instead)."
       - ".github/workflows/ci-cd.yml runs `npm test` in the build job, and a deliberately failing test makes the workflow fail (verified by pushing a failing assertion on a scratch branch and reading the actual red run, then reverting — a test step that cannot fail the build is not a gate, per core-directives.md)."
       - "`npm test` at the repo root runs Vitest and reports at least one passing assertion against REAL behaviour — the skeleton's environment-variable validation is the intended target. An assertion such as `expect(true).toBe(true)` is a FAIL of this criterion."
       - "Starting apps/bot with the bot-token environment variable unset exits non-zero and prints a message naming the missing variable; starting it with the variable set to a dummy value does NOT print that value anywhere in stdout/stderr (security-invariants.md S11), verified by running both cases and grepping the captured output for the dummy value."

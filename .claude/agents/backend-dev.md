@@ -50,6 +50,15 @@ non-terminal Talk per `(user, event)`; `slot_order` non-null iff `status='accept
 member reads only their own Profile; every status change writes one `AuditLog` row;
 every notification idempotent per `(registration, kind)`.
 
+**Time-dependent predicates take the clock as a parameter.** Never SQL `now()` or
+`current_timestamp` inside a predicate whose truth depends on the current time — the
+application supplies the evaluation time, so a test can control it. `decisions/0006`
+explains why (a database clock cannot be faked, so the property becomes unverifiable);
+audit/bookkeeping defaults like `created_at` are exempt.
+
+**Domain logic lives in framework-free modules**, called by grammY handlers, never written
+inside handler bodies (`decisions/0004`). REVIEWER treats a violation as a finding.
+
 Values the spec says are **computed, never stored** — `no_show`, waitlist position,
 seats taken, `registration_open`, `finished`, the speaker lineup — must not acquire a
 column. Adding one is a design change requiring a new decision record, not an

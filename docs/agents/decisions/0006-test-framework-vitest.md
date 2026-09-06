@@ -49,8 +49,11 @@ as the exact failure a humanless pipeline cannot survive.
 
 - Zero dependencies; ships with Node (v24 locally, v22 in CI).
 - Ideal for libraries and CLI tools where forcing test dependencies on consumers is rude.
-- Weaker ergonomics for TypeScript, and time/clock control is more manual — which matters
-  a great deal for a codebase whose hardest properties are time-dependent.
+- Weaker ergonomics for TypeScript. **Corrected 2026-09-06:** this record as first
+  written said clock control was "hand-rolled clock injection everywhere". That is
+  inaccurate — `node:test` has shipped `mock.timers.enable({apis:['Date'], now})` with
+  `setTime()`/`tick()` since Node 20, so the real gap is ergonomic, not a missing
+  capability.
 
 ### Option C — Jest
 
@@ -65,11 +68,14 @@ as the exact failure a humanless pipeline cannot survive.
 
 ## Rationale
 
-1. **Time control is the deciding capability.** Auto-promotion stopping at T-24h,
-   reminders at T-24h and T-3h, feedback at T+2h with one repeat at T+24h, `no_show` after
-   `ends_at` — a large share of this bot's logic is a function of the clock. Vitest's fake
-   timers make those testable directly. With `node:test` this is hand-rolled clock
-   injection everywhere, which is more code and more ways to be subtly wrong.
+1. **Time control is the deciding capability — but read the boundary below before
+   relying on it.** Auto-promotion stopping at T-24h, reminders at T-24h and T-3h,
+   feedback at T+2h with one repeat at T+24h, `no_show` after `ends_at` — a large share of
+   this bot's logic is a function of the clock. Vitest's `vi.useFakeTimers()`,
+   `vi.setSystemTime()` and `vi.advanceTimersByTime()` fake `Date` and the
+   `setTimeout`/`setInterval` families, which makes that logic testable directly.
+   `node:test` can do this too (see the correction above); Vitest's version is
+   substantially less ceremony, which under weak-model tolerance is worth real money.
 2. **`node:test`'s advantage doesn't apply.** Its strength is avoiding dependencies for
    *consumers of a published package*. Nothing here is published; it is a self-hosted
    application. The benefit is unrealized while the ergonomic cost is paid in full.
@@ -80,6 +86,33 @@ as the exact failure a humanless pipeline cannot survive.
    exits non-zero on failure give `TEST-RUNNER` real output to quote and
    `RELEASE-VALIDATOR` something to independently re-execute, rather than a checklist
    whose completion is self-reported.
+
+## ⛔ The boundary: fake timers do not reach Postgres
+
+**Raised by REQ-VALIDATOR at the step-03 gate, and load-bearing enough to be a rule rather
+than a footnote.** `vi.setSystemTime()` moves JavaScript's clock. It has no effect on the
+database's clock. A comparison written as SQL `now()` runs on Postgres time and is
+untouched by any fake timer.
+
+This interacts directly with `decisions/0005-orm-drizzle.md`, whose rationales 2 and 3
+actively push computation toward SQL — and PRD §5's computed-never-stored values
+(`no_show`, `registration_open`, waitlist position) are exactly the time-dependent ones.
+The two decisions pull in opposite directions here, and neither said so when written.
+
+**The rule, binding on DATA-DESIGNER and BACKEND-DEV from REQ-010 onward:** any predicate
+whose truth depends on the current time takes **the evaluation time as an explicit
+parameter** — passed in from the application, never read as SQL `now()` inside the query.
+Queries stay in SQL, as 0005 intends; the *clock* is injected, so a test can control it.
+
+Concretely: `WHERE ends_at < $1` with the application supplying `$1`, not
+`WHERE ends_at < now()`. Same SQL shape, same Drizzle idiom, and the property becomes
+testable. A query reading `now()`, `current_timestamp` or equivalent in a
+time-dependent predicate is a REVIEWER finding, because it is untestable by construction —
+and per `core-directives.md`, a property that cannot be checked under the conditions it is
+about has not been verified.
+
+This does not apply to audit/bookkeeping columns (`created_at`, `updated_at`, an
+`AuditLog` row's `at`) where a database default is correct and no test asserts on it.
 
 ## Consequence for the agent system
 
@@ -115,8 +148,17 @@ not a placeholder that asserts `true`. The first genuine test target is REQ-010'
 work; the skeleton's own testable surface is its environment-variable validation, which
 REQ-009 already requires to exit non-zero on a missing token.
 
+## Correction history
+
+**2026-09-06** — two amendments after REQ-VALIDATOR's independent check
+(`handoffs/WF01-EVENTS-BOT-SPEC/step-03-req-validator-recheck.json`): the `node:test`
+option was mischaracterized as lacking clock control and is corrected above, and the
+fake-timers/Postgres boundary was missing entirely and is now a binding rule. The decision
+itself is unchanged — Vitest still wins on ergonomics and on covering both workspaces.
+
 ## Sources consulted
 
 - https://www.pkgpulse.com/guides/node-test-vs-vitest-vs-jest-native-test-runner-2026
 - https://www.rijanneupane.com.np/2026/08/nodetest-vs-vitest-vs-jest-in-2026.html
 - https://www.hirenodejs.com/blog/nodejs-testing-jest-vitest-2026
+- https://vitest.dev/api/vi.html (fake-timer API, consulted at the 2026-09-06 correction)

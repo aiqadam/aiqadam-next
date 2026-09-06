@@ -45,6 +45,10 @@ A design artefact under `docs/agents/design/` covering, for the entities in scop
   seats taken, `registration_open`, `finished`, or the speaker lineup contradicts the
   spec. If you believe one genuinely must be stored, that is a decision record to be
   written and gated — not a design you may simply produce.
+- **Time-dependent predicates take the clock as an explicit parameter**, never SQL
+  `now()` inside the query. This is a design-time rule, not just an implementation one:
+  if you specify a view or query for `no_show`, `registration_open`, or waitlist
+  position, specify it as taking the evaluation time as input. See `decisions/0006`.
 - **One word per concept.** The actor leaves → `withdrawn`; the organizer refuses →
   `rejected`; the whole event is called off → `cancelled`. Do not introduce a synonym.
 

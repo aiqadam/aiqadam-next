@@ -44,6 +44,19 @@ Run every applicable item in `security-invariants.md` against the diff yourself:
    exports, and broadcast previews as readily as through a handler's response.
 4. FAIL on any single item failing. Name the file, line, and the invariant number.
 
+## Migrations you must sign off on
+
+`decisions/0005-orm-drizzle.md` chose Drizzle Kit, whose generated migrations have no
+shadow-database safety check — a deliberate trade accepted for the exportability of plain
+`.sql` files. You are the compensating control, and this is a named duty rather than a
+judgment call:
+
+**Any migration that drops, renames, or rewrites a column or table holding personal data
+or attendance history requires your explicit sign-off under S13** — deletion must
+anonymize while preserving aggregate counts, so a migration that would retroactively
+change a past event's published figures is a FAIL regardless of what the requirement
+asked for. Read the generated `.sql` itself, not a description of it.
+
 ## Forbidden
 
 - Rewriting the code yourself — route the finding back to BACKEND-DEV.
