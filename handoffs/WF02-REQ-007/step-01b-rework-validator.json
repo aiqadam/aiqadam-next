@@ -8,8 +8,8 @@
   "file": "handoffs/WF02-REQ-007/step-01b-rework-validator.json",
   "created_at": "2026-09-06T07:07:20Z",
   "started_at": "2026-09-06T07:07:20Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-09-06T07:08:06Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-007"],
@@ -34,10 +34,13 @@
     ]
   },
   "result": {
-    "status": null,
-    "summary": null,
+    "status": "PASS",
+    "summary": "Re-read docs/agents/design/REQ-007.md directly (not CODE-DESIGNER's result.summary) and diffed it against the pre-rework version (`git diff a8b04bd 0951e45 -- docs/agents/design/REQ-007.md`). AC3 BLOCKER: new §5a 'Post-move runtime verification (locale routing + /health)' names both moving runtime elements by exact path -- `src/app/[locale]/...` (including `layout.tsx`, which sets `<html lang={locale}>` dynamically per REQ-005's findings) and `src/app/health/route.ts` (cited to decision 0003's 'current state' section) -- and states them as part of the existing §2 row-1 src/ move, not a new/undocumented move. It then states the exact post-move verification procedure as a 4-step numbered list: `npm run build && npm run start` from repo root; request all four locale routes and confirm `<html lang>` matches each segment; confirm no missing-translation-key errors/fallback warnings across all four; request /health and confirm HTTP 200 -- explicitly citing this as the same method REQ-005 already established, matching REQ-007 AC3's exact wording in requirements.yaml (lines 441-486). This closes the BLOCKER: the gap was zero coverage of post-move runtime serving, and §5a now states it as a concrete, named verification point rather than left to FRONTEND-DEV to infer. AC4 MINOR: the extended §7 content-shape line now names message-catalog key-set identity as its own explicit verification point -- 'apps/web/messages/ must contain exactly the four catalogs ru.json, uz.json, en.json, kk.json with identical key sets, re-verified by the same key-set diff script REQ-005's acceptance criteria used ... proving the move itself lost no catalog content, distinct from the runtime check in §5a' -- no longer merely implicit under 'moves unchanged'. This closes the MINOR. Scope check: the diff shows exactly three changes and nothing else -- (1) new §5a inserted between §5 and §6, (2) §7's content-shape bullet extended with the key-set-identity sentence, (3) §8's mapping table row updated to point each of the 5 ACs at its specific section (previously AC3/AC4 were silently unmapped). No other section, table row, or sentence in the artefact was touched. Re-confirmed no implementation code was introduced by the rework (§5a and the §7 addition are prose/numbered-list only, no JSON/TS code blocks) and no design-token/color/spacing reference appears anywhere in the new text (this remains a structural, non-UI requirement, correctly N/A as before -- nothing to resolve against docs/Design system for AI agents/tokens/tokens.css). All 5 ACs now have a named section in §8's mapping table. Out-of-scope boundary (§6, unchanged by this rework) remains unambiguous. Gate PASSES.",
     "artifacts_out": [],
     "issues": [],
-    "next_action": null
-  }
+    "next_action": "Route to FRONTEND-DEV (Step 2)"
+  },
+  "gate_history": [
+    {"iteration": 0, "gated_at": "2026-09-06T07:04:28Z", "status": "FAIL", "summary": "AC3 had zero design coverage for post-move locale/health runtime verification; AC4's message-catalog key-set identity was only weakly/implicitly covered.", "issues": ["BLOCKER: AC3 no design element for post-move runtime serving verification", "MINOR: AC4 key-set identity not named as its own explicit verification point"], "next_action": "Rework CODE-DESIGNER -- add concrete design element for AC3, tighten AC4 coverage. Rework iteration 1 of 3."}
+  ]
 }
