@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-01-data-designer",
+  "run_id": "WF02-REQ-010",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "DATA-DESIGNER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Wrote docs/agents/design/REQ-010.md for chapters/users/profiles. tg_id nullable+unique correctly explained via Postgres's default NULL-distinct unique-index behavior. Three consents in exact PRD homes, never conflated. UUID PKs + timestamps on all three. profiles nullability matches AC3's minimal-insert set exactly. Explicit no-column table for the 5 computed values. Explicit tg_id-never-a-business-key sentence for AC6. FK cascade recommended RESTRICT (not CASCADE) per S13, actual anonymization routine correctly deferred. Open questions: chapters.code uniqueness, chapters.active gap (needed by REQ-014), anonymization mechanism, users.role default.",
+    "artifacts_out": ["docs/agents/design/REQ-010.md"],
+    "next_action": "Route to CODE-DESIGN-VALIDATOR (Step 1b)"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-06-doc-updater",
+  "run_id": "WF02-REQ-010",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "ORCH",
+  "to_agent": "DOC-UPDATER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Flipped REQ-010 status in_progress -> done, appended a done event summarizing the schema/migration and the clean no-rework run. README.md correctly left untouched (already documents apps/bot as Drizzle+Postgres; this run is the concrete realization, not a doc-worthy behavior change). ORCH's independent verification caught one factual error in the done-event note (misdescribed tg_id's unique index as partial/filtered when it's actually a plain unique index) and appended a correction event per the append-only rule rather than rewriting the original entry.",
+    "artifacts_out": ["docs/agents/requirements.yaml", "docs/status/requirement_status.yaml"],
+    "next_action": "Route to FRONTEND-DEV for Step Final (git merge)"
+  }
+}

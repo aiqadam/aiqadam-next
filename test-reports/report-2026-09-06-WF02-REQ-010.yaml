@@ -1,0 +1,137 @@
+run_id: WF02-REQ-010
+date: 2026-09-06T11:10:00Z
+branch: feature/WF02-REQ-010
+head_sha: 871fbac50794b1f391a91b308cca96c0d3078cb4
+
+local_checks:
+  lint: pass
+  lint_notes: >
+    npm run lint (apps/web -w apps/bot). 0 errors, 2 pre-existing warnings in
+    apps/web/src/components/landing/Footer.tsx:11 and Nav.tsx:10
+    (@next/next/no-img-element) -- unrelated to this branch's scope (no files in
+    apps/web touched by this diff). apps/bot lint: clean, no output.
+  build: pass
+  build_notes: >
+    npm run build (apps/web -w apps/bot). apps/web: Next.js 16.3.2 Turbopack build
+    compiled successfully, TypeScript finished in 1063ms, static pages generated
+    (4/4). apps/bot: tsc -p tsconfig.json completed with no errors/output.
+  test: pass
+  test_notes: >
+    npm test (vitest run). 1 test file, 5 tests, all passed. Duration 139ms.
+
+verification_spec: docs/agents/test-specs/REQ-010.md
+verification_environment: >
+  Scratch container req010-pg-verify (postgres:16-alpine), port 55432, database
+  "verify". Started, waited for pg_isready, applied apps/bot/drizzle/0000_tough_lilith.sql,
+  ran all AC steps, then torn down with `docker rm -f req010-pg-verify` (confirmed
+  removed).
+
+migration_apply:
+  result: pass
+  actual_output: |
+    CREATE TABLE
+    CREATE TABLE
+    CREATE TABLE
+    ALTER TABLE
+    ALTER TABLE
+    CREATE INDEX
+    CREATE INDEX
+    CREATE INDEX
+  notes: >
+    Spec's "Expected" section listed the last three lines as "CREATE UNIQUE INDEX".
+    Actual psql command-tag output is "CREATE INDEX" for all three -- this is
+    correct, unmodified Postgres behavior: the command tag for a `CREATE UNIQUE
+    INDEX` statement is always "CREATE INDEX" (Postgres does not emit a distinct
+    tag for the UNIQUE modifier). Verified substance directly: grepped the applied
+    migration file and confirmed all three statements are literally
+    "CREATE UNIQUE INDEX ..." (chapters_code_unique, profiles_user_id_unique,
+    users_tg_id_unique). This matches the spec's own documented caveat ("if actual
+    output differs in shape (not substance) ... that is expected tool-version
+    drift, not a spec defect") -- treated as pass, not a discrepancy.
+
+cases:
+  - acceptance_criterion: AC1
+    description: UUID primary keys and created/updated timestamps on all three tables
+    result: pass
+    notes: >
+      \d+ chapters / users / profiles all show id (uuid, not null, default
+      gen_random_uuid(), "<table>_pkey" PRIMARY KEY btree(id)), created_at
+      (timestamp with time zone, not null, default now()), and updated_at (same)
+      exactly as specified.
+
+  - acceptance_criterion: AC2
+    description: users.tg_id is nullable AND unique
+    result: pass
+    notes: >
+      Two INSERT INTO users (tg_id) VALUES (NULL) both returned "INSERT 0 1" (no
+      collision between the two NULLs). First INSERT ... (123456789) returned
+      "INSERT 0 1". Second INSERT ... (123456789) failed with exactly:
+      "ERROR:  duplicate key value violates unique constraint "users_tg_id_unique""
+      / "DETAIL:  Key (tg_id)=(123456789) already exists." -- matches spec verbatim.
+
+  - acceptance_criterion: AC3
+    description: profiles' optional columns are nullable at the database level
+    result: pass
+    notes: >
+      INSERT supplying only first_name, last_name, company, position, is_student,
+      experience_level (plus user_id FK) returned "INSERT 0 1" -- no NOT NULL
+      violation on any omitted column. Follow-up SELECT of phone, email,
+      public_bio, photo_file_id, links_github, links_linkedin, links_site returned
+      exactly one row with all 7 fields blank/NULL.
+
+  - acceptance_criterion: AC4
+    description: >
+      Three consent columns (users.consent_pd_at, users.broadcast_opt_in,
+      profiles.publish_consent) exist, broadcast_opt_in/publish_consent DEFAULT FALSE
+    result: pass
+    notes: >
+      INSERT INTO users (tg_id) VALUES (999999999) RETURNING broadcast_opt_in,
+      consent_pd_at -> broadcast_opt_in = f, consent_pd_at = NULL (empty), neither
+      column was named in the INSERT. SELECT publish_consent FROM profiles WHERE
+      first_name = 'Test' -> f, also never named in its INSERT.
+
+  - acceptance_criterion: AC5
+    description: No column exists for a PRD 5 computed-never-stored value
+    result: pass
+    notes: >
+      grep -inE "no_show|waitlist_position|seats_taken|registration_open|finished"
+      apps/bot/drizzle/0000_tough_lilith.sql produced no output and exited 1 (no
+      match), as required.
+
+  - acceptance_criterion: AC6
+    description: Design artefact states tg_id is never a business key
+    result: pass
+    notes: >
+      docs/agents/design/REQ-010.md:158 reads verbatim "**`tg_id` is never a
+      business key; every later lookup resolves to `User.id`.**" under heading
+      "5.1 `tg_id` is never a business key" (line 156). Both greps matched, inside
+      the section explicitly about tg_id, unambiguous (not hedged).
+
+ci_evidence:
+  workflow: ci-cd
+  run_id: 34029131414
+  run_url: https://github.com/aiqadam/aiqadam-next/actions/runs/34029131414
+  head_sha: 871fbac50794b1f391a91b308cca96c0d3078cb4
+  triggering_commit: "test(REQ-010): write verification spec for Chapter/User/Profile migration [WF02-REQ-010]"
+  overall_conclusion: success
+  job_steps:
+    - name: Install dependencies
+      conclusion: success
+    - name: Lint
+      conclusion: success
+    - name: Test
+      conclusion: success
+    - name: Build
+      conclusion: success
+    - name: Build Docker image (verification only, not pushed)
+      conclusion: success
+  notes: >
+    Confirmed via `gh run watch 34029131414 --exit-status` (run was in_progress at
+    check time, watched synchronously to completion -- success) and
+    `gh run view 34029131414 --json jobs`. All 5 relevant steps green for this
+    branch's actual HEAD commit (871fbac), not a stale prior commit on the branch.
+    Branch was already pushed and up to date (`git push` reported "Everything
+    up-to-date").
+
+overall_result: PASS
+routing_decision: Route to RELEASE-VALIDATOR
