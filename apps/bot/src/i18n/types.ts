@@ -105,4 +105,35 @@ export interface Catalog {
     cardWaitlistOpen: string;
     cardCta: string;
   };
+  // NEW, REQ-018: EventStaff assign/remove by organizers (design §5).
+  // `notAuthorized` is a single generic refusal string covering both the
+  // organizer-only assign/remove gate's own refusal shape (checkOrganizerForChapter's
+  // pre-existing string set is separate; this key is used by staff.ts's own
+  // reply composition per the design). Placeholder/minimal functional copy
+  // per decisions/0002 (CONTENT-BA owns final wording).
+  staff: {
+    notAuthorized: string;
+    usageNoArgs: string;
+    eventNotFound: string;
+    userNotFound: string;
+    alreadyAssigned: string;
+    notAssigned: string;
+    addSuccessPrefix: string;
+    removeSuccessPrefix: string;
+    notificationFailedNote: string;
+    // Sent to the VOLUNTEER, never to the organizer. Interpolated with the
+    // event title.
+    assignmentNotificationBody: string;
+    // Sent to the VOLUNTEER on removal. Interpolated with the event title.
+    removalNotificationBody: string;
+  };
+  // NEW, REQ-018: /checkin <event_id> — authorization-only stub (design §0.3,
+  // §4.3). Performs no check-in business logic; REQ-028/029's scope.
+  checkin: {
+    usageNoId: string;
+    notFound: string;
+    notAuthorized: string;
+    // Interpolated with the event title.
+    authorizedStub: string;
+  };
 }

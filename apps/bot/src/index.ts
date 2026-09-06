@@ -23,6 +23,8 @@ import {
   makeEventPublishHandler,
   makeEventsListHandler,
 } from "./handlers/event.js";
+import { makeStaffAddHandler, makeStaffRemoveHandler } from "./handlers/staff.js";
+import { makeCheckInHandler } from "./handlers/checkin.js";
 
 let config: BotConfig;
 
@@ -81,5 +83,13 @@ bot.command("event_cancel", makeEventCancelHandler(db));
 // REQ-017: /events — public, chapter-scoped upcoming-events list. Any
 // member may run it (not organizer-gated, same precedent as /venues).
 bot.command("events", makeEventsListHandler(db));
+
+// REQ-018: organizer-only EventStaff assign/remove (chapter-scoped, reuses
+// requireOrganizerForChapter unchanged), and the staff-only /checkin
+// authorization-only stub gate (domain/eventStaffAuthorization.ts — a
+// genuinely different predicate, no role short-circuit).
+bot.command("staff_add", makeStaffAddHandler(db));
+bot.command("staff_remove", makeStaffRemoveHandler(db));
+bot.command("checkin", makeCheckInHandler(db));
 
 bot.start();

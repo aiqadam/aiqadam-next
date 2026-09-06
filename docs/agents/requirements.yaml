@@ -983,7 +983,7 @@ requirements:
   - id: REQ-018
     title: EventStaff assignment by organizers and the staff-only check-in surface gate
     owner: BACKEND-DEV
-    status: pending
+    status: done
     description: >
       Implements USER-STORIES F7 (Put volunteers on the door) and F8 (Know I'm on the
       door), plus PRD 3's EventStaff definition. Placed here — after events exist,

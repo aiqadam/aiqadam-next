@@ -1,0 +1,53 @@
+{
+  "handoff_id": "step-02-backend-dev",
+  "run_id": "WF02-REQ-018",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "ORCH",
+  "to_agent": "REVIEWER",
+  "status": "COMPLETED",
+  "context": {
+    "related_handoff_ids": ["step-01b-design-validator"]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Implemented docs/agents/design/REQ-018.md exactly as designed, no deviations from its structure/signatures. New files: apps/bot/src/domain/eventStaff.ts (parseStaffCommandArgs, getEventStaffRow, addEventStaff, removeEventStaff -- one INSERT/DELETE + one writeAuditLog per mutation, one db.transaction each, mirroring createVenue/deleteVenue's shape exactly), apps/bot/src/domain/eventStaffAuthorization.ts (ActingUser/resolveActingUser parallel copy per design 3.1; checkEventStaffAuthorization's 4-step predicate -- no-user / not-staff-for-event / event-ended / ok -- with NO role short-circuit at any step, reusing isFinished from domain/event.ts unchanged; requireEventStaffForEvent composed entry point), apps/bot/src/handlers/staff.ts (/staff_add, /staff_remove -- organizer-only via requireOrganizerForChapter reused unchanged, target lookup via new getUserByTgUsername, F8 notification sent synchronously via ctx.api.sendMessage in the target's own resolved language, failure caught and does not roll back the already-committed assignment), apps/bot/src/handlers/checkin.ts (/checkin <event_id> -- authorization-only stub per design 0.3: calls requireEventStaffForEvent and acknowledges or refuses, touches no qr_token/registrations/AuditLog). Modified: apps/bot/src/domain/user.ts (+getUserByTgUsername, exact-match SELECT, defensively typed nullable tgId per design 2.2/6.3's open question), apps/bot/src/i18n/{types,ru,en}.ts (+staff.*, +checkin.* catalog keys, placeholder copy per decisions/0002), apps/bot/src/index.ts (registers /staff_add, /staff_remove, /checkin). New unit tests: apps/bot/src/domain/eventStaff.test.ts (parseStaffCommandArgs, 5 cases), apps/bot/src/domain/eventStaffAuthorization.test.ts (checkEventStaffAuthorization, 7 cases including the explicit 'role never inspected' case and the exactly-at-endsAt boundary). No schema change, per design section 1. AC verification (live, real Postgres via apps/bot/docker-compose.yml, migrated with drizzle-kit; real grammy.Bot with dummy token + manual botInfo skipping getMe(), bot.api.config.use() intercepting outbound sendMessage calls, bot.handleUpdate() dispatching synthetic Update objects through the bot's real command/handler routing and real Context construction -- the same method REVIEWER demonstrated for REQ-013's rework, not a hand-built Context stub): seeded one chapter, one organizer (tgId 9001, role=organizer), one target user (tgId 9002, role=member, tgUsername=staffuser_req018), event A (future endsAt, published), event B (future endsAt, published, distinct from A), event C (already-ended endsAt, published). AC1: staff assigned to event A only; /checkin <eventB> from tgId 9002 replied the exact generic refusal string 'You are not authorized to check people in for this event.' (captured payload logged); /checkin <eventA> from the same user was authorized (sanity control) -- confirms the refusal is event-specific, not a general auth failure, and the stub records nothing on either path (no DB write in checkin.ts at all). AC2: same tgId 9002 (role never touched by addEventStaff -- confirmed by design and by DB: role stayed 'member' throughout) invoking /venue_new and /event_publish both replied the existing organizer-only refusal 'You are not authorized to do this.' on each, unchanged code path (checkOrganizerForChapter). The third named surface (registration list) does not exist in this codebase -- flagged by CODE-DESIGN-VALIDATOR as a MINOR pre-existing gap in AC2's own wording (step-01b's issues array), not something this implementation can create without inventing an out-of-scope handler; not re-raised here as a new issue, carried forward as-is for REVIEWER's awareness. AC3: staff assigned to event C (endsAt already in the past relative to real wall-clock time); /checkin <eventC> from tgId 9002 replied the same generic refusal string -- confirmed via isFinished(eventEndsAt, evaluationTime) with evaluationTime=new Date() supplied by the handler, not a SQL now() (decisions/0006 compliance verified by reading checkin.ts and eventStaffAuthorization.ts). AC4: /staff_add <eventA> replied to the organizer (tgId 9001) and ALSO sent a direct sendMessage to the target (tgId 9002, chat_id 9002) with text naming the event title ('Event A (staff assigned, future)') and stating the door role/procedure (matched /door|check-in|check in/i) -- captured payload logged verbatim. /staff_remove <eventA> likewise sent a distinct removal notification to tgId 9002 naming the event and stating access ended -- captured payload logged verbatim. AC5: audit_log row count for action='event_staff.add' measured before (0) and after (1) the /staff_add call -- exactly one row. Same check for action='event_staff.remove' before (0) and after (1) the /staff_remove call -- exactly one row. AC6: `git grep -n -i \"speaker\" -- apps/bot/src` returned no matches (exit 1) -- no permission check or any other code in apps/bot/src reads a speaker flag. Sanity checks also verified live: after removal, /checkin <eventA> from tgId 9002 is immediately refused again (no cached permission -- the row genuinely no longer exists), and a direct SELECT on event_staff confirms the hard DELETE removed the row (0 rows remaining for that (eventId,userId) pair). Scratch verification script (apps/bot/scratch-verify-req018.ts) deleted after use; docker compose stack torn down (docker compose down -v); git status confirmed no stray files. Commands run from repo root, exit 0 each, real output: npm run lint (0 errors, 2 pre-existing apps/web warnings unrelated to this diff), npm run build (both workspaces, tsc clean), npx vitest run (10 test files, 114 tests passed, up from a measured baseline of 8 files/102 tests via `git stash -u` before this change -- net +2 files/+12 tests, all in the new eventStaff.test.ts/eventStaffAuthorization.test.ts files, no regressions).",
+    "evidence": {
+      "commands": [
+        "npm run lint (repo root) -> exit 0, 0 errors",
+        "npm run build (repo root) -> exit 0, both workspaces",
+        "npx vitest run (repo root) -> 10 files / 114 tests passed; baseline via git stash -u was 8 files / 102 tests",
+        "git grep -n -i \"speaker\" -- apps/bot/src -> no matches (AC6)",
+        "docker compose (apps/bot/docker-compose.yml) up, drizzle-kit migrate, scratch script run via npx tsx, docker compose down -v -- all AC1-AC5 evidence captured live against real Postgres and real grammy dispatch"
+      ],
+      "ac_results": {
+        "AC1": "PASS -- staff for event A invoking event B's /checkin refused with the generic message; sanity control confirms same user IS authorized for event A",
+        "AC2": "PASS for the two existing organizer-only handlers (/venue_new, /event_publish); third named surface (registration list) does not exist in this codebase -- pre-existing MINOR gap already flagged by CODE-DESIGN-VALIDATOR at step-01b, not newly introduced",
+        "AC3": "PASS -- staff for an already-ended event refused with the generic message, using isFinished(endsAt, evaluationTime) with evaluationTime supplied by the handler",
+        "AC4": "PASS -- both assignment and removal send a distinct sendMessage to the target naming the event and role/procedure, captured verbatim",
+        "AC5": "PASS -- exactly one audit_log row for event_staff.add and exactly one for event_staff.remove, counted before/after",
+        "AC6": "PASS -- git grep finds no speaker reference anywhere in apps/bot/src"
+      }
+    },
+    "artifacts_out": [
+      "apps/bot/src/domain/eventStaff.ts",
+      "apps/bot/src/domain/eventStaff.test.ts",
+      "apps/bot/src/domain/eventStaffAuthorization.ts",
+      "apps/bot/src/domain/eventStaffAuthorization.test.ts",
+      "apps/bot/src/handlers/staff.ts",
+      "apps/bot/src/handlers/checkin.ts",
+      "apps/bot/src/domain/user.ts",
+      "apps/bot/src/i18n/types.ts",
+      "apps/bot/src/i18n/ru.ts",
+      "apps/bot/src/i18n/en.ts",
+      "apps/bot/src/index.ts"
+    ],
+    "issues": [
+      {
+        "severity": "MINOR",
+        "description": "Carried forward from step-01b-design-validator, not newly found: AC2 names 'registration list' as a third organizer-only surface, but no such handler exists anywhere in this codebase. AC2 was verified against the two surfaces that do exist (/venue_new, /event_publish); the third cannot be exercised until a future requirement builds it. No action taken here beyond re-confirming the gap still exists (git grep unchanged) -- REQ-ANALYST's amendment recommendation from step-01b still stands."
+      }
+    ],
+    "next_action": "Route to REVIEWER (Step 2b)"
+  }
+}

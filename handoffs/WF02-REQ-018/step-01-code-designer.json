@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-01-code-designer",
+  "run_id": "WF02-REQ-018",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Wrote docs/agents/design/REQ-018.md: EventStaff assignment (/staff_add, /staff_remove, organizer-only, chapter-scoped via the existing requireOrganizerForChapter -- no new module for that half) and a new domain/eventStaffAuthorization.ts gate for a minimal /checkin authorization-only stub. No schema change -- event_staff already exists (id/event_id/user_id/created_at/updated_at, unique on event_id+user_id); removal is a hard DELETE mirroring domain/venue.ts's deleteVenue precedent, with audit_log carrying the historical record (S8) rather than a new revoked_at column, since 'rights expire' is answered by comparing evaluationTime against the event's own ends_at (reusing REQ-017's isFinished), not by a status column on the staff row. The check-in gate (checkEventStaffAuthorization) has no role short-circuit: existence of an event_staff row for the exact (event_id, user_id) pair, plus not-yet-ended, are the only two conditions -- an organizer/owner gets no check-in rights from role alone, which is also why assignment never touches users.role (so every existing organizer-only handler already refuses an EventStaff-only user with no code change). Assignment/removal each send a direct synchronous notification (ctx.api.sendMessage) to the target in the target's own resolved language, reasoned explicitly as not needing REQ-025's not-yet-built idempotent ledger since a single request-scoped API call has no restart/retry path to duplicate. The check-in stub's entire job is authorize-and-acknowledge -- explicitly no qr_token, no registrations read/write, no S5/S6 logic, flagged as REQ-028/029's scope. Six open questions named (S5 audit-on-refusal left to REQ-028/029; username case-folding; tg_username has no unique index; whether the notification later joins REQ-025's ledger; AC2's third named surface -- registration list -- has no handler anywhere in this codebase yet so cannot be exercised until a future requirement builds one). All 6 acceptance criteria mapped to concrete design elements in section 7. No implementation code anywhere -- every function is a bare signature ending in ';' with behavior stated as prose/tables, including the notification-send and audit-write sequences.",
+    "artifacts_out": ["docs/agents/design/REQ-018.md"],
+    "next_action": "Route to CODE-DESIGN-VALIDATOR (Step 1b)"
+  }
+}

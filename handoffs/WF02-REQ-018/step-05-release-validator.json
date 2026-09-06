@@ -1,0 +1,22 @@
+{
+  "handoff_id": "step-05-release-validator",
+  "run_id": "WF02-REQ-018",
+  "workflow_id": "WF-02",
+  "step": "05",
+  "from_agent": "ORCH",
+  "to_agent": "DOC-UPDATER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Independently re-ran the full gate on branch feature/WF02-REQ-018 (commit 5cbe0f5, working tree clean before and after). npm run lint: 0 errors (2 pre-existing @next/next/no-img-element warnings in apps/web/src/components/landing/Footer.tsx and Nav.tsx, unrelated to this diff, not touched by it). npm run build: pass, both apps/web (next build, Turbopack) and apps/bot (tsc -p tsconfig.json), zero type errors. npx vitest run (apps/bot): 20 files, 236 tests, all passed, exit 0 -- matches TEST-RUNNER's Step 4 count exactly, re-run fresh rather than trusted from the report. Read docs/agents/design/REQ-018.md in full (AC1-AC6 plus the AC7 security addition, §0.1-0.5 scope boundaries) and handoffs/WF02-REQ-018/step-04-test-runner.json plus test-reports/report-2026-09-07-WF02-REQ-018.yaml, then independently re-verified rather than trusting either: (1) AC1 -- re-ran `npx vitest run src/domain/eventStaffAuthorization.test.ts -t \"AC1's negative case\"` myself: 1 passed | 10 skipped, exit 0; read the test body (an owner with a null staffRow for the event actually being checked refuses not-staff-for-event regardless of role) and confirmed it matches checkEventStaffAuthorization's implementation (apps/bot/src/domain/eventStaffAuthorization.ts lines 66-82) line-for-line against design §3.2's four-step table. (2) AC7 -- re-ran `npx vitest run src/domain/eventStaffAuthorization.test.ts -t \"buildCheckinRefusalAudit\"` myself: 4 passed | 7 skipped, exit 0; read buildCheckinRefusalAudit and requireEventStaffForEvent (eventStaffAuthorization.ts lines 102-147) directly and confirmed the audit write is unconditional on every `!result.ok` branch (all three refusal reasons: no-user, not-staff-for-event, event-ended) inside one composed entry point, with zero write on the ok=true branch -- the security-critical property holds structurally, not just in the test report's narration. (3) AC6 -- ran my own `git grep -n \"speaker\" apps/bot/src`: zero matches; separately grepped qr_token/registrations against the four staff/checkin files (handlers/checkin.ts, handlers/staff.ts, domain/eventStaff.ts, domain/eventStaffAuthorization.ts): the only hit is a doc comment in checkin.ts stating what it does NOT do -- no actual read/write of either table anywhere in the check-in stub, confirming the REQ-028/029 scope boundary (design §0.3) is genuinely respected, not just claimed. Also independently read handlers/staff.ts and domain/eventStaff.ts in full and confirmed both match design §2/§4.1/§4.2 exactly (parseStaffCommandArgs token rule, getEventStaffRow existence check, addEventStaff/removeEventStaff's one-transaction-one-audit-row shape, notification-failure non-rollback behavior). Confirmed scope completeness: git status --porcelain empty; git diff master...HEAD -- apps/bot/src/db empty (no schema change, matching design §1's no-schema-change decision); all six design-doc-listed files present (domain/eventStaff.ts, domain/eventStaffAuthorization.ts, handlers/staff.ts, handlers/checkin.ts, i18n/types.ts+ru.ts+en.ts, index.ts) with staff_add/staff_remove/checkin all registered at index.ts lines 91-93 and reachable; grepped TODO/FIXME across the four new/changed files: zero. i18n parity independently re-verified by direct read of types.ts (lines 114-138): staff block has exactly 11 keys, checkin block exactly 4 -- both counts matched byte-for-byte against en.ts's block. No half-implementation found anywhere in scope.",
+    "next_action": "Route to DOC-UPDATER (Step 6)"
+  },
+  "issues_filed": [
+    {
+      "id": "ISS-0012",
+      "title": "REQ-018 test-spec miscounts staff.* i18n keys as 9 when the catalog actually defines 11",
+      "severity": "MINOR",
+      "reasoning": "TEST-DESIGN-VALIDATOR's flagged miscount is a spec-text-only defect (the real catalog has 11 keys, correctly counted by TEST-RUNNER's actual Step 4 execution, so it never produced a false PASS) but it is a permanent, citable artifact (docs/agents/test-specs/REQ-018.md) that a future reader could trust over re-counting the catalog themselves -- same category and precedent as ISS-0011 (REQ-017's three test-spec precision issues), so tracked the same way rather than left undocumented."
+    }
+  ]
+}

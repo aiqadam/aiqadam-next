@@ -105,6 +105,41 @@ export async function getFlowUserByTgId(
   return rows[0] ?? null;
 }
 
+// REQ-018 §2.2 — resolve a user by their tg_username. General user-lookup
+// concern, not staff-specific (same reasoning that keeps getFlowUserByTgId/
+// getUserWithChapterByTgId here rather than in a feature handler).
+//
+// Open question (design §6.3, not silently assumed): users.tg_username has
+// no unique index (schema.ts — only tg_id is uniquely indexed). If two rows
+// somehow share the same tg_username, this query returns whichever row the
+// database happens to return first for an unordered LIMIT 1 — not a
+// specified "most recent" or "first ever" row. Not exercised by any
+// acceptance criterion.
+//
+// tgId is typed nullable even though every row reaching this lookup today
+// was created by resolveOrCreateUser (which always sets tgId and tgUsername
+// together) — typed nullable anyway because the column itself is nullable
+// (schema.ts: "nullable so an organizer can pre-create a User row before the
+// person's first /start") and no future requirement should be able to
+// violate this design's safety by assuming otherwise.
+export interface UserWithTelegram {
+  id: string;
+  tgId: bigint | null;
+  tgUsername: string | null;
+}
+
+export async function getUserByTgUsername(
+  db: DbClient["db"],
+  tgUsername: string,
+): Promise<UserWithTelegram | null> {
+  const rows = await db
+    .select({ id: users.id, tgId: users.tgId, tgUsername: users.tgUsername })
+    .from(users)
+    .where(eq(users.tgUsername, tgUsername))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 export async function getUserWithChapterByTgId(
   db: DbClient["db"],
   tgId: bigint,

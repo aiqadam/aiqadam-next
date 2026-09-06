@@ -1,0 +1,25 @@
+id: ISS-0012
+title: REQ-018 test-spec miscounts staff.* i18n keys as 9 when the catalog actually defines 11
+discovered_by: TEST-DESIGN-VALIDATOR
+discovered_in_run: WF02-REQ-018
+discovered_at: "2026-09-07T02:10:00Z"
+severity: MINOR
+description: >
+  Flagged by TEST-DESIGN-VALIDATOR during Step 3b and independently confirmed
+  by RELEASE-VALIDATOR at Step 5. Does not affect the correctness of the
+  shipped implementation -- AC-catalog PASSES on substance: the actual
+  types.ts `staff` block has exactly 11 keys (notAuthorized, usageNoArgs,
+  eventNotFound, userNotFound, alreadyAssigned, notAssigned, addSuccessPrefix,
+  removeSuccessPrefix, notificationFailedNote, assignmentNotificationBody,
+  removalNotificationBody), and both ru.ts/en.ts carry the identical set,
+  independently re-verified by direct read at Step 5. docs/agents/test-specs/
+  REQ-018.md's AC-catalog case text states "9 keys" for the `staff` block,
+  which undercounts the real key list by 2. TEST-RUNNER's Step 4 execution
+  correctly counted and asserted 11 in its report, so the mismatch never
+  propagated into a false PASS -- it is a spec-text precision defect only,
+  left for TEST-DESIGNER to correct in a future pass so the written spec and
+  the catalog stay in sync for any later reader who trusts the spec's number
+  over its own re-count.
+affected_files:
+  - docs/agents/test-specs/REQ-018.md
+status: open
