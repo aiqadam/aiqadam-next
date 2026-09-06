@@ -667,7 +667,15 @@ requirements:
         capacity - requires_invite - requires_approval -
         status(draft|published|cancelled) - cover_file_id - agenda[] (NON-TALK items
         only — doors, networking, close; the talk lineup is never duplicated here,
-        PRD 5).
+        PRD 5). Each agenda item carries at minimum a TIME and a LABEL, and the shape
+        must make a DOORS item identifiable programmatically — REQ-026 reads the doors
+        time out of agenda[] for the T-3h reminder, and PRD 5 forbids a separate
+        doors_at column, so agenda[] is the only place that information can live. A
+        free-text-only agenda that cannot be queried for "the doors item" fails this,
+        because it would leave REQ-026 unimplementable without the field PRD 5 forbids.
+        Whether that identification is a typed kind/enum, a reserved label, or something
+        else is DATA-DESIGNER's call at design time; that it is possible at all is not
+        optional.
       - Registration: event_id - user_id - admission(requested|waitlisted|admitted|
         rejected|withdrawn) - checked_in_at - checked_in_by - check_in_method(qr|manual)
         - reconfirmed_at - invited_by_user_id - source - invite_code_id -
@@ -700,6 +708,7 @@ requirements:
       - "registrations.qr_token is UNIQUE and nullable, verified by inserting two registrations with NULL qr_token (both succeed) and two with the same non-null token (second fails)."
       - "The registrations.admission enum/check accepts exactly the five PRD 6 values (requested, waitlisted, admitted, rejected, withdrawn) and rejects a sixth — verified by attempting an insert with admission='checked_in' and confirming it fails, proving attendance was not modelled as an admission state (PRD 6)."
       - "No column named no_show, waitlist_position, seats_taken, registration_open or finished exists in any table created by this migration, verified by grepping the migration for each name (PRD 5 computed-never-stored); the stored column no_show_reason is present and is explicitly distinguished from the derived no_show in the design artefact."
+      - "An agenda[] item's shape supports identifying a doors item programmatically, demonstrated by storing an event whose agenda contains a doors item plus at least one non-doors item (networking or close) and retrieving specifically the doors item's time by query — with NO doors_at or equivalently-named column on the events table (grep the migration to confirm), since REQ-026 depends on this and PRD 5 forbids the column."
       - "The design artefact under docs/agents/design/ specifies the exact derivation expressions for no_show, waitlist position and seats_taken, and states that EventStaff grants rights for one event only (security-invariants.md S2) and that AuditLog.payload never carries plaintext phone or email (S11)."
     depends_on: [REQ-010]
 
@@ -1302,28 +1311,51 @@ requirements:
         one.
       - Both are transactional (PRD 9) and ignore broadcast_opt_in.
 
-      OPEN QUESTION RECORDED, NOT RESOLVED — DOORS-OPEN TIME. The spec's own README
-      lists this under "Open questions for Viktor": "the brochure says 19:30 doors /
-      20:00 start; the reminder currently quotes the start only." PRD 5 models a doors
-      item inside Event.agenda[] (a non-talk schedule item) but does not define a
-      doors_at field, and PRD FR-7 specifies the T-3h reminder's content as "address,
-      both map links, start time, QR code" — start time only. The two candidate
-      behaviours are: (a) quote Event.starts_at only, exactly as FR-7 literally states,
-      leaving doors information to the agenda on the event card; or (b) quote a doors
-      time as well, which requires either a new Event field or a convention for
-      extracting it from agenda[]. This requirement implements (a) — the literal FR-7
-      text — because it is what the authoritative PRD specifies, and because (b) would
-      mean inventing a data-model field the PRD does not define, which PRD's closing
-      rule forbids. The choice and the open question are recorded here per
-      core-directives.md's Zero Manual Work clause 1; when the product owner answers,
-      (b) is a small follow-up requirement, not a rework of this one.
+      DOORS-OPEN TIME — RESOLVED 2026-09-06, superseding this requirement's earlier
+      "recorded, not resolved" text. The spec's README lists this under "Open questions
+      for Viktor": "the brochure says 19:30 doors / 20:00 start; the reminder currently
+      quotes the start only." The earlier draft of this requirement framed the options
+      as (a) quote starts_at only, or (b) add a doors_at field, and chose (a) on the
+      grounds that (b) would mean inventing a data-model field the PRD does not define.
+
+      THAT FRAMING WAS WRONG, and the correction came from the project owner asking why
+      doors could not simply be a parameter. It already is one. PRD 5 defines
+      Event.agenda[] as "non-talk items only (doors, networking, close)" — doors is the
+      FIRST named example of what that field holds — and RE-EVALUATION.md R7 shows this
+      was deliberate: agenda[] was cut as a speculative unused field in v1, then
+      reinstated with exactly this narrowed non-talk definition. The doors time is
+      therefore already modelled, already stored (REQ-010), already editable (REQ-016)
+      and already shown on the event card (REQ-017). No new field is needed and none may
+      be added.
+
+      What remains is a much smaller question, about one message rather than the data
+      model: FR-7 specifies the T-3h reminder as "address, both map links, start time,
+      QR code" and does not mention doors. RESOLUTION: the T-3h reminder ALSO quotes the
+      doors time WHEN, AND ONLY WHEN, the event's agenda[] contains a doors item;
+      otherwise it quotes the start time alone, exactly as it does today. Reading an
+      existing field for the purpose the spec assigned it is not inventing a business
+      rule, so PRD's closing rule is not engaged. The reminder's job is getting a person
+      to the right place at the right time (PRD 2's show-rate goal), and telling someone
+      20:00 when the room opens at 19:30 is the failure this fixes.
+
+      NO doors_at COLUMN MAY BE ADDED — the doors time is read from agenda[], never
+      duplicated onto the events table. A schema change here would contradict PRD 5 and
+      RE-EVALUATION R7's explicit de-duplication.
+
+      The agenda[] item shape (how a doors item is distinguished from networking or
+      close) is DATA-DESIGNER's to specify at REQ-010, since that is the requirement
+      that models agenda[]; this requirement consumes whatever shape REQ-010 defines and
+      must not invent a competing convention. If REQ-010's shape turns out not to
+      support identifying a doors item, that is a BLOCKER to report against REQ-010, not
+      a licence to add a field here.
     acceptance_criteria:
       - "With an event exactly 24h out and one admitted registration, the T-24h job sends exactly one message carrying both an 'I'll be there' and a 'Can't make it' control — verified against a live instance with the event timing constructed to that boundary (PRD FR-7)."
       - "Tapping 'I'll be there' sets registrations.reconfirmed_at to a non-null timestamp and changes admission NOT AT ALL; tapping 'Can't make it' sets admission='withdrawn' and frees the seat — both verified by reading the row back after each (STORY-DETAILS C1)."
       - "Running the T-24h job, killing the process, restarting, and running it again for the same registration delivers exactly ONE message total, counted from the captured sends (PRD 13 criterion 6, PRD 12.8)."
       - "A registration that withdrew BEFORE the job runs receives nothing from either job, verified by constructing that state and running both (STORY-DETAILS C1, C2)."
       - "The T-3h message contains the venue address, BOTH the Yandex and the Google map link, the start time rendered in the chapter's timezone, and a QR image that decodes to `?start=ci_<that registration's qr_token>` — every element verified in the captured message, with the QR decoded by an actual decoder (PRD FR-7, FR-14)."
-      - "The T-3h message quotes Event.starts_at and no separately-modelled doors time, and no doors_at column was added to the events table — verified by reading the message and grepping the migrations (this requirement's recorded decision on the open doors-open question)."
+      - "For an event whose agenda[] contains a doors item, the T-3h message quotes BOTH the doors time and Event.starts_at; for an event whose agenda[] has no doors item, it quotes starts_at alone and mentions no doors time — both cases verified by constructing the two events and reading the actual messages sent."
+      - "No doors_at (or equivalently-named) column exists on the events table and no migration adds one — the doors time is read from agenda[] only, verified by grepping the schema and every migration file (PRD 5, RE-EVALUATION R7 de-duplication)."
       - "Both reminders reach a user with broadcast_opt_in=false, verified by setting that flag before the runs (PRD 9 — reminders are transactional)."
     depends_on: [REQ-025]
 
