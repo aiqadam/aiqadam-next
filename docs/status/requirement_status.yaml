@@ -93,3 +93,8 @@ history:
     run_id: WF02-REQ-007
     at: "2026-09-06T06:59:12Z"
     note: "REQ-007 gate-passed at WF01-EVENTS-BOT-SPEC step-02/06 (Events Bot monorepo migration programme, docs/agents/decisions/0003). Starting WF-02: Step 00 (git setup) complete, branch feature/WF02-REQ-007 pushed. First requirement of the Events Bot programme -- REQ-008..REQ-032 depend on it transitively. GitHub issue #10 tracks it for the human owner."
+  - requirement_id: REQ-007
+    event: done
+    run_id: WF02-REQ-007
+    at: "2026-09-06T07:27:16Z"
+    note: "RELEASE-VALIDATOR PASSed REQ-007 (site moved to apps/web/, npm workspace root established) after independently re-verifying all 5 ACs on current HEAD (0c8746a). requirements.yaml's REQ-007 entry needed no content correction; status flipped to done. README.md rechecked and updated: it previously documented `npm run dev` / editing `app/page.tsx` as if the repo were a single-package project. Root package.json scripts still proxy to the apps/web workspace so the commands remain valid unchanged, but added a 'Monorepo structure' section explaining the workspace layout and corrected the edit-this-file pointer to the real path apps/web/src/app/[locale]/page.tsx (verified to exist; the plain app/page.tsx path does not)."
