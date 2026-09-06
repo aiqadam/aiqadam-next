@@ -53,7 +53,12 @@ bot.callbackQuery(/^lang:(ru|en)$/, makeLangCallbackHandler(db));
 // its two callback handlers, and /help.
 bot.command("start", makeStartHandler(db));
 bot.callbackQuery(/^chapter:(.+)$/, makeChapterCallbackHandler(db));
-bot.callbackQuery("consent:agree", makeConsentCallbackHandler(db));
+// WF02-REQ-016 SECURITY REWORK — the callback_data may now carry a deep-link
+// payload appended after a `:` (see handlers/start.ts's own header note), so
+// this needs a pattern, not the old exact string; the handler itself
+// re-derives the exact match via its own regex against ctx.callbackQuery.data
+// (same discipline as the chapter:<id> callback below).
+bot.callbackQuery(/^consent:agree(?::.+)?$/, makeConsentCallbackHandler(db));
 bot.command("help", makeHelpHandler(db));
 
 // REQ-015: organizer-only venue CRUD, chapter-scoped.

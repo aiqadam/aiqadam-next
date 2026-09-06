@@ -37,11 +37,47 @@ import { mapTelegramLanguageCode, resolveLang } from "../i18n/resolveLang.js";
 
 const CHAPTER_CALLBACK_PATTERN = /^chapter:(.+)$/;
 const CONSENT_AGREE_CALLBACK = "consent:agree";
+// WF02-REQ-016 SECURITY REWORK (iteration 1, handoffs/WF02-REQ-016/
+// step-02c-security-reviewer.json, S1 BLOCKER) — see this file's REQ-016
+// header note below. The consent callback now optionally carries a deep-link
+// payload after a `:`, e.g. `consent:agree:e_<id>__<channel>`, so it must be
+// matched with a pattern, not the old exact string.
+const CONSENT_AGREE_CALLBACK_PATTERN = /^consent:agree(?::(.+))?$/;
+// Telegram's hard limit on callback_data (bytes, not characters).
+const CALLBACK_DATA_MAX_BYTES = 64;
 
 function matchText(ctx: Context): string {
   return typeof ctx.match === "string" ? ctx.match : "";
 }
 
+// WF02-REQ-016 SECURITY REWORK (iteration 1, handoffs/WF02-REQ-016/
+// step-02c-security-reviewer.json, S1 BLOCKER): the design's §6.3 resolution
+// logic wrote `users.pending_source` unconditionally for a published event's
+// channel-suffixed deep link, with no mention of the consent gate at all.
+// SECURITY-REVIEWER independently reproduced this against a brand-new user
+// (consent_pd_at still null) and correctly rejected it as the same class of
+// bug REQ-014's own S1 finding already fixed for chapter assignment (data
+// written before consent). This file now diverges from design §6.3 on that
+// one point, following the exact precedent already set above for
+// `assignChapterOrPrompt`/`consent:agree`: the write only ever happens once
+// `consent_pd_at` is non-null. `docs/agents/design/REQ-016.md` carries a
+// correction note; §6.3's literal text is left as the historical record of
+// what was reviewed and rejected (same convention REQ-014.md's own header
+// note uses).
+//
+// Concretely: an unknown/draft/cancelled/finished event id never writes
+// anything regardless of consent state (no PII write happens on that branch
+// at all, so no gating is needed there — confirmed unchanged from the
+// original design). A *published* event's channel-suffixed link is the only
+// write path, and it is now consent-gated: an already-consented caller gets
+// the write immediately (unchanged, no reordering needed); a not-yet-
+// consented caller is shown the ordinary consent prompt first, with the deep
+// link's payload re-encoded into the `consent:agree` callback's
+// `callback_data` (`buildConsentAgreeCallbackData` below) so the write and
+// reply can complete once `consent:agree` fires and `recordConsent` has run
+// — mirroring exactly how `assignChapterOrPrompt` is only ever invoked after
+// consent is recorded.
+//
 // REQ-016 §6.3 — deep-link resolution, extending the existing /start
 // handler rather than adding a new command (§6.1). Runs ONLY when the
 // payload parses as an `e_` deep link; the ordinary REQ-014 /start flow
@@ -58,12 +94,15 @@ async function resolveEventDeepLink(
   lang: BotLang,
   eventId: string,
   channel: string | null,
+  hasConsented: boolean,
 ): Promise<void> {
   const event = await getEventById(db, eventId);
 
   // §6.3 step 4/5 — an unknown id and a draft/cancelled/finished event both
   // yield the identical plain explanation; neither discloses whether the id
-  // ever existed or what state it's in.
+  // ever existed or what state it's in. This branch never writes anything,
+  // so it runs identically regardless of consent state (confirmed unchanged
+  // by the REQ-016 rework above).
   if (event === null || event.status !== "published") {
     await ctx.reply(
       `${getCatalog(lang).event.deepLinkNotAvailable}\n${getCatalog(lang).event.deepLinkSeeUpcoming}`,
@@ -71,9 +110,23 @@ async function resolveEventDeepLink(
     return;
   }
 
+  // REQ-016 rework — the write-capable branch (published event) is
+  // consent-gated: a not-yet-consented caller sees the consent prompt first,
+  // with the deep-link payload carried in the consent callback's
+  // callback_data so this function runs again with `hasConsented: true`
+  // once `consent:agree` fires.
+  if (!hasConsented) {
+    const payloadText = `e_${eventId}${channel !== null ? `__${channel}` : ""}`;
+    await ctx.reply(getCatalog(lang).consent.prompt, {
+      reply_markup: buildConsentKeyboard(lang, payloadText),
+    });
+    return; // STOP — resumes in the consent callback (§2.5 / REQ-016 rework)
+  }
+
   // §6.5 — the pending-source write happens only for a published event's
   // channel-suffixed link; a draft/cancelled/finished target never records
-  // one (handled above, this line is only reached once event is published).
+  // one (handled above, this line is only reached once event is published),
+  // and now (REQ-016 rework) only once consent is already recorded.
   if (channel !== null) {
     await setPendingSource(db, userId, channel);
   }
@@ -97,10 +150,60 @@ function buildChapterKeyboard(
   return keyboard;
 }
 
-function buildConsentKeyboard(lang: BotLang): InlineKeyboard {
+// Truncates `text` (never `text` unmodified if it already fits) from the end
+// until its UTF-8 byte length is <= maxBytes. Trims whole characters only —
+// never splits a multi-byte code point — by shrinking one character at a
+// time rather than slicing a fixed byte offset into the buffer.
+function truncateToByteBudget(text: string, maxBytes: number): string {
+  let result = text;
+  while (Buffer.byteLength(result, "utf8") > maxBytes) {
+    result = result.slice(0, -1);
+  }
+  return result;
+}
+
+// REQ-016 rework — builds the `consent:agree` callback's callback_data,
+// optionally carrying a deep-link payload (`e_<id>` or `e_<id>__<channel>`,
+// the exact grammar `parseStartPayload` already parses) so the consent
+// callback handler can complete deep-link resolution after recording
+// consent. Telegram caps callback_data at 64 bytes total; the event id is
+// never truncated (it is required to resolve the event at all — a real
+// event UUID plus the fixed `consent:agree:e_` prefix is ~52 bytes, always
+// comfortably under the limit on its own), so if the encoded string doesn't
+// fit, only the trailing, opaque `channel` free-text (§6.2 — not validated
+// against a closed vocabulary, so it carries no correctness requirement
+// beyond "recorded practically") is truncated to whatever budget remains.
+function buildConsentAgreeCallbackData(payloadText: string | null): string {
+  if (payloadText === null) {
+    return CONSENT_AGREE_CALLBACK;
+  }
+
+  const full = `${CONSENT_AGREE_CALLBACK}:${payloadText}`;
+  if (Buffer.byteLength(full, "utf8") <= CALLBACK_DATA_MAX_BYTES) {
+    return full;
+  }
+
+  const parsed = parseStartPayload(payloadText);
+  if (parsed.kind !== "event" || parsed.channel === null) {
+    // The event id alone already exceeds the limit (should not happen for a
+    // real UUID) — fall back to a plain consent tap rather than send an
+    // oversized/invalid callback_data; the deep-link resolution is lost for
+    // this tap, same as any other unattributed /start.
+    return CONSENT_AGREE_CALLBACK;
+  }
+
+  const fixedPrefix = `${CONSENT_AGREE_CALLBACK}:e_${parsed.eventId}__`;
+  const budget = CALLBACK_DATA_MAX_BYTES - Buffer.byteLength(fixedPrefix, "utf8");
+  if (budget <= 0) {
+    return CONSENT_AGREE_CALLBACK;
+  }
+  return `${fixedPrefix}${truncateToByteBudget(parsed.channel, budget)}`;
+}
+
+function buildConsentKeyboard(lang: BotLang, payloadText: string | null = null): InlineKeyboard {
   return new InlineKeyboard().text(
     getCatalog(lang).consent.agree,
-    CONSENT_AGREE_CALLBACK,
+    buildConsentAgreeCallbackData(payloadText),
   );
 }
 
@@ -179,7 +282,19 @@ export function makeStartHandler(db: DbClient["db"]) {
     // resolution.
     const payload = parseStartPayload(matchText(ctx));
     if (payload.kind === "event") {
-      await resolveEventDeepLink(ctx, db, flowUser.id, lang, payload.eventId, payload.channel);
+      // REQ-016 rework — consent state decides whether the published-event
+      // write path runs now or is deferred to the consent callback;
+      // resolveEventDeepLink itself enforces the gate (see its own header
+      // note above).
+      await resolveEventDeepLink(
+        ctx,
+        db,
+        flowUser.id,
+        lang,
+        payload.eventId,
+        payload.channel,
+        flowUser.consentPdAt !== null,
+      );
       return;
     }
 
@@ -270,14 +385,27 @@ export function makeChapterCallbackHandler(db: DbClient["db"]) {
  * chapter assignment (§2.3's 0/1/2+ branches) if the user doesn't already
  * have one, so `users.chapter_id` is never written while `consent_pd_at` is
  * still null.
+ *
+ * WF02-REQ-016 SECURITY REWORK (iteration 1) — the callback_data may now
+ * carry a deep-link payload (`consent:agree:e_<id>[__<channel>]`, see
+ * `buildConsentAgreeCallbackData`). Ordering after `recordConsent` succeeds
+ * is: chapter assignment first (unchanged, exactly REQ-014's existing
+ * order), then — regardless of whether chapter assignment itself paused for
+ * the 2+-chapter pick — deep-link resolution runs if a payload was present,
+ * so the `pending_source` write never depends on the chapter picker's own
+ * callback and never precedes consent. A deep-link tap's reply is the event
+ * placeholder/explanation, not the ordinary greeting — the same trade-off
+ * the already-consented fast path in `makeStartHandler` already makes.
  */
 export function makeConsentCallbackHandler(db: DbClient["db"]) {
   return async (ctx: Context): Promise<void> => {
     const tgId = ctx.from?.id;
-    if (tgId === undefined) {
+    const match = CONSENT_AGREE_CALLBACK_PATTERN.exec(ctx.callbackQuery?.data ?? "");
+    if (tgId === undefined || match === null) {
       await ctx.answerCallbackQuery();
       return;
     }
+    const deepLinkPayloadText = match[1] ?? null;
 
     const flowUser = await getFlowUserByTgId(db, BigInt(tgId));
     if (flowUser === null) {
@@ -294,12 +422,41 @@ export function makeConsentCallbackHandler(db: DbClient["db"]) {
     const lang = resolveLang(flowUser.lang, flowUser.chapterDefaultLang);
 
     // Consent is now recorded — safe to run chapter assignment (this is the
-    // ordering fix: chapter writes never precede consent_pd_at).
+    // ordering fix: chapter writes never precede consent_pd_at). Chapter
+    // assignment always runs first per REQ-014's existing order, whether or
+    // not a deep-link payload is also being carried through this tap.
+    let chapterOutcome: "stopped" | "continue" = "continue";
     if (flowUser.chapterId === null) {
-      const outcome = await assignChapterOrPrompt(ctx, db, flowUser.id, lang);
-      if (outcome === "stopped") {
-        return; // resumes in the chapter callback (§2.6)
+      chapterOutcome = await assignChapterOrPrompt(ctx, db, flowUser.id, lang);
+    }
+
+    // REQ-016 rework — complete the deferred deep-link resolution now that
+    // consent is recorded. This runs regardless of chapterOutcome: a 2+
+    // chapter pick pauses only the *greeting*, sent later by the chapter
+    // callback (§2.6) — it does not pause this write, which depends only on
+    // consent, not on chapter assignment completing.
+    if (deepLinkPayloadText !== null) {
+      const payload = parseStartPayload(deepLinkPayloadText);
+      if (payload.kind === "event") {
+        await resolveEventDeepLink(
+          ctx,
+          db,
+          flowUser.id,
+          lang,
+          payload.eventId,
+          payload.channel,
+          true, // hasConsented — recordConsent just succeeded above
+        );
       }
+      // The deep-link branch (or, for a malformed payload, nothing) has
+      // already sent the caller's reply — no separate ordinary greeting, the
+      // same trade-off the already-consented fast path in makeStartHandler
+      // already makes.
+      return;
+    }
+
+    if (chapterOutcome === "stopped") {
+      return; // resumes in the chapter callback (§2.6)
     }
 
     const finalUser = await getFlowUserByTgId(db, BigInt(tgId));

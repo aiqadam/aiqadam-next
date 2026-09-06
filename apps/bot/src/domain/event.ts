@@ -660,6 +660,18 @@ export async function cancelEvent(
 // §6.5 — setPendingSource: a plain UPDATE against users, no event-specific
 // logic. Called only when payload.channel !== null AND the event resolves to
 // published (handler's own gating, §6.3 step 6).
+//
+// WF02-REQ-016 SECURITY REWORK (S1 fix, handoffs/WF02-REQ-016/
+// step-02c-security-reviewer.json): §6.3 as originally written did not
+// mention the consent gate at all, and the first implementation called this
+// function before checking `consent_pd_at`. The handler's gating (§6.3 step
+// 6) now ALSO requires `consent_pd_at` to be non-null before this function
+// is ever called — see `apps/bot/src/handlers/start.ts`'s own header note
+// for the corrected ordering (mirrors the precedent REQ-014 already set for
+// `assignChapter`). This function itself is unchanged: it remains a pure,
+// unconditional write with no consent check of its own — the ordering
+// guarantee lives entirely in the caller, same discipline as every other
+// domain function in this file.
 // ---------------------------------------------------------------------------
 export async function setPendingSource(
   db: DbClient["db"],
