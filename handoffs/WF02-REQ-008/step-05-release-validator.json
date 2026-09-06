@@ -1,0 +1,14 @@
+{
+  "handoff_id": "step-05-release-validator",
+  "run_id": "WF02-REQ-008",
+  "workflow_id": "WF-02",
+  "step": "05",
+  "from_agent": "ORCH",
+  "to_agent": "RELEASE-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Independently re-ran npm run lint/build (exit 0), rebuilt the docker image fresh from current HEAD and re-verified all 4 ACs with real command output: docker build exit 0, container serves 200 at /health and correct <html lang> for ru/uz/en/kk, docker compose config exit 0 resolving context/dockerfile correctly, deploy.sh diff empty. Diff scope confirmed exactly as expected, nothing extraneous. Flags for DOC-UPDATER: requirements.yaml's REQ-008 description still describes repointing the Dockerfile itself, but the actual remaining gap at this run's start was only the missing .dockerignore (Dockerfile already repointed out-of-process in REQ-007's merge commit 2c58702) -- status history already documents this accurately; DOC-UPDATER should add a short addendum note when flipping to done so the description doesn't misattribute the Dockerfile edit to this run.",
+    "next_action": "Route to DOC-UPDATER (Step 6)"
+  }
+}
