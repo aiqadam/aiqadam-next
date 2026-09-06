@@ -88,4 +88,21 @@ export interface Catalog {
     deepLinkSeeUpcoming: string;
     deepLinkPublishedPlaceholder: string;
   };
+  // NEW, REQ-017: /events upcoming list + event card copy. Top-level key
+  // "events" (plural), distinct from "event" above — /events is its own
+  // command. Placeholder/minimal functional copy per decisions/0002
+  // (CONTENT-BA owns final wording).
+  events: {
+    listHeader: string;
+    listRowSeatsLeft: string;
+    listRowWaitlistOpen: string;
+    followCityInvite: string;
+    cardVenueLabel: string;
+    cardMapYandex: string;
+    cardMapGoogle: string;
+    cardAgendaLabel: string;
+    cardSeatsLeft: string;
+    cardWaitlistOpen: string;
+    cardCta: string;
+  };
 }

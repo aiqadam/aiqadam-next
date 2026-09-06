@@ -1,0 +1,18 @@
+{
+  "handoff_id": "step-06-doc-updater",
+  "run_id": "WF02-REQ-017",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "ORCH",
+  "to_agent": "FRONTEND-DEV",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "REQ-017 (public event card and the /events upcoming list with computed seat counts) flipped from in_progress to done in docs/agents/requirements.yaml -- RELEASE-VALIDATOR PASSed at Step 5 (all ACs independently re-verified, notably PRD 5's computed-never-stored rule and chapter-timezone rendering with an actual mismatched-process-TZ test). requirements.yaml's REQ-017 entry needed no content correction. Appended a 'done' event to docs/status/requirement_status.yaml (append-only, verified via `git diff --numstat` showing 0 deletions on that file) recording: the computeSeatsLeft/isRegistrationOpen/isFinished pure predicates in apps/bot/src/domain/event.ts (lines 709-731) with no clock reads inside them and no matching column/cache anywhere in apps/bot (git grep clean); apps/bot/src/i18n/formatTimeInTimezone.ts's formatDateTimeInTimezone() setting Intl.DateTimeFormat's timeZone option explicitly from the chapter's timezone parameter (never process.env.TZ), verified with the process TZ deliberately mismatched; the real bug fixed this run -- the same function originally defaulted en-US to a 12-hour AM/PM clock, now fixed with an explicit hourCycle: 'h23'; buildEventCardContent()'s pure assembly of the card (title/cover/date-range/venue+both map links/agenda lines/seats-or-waitlist/CTA, no LINEUP element per Release 1 scope); listUpcomingPublishedEvents()'s chapter-scoped, published-only, unfinished, soonest-first query; and start.ts's resolveEventDeepLink() rewrite replacing REQ-016's placeholder with the real card plus a new isFinished check REQ-016 lacked. Also recorded RELEASE-VALIDATOR's filed ISS-0011 (3 MINOR non-blocking test-spec precision issues, not implementation bugs) and the GitHub issue #20 mapping. README.md rechecked (grep for event/venue/timezone/apps-bot terms): it still documents apps/bot only generically as 'grammY + Drizzle ORM against Postgres' with no event/card-specific content to begin with -- consistent with the no-update precedent set at REQ-010/011/012/014/015/016, so no README edit was made.",
+    "artifacts_out": [
+      "docs/agents/requirements.yaml",
+      "docs/status/requirement_status.yaml"
+    ],
+    "next_action": "Route to Step Final (git merge)"
+  }
+}

@@ -7,7 +7,15 @@ import {
   listActiveChapters,
 } from "../domain/chapter.js";
 import { recordConsent } from "../domain/consent.js";
-import { getEventById, parseStartPayload, setPendingSource } from "../domain/event.js";
+import {
+  buildEventCardContent,
+  countAdmittedRegistrations,
+  getEventByIdWithChapterTimezone,
+  isFinished,
+  parseStartPayload,
+  setPendingSource,
+} from "../domain/event.js";
+import { getVenueById } from "../domain/venue.js";
 import { getFlowUserByTgId, resolveOrCreateUser } from "../domain/user.js";
 import { getCatalog, type BotLang } from "../i18n/catalog.js";
 import { mapTelegramLanguageCode, resolveLang } from "../i18n/resolveLang.js";
@@ -96,14 +104,23 @@ async function resolveEventDeepLink(
   channel: string | null,
   hasConsented: boolean,
 ): Promise<void> {
-  const event = await getEventById(db, eventId);
+  const event = await getEventByIdWithChapterTimezone(db, eventId);
 
-  // §6.3 step 4/5 — an unknown id and a draft/cancelled/finished event both
+  // §6.3 step 4/5, extended by REQ-017 §5 — an unknown id, a
+  // draft/cancelled event, AND a published-but-already-finished event all
   // yield the identical plain explanation; neither discloses whether the id
-  // ever existed or what state it's in. This branch never writes anything,
-  // so it runs identically regardless of consent state (confirmed unchanged
-  // by the REQ-016 rework above).
-  if (event === null || event.status !== "published") {
+  // ever existed, what state it's in, or that it already happened. This
+  // branch never writes anything, so it runs identically regardless of
+  // consent state. `event.endsAt === null` is grouped with "finished" here
+  // too — defensive only (a published event always has a non-null endsAt,
+  // findMissingPublishFields already guarantees it), never reachable in
+  // practice.
+  if (
+    event === null ||
+    event.status !== "published" ||
+    event.endsAt === null ||
+    isFinished(event.endsAt, new Date())
+  ) {
     await ctx.reply(
       `${getCatalog(lang).event.deepLinkNotAvailable}\n${getCatalog(lang).event.deepLinkSeeUpcoming}`,
     );
@@ -131,10 +148,71 @@ async function resolveEventDeepLink(
     await setPendingSource(db, userId, channel);
   }
 
-  const startsAtText = event.startsAt?.toISOString() ?? "";
-  await ctx.reply(
-    `${getCatalog(lang).event.deepLinkPublishedPlaceholder} ${event.title} (${startsAtText})`,
+  // REQ-017 §6 — the real card-rendering path, replacing REQ-016's
+  // placeholder. buildEventCardContent (domain/event.ts) is a pure
+  // composition over already-fetched rows; this handler is responsible for
+  // fetching the venue and the live admitted count first.
+  const venue = event.venueId !== null ? await getVenueById(db, event.venueId) : null;
+  const admittedCount = await countAdmittedRegistrations(db, event.id);
+  const content = buildEventCardContent(event, venue, admittedCount, lang);
+  const catalog = getCatalog(lang);
+  const text = composeEventCardText(content, catalog);
+
+  // §3.5 — a stored cover_file_id is sent as a Telegram photo with the
+  // card's full text as the caption; otherwise a plain text reply with the
+  // same text. No re-upload, no fetch of the file content by this bot.
+  if (content.coverFileId !== null) {
+    await ctx.replyWithPhoto(content.coverFileId, { caption: text });
+  } else {
+    await ctx.reply(text);
+  }
+}
+
+// REQ-017 §3.6 — text composition, section order matching FR-2's own listed
+// order: title, cover handled separately (§3.5), date/time, venue+address+
+// both map links, agenda, seats line, CTA. One newline-joined string, no
+// conditional reordering — same discipline as formatVenueDump/
+// formatEventDump elsewhere in this codebase. No LINEUP element anywhere
+// (Release 3 scope, §3.2's own table).
+function composeEventCardText(
+  content: ReturnType<typeof buildEventCardContent>,
+  catalog: ReturnType<typeof getCatalog>,
+): string {
+  const lines: string[] = [content.title, content.dateTimeText];
+
+  // §3.2 — the venue block renders only when a venue exists at all
+  // (venue_id is null only in the defensive, never-reachable-for-a-
+  // published-card case, §3.3).
+  if (content.venueName !== null) {
+    lines.push(catalog.events.cardVenueLabel);
+    lines.push(content.venueName);
+    if (content.venueAddress !== null) {
+      lines.push(content.venueAddress);
+    }
+    if (content.yandexMapUrl !== null) {
+      lines.push(`${catalog.events.cardMapYandex} ${content.yandexMapUrl}`);
+    }
+    if (content.googleMapUrl !== null) {
+      lines.push(`${catalog.events.cardMapGoogle} ${content.googleMapUrl}`);
+    }
+  }
+
+  if (content.agendaLines.length > 0) {
+    lines.push(catalog.events.cardAgendaLabel);
+    for (const item of content.agendaLines) {
+      lines.push(`${item.timeText} — ${item.label}`);
+    }
+  }
+
+  lines.push(
+    content.seatsLine.kind === "seatsLeft"
+      ? `${catalog.events.cardSeatsLeft} ${content.seatsLine.count}`
+      : catalog.events.cardWaitlistOpen,
   );
+
+  lines.push(catalog.events.cardCta);
+
+  return lines.join("\n");
 }
 
 function buildChapterKeyboard(

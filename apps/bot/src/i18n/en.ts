@@ -73,4 +73,19 @@ export const en = {
     deepLinkSeeUpcoming: "See what's coming up with /events",
     deepLinkPublishedPlaceholder: "Event:",
   },
+  // NEW, REQ-017: /events upcoming list + event card copy.
+  events: {
+    listHeader: "Upcoming events:",
+    listRowSeatsLeft: "Seats left:",
+    listRowWaitlistOpen: "Waitlist open",
+    followCityInvite:
+      "No upcoming events in your chapter yet. Follow along — new events will show up here.",
+    cardVenueLabel: "Venue:",
+    cardMapYandex: "Yandex Maps:",
+    cardMapGoogle: "Google Maps:",
+    cardAgendaLabel: "Agenda:",
+    cardSeatsLeft: "Seats left:",
+    cardWaitlistOpen: "Waitlist open",
+    cardCta: "Reply here to register — registration through the bot isn't built yet.",
+  },
 } satisfies Catalog;

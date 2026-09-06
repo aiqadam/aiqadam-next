@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-01-code-designer",
+  "run_id": "WF02-REQ-017",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGNER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Wrote docs/agents/design/REQ-017.md covering the real event card, /events list, chapter-timezone rendering via Intl.DateTimeFormat, computed-never-stored predicates, and CTA-as-plain-text (no broken button for an unbuilt registration feature).",
+    "artifacts_out": ["docs/agents/design/REQ-017.md"],
+    "next_action": "Route to CODE-DESIGN-VALIDATOR (Step 1b)"
+  }
+}

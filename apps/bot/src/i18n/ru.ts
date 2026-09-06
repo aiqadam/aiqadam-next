@@ -79,4 +79,20 @@ export const ru = {
     deepLinkSeeUpcoming: "Посмотрите ближайшие мероприятия: /events",
     deepLinkPublishedPlaceholder: "Мероприятие:",
   },
+  // NEW, REQ-017: /events upcoming list + event card copy.
+  events: {
+    listHeader: "Ближайшие мероприятия:",
+    listRowSeatsLeft: "Свободных мест:",
+    listRowWaitlistOpen: "Лист ожидания открыт",
+    followCityInvite:
+      "Пока нет ближайших мероприятий в вашем отделении. Следите за обновлениями — новые мероприятия появятся здесь.",
+    cardVenueLabel: "Место проведения:",
+    cardMapYandex: "Яндекс.Карты:",
+    cardMapGoogle: "Google Карты:",
+    cardAgendaLabel: "Программа:",
+    cardSeatsLeft: "Свободных мест:",
+    cardWaitlistOpen: "Лист ожидания открыт",
+    cardCta:
+      "Ответьте на это сообщение, чтобы зарегистрироваться — регистрация через бота пока не реализована.",
+  },
 } satisfies Catalog;

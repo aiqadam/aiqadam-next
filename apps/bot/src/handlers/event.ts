@@ -6,11 +6,14 @@ import {
   resolveActingUser,
 } from "../domain/eventAuthorization.js";
 import {
+  buildSeatsLine,
+  computeSeatsLeft,
   countAdmittedRegistrations,
   createEvent,
   cancelEvent,
   findMissingPublishFields,
   getEventById,
+  listUpcomingPublishedEvents,
   parseAgendaText,
   parseEventFields,
   publishEvent,
@@ -20,6 +23,7 @@ import {
   validateEventUpdateInput,
   type EventRecord,
 } from "../domain/event.js";
+import { formatDateTimeInTimezone } from "../i18n/formatTimeInTimezone.js";
 import { getUserWithChapterByTgId } from "../domain/user.js";
 import { getCatalog, type BotLang } from "../i18n/catalog.js";
 import { resolveLang } from "../i18n/resolveLang.js";
@@ -380,5 +384,62 @@ export function makeEventCancelHandler(db: DbClient["db"]) {
     await cancelEvent(db, authResult.user.id, eventId, event.chapterId, event.title, new Date());
 
     await ctx.reply(`${getCatalog(lang).event.cancelSuccessPrefix} ${event.title}`);
+  };
+}
+
+// ---------------------------------------------------------------------------
+// /events (REQ-017 §4) — a plain, unauthenticated read, exactly like
+// /venues (§0's reuse decision): scoped to the caller's own chapterId, NOT
+// gated by requireOrganizerForChapter/checkOrganizerForChapter. Any member
+// may run it. Lists published, unfinished events, soonest first, each row
+// showing title/date-time/venue/seats — not a full card (§0).
+// ---------------------------------------------------------------------------
+export function makeEventsListHandler(db: DbClient["db"]) {
+  return async (ctx: Context): Promise<void> => {
+    const tgId = ctx.from?.id;
+    if (tgId === undefined) {
+      return;
+    }
+    const lang = await resolveLangForTg(db, tgId);
+
+    // §4.2 step 1/2 — resolveActingUser reused for its chapterId lookup
+    // only; no authorization check is applied to its result (§0's scope
+    // decision). A user with no chapter yet gets the same empty-state reply
+    // as zero rows.
+    const actingUser = await resolveActingUser(db, BigInt(tgId));
+    const chapterId = actingUser?.chapterId ?? null;
+    if (chapterId === null) {
+      await ctx.reply(getCatalog(lang).events.followCityInvite);
+      return;
+    }
+
+    const list = await listUpcomingPublishedEvents(db, chapterId, new Date());
+    if (list.length === 0) {
+      // §4.3 — an invitation to follow the city, NOT an apology. This is a
+      // plain informational reply with no persistence side effect of any
+      // kind — Release 3's own "follow this city" entity is out of scope
+      // here (requirements.yaml's REQ-017 scope note).
+      await ctx.reply(getCatalog(lang).events.followCityInvite);
+      return;
+    }
+
+    const lines: string[] = [];
+    for (const item of list) {
+      const admittedCount = await countAdmittedRegistrations(db, item.id);
+      const seatsLine = buildSeatsLine(computeSeatsLeft(item.capacity, admittedCount));
+      const dateTimeText = `${formatDateTimeInTimezone(
+        item.startsAt,
+        item.chapterTimezone,
+        lang,
+      )}–${formatDateTimeInTimezone(item.endsAt, item.chapterTimezone, lang)}`;
+      const seatsText =
+        seatsLine.kind === "seatsLeft"
+          ? `${getCatalog(lang).events.listRowSeatsLeft} ${seatsLine.count}`
+          : getCatalog(lang).events.listRowWaitlistOpen;
+
+      lines.push(`${item.title} — ${dateTimeText} — ${item.venueName} — ${seatsText}`);
+    }
+
+    await ctx.reply(`${getCatalog(lang).events.listHeader}\n${lines.join("\n")}`);
   };
 }

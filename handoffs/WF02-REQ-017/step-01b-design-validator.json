@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-01b-design-validator",
+  "run_id": "WF02-REQ-017",
+  "workflow_id": "WF-02",
+  "step": "01b",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "FAIL",
+    "summary": "SS1 and SS2.1 contain complete, executable function bodies (computeSeatsLeft, isRegistrationOpen, isFinished, formatDateTimeInTimezone) instead of signatures+prose -- the exact defect class that failed REQ-016's design gate once already, now recurring a second time. Substance otherwise sound (spot-checked: IANA timezone confirmed, evaluation-time-as-parameter discipline followed, all 6 ACs mapped, no-schema-change claim verified true) -- only the format needs fixing.",
+    "issues": [{"severity": "MAJOR", "description": "docs/agents/design/REQ-017.md SS1 (computeSeatsLeft/isRegistrationOpen/isFinished) and SS2.1 (formatDateTimeInTimezone) contain working implementation code. Rewrite as bare signatures + prose, matching REQ-015's established shape exactly."}],
+    "next_action": "Rework CODE-DESIGNER (iteration 1 of 3)"
+  }
+}

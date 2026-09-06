@@ -27,3 +27,16 @@ No implementation code — no `.tsx` code blocks, structure and types only. No n
 design-system tokens or patterns — if the requirement genuinely needs one the system
 doesn't have, flag it as an open question rather than inventing it. Don't silently
 resolve an ambiguity the requirement left open — name it.
+
+**This applies just as much to bot/backend logic as to `.tsx` markup.** A bare function
+signature ending in `;` (optionally with a SQL query written only as a comment inside an
+empty body, per `docs/agents/design/REQ-015.md`'s `hasFutureEventReference`) is design. A
+function with a real `if`/`return`/arithmetic/comparison statement in its body — even a
+one-liner like `return capacity - admittedCount;` — is implementation, full stop,
+regardless of how trivial the logic looks. This exact mistake has now FAILed the design
+gate twice (REQ-016's `findMissingPublishFields`/capacity-edit block/`validateAgenda`;
+REQ-017's `computeSeatsLeft`/`isRegistrationOpen`/`isFinished`/
+`formatDateTimeInTimezone`) — the temptation to write a real one-line predicate "because
+it's obvious anyway" is exactly what caused both. State the RULE in prose or a table
+instead (what the function compares, what it returns for each case); never write the
+comparison as executable code, no matter how short.

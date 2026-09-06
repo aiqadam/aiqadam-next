@@ -21,6 +21,7 @@ import {
   makeEventEditHandler,
   makeEventNewHandler,
   makeEventPublishHandler,
+  makeEventsListHandler,
 } from "./handlers/event.js";
 
 let config: BotConfig;
@@ -76,5 +77,9 @@ bot.command("event_edit", makeEventEditHandler(db));
 bot.command("event_agenda", makeEventAgendaHandler(db));
 bot.command("event_publish", makeEventPublishHandler(db));
 bot.command("event_cancel", makeEventCancelHandler(db));
+
+// REQ-017: /events — public, chapter-scoped upcoming-events list. Any
+// member may run it (not organizer-gated, same precedent as /venues).
+bot.command("events", makeEventsListHandler(db));
 
 bot.start();
