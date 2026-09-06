@@ -20,6 +20,14 @@ description: >
   explicit apps/web/.next/ / apps/bot/.next/ pair), whichever the implementing
   requirement's design artefact specifies. Small enough to fold into REQ-008 (which
   already touches deploy/CI path config) rather than filed as its own requirement.
+
+  RESOLVED 2026-09-06 by ORCH directly during WF02-REQ-007 Step 5 bookkeeping (commit
+  a0e9760), ahead of REQ-008: ORCH's own `git add -A` after TEST-RUNNER's build check
+  accidentally committed apps/web/.next/ into the branch, which is this exact issue
+  materializing. Fixed on the spot rather than shipping the polluted commit: added
+  **/.next/ and **/out/ to .gitignore's next.js section (kept the existing root-anchored
+  /.next/ and /out/ entries too, no reason to remove them) and untracked the
+  accidentally-committed tree via `git rm --cached`.
 affected_files:
   - .gitignore
-status: open
+status: resolved
