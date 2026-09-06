@@ -1,0 +1,14 @@
+{
+  "handoff_id": "step-02d-reviewer-regate",
+  "run_id": "WF02-REQ-014",
+  "workflow_id": "WF-02",
+  "step": "02b",
+  "from_agent": "ORCH",
+  "to_agent": "REVIEWER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Re-gate confirms the S1 ordering fix holds structurally and empirically. Consent check happens before any chapter code in the main handler; consent is recorded before assignChapterOrPrompt is ever called in the consent callback; the chapter-selection keyboard is only ever sent post-consent. Independently rebuilt the dispatch harness and reproduced null-chapter_id-through-consent for both 1-active and 2-active cases, plus the returning-consented-chapterless case. AC1/3/4/5/6 unaffected. Design-doc correction note confirmed accurate.",
+    "next_action": "Route to SECURITY-REVIEWER (Step 2c) for re-gate"
+  }
+}
