@@ -1,0 +1,27 @@
+id: ISS-0002
+title: REQ-011's "exhibiting the query" acceptance criterion names no artefact location
+discovered_by: REQ-VALIDATOR
+discovered_in_run: WF01-EVENTS-BOT-SPEC
+discovered_at: "2026-09-06T06:29:29Z"
+severity: MINOR
+description: >
+  REQ-011's agenda-shape acceptance criterion requires that a single database query
+  return the doors item's time "and only that item", "verified by exhibiting the actual
+  query and its result". The criterion is testable — the disqualifying case (a query
+  returning the whole agenda blob, or the application loading it and scanning in
+  TypeScript) is observable on the exhibited artefact. What it does not say is WHERE
+  that query and result must be exhibited, which leaves a later TEST-DESIGNER or
+  RELEASE-VALIDATOR without a named place to look for the evidence.
+
+  Not blocking, for a specific reason: REQ-011's final acceptance criterion already
+  mandates a design artefact under docs/agents/design/ owned by the same role
+  (DATA-DESIGNER), so the natural home already exists and is already required. The fix
+  is roughly a six-word edit naming that artefact as the place the query is exhibited —
+  small enough that looping a third rework cycle on it would have cost more than
+  carrying it.
+
+  Raised at the step-06 gate as MINOR-6, carried forward on REQ-VALIDATOR's explicit
+  classification rather than fixed in cycle 2.
+affected_files:
+  - docs/agents/requirements.yaml
+status: open
