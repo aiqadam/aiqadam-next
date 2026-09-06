@@ -1,0 +1,36 @@
+{
+  "handoff_id": "step-02d-reviewer-regate",
+  "run_id": "WF02-REQ-013",
+  "workflow_id": "WF-02",
+  "step": "02b",
+  "from_agent": "REVIEWER",
+  "to_agent": "ORCH",
+  "status": "COMPLETED",
+  "completed_at": "2026-09-06T14:55:28Z",
+  "context": {
+    "related_handoff_ids": ["step-02c-backend-dev-rework", "step-02b-reviewer"]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Re-gate of rework iteration 1. Confirmed git diff bb487b5..45d2dfb touches only the handoff JSON -- zero changes under apps/bot/src/, so no source drift since my prior FAIL. Independently re-verified AC2/AC3/AC4 myself: spun up a scratch Postgres via apps/bot/docker-compose.yml, ran drizzle-kit migrate, seeded my own fixture rows (tg_id 2001/lang=en, 2002/lang=NULL+chapter default_lang=en, no row for 2998/2999 -- deliberately different ids from BACKEND-DEV's report to keep this independent), and built my own real grammy.Bot + bot.handleUpdate() harness (dummy token + manual botInfo, bot.api.config.use() intercepting outbound calls only, synthetic message and callback_query Update objects run through the bot's real command/callbackQuery matcher). Captured payloads for /start (en, null-lang-falls-back-to-chapter-default, no-row ru fallback), /lang prompt+keyboard, callback persistence+confirmation, and callback noProfile fallback all matched BACKEND-DEV's reported payloads exactly, both in shape (chat_id/text/reply_markup/callback_query_id) and content. Additionally queried the DB directly after the callback and confirmed users.lang for tg_id 2001 was actually persisted to 'ru' (real UPDATE via setUserLang, not just a reply text match) and that no users row was created for the no-row tg_ids by the /start stub, closing the loop the payload-only check alone would have left open. This satisfies the literal AC2/AC3/AC4 wording: real grammY routing, real Update dispatch, real DB read/write, not a shortcut. Scratch DB torn down (docker compose down -v), scratch script deleted, git status clean after. Re-confirmed (unchanged from step-02b since no source changed): start.ts is genuinely throwaway/read-only (no insert/upsert, no consent/chapter/deep-link handling), domain/*.ts (user.ts, setUserLang.ts) and i18n/resolveLang.ts are framework-free with no grammY import, catalog.ts/en.ts/ru.ts match the four-key shape, lang.ts confirmation text reads from the newly-chosen language not the pre-selection one, index.ts registration matches AC1/AC5. Re-ran npm run lint / npm run build / npm test from repo root: lint 0 errors (2 pre-existing unrelated web <img> warnings), build succeeds, 13/13 tests pass. Diff master...HEAD adds no new npm workspace and does not move any build output, so the Dockerfile-coverage check in my role file does not apply here.",
+    "evidence": {
+      "diff_check": "git diff bb487b5 45d2dfb --stat and -- apps/bot/src/ both show only handoffs/WF02-REQ-013/step-02c-backend-dev-rework.json changed; zero source diff",
+      "own_harness": "apps/bot/scratch-reviewer-verify.ts (deleted after use), real Bot('000000:DUMMY_TOKEN_NOT_REAL', {botInfo}) + bot.api.config.use() + bot.handleUpdate() against a scratch Postgres seeded via apps/bot/docker-compose.yml",
+      "captured_payloads_match": "sendMessage/answerCallbackQuery payloads for tg_id 2001 (en->ru switch), 2002 (null lang, chapter default en), 2999 (no row, ru fallback), 2998 (no row callback, noProfile) all match BACKEND-DEV's step-02c report's cases in shape and content",
+      "db_side_effect_check": "psql query after the callback: tg_id 2001 lang='ru' (persisted), tg_id 2002 lang still NULL (never touched); no row exists for 2998/2999",
+      "commands_run": [
+        "docker compose up -d / down -v (apps/bot)",
+        "npx drizzle-kit migrate against scratch DB -> applied successfully",
+        "npx tsx apps/bot/scratch-reviewer-verify.ts -> captured payloads matched report",
+        "npm run lint (repo root) -> exit 0, 2 pre-existing unrelated warnings",
+        "npm run build (repo root) -> exit 0",
+        "npm test (repo root) -> 13/13 passed"
+      ]
+    },
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": "Route to SECURITY-REVIEWER (Step 2c)"
+  },
+  "rework_count": 1,
+  "max_rework": 3
+}

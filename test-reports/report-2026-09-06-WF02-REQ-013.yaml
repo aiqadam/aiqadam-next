@@ -1,0 +1,100 @@
+run_id: WF02-REQ-013
+date: 2026-09-06T15:06:02Z
+branch: feature/WF02-REQ-013
+head_sha: d7d2e2e45a7d94a616e7fe4bd38b5d9cf0ed4fc1
+lint: pass
+build: pass
+test: pass
+ci:
+  status: green
+  run_id: 34041130876
+  conclusion: success
+  jobs:
+    - "build: success"
+    - "deploy-prod: skipped"
+    - "deploy-qa: skipped"
+
+lint_output: |
+  apps/web: 2 warnings (no-img-element in Footer.tsx, Nav.tsx), 0 errors — pre-existing,
+  unrelated to apps/bot/src/i18n changes.
+  apps/bot: 0 problems.
+
+build_output: |
+  apps/web (next build): Compiled successfully, TypeScript finished, static pages
+  generated (4/4), no errors.
+  apps/bot (tsc -p tsconfig.json): exited 0, no output (no type errors).
+
+test_baseline_output: |
+  Test Files  2 passed (2)
+  Tests  13 passed (13)
+  (apps/bot/src/config.test.ts + apps/bot/src/i18n/catalogs.test.ts)
+
+cases:
+  - acceptance_criterion: AC1
+    result: pass
+    notes: >
+      npm test baseline: 2 files, 13/13 passed (exit 0). Deliberate-break case: deleted
+      `lang.noProfile` line from apps/bot/src/i18n/en.ts, reran npm test -> exit non-zero,
+      1 failed test ("i18n catalog parity > ru and en have identical key sets"), diff
+      output explicitly named "lang.noProfile" as present in ru's key array and absent
+      from en's (12 passed, 1 failed). Reverted via `git checkout -- apps/bot/src/i18n/en.ts`;
+      reran npm test -> exit 0, 13/13 passed again; `git diff --stat -- apps/bot/src/i18n/en.ts`
+      empty, confirming clean revert.
+
+  - acceptance_criterion: AC2
+    result: pass
+    notes: >
+      Live grammY-dispatch harness (real Bot + botInfo + bot.api.config.use() interception
+      + bot.handleUpdate()) against fixture Postgres (docker compose, apps/bot/docker-compose.yml,
+      port 55432, migrated via drizzle-kit migrate). Seeded users tg_id=600000001 lang='en',
+      tg_id=600000002 lang='ru'. Dispatched /start and /lang for both. Captured payloads matched
+      the spec's exact expected text byte-for-byte: entry1 "This is the AI Qadam Events bot."
+      (en /start), entry2 "Это бот AI Qadam Events." (ru /start), entry3 "Choose your interface
+      language." with ru/en inline keyboard (en /lang), entry4 "Выберите язык интерфейса." with
+      same keyboard (ru /lang). No cross-wired locale text observed.
+
+  - acceptance_criterion: AC3
+    result: pass
+    notes: >
+      Same harness run, reusing tg_id=600000001 (lang='en') from AC2. /lang command's
+      inline_keyboard: exactly 1 row, exactly 2 buttons, callback_data exactly "lang:ru" and
+      "lang:en" -- no third button/row. Dispatched callback lang:ru with callback_query_id
+      "cb-1": captured answerCallbackQuery(callback_query_id="cb-1") then sendMessage
+      chat_id=600000001 text="Язык интерфейса: русский." -- the Russian (newly-selected)
+      confirmation string, not the pre-tap English one. DB read-back after the dispatch:
+      `SELECT lang FROM users WHERE tg_id = 600000001` returned "ru" (changed from seeded
+      "en"), confirming persistence.
+
+  - acceptance_criterion: AC4
+    result: pass
+    notes: >
+      Seeded chapter (code='req013-ac4', default_lang='en', id=9e8c42e1-66e5-41a1-9891-ed21aa1b9667)
+      and user tg_id=600000003 with lang EXPLICITLY NULL and chapter_id set to that chapter.
+      Dispatched /start for tg_id=600000003. Captured sendMessage chat_id=600000003
+      text="This is the AI Qadam Events bot." -- the English greeting, proving resolveLang(null,'en')
+      fell through the no-userLang step to the chapter-default-'en' step correctly (not the
+      final 'ru' fallback).
+
+  - acceptance_criterion: AC5
+    result: pass
+    notes: >
+      All 5 git-history checks run from repo root on feature/WF02-REQ-013 against master:
+      (1) `git diff --stat master...HEAD -- apps/web/messages/` -> empty output.
+      (2) `git diff --stat master...HEAD -- apps/web/` -> empty output (nothing under apps/web/
+      touched at all).
+      (3) `git diff --name-only master...HEAD | grep -i "^packages/"` -> no matches, grep exit
+      code 1 (pass condition per spec).
+      (4) `ls packages` -> "No such file or directory", exit code 2 -- no packages/ directory
+      exists at repo root.
+      (5) `git diff --stat master...HEAD -- apps/bot/src/i18n/` -> non-empty, shows catalog.ts,
+      catalogs.test.ts, en.ts, resolveLang.ts, ru.ts, types.ts all newly added (6 files, 137
+      insertions), confirming bot-only catalogs independent of the site's.
+
+harness_teardown:
+  scratch_script_deleted: true
+  scratch_script_path: apps/bot/scratch-verify-req013.ts
+  compose_down: true
+  git_status_porcelain_after_teardown: "(empty -- clean)"
+
+overall: PASS
+routing_decision: "Route to RELEASE-VALIDATOR"

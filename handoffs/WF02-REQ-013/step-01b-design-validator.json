@@ -1,0 +1,18 @@
+{
+  "handoff_id": "step-01b-design-validator",
+  "run_id": "WF02-REQ-013",
+  "workflow_id": "WF-02",
+  "step": "01b",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "FAIL",
+    "summary": "The /start stub resolution PASSES hard scrutiny -- genuinely no invented REQ-014 scope, explicitly marked throwaway, AC2/AC4 verification method sound, seed-copy ownership reasoning correctly cites REQ-001a's real precedent. All other checks PASS. Two concrete defects found: (A) SS5 claims 'four leaf keys' but the table/type/parity-list all agree on three -- an unresolved miscount someone can't implement literally. (B) The no-existing-row /lang reply's message content is left as unspecified prose, not a concrete Catalog key/value, leaving BACKEND-DEV to invent copy.",
+    "issues": [
+      {"severity": "MINOR", "description": "SS5's 'four leaf keys' header contradicts the three-key table/type/parity-list everywhere else in the doc -- reconcile the count."},
+      {"severity": "MINOR", "description": "SS2.3's no-existing-users-row /lang reply has no concrete literal string in Catalog/SS5 -- add one or explicitly state why it's excluded from the i18n mechanism."}
+    ],
+    "next_action": "Rework CODE-DESIGNER (iteration 1 of 3)"
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "handoff_id": "step-02c-backend-dev-rework",
+  "run_id": "WF02-REQ-013",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "BACKEND-DEV",
+  "to_agent": "ORCH",
+  "status": "COMPLETED",
+  "context": {
+    "related_handoff_ids": ["step-02-backend-dev", "step-02b-reviewer"]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Rework iteration 1 of 3, addressing REVIEWER's sole MAJOR finding on step-02b: AC2/AC3/AC4 were re-verified using REVIEWER's demonstrated real-dispatch method instead of the previously-used Context-shaped stub. No source file under apps/bot/src/ changed -- REVIEWER already confirmed the implementation logic (start.ts, lang.ts, domain/*, i18n/*) is correct; only the verification method changed. Method: a real grammy.Bot instance constructed with a dummy token string plus a manually-supplied botInfo object (skips the network-bound getMe() call), the same command/callback-query handlers from src/index.ts registered on it, bot.api.config.use() intercepting only the outbound sendMessage/answerCallbackQuery HTTP calls, and bot.handleUpdate() dispatching synthetic Telegram Update objects (message + callback_query shapes) through the bot's real middleware/matcher routing and real Context construction. Fixture Postgres via apps/bot/docker-compose.yml, migrated with drizzle-kit, seeded with tg_id 1001/lang='en', 1002/lang='ru', 1003/lang=NULL+chapter default_lang='en', and tg_id 9999/9998 with no users row (noProfile cases). All captured outbound payloads matched AC2/AC3/AC4 exactly. Scratch verification script (apps/bot/scratch-verify-ac234.ts) deleted after use; compose stack torn down (docker compose down -v); git status confirmed clean. npm run lint / npm run build / npm test re-run from repo root, all exit 0, no regressions.",
+    "evidence": {
+      "method": "new Bot('000000:DUMMY_TOKEN_NOT_REAL', { botInfo }) + bot.api.config.use() interception + bot.handleUpdate(syntheticUpdate), per REVIEWER's step-02b demonstration",
+      "captured_payloads": {
+        "AC2_start_1001_lang_en": {
+          "method": "sendMessage",
+          "payload": { "chat_id": 1001, "text": "This is the AI Qadam Events bot." }
+        },
+        "AC2_start_1002_lang_ru": {
+          "method": "sendMessage",
+          "payload": { "chat_id": 1002, "text": "Это бот AI Qadam Events." }
+        },
+        "AC4_start_1003_null_lang_chapter_default_en": {
+          "method": "sendMessage",
+          "payload": { "chat_id": 1003, "text": "This is the AI Qadam Events bot." }
+        },
+        "AC3_start_9999_no_users_row_ru_fallback": {
+          "method": "sendMessage",
+          "payload": { "chat_id": 9999, "text": "Это бот AI Qadam Events." }
+        },
+        "lang_1001_prompt_then_switch_to_ru": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "chat_id": 1001,
+              "text": "Choose your interface language.",
+              "reply_markup": {
+                "inline_keyboard": [[
+                  { "text": "Русский", "callback_data": "lang:ru" },
+                  { "text": "English", "callback_data": "lang:en" }
+                ]]
+              }
+            }
+          },
+          { "method": "answerCallbackQuery", "payload": { "callback_query_id": "12" } },
+          { "method": "sendMessage", "payload": { "chat_id": 1001, "text": "Язык интерфейса: русский." } }
+        ],
+        "lang_callback_9998_noProfile": [
+          { "method": "answerCallbackQuery", "payload": { "callback_query_id": "15" } },
+          { "method": "sendMessage", "payload": { "chat_id": 9998, "text": "Профиль не найден. Язык не сохранён — отправьте /start, чтобы начать." } }
+        ]
+      },
+      "commands_run": [
+        "npm run lint (repo root) -> exit 0",
+        "npm run build (repo root) -> exit 0",
+        "npm test (repo root, vitest run) -> 13/13 passed"
+      ]
+    },
+    "artifacts_out": [],
+    "issues": [],
+    "supersedes": "step-02b-reviewer's MAJOR finding: this iteration's AC2/AC3/AC4 evidence uses REVIEWER's real bot.handleUpdate() dispatch method, replacing the mocked-Context-stub evidence from step-02-backend-dev, which is no longer the operative verification record for these criteria.",
+    "next_action": "Route to REVIEWER (Step 2b) for re-gate"
+  },
+  "rework_count": 1,
+  "max_rework": 3
+}
