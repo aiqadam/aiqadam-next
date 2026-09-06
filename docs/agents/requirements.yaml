@@ -810,7 +810,7 @@ requirements:
   - id: REQ-014
     title: /start entry point, first-contact User creation with consent gate, and chapter assignment
     owner: BACKEND-DEV
-    status: pending
+    status: in_progress
     description: >
       Final slice of PRD 14 build-order step 1, and the first requirement that handles
       a real person. Implements PRD FR-1's /start entry and story A4 (Land in the right
