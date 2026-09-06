@@ -1,10 +1,69 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { DbClient } from "../db/client.js";
 import { chapters, users } from "../db/schema.js";
+import type { BotLang } from "../i18n/catalog.js";
 
 export interface UserWithChapterLang {
   lang: string | null;
   chapterDefaultLang: string | null;
+}
+
+export interface ResolvedUser {
+  id: string;
+  tgUsername: string | null;
+  lang: string | null;
+  chapterId: string | null;
+  consentPdAt: Date | null;
+}
+
+export interface ResolveOrCreateUserInput {
+  tgId: bigint;
+  tgUsername: string | null;
+  lang: BotLang | null;
+}
+
+// REQ-014 §2.2 — resolve-or-create the User row by tg_id. Framework-free
+// (decisions/0004); the /start handler calls this, never inlines the SQL.
+//
+// Concurrency: an INSERT ... ON CONFLICT (tg_id) DO UPDATE, where the
+// "update" sets tg_id back to its own (excluded) value — a genuine no-op on
+// the columns that matter (tg_username, lang are never overwritten on an
+// existing row) — makes the create-if-missing step atomic against
+// users_tg_id_unique. Two near-simultaneous /start taps race safely: exactly
+// one row ever exists per tg_id, and RETURNING always yields a row (freshly
+// inserted or pre-existing) in a single statement, with no separate
+// SELECT-then-INSERT window for the unique index to reject.
+export async function resolveOrCreateUser(
+  db: DbClient["db"],
+  input: ResolveOrCreateUserInput,
+): Promise<ResolvedUser> {
+  const rows = await db
+    .insert(users)
+    .values({
+      tgId: input.tgId,
+      tgUsername: input.tgUsername,
+      lang: input.lang,
+    })
+    .onConflictDoUpdate({
+      target: users.tgId,
+      set: { tgId: sql`excluded.tg_id` },
+    })
+    .returning({
+      id: users.id,
+      tgUsername: users.tgUsername,
+      lang: users.lang,
+      chapterId: users.chapterId,
+      consentPdAt: users.consentPdAt,
+    });
+
+  const row = rows[0];
+  if (row === undefined) {
+    // Unreachable in practice: RETURNING on an INSERT ... ON CONFLICT DO
+    // UPDATE always yields exactly one row. Guarded rather than asserted
+    // with a non-null assertion, per this codebase's no-speculation stance.
+    throw new Error("resolveOrCreateUser: insert-or-update returned no row");
+  }
+  return row;
 }
 
 // Framework-free, read-only query helper (REQ-013 §3.2, decisions/0004).
@@ -12,6 +71,40 @@ export interface UserWithChapterLang {
 // current language. Never a business key: resolves tg_id -> the internal
 // users.id/chapter_id relationship, but returns only the two fields
 // resolveLang needs — no PII value is read or returned here.
+export interface FlowUser {
+  id: string;
+  lang: string | null;
+  chapterId: string | null;
+  consentPdAt: Date | null;
+  chapterDefaultLang: string | null;
+}
+
+// REQ-014 — resolves the fields the /start flow's callback handlers
+// (chapter selection, consent acceptance) need to decide what to do/say
+// next: users.id (the only key ever written after this point, AC5), the
+// current chapter/consent gate state, and the chapter's default_lang for
+// resolveLang. tg_id is used only in the WHERE clause of this single
+// entry-point lookup, per §6's allowed-exception reading.
+export async function getFlowUserByTgId(
+  db: DbClient["db"],
+  tgId: bigint,
+): Promise<FlowUser | null> {
+  const rows = await db
+    .select({
+      id: users.id,
+      lang: users.lang,
+      chapterId: users.chapterId,
+      consentPdAt: users.consentPdAt,
+      chapterDefaultLang: chapters.defaultLang,
+    })
+    .from(users)
+    .leftJoin(chapters, eq(users.chapterId, chapters.id))
+    .where(eq(users.tgId, tgId))
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
 export async function getUserWithChapterByTgId(
   db: DbClient["db"],
   tgId: bigint,

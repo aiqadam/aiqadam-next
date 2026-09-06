@@ -12,8 +12,32 @@ import type { BotLang } from "./catalog.js";
 //    missing value; this function never assumes chapterDefaultLang is a
 //    valid bot locale.
 // 3. Else "ru" — the fixed final fallback, never configurable.
+const BOT_LANGS: readonly BotLang[] = ["ru", "en"];
+
 function isBotLang(value: string | null | undefined): value is BotLang {
   return value === "ru" || value === "en";
+}
+
+// REQ-014 §2.2 — maps Telegram's User.language_code (an optional IETF tag,
+// e.g. "ru", "ru-RU", "en-US") to a BotLang at User-creation time, or null if
+// unrecognized. Thin reuse of the same two-value recognition isBotLang
+// performs (same BOT_LANGS list), extended with startsWith rather than exact
+// equality because language_code carries a region subtag isBotLang's exact
+// match (used for already-normalized stored/selected values) never has to
+// handle. Not a second validation routine — one list of recognized values,
+// two call shapes for two different input shapes.
+export function mapTelegramLanguageCode(
+  languageCode: string | null | undefined,
+): BotLang | null {
+  if (typeof languageCode !== "string") {
+    return null;
+  }
+  for (const lang of BOT_LANGS) {
+    if (languageCode.startsWith(lang)) {
+      return lang;
+    }
+  }
+  return null;
 }
 
 export function resolveLang(

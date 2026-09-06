@@ -2,7 +2,12 @@ import { Bot } from "grammy";
 import { loadConfig, type BotConfig } from "./config.js";
 import { createDbClient } from "./db/client.js";
 import { createLogger } from "./log.js";
-import { makeStartHandler } from "./handlers/start.js";
+import {
+  makeChapterCallbackHandler,
+  makeConsentCallbackHandler,
+  makeStartHandler,
+} from "./handlers/start.js";
+import { makeHelpHandler } from "./handlers/help.js";
 import { makeLangCallbackHandler, makeLangCommandHandler } from "./handlers/lang.js";
 
 let config: BotConfig;
@@ -26,11 +31,16 @@ const bot = new Bot(config.botToken);
 
 bot.command("health", (ctx) => ctx.reply("ok"));
 
-// REQ-013: minimal /start stub (throwaway, see handlers/start.ts's own
-// header comment — REQ-014 replaces this registration wholesale) and the
-// /lang command (mechanism + inline-keyboard selection + persistence).
-bot.command("start", makeStartHandler(db));
+// REQ-013: /lang command (mechanism + inline-keyboard selection +
+// persistence).
 bot.command("lang", makeLangCommandHandler(db));
 bot.callbackQuery(/^lang:(ru|en)$/, makeLangCallbackHandler(db));
+
+// REQ-014: real /start (User creation, chapter assignment, consent gate),
+// its two callback handlers, and /help.
+bot.command("start", makeStartHandler(db));
+bot.callbackQuery(/^chapter:(.+)$/, makeChapterCallbackHandler(db));
+bot.callbackQuery("consent:agree", makeConsentCallbackHandler(db));
+bot.command("help", makeHelpHandler(db));
 
 bot.start();
