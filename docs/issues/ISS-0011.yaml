@@ -1,0 +1,41 @@
+id: ISS-0011
+title: Three minor test-spec precision issues in REQ-017's verification spec (fixture cleanup order, AC4 grep bluntness, AC6d wording)
+discovered_by: TEST-RUNNER
+discovered_in_run: WF02-REQ-017
+discovered_at: "2026-09-06T20:06:19Z"
+severity: MINOR
+description: >
+  Found while executing docs/agents/test-specs/REQ-017.md's live-integration
+  cases (Step 4) and independently confirmed by RELEASE-VALIDATOR at Step 5.
+  None of the three affect the correctness of the shipped implementation --
+  all 12 acceptance-criterion cases PASS on substance -- these are spec-text
+  precision defects for TEST-DESIGNER to tidy up in a future pass.
+
+  1. Fixture DELETE cleanup order: every fixture's teardown statement is
+     written parent-before-child ("DELETE FROM chapters; DELETE FROM
+     venues;"), but venues.chapter_id has onDelete: "restrict", so this order
+     raises a foreign-key violation on every case after the first (which
+     happened to run against an empty database). Executable only by
+     reversing the order (venues before chapters). Recommend the spec state
+     cleanup in explicit child-to-parent order matching the FK graph
+     (registrations/events -> venues/users -> chapters).
+
+  2. AC4's stated FAIL condition ("any match inside schema.ts is a FAIL") is
+     too blunt -- it is triggered by db/schema.ts:144-145, a documentation
+     comment that explicitly confirms the absence of a seats_taken/
+     registration_open/finished column, not an actual column definition.
+     Recommend narrowing the FAIL condition to "a Drizzle column definition
+     or migration reference" to match the PASS condition's own (already
+     correct) wording.
+
+  3. AC6d's expected text ("byte-identical to AC6c's followCityInvite
+     string") assumes both cases resolve to the same language, but AC6c's
+     fixture chapter has default_lang 'en' while AC6d's user has no chapter
+     at all to inherit a language from, so resolveLang.ts's pre-existing
+     app-wide default ('ru') applies instead. The underlying behavior (same
+     catalog key, no crash) is correct; recommend the spec assert "the same
+     followCityInvite catalog key, in whatever language resolveLang selects
+     for this user" rather than literal text equality.
+affected_files:
+  - docs/agents/test-specs/REQ-017.md
+status: open
