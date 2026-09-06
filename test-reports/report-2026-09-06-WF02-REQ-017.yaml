@@ -1,0 +1,154 @@
+run_id: WF02-REQ-017
+date: 2026-09-06T20:06:19Z
+requirement_id: REQ-017
+branch: feature/WF02-REQ-017
+commit_at_run: 016f3b9
+lint: pass
+build: pass
+unit_test_suite:
+  command: "npx vitest run (apps/bot)"
+  result: pass
+  files: 16
+  tests: 204
+cases:
+  - acceptance_criterion: AC1
+    description: "Both Yandex and Google map links render, sourced from venue's stored URLs"
+    result: pass
+    notes: >
+      Live deep-link dispatch (/start e_a0000001-...-a1) against real scratch Postgres.
+      One sendMessage captured, text contains both URLs byte-for-byte
+      (https://yandex.uz/maps/-/CCUmapstoken, https://maps.google.com/?q=maptoken) each
+      preceded by "Yandex Maps:"/"Google Maps:" labels read live from en.ts.
+  - acceptance_criterion: AC2
+    description: "Displayed times match the chapter's timezone, not the server's/viewer's"
+    result: pass
+    notes: >
+      Unit re-run (npx vitest run src/i18n/formatTimeInTimezone.test.ts): 5 tests passed
+      (spec text said "4 cases" -- actual file has 5, all pass, no discrepancy in
+      substance). Live dispatch against Asia/Tashkent-chapter event (2026-10-01T13:00Z -
+      15:00Z) with process TZ=America/New_York produced "18:00-20:00" (Tashkent-local,
+      correct) not "09:00-11:00" (New York-local, would indicate the bug this AC guards
+      against). Re-ran identical dispatch with TZ unset: output byte-identical.
+  - acceptance_criterion: AC3
+    description: "Seats left = capacity - live admitted count, computed at read time, no events row touched"
+    result: pass
+    notes: >
+      Fixture: capacity 5, 2 admitted registrations. Deep-link dispatch showed
+      "Seats left: 3"; events.updated_at before/after identical
+      (2026-09-06 20:01:43.787209+00). Added a 3rd admitted registration, dispatched
+      /events: row showed "Seats left: 2" for AC3 Event, proving live re-read not cache.
+      updated_at unchanged across both reads -- zero writes from either read path.
+  - acceptance_criterion: AC4
+    description: "No persisted column/field for seats_taken/seats_left/registration_open/finished"
+    result: pass
+    notes: >
+      git grep across apps/bot/src for seats_taken|seats_left|registration_open|finished:
+      all matches are either the three pure function names (computeSeatsLeft,
+      isRegistrationOpen, isFinished), their call-site locals, comment prose in
+      handlers/start.ts/event.ts, or one match inside db/schema.ts (lines 144-145) which
+      is a comment EXPLICITLY DOCUMENTING these values have no column -- confirmed via
+      git blame this comment predates REQ-017 (commit 584707f9, REQ-016), and
+      `git diff master...HEAD -- apps/bot/src/db/schema.ts` is empty (no schema change in
+      this diff at all). No Drizzle column definition, no migration file, no
+      EventRecord/EventWithChapterTimezone field for any of these values. PASS on
+      substance; the spec's grep-based FAIL condition ("any match inside schema.ts") is
+      overly blunt since it matches documentation prose confirming compliance rather than
+      a violation -- flagged as a MINOR spec-precision issue, not a blocking failure.
+  - acceptance_criterion: AC5
+    description: "Every agenda[] item renders with correct chapter-local time and label, array order preserved"
+    result: pass
+    notes: >
+      Unit re-run (npx vitest run src/domain/event.test.ts -t "renders every agenda
+      item"): 1 passed, 46 skipped (as expected -- filtered by -t). Live dispatch against
+      a JSONB agenda column with talk (18:30Z) stored before doors (17:45Z), out of
+      chronological order: card rendered "23:30 -- Opening Talk" then "22:45 -- Doors
+      Open", i.e. talk line before doors line (array order preserved, not re-sorted),
+      both times correctly converted to Asia/Tashkent (+5h).
+  - acceptance_criterion: AC6a
+    description: "Draft and cancelled events never appear in /events; both hidden events' own deep links refuse"
+    result: pass
+    notes: >
+      /events reply contained "Visible Published Event" only, no "Hidden Draft Event" or
+      "Hidden Cancelled Event". Both hidden events' deep links (/start e_...a2, e_...a3)
+      returned the plain not-available reply (localized "Это мероприятие сейчас
+      недоступно.\nПосмотрите ближайшие мероприятия: /events" for these
+      brand-new/no-chapter users), never a card -- no title/venue/seats text in either.
+  - acceptance_criterion: AC6b
+    description: "Published-but-finished event excluded from /events AND its deep link"
+    result: pass
+    notes: >
+      Added a published event with ends_at in the past. /events reply still showed only
+      "Visible Published Event", never "Finished Published Event". Its deep link returned
+      the plain not-available reply, never a card.
+  - acceptance_criterion: AC6c
+    description: "Zero upcoming shows the follow-city invitation, no apology, no Wishlist"
+    result: pass
+    notes: >
+      Fresh chapter with zero events: /events reply text exactly
+      "No upcoming events in your chapter yet. Follow along -- new events will show up
+      here." (en.ts followCityInvite, verbatim). No "sorry"/"unfortunately" wording.
+      `git grep -in wishlist apps/bot/src` returned no output (exit 1 / zero matches).
+  - acceptance_criterion: AC6d
+    description: "Chapterless user gets the identical empty-state reply, no crash"
+    result: pass
+    notes: >
+      Brand-new tg_id with no users row at all, dispatched /events directly: reply was
+      the followCityInvite catalog string, resolved to "ru" (the app-wide default when
+      no user row and no chapter exist to source a language from -- resolveLang.ts line
+      53, pre-existing default unrelated to this diff). Harness process exited 0, no
+      crash, no stack trace surfaced. Spec wording ("byte-identical to AC6c") is
+      imprecise since AC6c's chapter has default_lang 'en' while AC6d has no chapter at
+      all to inherit a language from -- flagged as a MINOR spec-clarity issue; the
+      underlying behavior (same catalog key, correct empty-state pattern, no crash) is
+      correct.
+  - acceptance_criterion: AC-cover
+    description: "Cover-photo branch selection (sendPhoto vs plain reply)"
+    result: pass
+    notes: >
+      Event with cover_file_id set ("AgADtestFileId123") dispatched via deep link:
+      captured exactly one entry, method sendPhoto (not sendMessage), payload.photo ===
+      "AgADtestFileId123" verbatim (unmodified), payload.caption contains the full card
+      text (title, date/time, venue block, map links, seats line, CTA).
+  - acceptance_criterion: AC-catalog
+    description: "i18n parity for events.* keys and /events command registration"
+    result: pass
+    notes: >
+      types.ts's events block has 11 keys (listHeader, listRowSeatsLeft,
+      listRowWaitlistOpen, followCityInvite, cardVenueLabel, cardMapYandex,
+      cardMapGoogle, cardAgendaLabel, cardSeatsLeft, cardWaitlistOpen, cardCta) --
+      confirmed identical key sets present in both ru.ts and en.ts by direct read.
+      index.ts line 83: exactly one registration,
+      `bot.command("events", makeEventsListHandler(db));`, immediately before
+      `bot.start()` -- reachable, not commented out.
+issues_found:
+  - severity: minor
+    area: docs/agents/test-specs/REQ-017.md
+    description: >
+      Every fixture's DELETE cleanup statement orders "DELETE FROM chapters; DELETE FROM
+      venues;" (parent before child) instead of child-before-parent. venues.chapter_id
+      has onDelete: "restrict", so this order raises a foreign-key violation on every
+      case after the first (which happened to run against an empty database). Worked
+      around by reversing the order (venues before chapters) when seeding AC2 onward --
+      a data-setup-mechanics fix only, does not change any assertion or expected result.
+      Route to TEST-DESIGNER for a spec correction.
+  - severity: minor
+    area: docs/agents/test-specs/REQ-017.md (AC4)
+    description: >
+      AC4's FAIL condition ("any match inside schema.ts is a FAIL") is stated too
+      bluntly -- it is triggered by a documentation comment (schema.ts:144-145) that
+      explicitly confirms the absence of these columns, not by an actual column
+      definition. Recommend narrowing the condition to "a Drizzle column definition or
+      migration reference," matching the PASS condition's own wording, which already
+      distinguishes this correctly.
+  - severity: minor
+    area: docs/agents/test-specs/REQ-017.md (AC6d)
+    description: >
+      AC6d's expected text ("equal to the same events.followCityInvite string as AC6c")
+      assumes byte-identical output, but AC6c's chapter has default_lang 'en' while
+      AC6d's user has no chapter at all, so resolveLang falls back to the app-wide
+      default 'ru' (resolveLang.ts, pre-existing). The underlying behavior (correct
+      catalog key, no crash) is right; the spec should say "the same followCityInvite
+      catalog key, in whatever language resolveLang selects for this user" rather than
+      asserting literal text equality.
+overall_result: PASS
+next_action: "Route to RELEASE-VALIDATOR (Step 5)"

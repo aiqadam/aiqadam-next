@@ -1,0 +1,17 @@
+{
+  "handoff_id": "step-04-test-runner",
+  "run_id": "WF02-REQ-017",
+  "workflow_id": "WF-02",
+  "step": "04",
+  "from_agent": "ORCH",
+  "to_agent": "RELEASE-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "npm run lint: exit 0 (2 pre-existing @next/next/no-img-element warnings in apps/web, unrelated files Footer.tsx/Nav.tsx, no lint errors). npm run build: exit 0 for both apps/web (next build, Turbopack, TypeScript check passed) and apps/bot (tsc -p tsconfig.json, no output = success). npx vitest run (apps/bot): 16 test files, 204 tests, all passed -- matches the expected 204+ count. Live-integration spec (docs/agents/test-specs/REQ-017.md): spun up the scratch Postgres from apps/bot/docker-compose.yml, polled pg_isready bounded (30 iterations, 2s each) until ready, ran npx drizzle-kit migrate, confirmed git diff master...HEAD -- apps/bot/src/db is empty (no schema/migration change in this requirement). Wrote and ran the harness script per the spec's exact template (deleted at the end of the run, confirmed via git status --porcelain showing nothing stray). Executed all 12 cases against real fixture rows via docker compose exec postgres psql and real bot.handleUpdate() dispatch: AC1 (both map links byte-for-byte) PASS; AC2 (chapter-local time under mismatched TZ=America/New_York vs TZ unset, byte-identical, 18:00-20:00 not 09:00-11:00) PASS; AC3 (seatsLeft 3 then 2 across two live reads, events.updated_at unchanged both times) PASS; AC4 (git grep + empty schema diff, one match is a pre-existing REQ-016 comment documenting the invariant not a column) PASS; AC5 (agenda JSONB read back in stored array order, both times correctly converted) PASS; AC6a (draft/cancelled excluded from list, both hidden events' deep links refuse) PASS; AC6b (finished-but-published excluded from list AND deep link) PASS; AC6c (exact followCityInvite string, no apology, zero wishlist grep hits) PASS; AC6d (chapterless user gets followCityInvite in the app's default-language fallback, no crash, exit 0) PASS; AC-cover (sendPhoto with unmodified file id and full caption) PASS; AC-catalog (11/11 keys present and matching across types.ts/ru.ts/en.ts, /events registered exactly once and reachable in index.ts) PASS. Full real command output and per-case notes in test-reports/report-2026-09-06-WF02-REQ-017.yaml. Three MINOR test-spec issues found and worked around without altering any assertion (details and recommended spec fixes in the report's issues_found): (1) every fixture's DELETE cleanup order is parent-before-child (chapters before venues), violating the onDelete:'restrict' FK on every case after the first -- reversed the order to execute the cases, no assertion changed; (2) AC4's FAIL condition is triggered by a documentation comment in schema.ts that confirms compliance rather than violating it; (3) AC6d's 'byte-identical to AC6c' expectation doesn't account for AC6c/AC6d resolving to different default languages by design (resolveLang.ts fallback, pre-existing). None of these are implementation defects -- BACKEND-DEV's code is correct on all 12 cases.",
+    "next_action": "Route to RELEASE-VALIDATOR (Step 5) -- all lint/build/unit-suite/live-integration checks PASS. Three MINOR test-spec-precision issues noted for TEST-DESIGNER's record (fixture DELETE order, AC4 grep bluntness, AC6d wording) -- non-blocking, do not require rework of this run."
+  },
+  "artifacts_out": [
+    "test-reports/report-2026-09-06-WF02-REQ-017.yaml"
+  ]
+}
