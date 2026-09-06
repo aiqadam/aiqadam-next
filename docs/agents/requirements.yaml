@@ -487,7 +487,7 @@ requirements:
   - id: REQ-008
     title: Repoint Dockerfile, deploy compose files and the CI workflow at the apps/web workspace
     owner: FRONTEND-DEV
-    status: in_progress
+    status: done
     description: >
       Second half of the monorepo migration begun in REQ-007. REQ-007 moves the site's
       source into apps/web/ and creates the workspace root but deliberately does not
@@ -518,6 +518,19 @@ requirements:
       contract itself — deploy/deploy.sh's `deploy:<sha>` SSH forced-command interface,
       the compose project names, the host networking mode and port 3120 all stay exactly
       as they are; this requirement repoints paths, it does not redesign deployment.
+
+      Post-implementation correction (WF02-REQ-008, 2026-09-06): by the time this run
+      started, the Dockerfile's COPY paths had already been repointed at apps/web by an
+      out-of-process commit during REQ-007's merge (2c58702, "fix(docker): update
+      Dockerfile for apps/web monorepo layout") — so the Dockerfile itself needed no
+      further edit here. The gap this run actually closed was narrower: the repo had no
+      root `.dockerignore`, so the host's node_modules — which under npm workspaces
+      contains a symlink at node_modules/app pointing back into the workspace — leaked
+      into the Docker build context and broke that symlink inside the image. This run's
+      real fix was adding a root `.dockerignore` (excluding node_modules and other
+      build-context noise) so the image builds its own node_modules cleanly instead of
+      inheriting the host's. All 4 acceptance criteria below were independently verified
+      as satisfied on current HEAD.
     acceptance_criteria:
       - "`docker build -t aiqadam-next:req008 .` from the repo root completes with exit code 0 — the exact command .github/workflows/ci-cd.yml's `build` job runs (with a different tag)."
       - "`docker run --rm -e PORT=3120 -p 3120:3120 aiqadam-next:req008` serves HTTP 200 at http://127.0.0.1:3120/health and renders /ru, /uz, /en and /kk with their matching `<html lang>` values, verified by actual curl output pasted into the verification report — this is the same health contract deploy/docker-compose.qa.yml's healthcheck asserts."
