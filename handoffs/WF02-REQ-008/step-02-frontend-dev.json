@@ -1,0 +1,16 @@
+{
+  "handoff_id": "step-02-frontend-dev",
+  "run_id": "WF02-REQ-008",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "ORCH",
+  "to_agent": "FRONTEND-DEV",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Verified branch feature/WF02-REQ-008. Empirically found and fixed a real gap the design doc flagged as unverified: no root .dockerignore existed, so `COPY . .` in the Dockerfile's builder stage leaked the HOST's local node_modules (including its Windows-absolute-path node_modules/app symlink) into the build context, overwriting the correct Linux-relative symlink `npm ci` had created inside the container -- leaving a dangling workspace symlink in the shipped image that happened not to crash anything on the health/locale hot path. Added .dockerignore (node_modules, .next, .git, env files) and re-verified with --no-cache. All 4 ACs PASS with real captured output: docker build exit 0; docker run -e PORT=3120 serves 200 at /health and correct <html lang> for /ru /uz /en /kk, with node_modules/app now resolving correctly as ../apps/web; `docker compose -p aiqadam-next-qa -f deploy/docker-compose.qa.yml config` exits 0 resolving build.context/dockerfile to repo root; `git diff --stat origin/master -- deploy/deploy.sh` empty. npm run lint and npm run build both exit 0 (2 pre-existing unrelated <img> warnings). No changes to Dockerfile, compose files, ci-cd.yml, or deploy.sh. Flags the same .dockerignore gap is latent in CI's docker build step and deploy.sh's docker compose up --build -- same root cause, this fix benefits those paths too.",
+    "artifacts_out": [".dockerignore"],
+    "issues": [],
+    "next_action": "Route to REVIEWER (Step 2b)"
+  }
+}
