@@ -95,4 +95,32 @@ export const ru = {
     cardCta:
       "Ответьте на это сообщение, чтобы зарегистрироваться — регистрация через бота пока не реализована.",
   },
+  // Placeholder/provisional wording (REQ-018 design §5) — CONTENT-BA owns
+  // final copy per decisions/0002.
+  staff: {
+    notAuthorized: "У вас нет прав на это действие.",
+    usageNoArgs:
+      "Отправьте /staff_add <event_id> <tg_username> (или /staff_remove) двумя параметрами.",
+    eventNotFound: "Мероприятие не найдено.",
+    userNotFound: "Пользователь не найден.",
+    alreadyAssigned: "Этот пользователь уже назначен на встречу этого мероприятия.",
+    notAssigned: "Этот пользователь не назначен на встречу этого мероприятия.",
+    addSuccessPrefix: "Назначен(а) на встречу мероприятия:",
+    removeSuccessPrefix: "Снят(а) со встречи мероприятия:",
+    notificationFailedNote: " (не удалось отправить уведомление пользователю)",
+    assignmentNotificationBody:
+      "Вас назначили на встречу гостей (check-in) для мероприятия «{event}». Ваша задача на входе: поприветствовать гостя, спросить имя и подтвердить его в списке участников.",
+    removalNotificationBody:
+      "Организатор снял(а) вас со встречи гостей (check-in) для мероприятия «{event}». Доступ к этой функции для данного мероприятия больше недоступен.",
+  },
+  // Placeholder/provisional wording (REQ-018 design §5) — CONTENT-BA owns
+  // final copy per decisions/0002. Authorization-only stub (design §0.3):
+  // no check-in business logic exists yet (REQ-028/029's scope).
+  checkin: {
+    usageNoId: "Укажите id мероприятия: /checkin <event_id>",
+    notFound: "Мероприятие не найдено.",
+    notAuthorized: "У вас нет прав встречать гостей на этом мероприятии.",
+    authorizedStub:
+      "Вы авторизованы для встречи гостей мероприятия «{event}». Сканирование и регистрация прихода пока не реализованы в этой версии бота.",
+  },
 } satisfies Catalog;

@@ -88,4 +88,31 @@ export const en = {
     cardWaitlistOpen: "Waitlist open",
     cardCta: "Reply here to register — registration through the bot isn't built yet.",
   },
+  // Placeholder/provisional wording (REQ-018 design §5) — CONTENT-BA owns
+  // final copy per decisions/0002.
+  staff: {
+    notAuthorized: "You are not authorized to do this.",
+    usageNoArgs: "Send /staff_add <event_id> <tg_username> (or /staff_remove) with both arguments.",
+    eventNotFound: "Event not found.",
+    userNotFound: "User not found.",
+    alreadyAssigned: "This user is already assigned as check-in staff for this event.",
+    notAssigned: "This user is not assigned as check-in staff for this event.",
+    addSuccessPrefix: "Assigned as check-in staff for event:",
+    removeSuccessPrefix: "Removed as check-in staff for event:",
+    notificationFailedNote: " (failed to notify the user)",
+    assignmentNotificationBody:
+      "You've been put on the check-in door for \"{event}\". At the door: greet the guest, ask their name, and confirm them in the list.",
+    removalNotificationBody:
+      "The organizer removed you as check-in staff for \"{event}\". Your check-in access for this event has ended.",
+  },
+  // Placeholder/provisional wording (REQ-018 design §5) — CONTENT-BA owns
+  // final copy per decisions/0002. Authorization-only stub (design §0.3): no
+  // check-in business logic exists yet (REQ-028/029's scope).
+  checkin: {
+    usageNoId: "Provide the event id: /checkin <event_id>",
+    notFound: "Event not found.",
+    notAuthorized: "You are not authorized to check people in for this event.",
+    authorizedStub:
+      "You're authorized to check people in for \"{event}\". Scanning/recording check-ins isn't built yet in this version of the bot.",
+  },
 } satisfies Catalog;
