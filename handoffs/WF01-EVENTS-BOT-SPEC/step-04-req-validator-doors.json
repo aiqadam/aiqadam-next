@@ -1,0 +1,56 @@
+{
+  "handoff_id": "00a8ffc4-5c54-4887-88c9-0b6ea3747be9",
+  "run_id": "WF01-EVENTS-BOT-SPEC",
+  "workflow_id": "WF-01",
+  "step": "04",
+  "from_agent": "ORCH",
+  "to_agent": "REQ-VALIDATOR",
+  "file": "handoffs/WF01-EVENTS-BOT-SPEC/step-04-req-validator-doors.json",
+  "created_at": "2026-09-06T06:12:58Z",
+  "started_at": "2026-09-06T06:12:58Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "HIGH",
+  "context": {
+    "requirement_ids": ["REQ-011", "REQ-026"],
+    "requirement_text": {},
+    "source_text": {
+      "why-this-gate-exists": "REQ-011 and REQ-026 both passed your gate at step-02. Commit d087237 then AMENDED both (49 insertions, 17 deletions) without any gate. ORCH wrote that amendment itself. A requirement that changed after passing a gate has not been gated in its current form, and ORCH's own edit is not self-certifying — the same reasoning that produced the step-03 recheck applies here. This is the last gate before implementation begins, so anything wrong here reaches real code.",
+      "the-trigger": "The project owner (a non-developer) asked why the doors-open time could not 'be put in some parameter'. ORCH investigated and found its own earlier framing of the question was WRONG: it had presented the options as (a) quote start time only, or (b) invent a doors_at field, and parked the question. In fact PRD 5 already defines Event.agenda[] as 'non-talk items only (doors, networking, close)' — doors is the first named example — and RE-EVALUATION.md R7 shows agenda[] was deliberately reinstated with that narrowed definition after being cut in v1. ORCH then resolved the question itself rather than leaving it open.",
+      "PRD-5-agenda-line": "Event ... agenda[]  <- non-talk items only (doors, networking, close). The talk line-up is the accepted Talks, never duplicated here.",
+      "PRD-FR-7-reminder-row": "T-3h | Route: address, both map links, start time, QR code"
+    },
+    "related_handoff_ids": ["8eaeaf6d-14c5-46f6-a1b2-46ff3e41d9a1", "5c76aa0a-5ce1-4958-8579-5f4bb73aeeb1"],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "handoffs/WF01-EVENTS-BOT-SPEC/step-02-req-validator.json",
+      "handoffs/WF01-EVENTS-BOT-SPEC/step-03-req-validator-recheck.json",
+      "docs/agents/instructions/security-invariants.md",
+      "docs/agents/decisions/0005-orm-drizzle.md",
+      "docs/agents/decisions/0006-test-framework-vitest.md",
+      "C:/tmp/AI-Qadam-Events-Bot-Spec/PRD.md",
+      "C:/tmp/AI-Qadam-Events-Bot-Spec/RE-EVALUATION.md",
+      "C:/tmp/AI-Qadam-Events-Bot-Spec/STORY-DETAILS.md"
+    ]
+  },
+  "task": {
+    "description": "Gate the amended REQ-011 and REQ-026 per WF-01 Step 2, and independently judge the product decision ORCH embedded in them. START FROM THE DIFF: `git show d087237` is the entire change.\n\nPART 1 — IS THE PREMISE ACTUALLY TRUE? Everything else rests on this, so verify it first and directly against the spec, not against ORCH's characterization of the spec:\n  a. Does PRD 5 genuinely list `doors` as an example of what Event.agenda[] holds? Quote the actual line.\n  b. Does RE-EVALUATION.md R7 genuinely say agenda[] was cut and reinstated with a non-talk-items-only definition? Quote it.\n  c. Given (a) and (b), is ORCH's conclusion correct — that reading a doors time out of agenda[] requires NO new field and therefore does NOT engage PRD's closing rule against inventing business rules? Or is ORCH stretching a data-model note into a licence to change a message FR-7 specifies exactly?\n\nIf (a) or (b) is false, this is a FAIL and the whole amendment must be reverted — say so plainly.\n\nPART 2 — IS THE PRODUCT DECISION SOUND, OR IS IT SCOPE CREEP? ORCH resolved an open question the spec explicitly assigned to a named human ('Open questions for Viktor'). Judge that honestly rather than deferring to ORCH:\n  - FR-7 specifies the T-3h reminder's contents as a closed list: 'address, both map links, start time, QR code'. Adding a doors time is a change to a specified message. Is 'reading an existing field for its assigned purpose' a fair description, or a rationalization for editing a spec-defined message without the spec owner?\n  - ORCH's justification is PRD 2's show-rate goal (telling someone 20:00 when doors open at 19:30 works against attendance). Is that reasoning sound, and is it the kind of reasoning a validator should accept from an orchestrator that is not the product owner?\n  - Consider the alternative that ORCH did NOT consider: leaving the question open and unresolved, which is what core-directives.md's Zero Manual Work clause 1 arguably prescribes for a genuine product-preference question with a named human owner. Was resolving it the right call, or should it have stayed parked? Say which, and why. A MAJOR finding here is legitimate even though ORCH is the role that dispatched you.\n\nPART 3 — CHECKS (a)-(e) ON BOTH AMENDED REQUIREMENTS.\n  - REQ-026's two new acceptance criteria replace one old one. Are BOTH the with-doors and without-doors cases genuinely testable as written? Does the without-doors case actually pin the behaviour (no doors time mentioned at all), or does it leave a gap?\n  - REQ-011 gained a constraint in its description ('each agenda item carries at minimum a TIME and a LABEL, and the shape must make a DOORS item identifiable programmatically') plus one new acceptance criterion. Is that criterion executable as written — can an agent store an event with a doors item plus a non-doors item and retrieve the doors item's time by query, given that DATA-DESIGNER has not yet chosen the shape? Or is it circular (the criterion presupposes the design it is meant to constrain)?\n  - Does REQ-011's new constraint over-specify DATA-DESIGNER's job — i.e. has ORCH, which is forbidden from doing design work, effectively made a design decision here under the guise of a requirement? That is a real risk and worth a direct answer.\n  - SIZE: did either requirement grow beyond one agent turn?\n\nPART 4 — CONSISTENCY AND CONSEQUENCE.\n  - Does the amendment contradict PRD 5's de-duplication rule, decisions 0005/0006 (particularly 0006's clock-injection rule — a doors TIME is time data; does reading it interact with that rule?), or security-invariants.md?\n  - REQ-016 (event editing) lets an organizer edit agenda[]. REQ-017 renders the event card including agenda. Does either need a corresponding change now that a doors item carries behavioural meaning it did not have before — e.g. must REQ-016 validate or surface the doors item specially? If yes, that is an unwired consequence and a finding, exactly like the step-03 findings.\n  - Is REQ-011 correctly positioned as a dependency of REQ-026? ORCH claims it is already transitive. Verify.\n\nFAIL on any check failing, naming the requirement and the problem. State your verdict on Part 2 explicitly and separately from the mechanical checks — that is the judgment call this gate most needs.",
+    "acceptance_criteria": [
+      "The two premise claims (PRD 5 naming doors inside agenda[]; RE-EVALUATION R7's reinstatement) were verified by quoting the actual spec text, not accepted from the handoff or from ORCH's commit message.",
+      "A separate, explicit verdict is given on whether ORCH was entitled to resolve a question the spec assigned to a named human, with reasoning — including consideration of leaving it parked.",
+      "Checks (a)-(e) were run against both amended requirements in their current form.",
+      "REQ-011's new acceptance criterion was assessed specifically for circularity and for whether ORCH has over-reached into DATA-DESIGNER's design authority.",
+      "REQ-026's without-doors case was assessed for whether it actually pins the behaviour rather than leaving it unspecified.",
+      "REQ-016 and REQ-017 were checked for unwired consequences of a doors item now carrying behavioural meaning.",
+      "The claim that REQ-011 is already a transitive dependency of REQ-026 was independently verified.",
+      "Any FAIL or MAJOR finding names the requirement and the specific problem; a PASS states what was positively verified."
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": null
+  }
+}
