@@ -1,0 +1,49 @@
+{
+  "handoff_id": "2d7a527c-e176-4378-8ade-a929d0f101c6",
+  "run_id": "WF01-EVENTS-BOT-SPEC",
+  "workflow_id": "WF-01",
+  "step": "06",
+  "from_agent": "ORCH",
+  "to_agent": "REQ-VALIDATOR",
+  "file": "handoffs/WF01-EVENTS-BOT-SPEC/step-06-req-validator-rework2.json",
+  "created_at": "2026-09-06T06:24:45Z",
+  "started_at": "2026-09-06T06:24:45Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "HIGH",
+  "context": {
+    "requirement_ids": ["REQ-016", "REQ-017", "REQ-026"],
+    "requirement_text": {},
+    "source_text": {
+      "rework-cycle": "Rework cycle 2 of a maximum 3 (ORCHESTRATOR.md section 6). A third FAIL escalates rather than loops again, so if something is still wrong, say so plainly — do not pass it to avoid the escalation.",
+      "your-step-05-findings": "MAJOR-4: REQ-017's byte-for-byte criterion was unexecutable because REQ-017 is a transitive ANCESTOR of REQ-026 (chain 026->025->024->023->022->021->020->017) and is therefore built first, so it cannot compare against a reminder that does not exist yet. MAJOR-5: REQ-016's 'starts_at minus 12h' lower bound was an invented business rule -- you grepped every spec file and found zero hits for 12h or starts_at minus, and noted it would refuse a legitimate all-day workshop's early setup item while admitting an equally nonsensical 11-hour-early one. You also noted decisions/0007 itself only asked for the doors-later-than-starts_at bound, so REQ-016 had exceeded its own decision record. MINOR-6 (residual, from MAJOR-3): REQ-011's 'exhibiting the query' names no artefact location.",
+      "what-orch-changed": "Commit d061248. (1) REQ-016's criterion now imposes ONLY the two sourced bounds -- doors later than starts_at, and any item later than ends_at -- and states explicitly that no lower bound exists, with the reason. (2) REQ-017's criterion is reduced to rendering every agenda item with time and label in the chapter timezone. (3) The card-vs-reminder byte-for-byte comparison moved to REQ-026 as a new criterion, with an inline note explaining why it lives there. (4) decisions/0007's consequences section updated to match both corrections."
+    },
+    "related_handoff_ids": ["abee8420-5e0b-4b69-a6cb-3f96a739df3d", "00a8ffc4-5c54-4887-88c9-0b6ea3747be9"],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "docs/agents/decisions/0007-doors-time-in-t3h-reminder.md",
+      "handoffs/WF01-EVENTS-BOT-SPEC/step-05-req-validator-rework.json",
+      "C:/tmp/AI-Qadam-Events-Bot-Spec/PRD.md"
+    ]
+  },
+  "task": {
+    "description": "Re-gate rework cycle 2. THE DIFF IS `git show d061248`.\n\nPART 1 — ARE MAJOR-4 AND MAJOR-5 ACTUALLY FIXED?\n  1. MAJOR-5 / the invented bound: does REQ-016's criterion now impose only bounds derivable from the spec? Confirm the 12h cutoff is gone from the criterion (note: one '12h' string survives elsewhere in requirements.yaml, in REQ-023's auto-promotion test fixture — verify for yourself that it is an unrelated legitimate use, a fixture timing inside the T-24h window, and not a leftover). Are the two SURVIVING bounds genuinely derivable, or is 'doors is when the room opens, so it precedes the start' itself an inference the spec does not license? Push on that: PRD never literally says doors precedes start. Is that a safe derivation or a second invented rule wearing better clothes?\n  2. MAJOR-4 / the inverted dependency: REQ-017's criterion is now render-only, and the comparison moved to REQ-026. Verify the direction is now correct — that REQ-026 is genuinely the later requirement and CAN compare against an already-built card. Also check the moved criterion did not lose anything in the move: does REQ-026's version still actually catch a card and a reminder disagreeing?\n  3. MINOR-6: did ORCH address it, and if not, does it still stand as MINOR or has it become blocking?\n\nPART 2 — DID THIS ROUND INTRODUCE ANYTHING NEW? Both previous rounds introduced fresh defects in the act of fixing (round 1 broke REQ-016/REQ-017; that is the pattern to watch). Check specifically:\n  - REQ-026 is now at 10 acceptance criteria, up from 8 at step-04. Has it outgrown one agent turn? This is the sizing question that matters most now.\n  - Does REQ-026's new comparison criterion contradict or duplicate any of its other nine?\n  - Do REQ-016, REQ-017, REQ-026 and REQ-011 still describe a mutually consistent agenda shape and doors semantics after this third round of edits?\n  - Does decisions/0007's updated consequences section now match what the four requirements actually say? A record that has drifted from its requirements is worse than no record.\n\nPART 3 — THE STANDING QUESTION, PLAINLY. Are REQ-007 through REQ-032 ready for WF-02 dispatch? If yes, say what you positively verified and confirm the graph is still acyclic, orphan-free and rooted at REQ-007. If no, name what blocks by requirement id. Given this is cycle 2 of 3, also state whether any remaining issue is genuinely blocking or is a MINOR that should be recorded and carried rather than looped on — ORCH needs that distinction to decide between another cycle and dispatch.",
+    "acceptance_criteria": [
+      "MAJOR-4 and MAJOR-5 were each independently re-derived as fixed or not fixed, with evidence rather than the commit message.",
+      "The two surviving bounds in REQ-016 were pushed on specifically — is 'doors precedes start' a safe derivation from the spec or a second invented rule?",
+      "The surviving '12h' occurrence elsewhere in requirements.yaml was checked and judged unrelated or not.",
+      "The moved comparison criterion in REQ-026 was checked for both correct direction and no loss of force in the move.",
+      "REQ-026's sizing at 10 acceptance criteria was explicitly judged against the one-agent-turn rule.",
+      "All four interlocked requirements plus decisions/0007 were checked for mutual consistency after this round.",
+      "A plain ready/not-ready verdict is given, with any remaining issue classified as blocking or carry-forward MINOR so ORCH can decide between another cycle and dispatch."
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": null
+  }
+}
