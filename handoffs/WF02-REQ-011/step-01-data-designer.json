@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-01-data-designer",
+  "run_id": "WF02-REQ-011",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "DATA-DESIGNER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Wrote docs/agents/design/REQ-011.md for venues/events/registrations/event_staff/audit_log. Solved the agenda[] doors-item-queryable-via-SQL challenge with two working JSONB query forms (jsonb_path_query_first and jsonb_array_elements+@> containment). UNIQUE(event_id,user_id) and UNIQUE(qr_token) as real DB constraints. admission enum exactly 5 PRD-6 values, checked_in_at kept separate. Explicit no_show/waitlist_position/seats_taken/registration_open/finished derivation expressions with $evaluation_time parameter (no SQL now()). EventStaff single-event-rights statement (S2). AuditLog.payload S11 limitation stated honestly. 7 open questions listed explicitly.",
+    "artifacts_out": ["docs/agents/design/REQ-011.md"],
+    "next_action": "Route to CODE-DESIGN-VALIDATOR (Step 1b)"
+  }
+}
