@@ -1,0 +1,46 @@
+id: ISS-0005
+title: Dockerfile/deploy infra was outside every WF-02 gate's scope for the REQ-007 monorepo move
+discovered_by: FRONTEND-DEV
+discovered_in_run: WF02-REQ-007
+discovered_at: "2026-09-06T07:38:26Z"
+severity: MAJOR
+description: >
+  REQ-007 moved the site into apps/web/ and, per its own design artefact and every
+  requirement text since, deliberately left Dockerfile/deploy/.github/workflows/
+  untouched -- that's REQ-008's stated scope. But CI's build job runs
+   as its own verification step, and no gate in the REQ-007 pipeline
+  (CODE-DESIGNER, CODE-DESIGN-VALIDATOR, REVIEWER, TEST-DESIGNER,
+  TEST-DESIGN-VALIDATOR, TEST-RUNNER, RELEASE-VALIDATOR) exercises that CI job before
+  Step Final's  does -- so the regression (Dockerfile assumed the old
+  single-package layout: root-only package.json copy, /app/.next and /app/public
+  paths that no longer exist post-move) was invisible until the PR's actual CI run,
+  at Step Final, the last possible point.
+
+  FRONTEND-DEV correctly fixed it in scope at Step Final rather than filing-and-
+  forwarding (Unblock-Everything: it was blocking THIS step's completion, and
+  REQ-008's own future work would have hit the identical bug), verified with a real
+   +  serving GET /health -> 200, not just a successful
+  build. Reviewed by ORCH post-hoc (git show ece1694): minimal, mirrors the exact
+  path change REQ-007 made everywhere else, nothing extraneous. Not treated as
+  needing a rework cycle -- the fix is sound and re-litigating working, CI-verified
+  code would cost more than it returns.
+
+  The actual gap this exposes: for any FUTURE requirement whose diff could plausibly
+  affect what  produces (a path move, a build-output location change, a
+  workspace restructure), no existing gate exercises that build. REVIEWER's checklist
+  (design-system/code-quality/scope) has no Docker-awareness; TEST-RUNNER's manual
+  checklist is driven by the requirement's own acceptance criteria, which REQ-007's
+  design artefact explicitly (and correctly, given REQ-008's stated split) never
+  mentioned Dockerfile.
+
+  Suggested fix, for whoever picks this up: either (a) add "if this diff could affect
+  docker build output, run docker build locally before Step 2b" as a standing
+  REVIEWER checklist item in docs/guides/frontend_developer_guide.md /
+  .claude/agents/reviewer.md, or (b) add a  step to WF-02's own Step 2
+  self-review checklist for any requirement touching path layout. Not decided here --
+  this issue records the gap, not the fix.
+affected_files:
+  - docs/agents/workflows/WF-02_requirement_implementation.md
+  - .claude/agents/reviewer.md
+  - Dockerfile
+status: open
