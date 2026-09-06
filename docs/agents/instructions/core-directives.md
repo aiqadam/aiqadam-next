@@ -55,7 +55,14 @@ see [decisions/0001-full-pipeline-adopted.md](../decisions/0001-full-pipeline-ad
 Consequences:
 
 - **No PR waits for human approval.** An agent opens the PR, an agent verifies CI is
-  green, an agent merges it.
+  green, an agent merges it. Since 2026-09-06 this is also a **GitHub-enforced fact**,
+  not just pipeline discipline: `master` carries branch protection requiring a PR and a
+  green `build` check, with **0 required reviewers** and no admin bypass — see
+  [decisions/0001-full-pipeline-adopted.md](../decisions/0001-full-pipeline-adopted.md)'s
+  2026-09-06 addendum. `docs/agents/protocols/GIT_MERGE.md`'s existing merge flow already
+  satisfies it unchanged. If `gh pr merge` ever fails on a review/bypass error where it
+  previously succeeded, that means the ruleset changed — report it as a BLOCKER, don't
+  work around it.
 - **Because there is no human backstop, every gate in this pipeline must actually gate.**
   A validator that rubber-stamps its producer's work removes the only check that exists.
   Validators MUST re-derive their verdict from the artefact itself, never from the
