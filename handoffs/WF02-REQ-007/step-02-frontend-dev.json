@@ -8,8 +8,8 @@
   "file": "handoffs/WF02-REQ-007/step-02-frontend-dev.json",
   "created_at": "2026-09-06T07:08:41Z",
   "started_at": "2026-09-06T07:08:41Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-09-06T07:12:09Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": ["REQ-007"],
@@ -35,10 +35,23 @@
     ]
   },
   "result": {
-    "status": null,
-    "summary": null,
-    "artifacts_out": [],
-    "issues": [],
-    "next_action": null
+    "status": "PASS",
+    "summary": "Implemented docs/agents/design/REQ-007.md exactly. Moved src/, messages/, public/, next.config.ts, tsconfig.json, eslint.config.mjs, next-env.d.ts and package.json into apps/web/ via git mv (next-env.d.ts is gitignored/untracked, so plain mv was used for it, matching the design's expectation that it is a non-source build artifact). Created a new root package.json (name aiqadam-next per design SS9 open question 1's stated default, private:true, workspaces:[apps/*], dev/build/lint/start scripts delegating via `npm run <script> -w apps/web`). Regenerated package-lock.json at the root via `npm install` (confirmed lockfile's root package entry now lists workspaces:[apps/*] and an apps/web workspace member). All 5 acceptance criteria independently verified by actually running the checks: AC1 (ls at root shows src/messages/public/next.config.ts/tsconfig.json/eslint.config.mjs/next-env.d.ts absent, apps/web/ has all 7 present; git status showed 100% renames, not delete+add). AC2 (npm run build and npm run lint from repo root both exit 0 -- build compiled successfully with no type/routing/module-resolution errors, lint produced only 2 pre-existing no-img-element warnings, 0 errors). AC3 (ran npm run build && npm run start from repo root; curled /ru /uz /en /kk -- all HTTP 200 with <html lang> matching ru/uz/en/kk respectively; server log had no missing-key or warning output; curled /health -- HTTP 200 {\"status\":\"ok\",\"service\":\"aiqadam-next\"}; server stopped after verification). AC4 (ran the REQ-005 key-set-diff Node script, extended to all four catalogs pairwise against ru.json: ru/uz/en/kk each have exactly 177 leaf keys, zero missing, zero extra in every comparison). AC5 (git log --follow --oneline apps/web/src/i18n/routing.ts shows the full pre-migration history: the move commit plus the three prior commits from REQ005/REQ004/REQ001a, proving git mv preserved history). Removed stray untracked apps/web/.next and root .next build-artifact directories before finalizing so they were never staged (root .gitignore's /.next/ pattern is anchored and does not cover apps/web/.next/ -- flagged below, not fixed, since .gitignore is explicitly out of scope for this requirement). Nothing outside the design's file-move list and root package.json was touched: git diff HEAD~1 HEAD against Dockerfile, deploy/, .github/workflows/ci-cd.yml, README.md, AGENTS.md, CLAUDE.md, .gitignore and docs/agents/requirements.yaml is empty.",
+    "artifacts_out": [
+      "apps/web/package.json",
+      "apps/web/next.config.ts",
+      "apps/web/tsconfig.json",
+      "apps/web/eslint.config.mjs",
+      "apps/web/next-env.d.ts",
+      "apps/web/src/",
+      "apps/web/messages/",
+      "apps/web/public/",
+      "package.json",
+      "package-lock.json"
+    ],
+    "issues": [
+      {"severity": "MINOR", "description": "Root .gitignore's `/.next/` pattern is anchored to the repo root and does not match apps/web/.next/, so the new workspace's build output is not gitignored post-move. Not fixed here because .gitignore is explicitly listed as out-of-scope for REQ-007 in docs/agents/design/REQ-007.md SS6. Recommend a follow-up (REQ-008 or a small standalone fix) add an apps/web/.next/ or a repo-wide **/.next/ entry.", "affected_requirement": "REQ-007"}
+    ],
+    "next_action": "Route to REVIEWER (Step 2b)"
   }
 }
