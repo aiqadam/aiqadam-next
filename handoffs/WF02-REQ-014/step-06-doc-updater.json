@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-06-doc-updater",
+  "run_id": "WF02-REQ-014",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "ORCH",
+  "to_agent": "DOC-UPDATER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Flipped REQ-014 status in_progress -> done, appended a done event verified against real files, recording the security finding/fix clearly and the Phase 2 completion milestone. README.md correctly left untouched. ORCH independently confirmed the status flip and committed (DOC-UPDATER's changes were made but not yet committed/pushed).",
+    "artifacts_out": ["docs/agents/requirements.yaml", "docs/status/requirement_status.yaml"],
+    "next_action": "Route to FRONTEND-DEV for Step Final (git merge)"
+  }
+}
