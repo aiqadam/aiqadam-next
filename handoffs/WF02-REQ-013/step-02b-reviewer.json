@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-02b-reviewer",
+  "run_id": "WF02-REQ-013",
+  "workflow_id": "WF-02",
+  "step": "02b",
+  "from_agent": "ORCH",
+  "to_agent": "REVIEWER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "FAIL",
+    "summary": "Full diff read. All logic checks PASS (start.ts genuinely throwaway/read-only, domain/*.ts framework-free, catalog shape/resolveLang/lang command all correct, AC5 confirmed). But explicitly ruled the mocked-Context verification approach for AC2/AC3/AC4 insufficient: the design doc's SS3.1 already litigated and rejected exactly this shortcut (a unit-test-style call into the logic), and BACKEND-DEV's approach is functionally the same shortcut one layer further out. REVIEWER demonstrated a materially better method requiring no real bot token: `new Bot(token, {botInfo})` + real `bot.handleUpdate(update)` dispatch with synthetic Update objects, intercepting only the outbound HTTP call via `bot.api.config.use()` -- built and ran this independently, reproducing AC2/AC3/AC4 cleanly.",
+    "issues": [{"severity": "MAJOR", "description": "AC2/AC3/AC4 verification must use a real grammy.Bot instance dispatched via bot.handleUpdate() with synthetic Update objects (message + callback_query shapes), not a hand-built Context-shaped stub calling the handler function directly. No real Telegram token is needed (a dummy string works with a manually-supplied botInfo). Only the outbound API transport (bot.api.config.use()) should be intercepted."}],
+    "next_action": "Rework BACKEND-DEV (iteration 1 of 3)"
+  }
+}
