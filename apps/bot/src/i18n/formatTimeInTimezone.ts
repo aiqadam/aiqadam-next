@@ -11,6 +11,12 @@ import type { BotLang } from "./catalog.js";
 // verifies: an omitted/ambient `timeZone` would silently fall back to the
 // runtime's default zone, which is exactly the failure mode AC2 tests
 // against by deliberately mismatching the process's own TZ.
+//
+// REQ-017 design doc (data-mapping table, "Date/time in chapter timezone"
+// row, and the worked example) specifies 24-hour wall-clock output
+// literally, e.g. "Oct 1, 2026, 18:00". `hourCycle: "h23"` is set explicitly
+// so this holds for every locale — `Intl` otherwise defaults en-US/en-CA/
+// en-AU to a 12-hour AM/PM clock, which silently diverged from the design.
 
 const LOCALE_BY_LANG: Record<BotLang, string> = {
   ru: "ru-RU",
@@ -25,6 +31,7 @@ export function formatDateTimeInTimezone(at: Date, timezone: string, lang: BotLa
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    hourCycle: "h23",
   });
   return formatter.format(at);
 }

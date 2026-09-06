@@ -1,0 +1,20 @@
+{
+  "handoff_id": "step-02-backend-dev-rework1",
+  "run_id": "WF02-REQ-017",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "TEST-DESIGN-VALIDATOR",
+  "to_agent": "BACKEND-DEV",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Rework triggered by TEST-DESIGN-VALIDATOR's Step 3b FAIL (dec0875): formatDateTimeInTimezone (apps/bot/src/i18n/formatTimeInTimezone.ts) built its Intl.DateTimeFormat options without hourCycle/hour12, so the en-US locale ('en' -> 'en-US') silently rendered a 12-hour AM/PM clock (e.g. '06:00 PM') while docs/agents/design/REQ-017.md's data-mapping table (line 244, 'Date/time in chapter timezone' row) and worked example (line 423) both specify 24-hour output literally ('Oct 1, 2026, 18:00-20:30' / '...18:00...'). Root cause: an omitted Intl hour-cycle option, not a design gap -- confirmed by reading the design doc in full and re-running the formatter against its stated example. ru-RU already defaults to 24h so the bug was locale-specific and invisible to REVIEWER's earlier cross-TZ check (which verified byte-identical output across TZ env vars, not format against the design's literal string). Fix: added hourCycle: 'h23' to the Intl.DateTimeFormat options in formatDateTimeInTimezone, with a comment tying it to the design doc's literal 24-hour example. Updated apps/bot/src/i18n/formatTimeInTimezone.test.ts to assert 24-hour output explicitly for both en and ru (asserting '18:00'/'17:30' etc. and asserting absence of AM/PM), locking down this exact regression. Grepped apps/bot/src and docs/agents/test-specs/REQ-017.md for stray AM/PM fixtures: found one byproduct in apps/bot/src/domain/event.test.ts (agenda-line assertions at the old lines 421-423 expected '05:30 PM'/'07:30 PM') and corrected it to the 24-hour equivalents ('17:30'/'19:30'); docs/agents/test-specs/REQ-017.md had no AM/PM occurrences, so nothing there needed changing (that file is TEST-DESIGNER's and was not touched). No other files depend on 12-hour formatting. lint/build/test all pass: npm run lint clean (0 errors; 2 pre-existing apps/web @next/next/no-img-element warnings, unrelated to this change); npm run build succeeds for both apps/web and apps/bot (tsc -p tsconfig.json clean); npx vitest run in apps/bot: 16 test files, 204 tests, all passed (up from the prior 101 baseline count referenced in step-02-backend-dev.json, which predates several intervening test-spec commits -- current HEAD's suite is 204/204 green).",
+    "artifacts_out": [
+      "apps/bot/src/i18n/formatTimeInTimezone.ts",
+      "apps/bot/src/i18n/formatTimeInTimezone.test.ts",
+      "apps/bot/src/domain/event.test.ts"
+    ],
+    "issues": [],
+    "next_action": "Route to REVIEWER (Step 2b re-gate) -- production code (apps/bot/src/i18n/formatTimeInTimezone.ts) changed after REVIEWER and SECURITY-REVIEWER already passed it at step-02b/step-02c; both gates must re-check this diff before it can proceed back to TEST-DESIGNER (Step 3)."
+  }
+}

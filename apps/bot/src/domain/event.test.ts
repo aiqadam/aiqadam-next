@@ -418,9 +418,10 @@ describe("buildEventCardContent", () => {
     expect(content.agendaLines).toHaveLength(2);
     expect(content.agendaLines[0]?.label).toBe("Doors open");
     expect(content.agendaLines[1]?.label).toBe("Networking");
-    // Asia/Tashkent is UTC+5 — 12:30 UTC -> 17:30 local (05:30 PM, en-US 12h clock).
-    expect(content.agendaLines[0]?.timeText).toContain("05:30 PM");
-    expect(content.agendaLines[1]?.timeText).toContain("07:30 PM");
+    // Asia/Tashkent is UTC+5 — 12:30 UTC -> 17:30 local; 14:30 UTC -> 19:30 local.
+    // Rendered 24-hour per REQ-017 design (formatDateTimeInTimezone uses hourCycle: "h23").
+    expect(content.agendaLines[0]?.timeText).toContain("17:30");
+    expect(content.agendaLines[1]?.timeText).toContain("19:30");
   });
 
   it("renders no venue block at all when venue is null (defensive, §3.3)", () => {
