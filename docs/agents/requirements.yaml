@@ -763,7 +763,7 @@ requirements:
   - id: REQ-013
     title: Bot i18n scaffold with RU and EN catalogs and the /lang command
     owner: BACKEND-DEV
-    status: in_progress
+    status: done
     description: >
       Fourth slice of PRD 14 build-order step 1 ("i18n scaffold"). PRD 11 requires
       "two languages at launch (RU/EN), more addable without redesign" and PRD 13
