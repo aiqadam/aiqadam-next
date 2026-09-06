@@ -1,0 +1,52 @@
+{
+  "handoff_id": "abee8420-5e0b-4b69-a6cb-3f96a739df3d",
+  "run_id": "WF01-EVENTS-BOT-SPEC",
+  "workflow_id": "WF-01",
+  "step": "05",
+  "from_agent": "ORCH",
+  "to_agent": "REQ-VALIDATOR",
+  "file": "handoffs/WF01-EVENTS-BOT-SPEC/step-05-req-validator-rework.json",
+  "created_at": "2026-09-06T06:19:16Z",
+  "started_at": "2026-09-06T06:19:16Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "HIGH",
+  "context": {
+    "requirement_ids": ["REQ-011", "REQ-016", "REQ-017", "REQ-026"],
+    "requirement_text": {},
+    "source_text": {
+      "rework-cycle": "This is rework cycle 1 on your step-04 FAIL. Per ORCHESTRATOR.md section 6 the max is 3 before escalation.",
+      "what-you-found-at-step-04": "Three MAJOR defects: (1) REQ-026 cited REQ-010 three times where it meant REQ-011, REQ-010 having no agenda at all; (2) REQ-026's without-doors criterion was satisfiable by an EMPTY agenda, the case where nothing can go wrong; (3) REQ-011's 'by query' was satisfiable by loading the agenda blob and scanning it in TypeScript, the free-text outcome the constraint forbids. Plus two unwired consequences: REQ-017 had no agenda acceptance criterion at all, and REQ-016 allowed an organizer to save a malformed doors item that would then ship to every admitted registrant. Plus your Part 2 verdict that the MESSAGE half of the decision was not ORCH's to settle inside a requirement description, and belonged in a decisions/ record per Zero Manual Work clause 1 — explicitly NOT left parked.",
+      "note-on-scope-growth": "ORCH's fix touched TWO requirements your FAIL did not cover — REQ-016 and REQ-017 — because your findings said they needed changes. Those two have not been gated in their amended form by anyone. They are in scope for you here."
+    },
+    "related_handoff_ids": ["00a8ffc4-5c54-4887-88c9-0b6ea3747be9", "8eaeaf6d-14c5-46f6-a1b2-46ff3e41d9a1"],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "docs/agents/decisions/0007-doors-time-in-t3h-reminder.md",
+      "handoffs/WF01-EVENTS-BOT-SPEC/step-04-req-validator-doors.json",
+      "docs/agents/instructions/core-directives.md",
+      "C:/tmp/AI-Qadam-Events-Bot-Spec/PRD.md",
+      "C:/tmp/AI-Qadam-Events-Bot-Spec/STORY-DETAILS.md"
+    ]
+  },
+  "task": {
+    "description": "Re-gate the rework of your step-04 FAIL. THE DIFF IS `git show def724b` (28 lines changed in requirements.yaml, plus the new decisions/0007). This is the FINAL gate before implementation is dispatched — REQ-007 goes to FRONTEND-DEV on your PASS.\n\nPART 1 — VERIFY EACH OF YOUR FIVE FINDINGS IS ACTUALLY FIXED, not merely acknowledged. Re-derive each; do not accept ORCH's commit message as evidence:\n  1. Does REQ-026 now cite REQ-011 everywhere it means the Event/agenda modelling requirement, with NO remaining REQ-010 reference in that role? grep it.\n  2. Does REQ-026's without-doors criterion now REQUIRE a non-empty agenda containing only non-doors items? Is the new wording actually strong enough to fail a loose implementation that emits the first agenda item's time as the doors time?\n  3. Does REQ-011's criterion now exclude application-side scanning? Judge the new wording ('a single database query returns the doors item's time and only that item — WITHOUT the application loading the whole agenda and scanning it in TypeScript ... verified by exhibiting the actual query and its result'). Is 'exhibiting the query' a check a validator can definitively pass or fail, or is it still soft?\n  4. REQ-016 gained two criteria (agenda item time-window validation; at most one doors item). Are both testable as written? Is the 'starts_at minus 12h' lower bound a number ORCH invented — and if so, is inventing it legitimate here or is it exactly the kind of unsourced business rule PRD's closing rule forbids? Answer that directly.\n  5. REQ-017 gained one criterion requiring the card's doors rendering to match REQ-026's reminder byte-for-byte. Is that executable given the two are built by different requirements at different times, or does it create a dependency REQ-017 cannot satisfy when it is implemented BEFORE REQ-026? Check the dependency order.\n\nPART 2 — GATE decisions/0007 ITSELF. It was written by ORCH in response to your own Part 2 ruling, which creates a specific risk: a record written to satisfy a validator can end up restating the validator's words rather than genuinely deciding. Check that it (a) states the decision unambiguously enough to implement, (b) names how to overturn it, (c) does not overstate its own authority, and (d) accurately represents what FR-7 says. Note it is marked 'provisional pending the product owner' — is that a legitimate status for a record the pipeline is about to build on, or does it leave implementers in doubt about whether to proceed?\n\nPART 3 — REGRESSION AND WHOLE-REGISTRY CHECK. The four amended requirements are load-bearing and interlocked. Verify:\n  - No NEW inconsistency was introduced between REQ-011, REQ-016, REQ-017 and REQ-026 by this round of edits — particularly that all four now describe the SAME agenda item shape and the same doors semantics.\n  - Checks (a)-(e) on REQ-016 and REQ-017 in their amended form, which no gate has yet seen.\n  - Sizing: REQ-016 is now at 8 acceptance criteria and REQ-017 at 6. Has either outgrown one agent turn?\n  - The dependency graph is still acyclic, orphan-free and rooted at REQ-007.\n\nPART 4 — THE STANDING QUESTION. State plainly whether REQ-007 through REQ-032 are now ready for WF-02 dispatch, or what specifically still blocks. If your answer is PASS, say what you positively verified. If anything remains, name it by requirement id. Do not soften a finding because this is the last gate and implementation is waiting.",
+    "acceptance_criteria": [
+      "Each of the five step-04 findings was independently re-derived as fixed or not fixed, with evidence, not accepted from the commit message.",
+      "The 'starts_at minus 12h' bound in REQ-016 was specifically judged as either a legitimate implementation detail or an invented business rule, with reasoning.",
+      "REQ-017's byte-for-byte criterion was checked against the actual dependency order to confirm it is satisfiable when REQ-017 is implemented.",
+      "decisions/0007 was gated on clarity, overturnability, accuracy about FR-7, and whether its 'provisional' status is workable for implementers.",
+      "REQ-016 and REQ-017 received checks (a)-(e) in their amended form, having never been gated post-amendment.",
+      "All four amended requirements were checked against each other for a consistent agenda shape and consistent doors semantics.",
+      "The dependency graph was re-verified acyclic, orphan-free and rooted at REQ-007.",
+      "A plain verdict is given on whether the registry is ready for WF-02 dispatch, with anything still blocking named by requirement id."
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": null
+  }
+}
