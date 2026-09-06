@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-06-doc-updater",
+  "run_id": "WF02-REQ-015",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "ORCH",
+  "to_agent": "DOC-UPDATER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Flipped REQ-015 status in_progress -> done, appended a done event verified against real files. README.md correctly left untouched. Committed and pushed itself (commit ee6b73f). ORCH independently confirmed the status flip.",
+    "artifacts_out": ["docs/agents/requirements.yaml", "docs/status/requirement_status.yaml"],
+    "next_action": "Route to FRONTEND-DEV for Step Final (git merge)"
+  }
+}
