@@ -1,0 +1,45 @@
+{
+  "handoff_id": "5bde89dd-779b-4263-ac41-90c695e843c7",
+  "run_id": "WF02-REQ-007",
+  "workflow_id": "WF-02",
+  "step": "02b",
+  "from_agent": "ORCH",
+  "to_agent": "REVIEWER",
+  "file": "handoffs/WF02-REQ-007/step-02b-reviewer.json",
+  "created_at": "2026-09-06T07:13:17Z",
+  "started_at": "2026-09-06T07:13:17Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-007"],
+    "requirement_text": {},
+    "source_text": {
+      "note": "REQ-007 is a monorepo file-move, not a UI change — most of your usual token/copy/component checks are N/A. Your real job: does the diff match docs/agents/design/REQ-007.md's file-move list and package.json shapes exactly, is the move genuinely via git mv (not delete+recreate), and did anything drift outside the stated out-of-scope boundary (Dockerfile, deploy/, .github/workflows/ci-cd.yml, REQ-001a..REQ-006 in requirements.yaml)? FRONTEND-DEV self-reported one MINOR finding (a .gitignore gap, filed as ISS-0004, correctly NOT fixed here since it's out of scope) — confirm that finding is accurate and that nothing else was left similarly dangling.",
+      "commits-under-review": "e47760a (the move + workspace root) is the substantive commit on feature/WF02-REQ-007. Review git diff master...HEAD."
+    },
+    "related_handoff_ids": ["00d6ab37-dbbc-4b2f-8bf4-16eb77981e68"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-007.md",
+      "docs/agents/requirements.yaml",
+      "docs/issues/ISS-0004.yaml"
+    ]
+  },
+  "task": {
+    "description": "Step 2b of WF-02 for REQ-007. Read git diff master...HEAD on feature/WF02-REQ-007. Check it against docs/agents/design/REQ-007.md's file-move list (section 2) and both package.json shapes (section 3), git-mv-not-delete-recreate (git log/status evidence), and the out-of-scope boundary (section 6) — Dockerfile, deploy/, .github/workflows/ci-cd.yml, README.md/AGENTS.md/CLAUDE.md/.gitignore, docs/, and REQ-001a..REQ-006's entries in requirements.yaml must all be byte-identical to master. Check scope: nothing beyond the design artefact was added or changed. Check consistency with decisions/0003. Confirm ISS-0004's finding (root .gitignore's /.next/ pattern not covering apps/web/.next/) is accurate as filed.",
+    "acceptance_criteria": [
+      "Diff matches the design artefact's file-move list and package.json shapes",
+      "Move verified as git mv (rename), not delete+add, from actual git evidence",
+      "Every out-of-scope path confirmed untouched (diffed against master, not assumed)",
+      "No scope creep beyond docs/agents/design/REQ-007.md",
+      "ISS-0004's finding independently confirmed accurate"
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": null
+  }
+}
