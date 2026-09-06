@@ -2,11 +2,17 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Monorepo structure
 
-This repo is an npm workspace root (`"workspaces": ["apps/*"]`). The Next.js site
-itself lives in `apps/web/`, not at the repo root. The root `package.json` scripts
-(`dev`, `build`, `lint`, `start`) proxy to the `apps/web` workspace, so the commands
-below still work unchanged from the repo root — but source edits happen under
-`apps/web/` (e.g. `apps/web/src/...`), not a root-level `app/` or `src/` directory.
+This repo is an npm workspace root (`"workspaces": ["apps/*"]`) with two workspace
+members:
+
+- `apps/web/` — the Next.js site. The root `package.json` scripts (`dev`, `build`,
+  `lint`, `start`) proxy to this workspace, so the commands below still work unchanged
+  from the repo root — but source edits happen under `apps/web/` (e.g.
+  `apps/web/src/...`), not a root-level `app/` or `src/` directory.
+- `apps/bot/` — the Events Bot, a plain Node/TypeScript process (grammY + Drizzle ORM
+  against Postgres), not a Next.js app. It has no `dev` script yet; `npm run build` and
+  `npm run lint` at the repo root cover both workspaces. Root-level `npm test` runs
+  Vitest against both workspaces' test files.
 
 ## Getting Started
 

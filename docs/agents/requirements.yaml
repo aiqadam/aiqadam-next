@@ -541,7 +541,7 @@ requirements:
   - id: REQ-009
     title: Create the apps/bot workspace skeleton on grammY, Drizzle and Vitest
     owner: BACKEND-DEV
-    status: in_progress
+    status: done
     description: >
       Creates the empty-but-buildable apps/bot workspace that every later bot
       requirement writes into.
