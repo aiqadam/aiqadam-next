@@ -1,0 +1,25 @@
+# Local development Postgres for apps/bot (REQ-012 §4). Not used by
+# deploy/docker-compose.qa.yml or deploy/docker-compose.prod.yml, which stay
+# untouched — this is the bot's own dev/test throwaway database.
+#
+# Fixed, non-secret, dev-only credentials below are acceptable here: this
+# compose file only ever provisions a local/CI throwaway database, never a
+# real credential (security-invariants.md S11 governs values that reach
+# logs/exports, not a disposable local dev password).
+#
+# Port 55432 (host) -> 5432 (container) avoids colliding with a developer's
+# own locally-installed Postgres (default 5432).
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: bot
+      POSTGRES_PASSWORD: bot
+      POSTGRES_DB: bot
+    ports:
+      - "55432:5432"
+    volumes:
+      - bot_pg_data:/var/lib/postgresql/data
+
+volumes:
+  bot_pg_data:
