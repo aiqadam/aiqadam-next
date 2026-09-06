@@ -1,0 +1,44 @@
+{
+  "handoff_id": "0ce73961-f9cf-41fd-b38f-d84cc561e145",
+  "run_id": "WF02-REQ-007",
+  "workflow_id": "WF-02",
+  "step": "01-rework-1",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGNER",
+  "file": "handoffs/WF02-REQ-007/step-01-rework-code-designer.json",
+  "created_at": "2026-09-06T07:05:16Z",
+  "started_at": "2026-09-06T07:05:16Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-007"],
+    "requirement_text": {},
+    "source_text": {
+      "rework-cycle": "Rework iteration 1 of 3 (docs/agents/ORCHESTRATOR.md section 6 caps at 3 before escalation).",
+      "gate-verdict": "CODE-DESIGN-VALIDATOR FAILed docs/agents/design/REQ-007.md at step-01b. BLOCKER: the artefact has zero coverage of REQ-007's 3rd acceptance criterion (npm run build && npm run start from the repo root must serve all four locales /ru /uz /en /kk with correct <html lang>, no missing-translation-key errors, and /health returning HTTP 200). MINOR: AC4 (message catalog key-set identity across the move) is only implicit via 'moves unchanged' and should be named as its own explicit verification point, the same way the artefact already treats build/lint and git history as named points."
+    },
+    "related_handoff_ids": ["84c2371a-2f2f-4c57-809d-2e00f59a2f63", "2462578d-2c43-4daa-86d5-4345b718a59d"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-007.md",
+      "handoffs/WF02-REQ-007/step-01b-design-validator.json",
+      "docs/agents/requirements.yaml"
+    ]
+  },
+  "task": {
+    "description": "Rework docs/agents/design/REQ-007.md to close both gaps CODE-DESIGN-VALIDATOR found. For the BLOCKER: add a concrete design element stating that src/app/[locale]/... (the locale routing structure) and src/app/health/route.ts move intact under apps/web/src/, and that post-move verification is `npm run build && npm run start` from the repo root, checked against: all four locales (/ru /uz /en /kk) render with the matching <html lang> value, no missing-translation-key errors or fallback warnings, and /health returns HTTP 200 — the same verification method REQ-005 already established (cite it). For the MINOR: add a line naming message-catalog key-set identity as its own explicit verification point (the same key-set diff script approach REQ-005's acceptance criteria used), rather than leaving it implicit under 'moves unchanged'. Do not otherwise change the artefact — the rest passed.",
+    "acceptance_criteria": [
+      "The artefact names the locale-routing structure and /health route as things that move intact under apps/web/src/",
+      "The artefact states the exact post-move verification procedure (npm run build && npm run start, all 4 locales, <html lang>, no missing-key errors, /health 200), citing REQ-005's precedent",
+      "The artefact explicitly names message-catalog key-set identity as its own verification point",
+      "No other section of the artefact is altered beyond what these two fixes require"
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": null
+  }
+}

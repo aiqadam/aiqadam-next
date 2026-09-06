@@ -196,3 +196,5 @@
 2026-09-06T06:58:36Z WF02-REQ-007 dispatch step-00 to_agent=FRONTEND-DEV task="Git setup: branch feature/WF02-REQ-007 off master per GIT_SETUP.md" note="First WF-02 run of the Events Bot programme. GitHub issue #10 tracks REQ-007 for the human owner."
 2026-09-06T07:00:58Z WF02-REQ-007 dispatch step-01 to_agent=CODE-DESIGNER task="Structural design artefact for REQ-007: exact file-move plan and root/apps-web package.json shapes for the monorepo migration"
 2026-09-06T07:03:27Z WF02-REQ-007 dispatch step-01b to_agent=CODE-DESIGN-VALIDATOR task="Gate REQ-007 structural design artefact against all 5 acceptance criteria"
+2026-09-06T07:05:38Z WF02-REQ-007 complete step-01b from_agent=CODE-DESIGN-VALIDATOR result=FAIL note="BLOCKER: zero coverage of AC3 (post-move locale + /health serving verification). MINOR: AC4 key-set identity only implicit. Rework 1 of 3."
+2026-09-06T07:05:38Z WF02-REQ-007 dispatch step-01-rework-1 to_agent=CODE-DESIGNER task="Add AC3 verification element (locale routing + /health move intact, post-move build/start check citing REQ-005 precedent) and name AC4 key-set identity explicitly"
