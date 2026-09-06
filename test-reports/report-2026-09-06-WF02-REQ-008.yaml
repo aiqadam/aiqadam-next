@@ -1,0 +1,69 @@
+run_id: WF02-REQ-008
+date: 2026-09-06T09:05:11Z
+branch: feature/WF02-REQ-008
+spec: docs/agents/test-specs/REQ-008.md
+lint: pass
+build: pass
+notes: |
+  npm run lint: 0 errors, 2 pre-existing warnings (Footer.tsx:11, Nav.tsx:10,
+  @next/next/no-img-element) -- expected per handoff, not a failure, unrelated to this
+  requirement's scope.
+  npm run build: next build succeeded, TypeScript check passed, all routes
+  (/[locale], /health, /_not-found) compiled and generated.
+  Image note: aiqadam-next:req008 already existed from a prior step (created
+  2026-09-06 13:57:27 +05); rebuilt fresh with `docker build -t aiqadam-next:req008 .`
+  to be sure -- confirmed exit code 0 by running the build a second time (cache-hit,
+  exit code captured directly without piping through tail).
+cases:
+  - acceptance_criterion: AC1
+    result: pass
+    notes: >
+      `docker build -t aiqadam-next:req008 .` exited 0. Both `builder` stage
+      (npm ci, npm run build -- next build succeeded, generated /_not-found, /[locale],
+      /health) and `runtime` stage (COPY of public, .next, package.json, node_modules)
+      completed with no ERROR lines. Verified exit code directly (0) via a second
+      redirect-to-file run to avoid pipeline exit-code masking from an earlier
+      `| tail` invocation.
+  - acceptance_criterion: AC2
+    result: pass
+    notes: >
+      Container started: `docker run --rm -d --name req008-ac2 -e PORT=3120
+      -p 3120:3120 aiqadam-next:req008` (run exit 0). Readiness poll: attempt 1
+      already showed running=true and /health returned 200 (no wait needed, well
+      within 20s budget). /health status: 200. /health body: exactly
+      {"status":"ok","service":"aiqadam-next"} (contains "status":"ok" as required).
+      Locale routes -- all 4 checked:
+        /ru -> status 200, grep output: <html lang="ru"
+        /uz -> status 200, grep output: <html lang="uz"
+        /en -> status 200, grep output: <html lang="en"
+        /kk -> status 200, grep output: <html lang="kk"
+      Each locale's lang attribute matches its own route exactly; no cross-locale
+      mismatch. Teardown: `docker stop req008-ac2` exited 0; confirmed container
+      removed (docker ps -a filter by name returned 0 rows, auto-removed via --rm).
+  - acceptance_criterion: AC3
+    result: pass
+    notes: >
+      `docker compose -p aiqadam-next-qa -f deploy/docker-compose.qa.yml config`
+      exited 0, no YAML parse errors. Rendered output's services.web.build block:
+      context: C:\Users\tvolo\dev\aiqadam-next (resolved absolute repo-root path,
+      not deploy/ and not an un-expanded relative ".."), dockerfile: Dockerfile.
+      services.web.environment includes PORT: "3120", confirming the AC2/AC3 port
+      linkage.
+  - acceptance_criterion: AC4
+    result: pass
+    notes: >
+      Ran `git fetch origin master` first (fetched cleanly), then
+      `git diff --stat origin/master -- deploy/deploy.sh` produced empty output
+      (no lines) -- deploy/deploy.sh is unchanged on this branch relative to
+      origin/master.
+  - acceptance_criterion: "Case 5 (regression check)"
+    result: pass
+    notes: >
+      `docker run --rm aiqadam-next:req008 sh -c "readlink /app/node_modules/app"`
+      exited 0 with output exactly `../apps/web`, confirming the correct
+      Linux-relative npm-workspaces symlink was preserved inside the image (i.e.
+      root .dockerignore is correctly excluding the host's node_modules/ from the
+      build context, so it did not overwrite the container's own symlink created
+      by `npm ci`).
+overall: pass
+routing_decision: Route to RELEASE-VALIDATOR

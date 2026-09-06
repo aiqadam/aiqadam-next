@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-06-doc-updater",
+  "run_id": "WF02-REQ-008",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "ORCH",
+  "to_agent": "DOC-UPDATER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Flipped REQ-008 status in_progress -> done in docs/agents/requirements.yaml and appended a Post-implementation correction paragraph clarifying the actual narrower scope (Dockerfile already repointed by REQ-007's merge commit 2c58702; this run's fix was the root .dockerignore). Appended a done event to docs/status/requirement_status.yaml. README.md rechecked, has no Docker-related content, no update needed. ORCH independently confirmed both file changes are actually present.",
+    "artifacts_out": ["docs/agents/requirements.yaml", "docs/status/requirement_status.yaml"],
+    "next_action": "Route to FRONTEND-DEV for Step Final (git merge)"
+  }
+}
