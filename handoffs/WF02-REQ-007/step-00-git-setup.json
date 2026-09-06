@@ -1,0 +1,41 @@
+{
+  "handoff_id": "2ce7909e-7de7-4cae-8764-e59fedc97dca",
+  "run_id": "WF02-REQ-007",
+  "workflow_id": "WF-02",
+  "step": "00",
+  "from_agent": "ORCH",
+  "to_agent": "FRONTEND-DEV",
+  "file": "handoffs/WF02-REQ-007/step-00-git-setup.json",
+  "created_at": "2026-09-06T06:58:08Z",
+  "started_at": "2026-09-06T06:58:08Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-007"],
+    "requirement_text": {
+      "REQ-007": "Implements the layout half of docs/agents/decisions/0003-events-bot-subproject.md (\"Layout: the site moves to apps/web\"). This is the FIRST requirement of the Events Bot programme: every subsequent requirement REQ-008..REQ-032 depends on it transitively, because they all cite apps/web/** or apps/bot/** paths that do not exist until this lands.\nScope is deliberately limited to the FILE MOVE plus the workspace root, so it fits one agent turn. Deploy/Docker/CI path updates are REQ-008; the apps/bot skeleton is REQ-009. Splitting this way keeps each turn's blast radius to one verifiable surface: this one is \"the site still builds and serves from its new location\".\nScope of work:\n- Move, with `git mv` so history is preserved, the following root entries into apps/web/: src/, messages/, public/, next.config.ts, tsconfig.json, eslint.config.mjs, next-env.d.ts, and the existing root package.json (which becomes apps/web/package.json, keeping name/scripts/dependencies as-is).\n- Create a NEW root package.json declaring \"private\": true and \"workspaces\": [\"apps/*\"], with root-level dev/build/lint/start scripts that delegate to the web workspace (e.g. `npm run build -w apps/web`) so the existing CI invocations `npm run lint` / `npm run build` at the repo root keep working unchanged. Regenerate package-lock.json at the root via `npm install` so the lockfile describes the workspace tree.\n- Leave Dockerfile, deploy/, .github/workflows/ci-cd.yml, README.md, AGENTS.md, CLAUDE.md, .gitignore and docs/ at the repo root. Dockerfile and deploy path fixes are REQ-008's scope — this requirement must NOT edit them, and it is expected and acceptable that `docker build` is broken between REQ-007 and REQ-008 landing (they are sequenced and merged in that order).\n- Do not rewrite or renumber REQ-001a..REQ-006. Per decision 0003, their descriptions cite pre-migration root-relative paths and stand as historical records. PATH MAPPING NOTE, recorded here as decision 0003 directs: any root-relative source path cited by REQ-001a..REQ-006 (src/i18n/routing.ts, messages/kk.json, src/components/landing/*.tsx, src/app/globals.css, ...) is read after this requirement as apps/web/<old path>."
+    },
+    "source_text": {
+      "github-issue": "https://github.com/aiqadam/aiqadam-next/issues/10 — mirrors this requirement for the human owner's tracking. It is not the source of truth; docs/agents/requirements.yaml is. Do not edit the GitHub issue's body; ORCH checks its box on completion.",
+      "note-on-scope": "This requirement is a pure file move plus workspace root creation. It is deliberately NOT touching Dockerfile/deploy/.github/workflows — that is REQ-008, dispatched separately once this merges. A broken `docker build` between REQ-007 and REQ-008 is expected and not a defect of this requirement."
+    },
+    "related_handoff_ids": [],
+    "artifacts_in": ["docs/agents/requirements.yaml", "docs/agents/decisions/0003-events-bot-subproject.md"]
+  },
+  "task": {
+    "description": "Step 00 of WF-02 for REQ-007. Follow docs/agents/protocols/GIT_SETUP.md exactly: checkout master, pull --ff-only, create and push feature/WF02-REQ-007. Branch name is exactly `feature/WF02-REQ-007` (the run_id).",
+    "acceptance_criteria": [
+      "git pull --ff-only exits 0",
+      "git branch --show-current outputs feature/WF02-REQ-007",
+      "git push -u origin feature/WF02-REQ-007 exits 0"
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": null
+  }
+}
