@@ -487,7 +487,7 @@ requirements:
   - id: REQ-008
     title: Repoint Dockerfile, deploy compose files and the CI workflow at the apps/web workspace
     owner: FRONTEND-DEV
-    status: pending
+    status: in_progress
     description: >
       Second half of the monorepo migration begun in REQ-007. REQ-007 moves the site's
       source into apps/web/ and creates the workspace root but deliberately does not
