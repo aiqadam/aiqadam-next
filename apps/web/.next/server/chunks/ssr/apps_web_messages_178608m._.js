@@ -1,3 +1,0 @@
-module.exports=[77109,a=>{a.v(b=>Promise.all(["server/chunks/ssr/apps_web_messages_en_json_[json]_cjs_1e-7hjr._.js"].map(b=>a.l(b))).then(()=>b(6799)))},52312,a=>{a.v(b=>Promise.all(["server/chunks/ssr/apps_web_messages_kk_json_[json]_cjs_0ux15s6._.js"].map(b=>a.l(b))).then(()=>b(20143)))},95491,a=>{a.v(b=>Promise.all(["server/chunks/ssr/apps_web_messages_ru_json_[json]_cjs_130f8_3._.js"].map(b=>a.l(b))).then(()=>b(42036)))},66776,a=>{a.v(b=>Promise.all(["server/chunks/ssr/apps_web_messages_uz_json_[json]_cjs_1ile2ad._.js"].map(b=>a.l(b))).then(()=>b(18506)))}];
-
-//# sourceMappingURL=apps_web_messages_178608m._.js.map
