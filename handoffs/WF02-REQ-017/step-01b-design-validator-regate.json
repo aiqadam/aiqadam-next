@@ -1,0 +1,16 @@
+{
+  "handoff_id": "step-01b-design-validator-regate",
+  "run_id": "WF02-REQ-017",
+  "workflow_id": "WF-02",
+  "step": "01b",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Rework re-gate PASS (iteration 1/3). Zero executable-code constructs remain anywhere in the document (3 grep hits confirmed as false positives in prose). Same rules preserved in prose/tables. Full checklist completed for the first time: timezone mechanism, computed-never-stored discipline, evaluation-time-as-parameter, card completeness, CTA resolution, /events query, empty state, draft/cancelled exclusion, REQ-016 handler-update plan, AC mapping, no-schema-change claim, open questions -- all PASS.",
+    "next_action": "Route to BACKEND-DEV (Step 2)"
+  },
+  "rework_count": 1,
+  "max_rework": 3
+}
