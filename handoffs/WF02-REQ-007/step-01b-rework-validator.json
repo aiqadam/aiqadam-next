@@ -1,0 +1,43 @@
+{
+  "handoff_id": "13486ff0-e58e-4d6b-9cb2-0a5fe9c2dfd8",
+  "run_id": "WF02-REQ-007",
+  "workflow_id": "WF-02",
+  "step": "01b-rework-1",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "file": "handoffs/WF02-REQ-007/step-01b-rework-validator.json",
+  "created_at": "2026-09-06T07:07:20Z",
+  "started_at": "2026-09-06T07:07:20Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-007"],
+    "requirement_text": {},
+    "source_text": {
+      "rework-cycle": "Re-gating rework iteration 1 of 3. Your prior FAIL is at handoffs/WF02-REQ-007/step-01b-design-validator.json; CODE-DESIGNER's fix is at handoffs/WF02-REQ-007/step-01-rework-code-designer.json, claiming a new §5a covers the AC3 BLOCKER and an extended §7 line covers the AC4 MINOR."
+    },
+    "related_handoff_ids": ["0ce73961-f9cf-41fd-b38f-d84cc561e145"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-007.md",
+      "docs/agents/requirements.yaml",
+      "handoffs/WF02-REQ-007/step-01b-design-validator.json"
+    ]
+  },
+  "task": {
+    "description": "Re-gate docs/agents/design/REQ-007.md. Verify §5a genuinely closes the AC3 BLOCKER — does it name that src/app/[locale]/... and src/app/health/route.ts move intact, and does it state the exact post-move verification (build+start from root, all 4 locales, <html lang>, no missing-key errors, /health 200)? Verify §7's extension genuinely closes the AC4 MINOR — is key-set identity now an explicit, named verification point? Also confirm nothing else in the artefact was altered beyond what the rework asked (per your own prior FAIL's scope). This is the final design gate before Step 2 build begins.",
+    "acceptance_criteria": [
+      "AC3's BLOCKER is independently confirmed closed by reading §5a directly",
+      "AC4's MINOR is independently confirmed closed by reading the extended §7 directly",
+      "No unrelated section was altered",
+      "A clear PASS or FAIL, with next_action"
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": null
+  }
+}
