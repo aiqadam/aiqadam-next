@@ -384,3 +384,80 @@ describe("REQ-023 AC6: the promoted person is notified even with broadcast_opt_i
     expect(promotedRows[0]?.qrToken).toMatch(/^[0-9a-f]{64}$/);
   });
 });
+
+// security-invariants.md S10: "blocked users are skipped in both cases" --
+// rework of the SECURITY-REVIEWER Step 2c FAIL. The promotion itself must
+// still complete in full (admission/audit/seat-freeing all succeed); only
+// the notification send is withheld.
+describe("S10 rework: a blocked promoted person's promotion completes with no notification sent", () => {
+  it("admits the blocked person and writes one audit row, but sends them no message", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    // Capacity 1: the admitted registration is the only seat.
+    const eventId = await seedPublishedEvent(chapterId, 1);
+
+    const admittedTgId = nextTgId++;
+    const admittedUser = await resolveOrCreateUser(db, {
+      tgId: BigInt(admittedTgId),
+      tgUsername: "admitted-member2",
+      lang: "ru",
+    });
+    const admittedInserted = await db
+      .insert(registrations)
+      .values({ eventId, userId: admittedUser.id, admission: "admitted", source: "direct" })
+      .returning({ id: registrations.id });
+    const admittedRegistrationId = admittedInserted[0]?.id;
+    if (admittedRegistrationId === undefined) throw new Error("fixture insert returned no row");
+
+    const promotedTgId = nextTgId++;
+    const promotedUser = await resolveOrCreateUser(db, {
+      tgId: BigInt(promotedTgId),
+      tgUsername: "blocked-waitlisted-member",
+      lang: "ru",
+    });
+    // The negative case this rework locks down: the promoted person is
+    // blocked. Promotion must still succeed; the send must not happen.
+    await db.update(schema.users).set({ blocked: true }).where(eq(schema.users.id, promotedUser.id));
+    await db.insert(registrations).values({
+      eventId,
+      userId: promotedUser.id,
+      admission: "waitlisted",
+      source: "direct",
+      createdAt: new Date("2026-09-01T00:00:00.000Z"),
+    });
+
+    const { bot, captured } = makeTestBot();
+    await bot.handleUpdate(callbackUpdate(admittedTgId, `withdraw:confirm:${admittedRegistrationId}`) as never);
+
+    // No sendMessage to the blocked person's chat -- only
+    // answerCallbackQuery and the withdrawer's own confirmedReply.
+    const methods = captured.map((c) => c.method);
+    expect(methods).toEqual(["answerCallbackQuery", "sendMessage"]);
+    const catalog = getCatalog("ru");
+    expect(textOf(captured[1])).toBe(catalog.withdraw.confirmedReply);
+
+    const chatIds = captured
+      .filter((c) => c.method === "sendMessage")
+      .map((c) => c.payload["chat_id"]);
+    expect(chatIds).not.toContain(promotedTgId.toString());
+
+    // The promotion itself (admission, seat accounting) still completed.
+    const promotedRows = await db
+      .select()
+      .from(registrations)
+      .where(eq(registrations.userId, promotedUser.id));
+    expect(promotedRows[0]?.admission).toBe("admitted");
+    expect(promotedRows[0]?.qrToken).toMatch(/^[0-9a-f]{64}$/);
+
+    // Exactly one audit row for the promoted registration -- the promotion
+    // path's audit write is unaffected by the notification being withheld.
+    const auditRows = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.entityId, promotedRows[0]!.id));
+    expect(auditRows).toHaveLength(1);
+  });
+});

@@ -189,6 +189,14 @@ async function sendPromotionNotification(
   if (promotedUser === null || promotedUser.tgId === null) {
     return;
   }
+  // security-invariants.md S10: "blocked users are skipped in both cases" --
+  // this send is transactional (never gated on broadcast_opt_in) but a
+  // blocked user is still skipped. The promotion itself (admission, audit
+  // row, seat accounting) already committed before this function is ever
+  // called; only the notification send is withheld here.
+  if (promotedUser.blocked) {
+    return;
+  }
   const lang = resolveLang(promotedUser.lang, promotedUser.chapterDefaultLang);
   const catalog = getCatalog(lang);
 

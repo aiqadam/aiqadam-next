@@ -1,0 +1,40 @@
+{
+  "handoff_id": "step-02-backend-dev-rework1",
+  "run_id": "WF02-REQ-023",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "ORCH",
+  "to_agent": "REVIEWER",
+  "status": "COMPLETED",
+  "started_at": "2026-09-07T07:15:00Z",
+  "completed_at": "2026-09-07T07:29:50Z",
+  "context": {
+    "related_handoff_ids": ["step-02c-security-reviewer"],
+    "requirement_text": "SECURITY-REVIEWER Step 2c FAIL (handoffs/WF02-REQ-023/step-02c-security-reviewer.json): security-invariants.md S10 states blocked users are skipped for transactional sends. users.blocked (apps/bot/src/db/schema.ts) is a real, pre-existing column checked nowhere in the codebase, and sendPromotionNotification (apps/bot/src/handlers/withdraw.ts) is the first code path that proactively messages a chat_id other than the current update's own ctx.from -- getUserForNotificationById didn't even project users.blocked, so the send had no way to honor the invariant as written. Filed MAJOR, routed back to BACKEND-DEV."
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Fixed the S10 blocked-user gap SECURITY-REVIEWER found, surgically, with no other change to REQ-023's implementation.\n\n1. apps/bot/src/domain/user.ts: getUserForNotificationById's UserForNotification interface and SELECT projection both gain `blocked: users.blocked` (boolean, matches the schema column). This is the only functional change to this file -- no other field, no other query touched.\n\n2. apps/bot/src/handlers/withdraw.ts: sendPromotionNotification gains a second guard immediately after the existing null-tgId guard -- `if (promotedUser.blocked) { return; }` -- same silent-skip shape, same comment discipline (references security-invariants.md S10 and explains that only the notification send is withheld; the promotion itself already committed inside promoteFromWaitlistIfEligible's transaction before this function is ever called, so admission/audit/seat-freeing are all unaffected). No other line in this file changed.\n\n3. docs/agents/design/REQ-023.md: surgical additions only, no rewrite. Section 6.1's UserForNotification interface block gains the `blocked: boolean` field to match the code. Section 6.2 gains one new bullet, marked '(SECURITY-REVIEWER Step 2c fix, MINOR)', between the null-tgId guard bullet and the ctx.api.sendMessage bullet, stating S10's second clause explicitly ('blocked users are skipped in both cases'), the exact skip shape, and that only the send is withheld -- the promotion write already committed.\n\n4. apps/bot/src/handlers/withdraw.test.ts: added one new describe block, 'S10 rework: a blocked promoted person's promotion completes with no notification sent', one test case, real bot.handleUpdate() dispatch against the real scratch Postgres (same infra/pattern as REQ-023's own AC6 test directly above it in the file). Fixture: capacity-1 event, one admitted registration, one waitlisted registration whose user row is updated to blocked=true. Confirms after the withdraw:confirm callback: captured Telegram calls are exactly [answerCallbackQuery, sendMessage] (the withdrawer's own confirmedReply) -- no second sendMessage; explicitly asserts no captured sendMessage payload's chat_id equals the blocked person's tgId; the promoted registration's admission is 'admitted' with a fresh 64-hex-char qr_token (the promotion itself completed); exactly one audit_log row exists for that registration (the audit write is unaffected by the notification being withheld).\n\nLive verification (step 8 of the rework task) is this same test: a real bot.handleUpdate()-driven withdraw+promotion flow, confirming the blocked user's admission becomes 'admitted', exactly one audit row is written, and zero sendMessage calls target their chat_id. Ran it in isolation (see evidence) and it passed before the full suite run.\n\nCommands run from the REPO ROOT: `npm run lint` -> exit 0, 0 errors (2 pre-existing unrelated apps/web <img> LCP warnings, unchanged). `npm run build` -> exit 0, both workspaces; apps/bot's `tsc -p tsconfig.json` clean. `npx vitest run --no-file-parallelism` (repo root, scratch Postgres at localhost:55432 already running and migrated) -> 17 files / 212 tests passed, 0 failed, 0 skipped -- grew from 211 to 212 (exactly the one new S10 rework case; REQ-023's original AC6 case and every other pre-existing case unaffected). Also ran apps/bot/src/handlers/withdraw.test.ts alone with --no-file-parallelism: 6/6 passed, including the new case.\n\ngit status --porcelain confirms only the 4 files in artifacts_out plus this handoff file are dirty; no file touched outside apps/bot/** or this run's own design/handoff docs.",
+    "evidence": {
+      "commands": [
+        "npm run lint (repo root) -> exit 0, 0 errors (2 pre-existing unrelated apps/web warnings)",
+        "npm run build (repo root) -> exit 0, both workspaces; apps/bot tsc -p tsconfig.json clean",
+        "npx vitest run --no-file-parallelism (repo root) -> Test Files 17 passed (17), Tests 212 passed (212) -- up from the pre-rework baseline of 211",
+        "npx vitest run --no-file-parallelism apps/bot/src/handlers/withdraw.test.ts -> Test Files 1 passed (1), Tests 6 passed (6)"
+      ],
+      "live_verification": "New test 'S10 rework: a blocked promoted person's promotion completes with no notification sent' (apps/bot/src/handlers/withdraw.test.ts) drives a real bot.handleUpdate() withdraw:confirm callback against a real migrated scratch Postgres: seeds a capacity-1 event with one admitted registration and one waitlisted registration whose user is set blocked=true, confirms the withdrawal, and asserts (a) captured Telegram API calls are exactly [answerCallbackQuery, sendMessage-to-withdrawer] with no sendMessage to the blocked person's chat_id, (b) the promoted registration's admission is 'admitted' with a fresh qr_token, (c) exactly one audit_log row exists for that registration. PASS.",
+      "s10_fix": {
+        "domain/user.ts": "getUserForNotificationById now projects users.blocked; UserForNotification interface gains `blocked: boolean`",
+        "handlers/withdraw.ts": "sendPromotionNotification returns silently (no send) when promotedUser.blocked === true, after the existing null-tgId guard and before language/message composition"
+      }
+    },
+    "artifacts_out": [
+      "apps/bot/src/domain/user.ts",
+      "apps/bot/src/handlers/withdraw.ts",
+      "apps/bot/src/handlers/withdraw.test.ts",
+      "docs/agents/design/REQ-023.md"
+    ],
+    "issues": [],
+    "next_action": "Route to REVIEWER (Step 2b re-gate)"
+  }
+}
