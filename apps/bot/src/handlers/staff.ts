@@ -89,15 +89,19 @@ export function makeStaffAddHandler(db: DbClient["db"]) {
     // API call, so S9 is not at risk here). A failed send does not roll back
     // the assignment already committed above.
     let notificationFailed = false;
-    try {
-      const targetLang = await resolveLangForTg(db, Number(targetUser.tgId));
-      const body = getCatalog(targetLang).staff.assignmentNotificationBody.replace(
-        "{event}",
-        event.title,
-      );
-      await ctx.api.sendMessage(Number(targetUser.tgId), body);
-    } catch {
+    if (targetUser.blocked) {
       notificationFailed = true;
+    } else {
+      try {
+        const targetLang = await resolveLangForTg(db, Number(targetUser.tgId));
+        const body = getCatalog(targetLang).staff.assignmentNotificationBody.replace(
+          "{event}",
+          event.title,
+        );
+        await ctx.api.sendMessage(Number(targetUser.tgId), body);
+      } catch {
+        notificationFailed = true;
+      }
     }
 
     let reply = `${getCatalog(lang).staff.addSuccessPrefix} ${targetUser.tgUsername ?? parsed.tgUsername}`;
@@ -159,15 +163,19 @@ export function makeStaffRemoveHandler(db: DbClient["db"]) {
     // screen is gone" is entirely satisfied by the row no longer existing
     // (design §4.2's own closing note) — no separate mechanism to build.
     let notificationFailed = false;
-    try {
-      const targetLang = await resolveLangForTg(db, Number(targetUser.tgId));
-      const body = getCatalog(targetLang).staff.removalNotificationBody.replace(
-        "{event}",
-        event.title,
-      );
-      await ctx.api.sendMessage(Number(targetUser.tgId), body);
-    } catch {
+    if (targetUser.blocked) {
       notificationFailed = true;
+    } else {
+      try {
+        const targetLang = await resolveLangForTg(db, Number(targetUser.tgId));
+        const body = getCatalog(targetLang).staff.removalNotificationBody.replace(
+          "{event}",
+          event.title,
+        );
+        await ctx.api.sendMessage(Number(targetUser.tgId), body);
+      } catch {
+        notificationFailed = true;
+      }
     }
 
     let reply = `${getCatalog(lang).staff.removeSuccessPrefix} ${targetUser.tgUsername ?? parsed.tgUsername}`;
