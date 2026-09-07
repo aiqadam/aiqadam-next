@@ -1608,7 +1608,7 @@ requirements:
   - id: REQ-032
     title: No-show reason capture, closing Release 1
     owner: BACKEND-DEV
-    status: pending
+    status: done
     description: >
       FINAL REQUIREMENT OF RELEASE 1. Closes PRD 14 build-order step 6. Implements
       USER-STORIES D3 / STORY-DETAILS D3 (Say what got in the way) and PRD 13
