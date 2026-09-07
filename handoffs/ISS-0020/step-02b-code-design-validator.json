@@ -1,0 +1,67 @@
+{
+  "handoff_id": "c4d2e6b8-1a3f-4c5d-8e7f-9b0a1c2d3e4f",
+  "run_id": "ISS-0020",
+  "workflow_id": "WF-03",
+  "step": "02b",
+  "from_agent": "CODE-DESIGN-VALIDATOR",
+  "to_agent": "BACKEND-DEV",
+  "file": "handoffs/ISS-0020/step-02b-code-design-validator.json",
+  "created_at": "2026-09-07T23:11:26Z",
+  "started_at": "2026-09-07T23:11:26Z",
+  "completed_at": "2026-09-07T23:11:26Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": [],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": [
+      "handoffs/ISS-0020/step-01-issue-fixer.json",
+      "handoffs/ISS-0020/step-02-code-designer.json"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/ISS-0020-fix.md",
+      "apps/bot/src/handlers/staff.ts",
+      "apps/bot/src/domain/user.ts",
+      "apps/bot/src/db/schema.ts",
+      "docs/agents/instructions/security-invariants.md"
+    ]
+  },
+  "task": {
+    "description": "WF-03 Step 2's design gate (same procedure as WF-02 Step 1b) for ISS-0020's fix design.",
+    "acceptance_criteria": [
+      "Every AC in the design covered by a concrete design element, no TBD language",
+      "getUserByTgUsername 'exactly one caller' claim independently re-verified against the current tree",
+      "Guard-clause fit against the ACTUAL current try/catch shape in staff.ts independently re-verified",
+      "S10 compliance: every ctx.api.sendMessage call site in staff.ts confirmed gated",
+      "Scope discipline confirmed (addEventStaff/removeEventStaff, ledger, i18n catalog untouched)",
+      "Organizer-facing surfacing tradeoff explicitly scrutinized"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Read docs/agents/design/ISS-0020-fix.md in full independently (not the producer's summary) and re-derived every claim against the current tree at commit b1da93e, branch fix/ISS-0020. (1) 'Exactly one caller' claim: grepped getUserByTgUsername across apps/bot/src myself -- 3 occurrences total: the declaration (domain/user.ts:132) and two call sites, both in handlers/staff.ts (lines 66, 140), same file. Also grepped UserWithTelegram -- only used at its own declaration/return type, no object-literal construction elsewhere that the widened interface could break. Confirmed additive/safe. (2) Guard-clause fit: read the ACTUAL current staff.ts code (both handlers, lines 38-179). Current shape in both handlers is identical: `let notificationFailed = false; try { ...await ctx.api.sendMessage(...) } catch { notificationFailed = true; }` followed by `if (notificationFailed) reply += notificationFailedNote`. The design's prescribed guard (check targetUser.blocked before the try block; if true, set notificationFailed = true directly without entering try; if false, proceed exactly as today) produces byte-identical downstream reply behavior to the existing thrown-error path -- confirmed by tracing both branches, not assumed. (3) S10 coverage: grepped ctx.api.sendMessage across the whole file -- exactly 2 call sites (lines 98, 168), both named in the design, both would be gated by the guard as specified. No third call site exists. (4) Scope discipline: confirmed addEventStaff (line 84) and removeEventStaff (line 156) calls sit BEFORE the notification block in both handlers, and the design explicitly places its guard only at the notification step -- mutation path is untouched. Grepped notificationFailedNote/notificationFailed -- already present in i18n/en.ts, i18n/ru.ts, i18n/types.ts, and staff.ts; no new key needed, matching the design's claim. Confirmed users.blocked exists in db/schema.ts:80 as `boolean(\"blocked\").notNull().default(false)`, matching the design's non-nullable `blocked: boolean` interface field exactly (not blocked: boolean | null -- correct, since the column is NOT NULL). No ledger/sendLedgeredNotification files referenced or touched by the design. (5) Organizer-surfacing judgment call: scrutinized explicitly. Reusing the existing generic notificationFailedNote (rather than a new 'this person blocked the bot' message) is the sounder privacy-adjacent default -- it tells the organizer the notification didn't land (operationally useful, consistent with the file's existing precedent of collapsing tgId===null and thrown-send-failure into the same message shape) without letting the organizer distinguish 'this specific person has blocked the bot' from 'a transient send failure occurred,' which would otherwise let an organizer infer and potentially act on a specific person's blocked status. This does not undermine S10's intent (S10 is about not sending to blocked users, not about concealing operational outcomes from organizers) and does not leak anything S10 was designed to protect. No implementation-code violation: the artefact contains only an interface snippet and a prose rule table, matching the design role's constraint and this task's own acceptance criterion wording. No TBD/placeholder language found anywhere in the artefact. All ACs in the design's own §4 map to concrete, verified design elements.",
+    "artifacts_out": [
+      "handoffs/ISS-0020/step-02b-code-design-validator.json"
+    ],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "fix/ISS-0020",
+      "commit_sha_list": [],
+      "remote_branch": "origin/fix/ISS-0020",
+      "push_status": "pending",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Route to BACKEND-DEV (Step 3 implement)"
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": [
+    {
+      "step": "02b",
+      "result": "PASS",
+      "at": "2026-09-07T23:11:26Z"
+    }
+  ]
+}
