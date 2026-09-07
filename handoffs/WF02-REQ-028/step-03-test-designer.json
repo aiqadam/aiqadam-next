@@ -1,0 +1,30 @@
+{
+  "handoff_id": "step-03-test-designer",
+  "run_id": "WF02-REQ-028",
+  "workflow_id": "WF-02",
+  "step": "03",
+  "from_agent": "ORCH",
+  "to_agent": "TEST-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "started_at": "2026-09-07T16:33:00Z",
+  "completed_at": "2026-09-07T16:45:00Z",
+  "context": {
+    "related_handoff_ids": [
+      "step-00-git-setup",
+      "step-01-code-designer",
+      "step-01b-design-validator",
+      "step-02-backend-dev",
+      "step-02-backend-dev-rework1",
+      "step-02b-reviewer",
+      "step-02b-reviewer-regate",
+      "step-02c-security-reviewer"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Wrote docs/agents/test-specs/REQ-028.md for WF02-REQ-028 (manual check-in list, door, no QR) at branch feature/WF02-REQ-028, commit 2288978. Scope test: Step 2's artifacts_out (domain/registration.ts's listAdmittedRegistrantsForCheckin/countCheckedIn/decideCheckinToggleOutcome/toggleCheckIn; handlers/checkin.ts's rewritten makeCheckInHandler plus new makeCheckinToggleCallbackHandler/makeCheckinPageCallbackHandler/renderCheckinListMessage; index.ts's new callback-query wiring; new checkin.* i18n keys) is real behavioral surface -- a real command/callback handler pair rendering a real Telegram inline keyboard and writing real registrations/audit_log rows. Full Steps 3b/4 apply.\n\nRead core-directives.md, WF-02 Step 3, qa_testing_guide.md, docs/agents/test-specs/REQ-027.md as reference shape, docs/agents/design/REQ-028.md in full, apps/bot/src/domain/registration.ts and apps/bot/src/handlers/checkin.ts (the real implementations, full reads), apps/bot/src/domain/eventStaffAuthorization.ts (unchanged, reused), and BACKEND-DEV's already-committed apps/bot/src/handlers/checkin.db.test.ts in full (6 tests, one per AC1-AC6, all real bot.handleUpdate() dispatch) so this spec's own cases are independently parameterized, not duplicates. Also read handoffs/WF02-REQ-028/step-02c-security-reviewer.json in full for SECURITY-REVIEWER's two ad hoc findings this run's task brief asked to formalize.\n\nPer-case design, all in a NEW second committed file apps/bot/src/handlers/checkin.forgery.test.ts (own nextTgId=920_000_000+ range, confirmed distinct via grep -rn \"nextTgId = \" apps/bot/src against every existing file's range: 800M/900M/900M/940M/950M/950M/960M/970M/980M/990M/1000000900):\n\n- AC1: own genuinely different interleaving from both BACKEND-DEV's committed case and REVIEWER's independent re-check -- a real page-turn re-render (makeCheckinPageCallbackHandler) sits between the initial render and the stale toggle press, not a bare render-then-tap. 12-attendee/2-page fixture, target attendee lands on page 1. Proves the write-time recheck holds even after an intervening full re-render, which BACKEND-DEV's single-render case cannot expose since it never exercises the page-turn handler at all.\n- AC3: own 2-attendee fixture, both with phone+email populated (BACKEND-DEV's own AC3 fixture seeds exactly one attendee), PLUS a second attendee with NO profiles row inserted at all (the noNameFallback/tgUsername-fallback path via a genuinely absent LEFT JOIN match, distinct from BACKEND-DEV's fixture which always inserts a profiles row) -- confirms the LEFT JOIN's no-match path also leaks nothing structurally.\n- AC4: own before/after counter sequence driven through two real toggle writes (check-in, check-in, undo) via the handler chain rather than BACKEND-DEV's own raw-SQL UPDATE -- asserts a 4-point header sequence (0/3 -> 1/3 -> 2/3 -> 1/3) and a full-row events deep-equality before/after, proving the counter is fresh across a toggle-driven down-then-up-again sequence, not just across one out-of-band DB write.\n- Cross-event forged toggle: formalizes SECURITY-REVIEWER's ad hoc finding (handoffs/WF02-REQ-028/step-02c-security-reviewer.json's \"CROSS-EVENT FORGED TOGGLE\") as a permanent committed regression test -- that finding was verified with a temporary test SECURITY-REVIEWER wrote, ran, and reverted via `git checkout --`, leaving zero permanent coverage before this spec. Own fixture: two events, a staff member added to Event A only, a hand-built forged checkin:toggle:<id> callback_data for an Event-B registration paired with a hand-built FakeMessage (no genuine render ever produced this pairing). Asserts the exact notAuthorized alert text (distinguished from AC1's refusedNotAdmitted alert), no write, no editMessageText, and an audit_log row with entityId = Event B's id specifically (not Event A's), which would catch a regression that authorizes against a cached/caller-supplied eventId instead of the fresh getEventIdForRegistration-derived one.\n- Genuine concurrent double-toggle: a new case with no existing coverage anywhere -- two Promise.all'd bot.handleUpdate() dispatches of the IDENTICAL toggle callback fired concurrently against the same starting row, formalizing SECURITY-REVIEWER's structural \"S6 CONCURRENT-TOGGLE RACE TRACE\" (same handoff) as an empirically-run test. Asserts the exact predicted final state (checkedInAt === null -- check-in then immediate undo, per the trace's own reasoning about READ COMMITTED + SELECT...FOR UPDATE) and exactly one audit row of each action type (never two of either), which would catch a regression that weakens the row lock or moves the decide-then-write outside the transaction boundary (a lost-update bug would instead produce two registration.checkin audit rows and/or a race-dependent final state).\n\nAC2/AC5/AC6 deliberately NOT re-covered: BACKEND-DEV's own committed cases for those three already drive through real dispatch with adequate own-fixture coverage per this run's task brief, and no gap was found in them while reading checkin.db.test.ts directly.\n\nStated the --no-file-parallelism requirement (ISS-0014) for TEST-RUNNER. No implementation defect found in domain/registration.ts's or handlers/checkin.ts's REQ-028 additions while reading them directly -- nothing to file under ISSUE_QUEUE.md from this step.",
+    "artifacts_out": ["docs/agents/test-specs/REQ-028.md"],
+    "issues": [],
+    "next_action": "Route to TEST-DESIGN-VALIDATOR (Step 3b)"
+  }
+}
