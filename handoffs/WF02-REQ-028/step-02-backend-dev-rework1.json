@@ -1,0 +1,34 @@
+{
+  "handoff_id": "step-02-backend-dev-rework1",
+  "run_id": "WF02-REQ-028",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "ORCH",
+  "to_agent": "REVIEWER",
+  "status": "COMPLETED",
+  "started_at": "2026-09-07T21:20:00Z",
+  "completed_at": "2026-09-07T21:35:00Z",
+  "context": {
+    "related_handoff_ids": ["step-02-backend-dev", "step-02b-reviewer"]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Rework 1 of 3 for the sole REVIEWER Step 2b FAIL finding: apps/bot/src/handlers/checkin.db.test.ts:496:11, '`admitted` is assigned a value but never used' (@typescript-eslint/no-unused-vars).\n\nRead the whole AC5 describe block (lines 480-535) to judge whether the missing use was a dropped assertion or a genuinely side-effect-only call. AC5's positive-control assertion at line 529 (`expect(buttonTexts.some((t2) => t2.includes(\"Gulnaz\"))).toBe(true)`) checks the button text for the literal string \"Gulnaz\" directly -- it never reads any field off the `admitted` binding (no `admitted.registrationId`, `admitted.userId`, etc. appears anywhere in the test body). So there is no missing assertion to restore; `admitted`'s return value was never meant to be read. Checked the file's own established convention for this exact situation: line 448, in the neighboring AC4 test, calls `await seedAdmittedRegistrant(eventId, { firstName: \"Farid\", lastName: \"T\" })` for the same reason (a second/positive-control admitted registrant whose seeded values are asserted by literal string elsewhere, not by reading the return value) with no binding at all. Matched that convention exactly: changed line 496 from `const admitted = await seedAdmittedRegistrant(...)` to `await seedAdmittedRegistrant(...)` (no binding). No other lines changed.\n\nRe-ran all three checks myself from the repo root against the final tree state (not predicted, not carried over from the prior handoff):\n\n`npm run lint` -> exit 0. apps/web: 2 pre-existing unrelated <img>-element warnings only (Footer.tsx:11, Nav.tsx:10), 0 errors. apps/bot: 0 problems (the checkin.db.test.ts:496 error is gone).\n\n`npm run build` -> exit 0. apps/web Next.js (Turbopack) build compiled and generated static pages successfully; apps/bot tsc produced no output (clean).\n\n`npx vitest run --no-file-parallelism` (repo root, full suite, no path filter) -> 26 files / 272 tests passed, 0 failed, 0 skipped -- same count as both the original step-02 handoff and REVIEWER's own independent run, confirming this one-line change didn't alter any other test's behavior.\n\nNo other files touched. `git diff --stat` shows exactly the one line changed in apps/bot/src/handlers/checkin.db.test.ts.",
+    "evidence": {
+      "commands": [
+        "npm run lint (repo root) -> exit 0. apps/web: 2 pre-existing <img> warnings (Footer.tsx:11:15, Nav.tsx:10:11), 0 errors. apps/bot: eslint . completed with no output (0 problems).",
+        "npm run build (repo root) -> exit 0. apps/web: 'Compiled successfully in 232ms', TypeScript check finished, static pages generated (4/4). apps/bot: tsc -p tsconfig.json completed with no output.",
+        "npx vitest run --no-file-parallelism (repo root, full suite) -> 'Test Files 26 passed (26)', 'Tests 272 passed (272)', Duration 35.37s"
+      ],
+      "ac_results": {
+        "AC5": "Unaffected by this fix -- the assertion behavior is unchanged, only the unused binding was removed. Re-ran with the full suite: still passes (272/272 total, AC5's own test file included)."
+      },
+      "fix_rationale": "Verified against the file's own convention (line 448, `seedAdmittedRegistrant` called with no binding for the identical 'seeded-for-its-side-effect, asserted-by-literal-string-elsewhere' situation) that no assertion was dropped -- `admitted` was never read anywhere in the AC5 test body, and the positive-control check at line 529 asserts on the literal string \"Gulnaz\", not on any field of the returned registrant. Removed the binding rather than inventing a new assertion or prefixing with `_`, matching the codebase's existing idiom exactly."
+    },
+    "artifacts_out": [
+      "apps/bot/src/handlers/checkin.db.test.ts"
+    ],
+    "issues": [],
+    "next_action": "Route to REVIEWER (Step 2b re-gate)"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "handoff_id": "step-03-test-designer-rework1",
+  "run_id": "WF02-REQ-028",
+  "workflow_id": "WF-02",
+  "step": "03",
+  "from_agent": "ORCH",
+  "to_agent": "TEST-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "started_at": "2026-09-07T00:00:00Z",
+  "completed_at": "2026-09-07T00:00:00Z",
+  "context": {
+    "related_handoff_ids": [
+      "step-03-test-designer",
+      "step-03b-test-design-validator",
+      "step-02c-security-reviewer"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Rework 1 of 3 for the Step 3b FAIL recorded in handoffs/WF02-REQ-028/step-03b-test-design-validator.json. That finding was a factual-accuracy defect, not a design defect: docs/agents/test-specs/REQ-028.md and the Step 3 handoff both narrated apps/bot/src/handlers/checkin.forgery.test.ts as an ALREADY-COMMITTED file already holding the 5 new cases (AC1 page-turn interleaving, AC3 no-profiles-row, AC4 counter sequence, cross-event forged toggle, concurrent double-toggle). Confirmed via `git log --all -- apps/bot/src/handlers/checkin.forgery.test.ts` (empty) and `git show b7191cb --stat` (touched only the .md spec and the Step 3 handoff JSON) that the file has never existed on this branch -- the validator's finding was correct.\n\nThe validator also independently re-derived and confirmed the underlying technical reasoning for all 5 new cases is sound (AC1's page-turn trace and the concurrent double-toggle's READ COMMITTED / SELECT...FOR UPDATE determinism were both re-checked directly against apps/bot/src/handlers/checkin.ts and apps/bot/src/domain/registration.ts and hold) -- so this rework changes ONLY the false 'already committed' framing, not any test-case design: fixtures, dispatch sequences, and pass/fail assertions for AC1/AC3/AC4/cross-event-forgery/concurrent-toggle are byte-for-byte unchanged from the original spec.\n\nCorrections made in docs/agents/test-specs/REQ-028.md: (1) the Independence note (previously 'in a second new committed file, checkin.forgery.test.ts') now states explicitly that this file does not exist yet, and that per this project's established convention -- confirmed precedent apps/bot/src/handlers/reminder24h.forgery.test.ts (designed in REQ-026's spec, committed by TEST-RUNNER) and apps/bot/src/handlers/event.dispatch.test.ts (designed in REQ-027's spec, committed by TEST-RUNNER) -- TEST-DESIGNER writes the markdown design only and TEST-RUNNER writes/commits the actual vitest file at Step 4. (2) The tg_id-range paragraph now reads 'for the new test file this spec designs (not yet written)' instead of implying an existing file. (3) The shared-setup step now reads 'TEST-RUNNER writes and commits the new test file at Step 4: ... (does not exist yet)' instead of 'New committed test file: ...'. (4) Each of the 5 new cases' opening line now reads 'New it(...), designed here for TEST-RUNNER to write in the new (not yet written) test file' instead of 'New it(...) in the new committed file'. Also corrected the same false 'already committed'/'confirmed distinct via grep against every existing file's range' framing in handoffs/WF02-REQ-028/step-03-test-designer.json's own summary to match.\n\nNo change was made to: the AC1 12-attendee/2-page fixture and page-turn interleaving; the AC3 2-attendee/no-profiles-row fixture; the AC4 4-point counter sequence (0/3->1/3->2/3->1/3) and full-row events deep-equality; the cross-event forged-toggle fixture, forged callback_data construction, and exact notAuthorized/entityId assertions; the concurrent double-toggle's Promise.all construction, exact final-state (checkedInAt === null) and audit-row-count assertions; the tg_id range (920_000_000+); the --no-file-parallelism (ISS-0014) execution note; or the AC2/AC5/AC6 deferral to BACKEND-DEV's checkin.db.test.ts. TEST-DESIGN-VALIDATOR's coverage/precision/gap checks (checks (a)/(c) and the technical_content_re_derivation in the Step 3b handoff) already independently confirmed those are sound; this rework does not ask for them to be re-derived, only for the file-existence framing to be re-checked now that it no longer makes a false claim.",
+    "artifacts_out": [
+      "docs/agents/test-specs/REQ-028.md",
+      "handoffs/WF02-REQ-028/step-03-test-designer.json"
+    ],
+    "issues": [],
+    "next_action": "Route to TEST-DESIGN-VALIDATOR (Step 3b re-gate)"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "handoff_id": "step-06-doc-updater",
+  "run_id": "WF02-REQ-028",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "ORCH",
+  "to_agent": "DOC-UPDATER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "REQ-028 (manual check-in list -- alphabetical, searchable, toggleable, with a live counter, GitHub issue #31) had RELEASE-VALIDATOR PASS at Step 5, the FIRST of Phase 6's three requirements. Verified the factual claims directly against the real code before writing the status-history note, not from this handoff's summary alone: read apps/bot/src/domain/registration.ts's listAdmittedRegistrantsForCheckin (lines 858-892, admission='admitted' only, ordered lastName/firstName/registrationId asc, no phone/email selected), countCheckedIn (lines 899-905, fresh COUNT, never writes events), decideCheckinToggleOutcome (lines 923-934, pure first-match-wins table) and toggleCheckIn (lines 944-1004+, the SOLE place admission is ever read for the check-in decision -- a real SELECT ... FOR UPDATE lock inside one db.transaction, freshly re-read, never reusing a caller-supplied value; refusal branches write nothing, check-in/undo branches each write exactly one audit_log row); read apps/bot/src/handlers/checkin.ts's /checkin <event_id> [query] rewrite (parseCheckinCommandArgs, pagination PAGE_SIZE=10, search SEARCH_RESULT_LIMIT=20) and confirmed it reuses REQ-018's requireEventStaffForEvent unchanged, re-run on every toggle/page-turn callback (S2); confirmed via `git diff master...HEAD` that no new drizzle migration exists in this diff -- registrations.checked_in_by and check_in_method (both from REQ-011's original migration, previously unused by any handler) and the pre-existing chk_registrations_checked_in_only_if_admitted CHECK constraint are now finally exercised by real code for the first time. Concurrent double-toggle safety was independently confirmed via three separate live tests (BACKEND-DEV, TEST-RUNNER, RELEASE-VALIDATOR) dispatching simultaneous callbacks through a real grammY bot instance. ISS-0025 (filed this run, MINOR, non-blocking, open) is a test-spec AC1 sorting-order example defect only -- did not affect the real PASS verdict.\n\nActions taken:\n1. Flipped docs/agents/requirements.yaml's REQ-028 entry status: pending -> done. No other field needed correction -- description/acceptance_criteria already matched the shipped mechanism exactly.\n2. Appended one 'done' event to docs/status/requirement_status.yaml (append-only; read the full file across two chunks before appending; `git diff --numstat` confirmed 5 insertions / 0 deletions on requirement_status.yaml and 1/1 on requirements.yaml matching only the expected status-field flip, before committing).\n3. Checked README.md (grep for checkin/check-in/door/'manual list' terms) -- no matches; still contains no bot-flow-specific content beyond the one generic apps/bot description line from REQ-009's doc-update step, so no README update was made -- same checked-then-skipped pattern as every prior bot requirement (REQ-010 through REQ-027).\n4. Checked docs/ for an existing bot-command-reference doc (find for *command*, excluding node_modules) -- none exists anywhere in the repo, consistent with the established pattern noted at REQ-018 through REQ-027's doc-update steps, so none was created here.\n5. This is the FIRST requirement of Phase 6, not the last -- REQ-029 (QR check-in) and REQ-030 (walk-in registration) remain, so no 'Phase complete' marker was added.",
+    "issues": [],
+    "artifacts_out": [
+      "docs/agents/requirements.yaml",
+      "docs/status/requirement_status.yaml"
+    ],
+    "next_action": "Route to Step Final (git merge)"
+  }
+}

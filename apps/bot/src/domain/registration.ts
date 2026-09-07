@@ -1,7 +1,9 @@
 import { randomBytes } from "node:crypto";
-import { and, asc, desc, eq, lt, ne, or } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, lt, ne, or } from "drizzle-orm";
 import type { DbClient } from "../db/client.js";
-import { chapters, events, registrations, users } from "../db/schema.js";
+import { chapters, events, profiles, registrations, users } from "../db/schema.js";
+import type { BotLang } from "../i18n/catalog.js";
+import { getCatalog } from "../i18n/catalog.js";
 import { writeAuditLog } from "./auditLog.js";
 import {
   computeSeatsLeft,
@@ -807,6 +809,202 @@ export async function selectNonWithdrawnRegistrantsForEvent(
     .where(and(eq(registrations.eventId, eventId), ne(registrations.admission, "withdrawn")));
 
   return rows.map((row) => ({ registrationId: row.registrationId, userId: row.userId }));
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-028.md §2.1 — the admitted-attendee list for the
+// manual check-in door screen (AC3, AC5, AC6). Never selects
+// profiles.phone/profiles.email (S3, AC3): those two columns are simply
+// absent from this query's own select clause. `lang` is an addition over the
+// design's bare signature (the design's own §5 fallback string,
+// checkin.noNameFallback, is locale-specific and this function is the one
+// place displayName is finalized) -- a plumbing choice, not a business rule.
+// ---------------------------------------------------------------------------
+export interface CheckinListItem {
+  registrationId: string;
+  userId: string;
+  displayName: string;
+  company: string | null;
+  checkedInAt: Date | null;
+}
+
+// §2.1's displayName derivation table, stated exactly:
+// firstName present, lastName present  -> "<firstName> <lastName>"
+// firstName present, lastName absent   -> firstName alone
+// firstName absent, lastName present   -> lastName alone
+// both absent, tgUsername present      -> "@<tgUsername>"
+// all three absent                     -> the fixed noNameFallback string
+function deriveCheckinDisplayName(
+  firstName: string | null,
+  lastName: string | null,
+  tgUsername: string | null,
+  noNameFallback: string,
+): string {
+  if (firstName !== null && lastName !== null) {
+    return `${firstName} ${lastName}`;
+  }
+  if (firstName !== null) {
+    return firstName;
+  }
+  if (lastName !== null) {
+    return lastName;
+  }
+  if (tgUsername !== null) {
+    return `@${tgUsername}`;
+  }
+  return noNameFallback;
+}
+
+export async function listAdmittedRegistrantsForCheckin(
+  db: DbClient["db"],
+  eventId: string,
+  lang: BotLang,
+): Promise<CheckinListItem[]> {
+  const noNameFallback = getCatalog(lang).checkin.noNameFallback;
+
+  // §2.1's ordering rule: lastName asc (nulls last), then firstName asc
+  // (nulls last), then registrationId asc as the always-defined tie-break.
+  // Postgres's own default NULLS LAST for ASC gives the "nulls last" half of
+  // this rule for free.
+  const rows = await db
+    .select({
+      registrationId: registrations.id,
+      userId: registrations.userId,
+      checkedInAt: registrations.checkedInAt,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      company: profiles.company,
+      tgUsername: users.tgUsername,
+    })
+    .from(registrations)
+    .leftJoin(profiles, eq(profiles.userId, registrations.userId))
+    .innerJoin(users, eq(users.id, registrations.userId))
+    .where(and(eq(registrations.eventId, eventId), eq(registrations.admission, "admitted")))
+    .orderBy(asc(profiles.lastName), asc(profiles.firstName), asc(registrations.id));
+
+  return rows.map((row) => ({
+    registrationId: row.registrationId,
+    userId: row.userId,
+    displayName: deriveCheckinDisplayName(row.firstName, row.lastName, row.tgUsername, noNameFallback),
+    company: row.company,
+    checkedInAt: row.checkedInAt,
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-028.md §2.2 — the live check-in counter (AC4).
+// Computed fresh on every call -- no column, cache, or in-memory counter
+// anywhere stores this value between reads. Never writes to `events`.
+// ---------------------------------------------------------------------------
+export async function countCheckedIn(db: DbClient["db"], eventId: string): Promise<number> {
+  const rows = await db
+    .select({ id: registrations.id })
+    .from(registrations)
+    .where(and(eq(registrations.eventId, eventId), isNotNull(registrations.checkedInAt)));
+  return rows.length;
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-028.md §3.1 — decideCheckinToggleOutcome: pure,
+// first-match-wins table, no I/O.
+// ---------------------------------------------------------------------------
+export interface CheckinToggleDecisionInput {
+  registrationExists: boolean;
+  admission: AdmissionState | null;
+  checkedInAt: Date | null;
+}
+
+export type CheckinToggleOutcome =
+  | { kind: "not-found" }
+  | { kind: "refused-not-admitted"; admission: AdmissionState }
+  | { kind: "check-in" }
+  | { kind: "undo" };
+
+export function decideCheckinToggleOutcome(input: CheckinToggleDecisionInput): CheckinToggleOutcome {
+  if (!input.registrationExists) {
+    return { kind: "not-found" };
+  }
+  if (input.admission !== "admitted") {
+    return { kind: "refused-not-admitted", admission: input.admission as AdmissionState };
+  }
+  if (input.checkedInAt === null) {
+    return { kind: "check-in" };
+  }
+  return { kind: "undo" };
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-028.md §3.2 — toggleCheckIn: the write-time recheck
+// (AC1's crux, S6). Fresh, LOCKED read inside this transaction -- never
+// reuses any value the caller/callback_data supplied -- decided, then
+// conditionally written, with exactly one audit_log row per write (S8). The
+// DB CHECK constraint chk_registrations_checked_in_only_if_admitted (REQ-011)
+// is a second, independent backstop, not a substitute for this recheck.
+// ---------------------------------------------------------------------------
+export async function toggleCheckIn(
+  db: DbClient["db"],
+  registrationId: string,
+  staffUserId: string,
+  at: Date,
+): Promise<CheckinToggleOutcome & { eventId?: string }> {
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .select({
+        id: registrations.id,
+        eventId: registrations.eventId,
+        admission: registrations.admission,
+        checkedInAt: registrations.checkedInAt,
+      })
+      .from(registrations)
+      .where(eq(registrations.id, registrationId))
+      .for("update");
+
+    const row = rows[0];
+
+    const outcome = decideCheckinToggleOutcome({
+      registrationExists: row !== undefined,
+      admission: (row?.admission as AdmissionState | undefined) ?? null,
+      checkedInAt: row?.checkedInAt ?? null,
+    });
+
+    // Refusal branches: no write, no audit row (AC1's "stated refusal").
+    if (row === undefined || (outcome.kind !== "check-in" && outcome.kind !== "undo")) {
+      return outcome;
+    }
+
+    if (outcome.kind === "check-in") {
+      await tx
+        .update(registrations)
+        .set({ checkedInAt: at, checkedInBy: staffUserId, checkInMethod: "manual" })
+        .where(eq(registrations.id, row.id));
+
+      await writeAuditLog(tx, {
+        actorUserId: staffUserId,
+        action: "registration.checkin",
+        entity: "registration",
+        entityId: row.id,
+        payload: { eventId: row.eventId },
+        at,
+      });
+    } else {
+      // "undo" -- only checked_in_at is cleared; checked_in_by/check_in_method
+      // are left as whatever the most recent check-in wrote (they carry no
+      // meaning while checked_in_at is null and are unconditionally
+      // overwritten by the next check-in above).
+      await tx.update(registrations).set({ checkedInAt: null }).where(eq(registrations.id, row.id));
+
+      await writeAuditLog(tx, {
+        actorUserId: staffUserId,
+        action: "registration.checkin_undo",
+        entity: "registration",
+        entityId: row.id,
+        payload: { eventId: row.eventId },
+        at,
+      });
+    }
+
+    return { ...outcome, eventId: row.eventId };
+  });
 }
 
 export async function getRegistrationForEventAndUser(

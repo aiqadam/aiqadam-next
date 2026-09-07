@@ -1,0 +1,34 @@
+{
+  "handoff_id": "step-02b-reviewer-regate",
+  "run_id": "WF02-REQ-028",
+  "workflow_id": "WF-02",
+  "step": "02b",
+  "from_agent": "ORCH",
+  "to_agent": "REVIEWER",
+  "status": "COMPLETED",
+  "started_at": "2026-09-07T21:24:00Z",
+  "completed_at": "2026-09-07T21:26:00Z",
+  "context": {
+    "related_handoff_ids": ["step-02b-reviewer", "step-02-backend-dev-rework1"]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Re-gate of the sole FAIL finding from the prior step-02b-reviewer run: apps/bot/src/handlers/checkin.db.test.ts:496, `const admitted = await seedAdmittedRegistrant(...)` assigned a value never read, failing @typescript-eslint/no-unused-vars. Everything else (design conformance, AC1-AC5 substance, scope, domain/handler placement, migration review) was already independently verified in the first pass and is not in scope for this re-gate per the task instructions -- this run checks only that the rework fixes the lint error correctly with no side effects.\n\n`git show 0eaa83a` reviewed directly: the commit changes exactly one line in apps/bot/src/handlers/checkin.db.test.ts (`const admitted = await seedAdmittedRegistrant(...)` -> `await seedAdmittedRegistrant(...)`), plus adds the rework handoff record. No other files touched.\n\nRead the whole AC5 describe block (lines 480-534) myself. Confirmed `admitted` is never referenced anywhere in the test body -- no `admitted.registrationId`, `admitted.userId`, or any other field access. The positive-control assertion at line 529 (`expect(buttonTexts.some((t2) => t2.includes(\"Gulnaz\"))).toBe(true)`) checks the button text against the literal string \"Gulnaz\" directly, and the negative assertions (530-533) check for absence of \"Waitlisted\"/\"Withdrawn\" text -- none of the five assertions in this test read any property of the removed binding. No assertion was weakened or dropped by this change. Also confirmed the fix matches the file's own established convention: line 448's neighboring AC4 test already calls `seedAdmittedRegistrant` with no binding for the identical seed-only situation.\n\nCommands run myself, real output, repo root:\n`npm run lint` -> exit 0. apps/web: 2 pre-existing unrelated <img>-element warnings only (Footer.tsx:11:15, Nav.tsx:10:11), 0 errors. apps/bot: eslint . completed with no output (0 problems) -- the checkin.db.test.ts:496 error is gone.\n`npm run build` -> exit 0. apps/web Next.js (Turbopack) build compiled successfully, TypeScript check finished, static pages generated (4/4). apps/bot: tsc -p tsconfig.json produced no output (clean).\n`npx vitest run --no-file-parallelism` (repo root, full suite, no path filter) -> 26 files / 272 tests passed, 0 failed, 0 skipped -- matches the counts from both the original step-02 handoff and my own first-pass review.\n\nNo scope creep: this commit touches only the one test file plus its own handoff record.",
+    "evidence": {
+      "commands": [
+        "git show 0eaa83a -> single-line diff in apps/bot/src/handlers/checkin.db.test.ts (unused `admitted` binding removed), plus new handoffs/WF02-REQ-028/step-02-backend-dev-rework1.json",
+        "npm run lint (repo root) -> exit 0. apps/web: 2 pre-existing <img> warnings (Footer.tsx:11:15, Nav.tsx:10:11), 0 errors. apps/bot: 0 problems.",
+        "npm run build (repo root) -> exit 0. apps/web: 'Compiled successfully in 223ms', TypeScript check finished, 4/4 static pages generated. apps/bot: tsc completed with no output.",
+        "npx vitest run --no-file-parallelism (repo root, full suite) -> 'Test Files 26 passed (26)', 'Tests 272 passed (272)', Duration 34.99s"
+      ],
+      "ac_results": {
+        "AC5": "Unaffected by this fix. Read lines 480-534 directly: `admitted` is never referenced in the test body; the positive-control assertion (line 529) checks the literal string \"Gulnaz\" in button text, and the four other assertions check text/button absence of \"Waitlisted\"/\"Withdrawn\". No assertion depends on the removed binding, so none was weakened or dropped."
+      },
+      "lint_error_check": "CONFIRMED RESOLVED -- apps/bot eslint run produces 0 problems, the checkin.db.test.ts:496 @typescript-eslint/no-unused-vars error from the prior FAIL is gone.",
+      "convention_match": "CONFIRMED -- line 448's neighboring AC4 test already calls seedAdmittedRegistrant with no binding for the identical seed-only pattern; this fix matches that existing convention exactly, not a new idiom."
+    },
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": "Route to SECURITY-REVIEWER (Step 2c)"
+  }
+}

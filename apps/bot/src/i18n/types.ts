@@ -129,14 +129,42 @@ export interface Catalog {
     // Sent to the VOLUNTEER on removal. Interpolated with the event title.
     removalNotificationBody: string;
   };
-  // NEW, REQ-018: /checkin <event_id> — authorization-only stub (design §0.3,
-  // §4.3). Performs no check-in business logic; REQ-028/029's scope.
+  // NEW, REQ-018: /checkin <event_id> — authorization gate (design §0.3,
+  // §4.3). NEW, REQ-028 (docs/agents/design/REQ-028.md §5): the manual
+  // check-in list, its toggle, pagination, and search. `authorizedStub`
+  // removed -- no caller once REQ-028's list render replaces the stub.
   checkin: {
     usageNoId: string;
     notFound: string;
     notAuthorized: string;
-    // Interpolated with the event title.
-    authorizedStub: string;
+    // Header template. Interpolated with {event}, {checkedIn}, {total}.
+    listHeader: string;
+    // Shown instead of any keyboard rows when the event has zero 'admitted'
+    // registrations.
+    listEmpty: string;
+    // Shown instead of any keyboard rows when a search query matched
+    // nothing.
+    searchNoMatches: string;
+    // Footer line on every render, restating "/checkin <event_id> <name>"
+    // (design §1.6).
+    searchHint: string;
+    // Interpolated with {count}, the not-shown count when search results
+    // exceed SEARCH_RESULT_LIMIT (design §1.4).
+    searchTruncatedNote: string;
+    // Fixed prefix glyphs for a checked-in vs. not-yet-checked-in row
+    // (design §4.4). Plain characters -- Telegram buttons render text only.
+    checkedInGlyph: string;
+    notCheckedInGlyph: string;
+    // Interpolated "{current} / {total}" page-position label (design §4.4).
+    pageIndicator: string;
+    // The AC1 refusal alert shown when a toggle is pressed against a
+    // registration whose admission is no longer 'admitted' at write time
+    // (design §3.2 step 3, §4.2 step 5). Also reused for the re-authorization
+    // refusal on a toggle/page callback (design §3.3, §4.2 step 3, §4.3).
+    refusedNotAdmitted: string;
+    // Fallback display name when a registrant has neither a name nor a
+    // tg_username on file (design §2.1's displayName table, last row).
+    noNameFallback: string;
   };
   // NEW, REQ-019: profile capture as a resumable step-by-step form, the
   // consent gate, and the optional-field rule (design §5). Placeholder/

@@ -1427,7 +1427,7 @@ requirements:
   - id: REQ-028
     title: Manual check-in list — alphabetical, searchable, toggleable, with a live counter
     owner: BACKEND-DEV
-    status: pending
+    status: done
     description: >
       First slice of PRD 14 build-order step 5 ("Check-in: manual list first, then QR,
       plus EventStaff and walk-ins"). THE ORDERING IS A REQUIREMENT, NOT A PREFERENCE:
