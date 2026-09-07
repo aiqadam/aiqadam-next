@@ -1478,7 +1478,7 @@ requirements:
   - id: REQ-029
     title: QR check-in via ci_ deep link with the full refusal table and non-staff audit logging
     owner: BACKEND-DEV
-    status: pending
+    status: done
     description: >
       Second slice of PRD 14 build-order step 5, built AFTER REQ-028's manual list per
       PRD 14's stated ordering rule. Implements PRD FR-14, USER-STORIES C3 /

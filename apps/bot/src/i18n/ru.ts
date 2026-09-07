@@ -129,6 +129,23 @@ export const ru = {
     refusedNotAdmitted: "Отметить нельзя: статус этого участника изменился.",
     noNameFallback: "Без имени",
   },
+  // Placeholder/provisional wording (REQ-029 design §7) — CONTENT-BA owns
+  // final copy per decisions/0002.
+  checkinQr: {
+    unknownToken: "Этот код регистрации не распознан.",
+    eventEnded: "Это мероприятие уже завершилось.",
+    notStaff: "У вас нет прав встречать гостей на этом мероприятии.",
+    alreadyCheckedIn: "Уже отмечен(а) в {at}, отметил(а) {by}.",
+    refusedWaitlisted: "Отметить нельзя: участник в списке ожидания, не подтверждён.",
+    refusedRequested: "Отметить нельзя: регистрация участника ещё ожидает подтверждения.",
+    refusedWithdrawn: "Отметить нельзя: участник отменил регистрацию.",
+    refusedRejected: "Отметить нельзя: регистрация участника отклонена.",
+    overrideButtonLabel: "Переопределить: подтвердить и отметить",
+    overrideNotAuthorized: "Переопределить может только организатор.",
+    overrideNotApplicable: "Для этой регистрации переопределение больше не требуется.",
+    overrideSuccess: "Подтверждён(а) и отмечен(а): {name}{company}. Уже отметилось: {checkedIn}.",
+    successHeader: "Отмечен(а): {name}{company}. Уже отметилось: {checkedIn}.",
+  },
   // Placeholder/provisional wording (REQ-019 design §5) — CONTENT-BA owns
   // final copy per decisions/0002.
   profile: {

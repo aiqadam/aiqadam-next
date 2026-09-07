@@ -99,10 +99,18 @@ export function checkEventStaffAuthorization(
 // performs no check-in write of its own (design §0.3), so there is nothing
 // yet to log on success. Adding one would be inventing a business rule the
 // design/S5 does not ask for.
+// docs/agents/design/REQ-029.md §5.2 -- `registrationId` is a new, optional,
+// trailing parameter. Every existing call site (REQ-018's /checkin, REQ-028's
+// toggle/page callbacks) omits it and is therefore byte-for-byte unaffected:
+// `entity`/`entityId` stay "event"/eventId exactly as before. Only
+// REQ-029's own call site (handlers/checkinQr.ts's resolveCheckinQrDeepLink)
+// supplies it, so a non-staff scanner's refusal audit row names the
+// registration being scanned, not just the event (AC1).
 export function buildCheckinRefusalAudit(
   user: ActingUser | null,
   eventId: string,
   reason: Extract<CheckInAuthorizationResult, { ok: false }>["reason"],
+  registrationId?: string,
 ): Omit<WriteAuditLogInput, "at"> {
   return {
     // null exactly when resolveActingUser found no User row at all
@@ -111,12 +119,13 @@ export function buildCheckinRefusalAudit(
     // reason (db/schema.ts).
     actorUserId: user === null ? null : user.id,
     action: "checkin.refused",
-    entity: "event",
-    entityId: eventId,
-    // No PII (S11): eventId is already a non-secret identifier (matches
-    // checkin.ts's own "not-found before authorization" precedent), and
-    // `reason` is one of the three fixed CheckInAuthorizationResult strings
-    // — never a free-text or user-supplied value.
+    entity: registrationId === undefined ? "event" : "registration",
+    entityId: registrationId === undefined ? eventId : registrationId,
+    // No PII (S11): eventId/registrationId are already non-secret
+    // identifiers (matches checkin.ts's own "not-found before
+    // authorization" precedent), and `reason` is one of the three fixed
+    // CheckInAuthorizationResult strings — never a free-text or
+    // user-supplied value.
     payload: { reason },
   };
 }
@@ -133,13 +142,14 @@ export async function requireEventStaffForEvent(
   eventId: string,
   eventEndsAt: Date,
   evaluationTime: Date,
+  registrationId?: string,
 ): Promise<CheckInAuthorizationResult> {
   const user = await resolveActingUser(db, tgId);
   const staffRow = user === null ? null : await getEventStaffRow(db, eventId, user.id);
   const result = checkEventStaffAuthorization(user, staffRow, eventEndsAt, evaluationTime);
   if (!result.ok) {
     await writeAuditLog(db, {
-      ...buildCheckinRefusalAudit(user, eventId, result.reason),
+      ...buildCheckinRefusalAudit(user, eventId, result.reason, registrationId),
       at: evaluationTime,
     });
   }

@@ -1,0 +1,19 @@
+{
+  "handoff_id": "step-06-doc-updater",
+  "run_id": "WF02-REQ-029",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "ORCH",
+  "to_agent": "DOC-UPDATER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "REQ-029 (QR check-in via ci_<token> deep link with the full refusal table and non-staff audit logging, GitHub issue #32) had RELEASE-VALIDATOR PASS at Step 5, the SECOND of Phase 6's three requirements (REQ-030 remains). Verified the factual claims directly against the real code before writing the status-history note, not from this handoff's summary alone: read apps/bot/src/domain/event.ts's parseStartPayload ci_<token> branch; apps/bot/src/handlers/checkinQr.ts's resolveCheckinQrDeepLink() (token lookup, requireEventStaffForEvent authorization, performQrCheckIn dispatch, refusal-table replies) and makeCheckinOverrideCallbackHandler() (organizer-only override via requireOrganizerForChapter, deliberately stricter than requireEventStaffForEvent, per S7's named capacity-gate-bypass exception); apps/bot/src/domain/registration.ts's decideQrCheckinOutcome (pure first-match-wins), performQrCheckIn (single db.transaction, FOR UPDATE fresh read, token-currency recheck against a stale/superseded qr_token BEFORE deciding the outcome -- the real gap found during design, closed here), decideOverrideOutcome and overrideAdmitAndCheckIn (one UPDATE + one writeAuditLog); and via `git diff master...HEAD -- apps/bot/src/domain/eventStaffAuthorization.ts` that the REQ-018 extension (buildCheckinRefusalAudit/requireEventStaffForEvent gaining an optional trailing registrationId parameter) is purely additive and backward-compatible -- every existing call site (REQ-018's /checkin, REQ-028's toggle/page callbacks) omits the new parameter and is byte-for-byte unaffected, confirmed non-regressive 4 separate times across the pipeline. Confirmed via `git diff master...HEAD --stat` that no new drizzle migration exists in this diff (no schema change). RELEASE-VALIDATOR's own fresh fixtures independently reproduced AC1 (non-staff refusal + audit row naming the registration), AC2 (repeat-scan zero-write, proven via Postgres xmin comparison), and the manual (REQ-028) <-> QR (REQ-029) cross-flow coherence: checking in via one path is correctly read and undoable via the other, with no double-write in either direction. No new issues were filed against REQ-029's own surface by any gate this run.\n\nActions taken:\n1. Flipped docs/agents/requirements.yaml's REQ-029 entry status: pending -> done. No other field needed correction -- description/acceptance_criteria already matched the shipped mechanism exactly.\n2. Appended one 'done' event to docs/status/requirement_status.yaml (append-only; read the file in full before appending; `git diff --numstat` confirmed 6 insertions / 0 deletions on requirement_status.yaml and 1/1 on requirements.yaml matching only the expected status-field flip, before committing).\n3. Checked README.md (grep for checkin/check-in/qr/ci_/scan terms) -- no matches; still contains no bot-flow-specific content beyond the one generic apps/bot description line from REQ-009's doc-update step, so no README update was made -- same checked-then-skipped pattern as every prior bot requirement (REQ-010 through REQ-028).\n4. Checked docs/ for an existing bot-command-reference doc (find for *command*, excluding node_modules) -- none exists anywhere in the repo, consistent with the established pattern noted at REQ-018 through REQ-028's doc-update steps, so none was created here.\n5. This is the SECOND requirement of Phase 6, not the last -- REQ-030 (walk-in registration) remains, so no 'Phase complete' marker was added.",
+    "issues": [],
+    "artifacts_out": [
+      "docs/agents/requirements.yaml",
+      "docs/status/requirement_status.yaml"
+    ],
+    "next_action": "Route to Step Final (git merge)"
+  }
+}

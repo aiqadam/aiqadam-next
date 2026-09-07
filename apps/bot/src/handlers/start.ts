@@ -15,6 +15,7 @@ import {
   parseStartPayload,
   setPendingSource,
 } from "../domain/event.js";
+import { resolveCheckinQrDeepLink } from "./checkinQr.js";
 import { advanceOnboarding } from "../domain/onboarding.js";
 import { getVenueById } from "../domain/venue.js";
 import { getFlowUserByTgId, resolveOrCreateUser } from "../domain/user.js";
@@ -405,6 +406,17 @@ export function makeStartHandler(db: DbClient["db"]) {
         payload.channel,
         flowUser.consentPdAt !== null,
       );
+      return;
+    }
+
+    // docs/agents/design/REQ-029.md §1.2 -- a second branch alongside the
+    // "event" branch above, on the same already-resolved flowUser. No
+    // consent gate here (§1.2's own "why no consent gate" reasoning): the
+    // check-in flow writes nothing about the SCANNER beyond what
+    // checked_in_by (a foreign key to their existing users.id row) records
+    // on someone else's registration.
+    if (payload.kind === "checkin") {
+      await resolveCheckinQrDeepLink(ctx, db, flowUser.id, lang, payload.qrToken);
       return;
     }
 
