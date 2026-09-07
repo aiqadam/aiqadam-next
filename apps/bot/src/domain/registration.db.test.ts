@@ -1,0 +1,406 @@
+import { Pool } from "pg";
+import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
+import { eq } from "drizzle-orm";
+import { afterAll, beforeAll, beforeEach, describe, it, expect } from "vitest";
+import * as schema from "../db/schema.js";
+import { auditLog, chapters, registrations, users, venues } from "../db/schema.js";
+import { createEvent, publishEvent, setPendingSource } from "./event.js";
+import { registerForEvent } from "./registration.js";
+
+// docs/agents/design/REQ-020.md — AC1 (atomic capacity, real concurrency),
+// AC2 (double registration), AC4 (closed/cancelled/finished refusal +
+// onward path), AC5 (source from pending_source), AC6 (requires_invite/
+// requires_approval refusal), AC7 (exactly one audit_log row per write).
+//
+// Real Postgres, same infrastructure/skip discipline as handlers/start.test.ts
+// (apps/bot/docker-compose.yml, TEST_DATABASE_URL). AC1 in particular is NOT
+// verifiable against a sequential/mocked test -- it requires two genuinely
+// concurrent transactions racing for a real row lock, which only a real
+// Postgres server can arbitrate.
+
+const TEST_DATABASE_URL =
+  process.env.TEST_DATABASE_URL ?? "postgres://bot:bot@localhost:55432/bot";
+
+let pool: Pool;
+let db: NodePgDatabase<typeof schema>;
+let dbAvailable = true;
+
+beforeAll(async () => {
+  pool = new Pool({ connectionString: TEST_DATABASE_URL, connectionTimeoutMillis: 3000 });
+  db = drizzle(pool, { schema });
+  try {
+    await pool.query("SELECT qr_token FROM registrations LIMIT 0");
+  } catch (err) {
+    dbAvailable = false;
+    console.warn(
+      `[registration.db.test.ts] skipping DB-backed suite: scratch Postgres at ${TEST_DATABASE_URL} unreachable or not migrated -- ${(err as Error).message}`,
+    );
+  }
+}, 15000);
+
+afterAll(async () => {
+  await pool?.end();
+});
+
+beforeEach(async () => {
+  if (!dbAvailable) {
+    return;
+  }
+  await pool.query("TRUNCATE audit_log, registrations, events, venues, profiles, users, chapters CASCADE");
+});
+
+let chapterSeq = 0;
+let userSeq = 0;
+let tgSeq = 1_000_000_000;
+
+async function seedChapter(): Promise<string> {
+  chapterSeq += 1;
+  const rows = await db
+    .insert(chapters)
+    .values({
+      code: `chapter-${chapterSeq}`,
+      name: `Chapter ${chapterSeq}`,
+      timezone: "Asia/Tashkent",
+      defaultLang: "ru",
+      active: true,
+    })
+    .returning({ id: chapters.id });
+  const row = rows[0];
+  if (row === undefined) throw new Error("seedChapter: no row returned");
+  return row.id;
+}
+
+async function seedUser(): Promise<string> {
+  userSeq += 1;
+  tgSeq += 1;
+  const rows = await db
+    .insert(users)
+    .values({ tgId: BigInt(tgSeq), tgUsername: `user${userSeq}`, lang: "en", role: "member" })
+    .returning({ id: users.id });
+  const row = rows[0];
+  if (row === undefined) throw new Error("seedUser: no row returned");
+  return row.id;
+}
+
+async function seedVenue(chapterId: string): Promise<string> {
+  const rows = await db
+    .insert(venues)
+    .values({
+      chapterId,
+      name: "Test Venue",
+      address: "123 Test St",
+      capacity: 100,
+    })
+    .returning({ id: venues.id });
+  const row = rows[0];
+  if (row === undefined) throw new Error("seedVenue: no row returned");
+  return row.id;
+}
+
+interface SeedEventOptions {
+  capacity: number;
+  requiresInvite?: boolean;
+  requiresApproval?: boolean;
+  registrationClosesAt?: Date | null;
+  startsAt?: Date;
+  endsAt?: Date;
+  status?: "draft" | "published" | "cancelled";
+}
+
+async function seedPublishedEvent(chapterId: string, opts: SeedEventOptions): Promise<string> {
+  const venueId = await seedVenue(chapterId);
+  const organizerId = await seedUser();
+  const eventId = await createEvent(
+    db,
+    organizerId,
+    chapterId,
+    {
+      title: "Test Event",
+      description: "A test event",
+      format: "meetup",
+      venueId,
+      startsAt: opts.startsAt ?? new Date("2026-10-01T18:00:00Z"),
+      endsAt: opts.endsAt ?? new Date("2026-10-01T20:00:00Z"),
+      registrationClosesAt: opts.registrationClosesAt ?? null,
+      capacity: opts.capacity,
+      requiresInvite: opts.requiresInvite ?? false,
+      requiresApproval: opts.requiresApproval ?? false,
+      coverFileId: null,
+    },
+    new Date(),
+  );
+  if (opts.status === "cancelled") {
+    await db.update(schema.events).set({ status: "cancelled" }).where(eq(schema.events.id, eventId));
+  } else if (opts.status !== "draft") {
+    await publishEvent(db, organizerId, eventId, chapterId, "Test Event", new Date());
+  }
+  return eventId;
+}
+
+describe("registerForEvent — AC1: atomic capacity under real concurrency", () => {
+  it(
+    "20 iterations, fresh fixtures each time: exactly one of two concurrent registrations for the last seat is admitted",
+    async (t) => {
+      if (!dbAvailable) {
+        t.skip();
+        return;
+      }
+
+      const ITERATIONS = 20;
+      let admittedTotal = 0;
+      let waitlistedTotal = 0;
+
+      for (let i = 0; i < ITERATIONS; i++) {
+        const chapterId = await seedChapter();
+        // capacity 1, zero admitted yet -> exactly one seat available.
+        const eventId = await seedPublishedEvent(chapterId, { capacity: 1 });
+        const userA = await seedUser();
+        const userB = await seedUser();
+
+        const [resultA, resultB] = await Promise.all([
+          registerForEvent(db, userA, eventId, new Date("2026-09-01T00:00:00Z")),
+          registerForEvent(db, userB, eventId, new Date("2026-09-01T00:00:00Z")),
+        ]);
+
+        const outcomes = [resultA.kind, resultB.kind].sort();
+        // Exactly one admitted, exactly one waitlisted -- never two admitted.
+        expect(outcomes).toEqual(["admitted", "waitlisted"]);
+
+        const admittedCount = [resultA, resultB].filter((r) => r.kind === "admitted").length;
+        admittedTotal += admittedCount;
+        waitlistedTotal += [resultA, resultB].filter((r) => r.kind === "waitlisted").length;
+
+        // Direct DB check too: never more than 1 admitted row for this event.
+        const admittedRows = await db.query.registrations.findMany({
+          where: (reg, { eq: eqOp, and: andOp }) =>
+            andOp(eqOp(reg.eventId, eventId), eqOp(reg.admission, "admitted")),
+        });
+        expect(admittedRows.length).toBe(1);
+      }
+
+      expect(admittedTotal).toBe(ITERATIONS);
+      expect(waitlistedTotal).toBe(ITERATIONS);
+    },
+    60000,
+  );
+});
+
+describe("registerForEvent — AC2: registering twice", () => {
+  it("shows the current status and leaves exactly one row for (event, user)", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5 });
+    const userId = await seedUser();
+
+    const first = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    expect(first.kind).toBe("admitted");
+
+    const second = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    expect(second).toEqual({ kind: "already-registered", admission: "admitted" });
+
+    const rows = await db
+      .select()
+      .from(registrations)
+      .where(eq(registrations.eventId, eventId));
+    expect(rows.filter((r) => r.userId === userId)).toHaveLength(1);
+  });
+});
+
+describe("registerForEvent — AC4: closed / cancelled / finished refusal states", () => {
+  it("refuses registration after registration_closes_at", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, {
+      capacity: 5,
+      registrationClosesAt: new Date("2026-08-31T00:00:00Z"),
+    });
+    const userId = await seedUser();
+    const outcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    expect(outcome).toEqual({ kind: "registration-closed" });
+  });
+
+  it("refuses registration for a cancelled event", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5, status: "cancelled" });
+    const userId = await seedUser();
+    const outcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    expect(outcome).toEqual({ kind: "event-cancelled" });
+  });
+
+  it("refuses registration for a finished event", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, {
+      capacity: 5,
+      startsAt: new Date("2025-01-01T18:00:00Z"),
+      endsAt: new Date("2025-01-01T20:00:00Z"),
+    });
+    const userId = await seedUser();
+    const outcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    expect(outcome).toEqual({ kind: "event-finished" });
+  });
+});
+
+describe("registerForEvent — AC5: source resolution from pending_source", () => {
+  it("a registration made after ?start=e_<id>__linkedin carries source='linkedin'", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5 });
+    const userId = await seedUser();
+    await setPendingSource(db, userId, "linkedin");
+
+    const outcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    expect(outcome.kind).toBe("admitted");
+
+    const rows = await db.select().from(registrations).where(eq(registrations.userId, userId));
+    expect(rows[0]?.source).toBe("linkedin");
+
+    // pending_source is cleared back to NULL after being consumed.
+    const userRows = await db.select().from(users).where(eq(users.id, userId));
+    expect(userRows[0]?.pendingSource).toBeNull();
+  });
+
+  it("falls back to 'direct' when no pending_source was ever set", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5 });
+    const userId = await seedUser();
+
+    await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    const rows = await db.select().from(registrations).where(eq(registrations.userId, userId));
+    expect(rows[0]?.source).toBe("direct");
+  });
+});
+
+describe("registerForEvent — AC6: requires_invite / requires_approval refusal", () => {
+  it("refuses, never admits, when requires_invite is true", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5, requiresInvite: true });
+    const userId = await seedUser();
+    const outcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    expect(outcome).toEqual({ kind: "requires-invite" });
+  });
+
+  it("refuses, never admits, when requires_approval is true", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5, requiresApproval: true });
+    const userId = await seedUser();
+    const outcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    expect(outcome).toEqual({ kind: "requires-approval" });
+  });
+});
+
+describe("registerForEvent — AC7: exactly one audit_log row per admission/waitlist write", () => {
+  it("writes exactly one audit_log row for an admitted registration", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5 });
+    const userId = await seedUser();
+
+    const outcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    expect(outcome.kind).toBe("admitted");
+
+    const rows = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.entityId, (outcome as { registrationId: string }).registrationId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.action).toBe("registration.admit");
+  });
+
+  it("writes exactly one audit_log row for a waitlisted registration", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 1 });
+    const userA = await seedUser();
+    const userB = await seedUser();
+
+    await registerForEvent(db, userA, eventId, new Date("2026-09-01T00:00:00Z"));
+    const outcomeB = await registerForEvent(db, userB, eventId, new Date("2026-09-01T00:00:00Z"));
+    expect(outcomeB.kind).toBe("waitlisted");
+
+    const rows = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.entityId, (outcomeB as { registrationId: string }).registrationId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.action).toBe("registration.waitlist");
+  });
+
+  it("writes no audit_log row for a non-writing refusal outcome", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5, requiresInvite: true });
+    const userId = await seedUser();
+
+    const beforeCount = (await db.select().from(auditLog)).length;
+    const outcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    expect(outcome).toEqual({ kind: "requires-invite" });
+    const afterCount = (await db.select().from(auditLog)).length;
+    expect(afterCount).toBe(beforeCount);
+  });
+});
+
+describe("registerForEvent — qr_token issuance", () => {
+  it("issues a qr_token only for an admitted outcome, none for waitlisted", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 1 });
+    const userA = await seedUser();
+    const userB = await seedUser();
+
+    const outcomeA = await registerForEvent(db, userA, eventId, new Date("2026-09-01T00:00:00Z"));
+    const outcomeB = await registerForEvent(db, userB, eventId, new Date("2026-09-01T00:00:00Z"));
+
+    expect(outcomeA.kind).toBe("admitted");
+    expect((outcomeA as { qrToken?: string }).qrToken).toMatch(/^[0-9a-f]{64}$/);
+
+    expect(outcomeB.kind).toBe("waitlisted");
+    expect((outcomeB as { qrToken?: string }).qrToken).toBeUndefined();
+
+    const rowB = await db
+      .select()
+      .from(registrations)
+      .where(eq(registrations.userId, userB));
+    expect(rowB[0]?.qrToken).toBeNull();
+  });
+});

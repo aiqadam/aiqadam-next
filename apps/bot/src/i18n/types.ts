@@ -103,7 +103,6 @@ export interface Catalog {
     cardAgendaLabel: string;
     cardSeatsLeft: string;
     cardWaitlistOpen: string;
-    cardCta: string;
   };
   // NEW, REQ-018: EventStaff assign/remove by organizers (design §5).
   // `notAuthorized` is a single generic refusal string covering both the
@@ -181,5 +180,26 @@ export interface Catalog {
     labelSite: string;
     fieldNotSet: string;
     fieldSkipped: string;
+  };
+  // NEW, REQ-020: registration for an open event -- the Register button, the
+  // confirmed/waitlisted/already-registered/refusal reply shapes (design
+  // §7.2). Placeholder/minimal functional copy per decisions/0002 (CONTENT-BA
+  // owns final wording).
+  registration: {
+    registerButton: string;
+    confirmedPrefix: string;
+    whatNext: string;
+    waitlistedPrefix: string;
+    alreadyRegisteredPrefix: string;
+    statusAdmitted: string;
+    statusWaitlisted: string;
+    statusRequested: string;
+    statusRejected: string;
+    statusWithdrawn: string;
+    refusedCancelled: string;
+    refusedFinished: string;
+    refusedClosed: string;
+    refusedRequiresInvite: string;
+    refusedRequiresApproval: string;
   };
 }

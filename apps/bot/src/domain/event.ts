@@ -846,7 +846,12 @@ export function buildEventCardContent(
     googleMapUrl: venue?.googleUrl ?? null,
     agendaLines,
     seatsLine,
-    ctaText: "", // filled in by the handler from the catalog (events.cardCta)
+    // REQ-020 §7.3 — the old text CTA (events.cardCta) is gone; the card now
+    // gets a real InlineKeyboard Register button built by the handler
+    // (handlers/start.ts's resolveEventDeepLink), so this field is left
+    // unused/empty rather than removed outright (no ACs in scope here ask
+    // for an EventCardContent shape change).
+    ctaText: "",
   };
 }
 

@@ -86,7 +86,6 @@ export const en = {
     cardAgendaLabel: "Agenda:",
     cardSeatsLeft: "Seats left:",
     cardWaitlistOpen: "Waitlist open",
-    cardCta: "Reply here to register — registration through the bot isn't built yet.",
   },
   // Placeholder/provisional wording (REQ-018 design §5) — CONTENT-BA owns
   // final copy per decisions/0002.
@@ -158,5 +157,24 @@ export const en = {
     labelSite: "Site:",
     fieldNotSet: "not set",
     fieldSkipped: "skipped",
+  },
+  // Placeholder/provisional wording (REQ-020 design §8) — CONTENT-BA owns
+  // final copy per decisions/0002.
+  registration: {
+    registerButton: "Register",
+    confirmedPrefix: "You're in!",
+    whatNext: "What happens next: you'll get a check-in code closer to the event.",
+    waitlistedPrefix: "You're on the waitlist for:",
+    alreadyRegisteredPrefix: "You're already registered for this event. Status:",
+    statusAdmitted: "admitted",
+    statusWaitlisted: "waitlisted",
+    statusRequested: "requested",
+    statusRejected: "rejected",
+    statusWithdrawn: "withdrawn",
+    refusedCancelled: "This event has been cancelled.",
+    refusedFinished: "This event has already finished.",
+    refusedClosed: "Registration for this event is closed.",
+    refusedRequiresInvite: "This event is invite-only.",
+    refusedRequiresApproval: "This event requires organizer approval to register.",
   },
 } satisfies Catalog;

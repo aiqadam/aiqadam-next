@@ -92,8 +92,6 @@ export const ru = {
     cardAgendaLabel: "Программа:",
     cardSeatsLeft: "Свободных мест:",
     cardWaitlistOpen: "Лист ожидания открыт",
-    cardCta:
-      "Ответьте на это сообщение, чтобы зарегистрироваться — регистрация через бота пока не реализована.",
   },
   // Placeholder/provisional wording (REQ-018 design §5) — CONTENT-BA owns
   // final copy per decisions/0002.
@@ -166,5 +164,24 @@ export const ru = {
     labelSite: "Сайт:",
     fieldNotSet: "не указано",
     fieldSkipped: "пропущено",
+  },
+  // Placeholder/provisional wording (REQ-020 design §8) — CONTENT-BA owns
+  // final copy per decisions/0002.
+  registration: {
+    registerButton: "Зарегистрироваться",
+    confirmedPrefix: "Вы зарегистрированы!",
+    whatNext: "Что дальше: ближе к мероприятию вы получите код для входа.",
+    waitlistedPrefix: "Вы в листе ожидания на:",
+    alreadyRegisteredPrefix: "Вы уже зарегистрированы на это мероприятие. Статус:",
+    statusAdmitted: "подтверждено",
+    statusWaitlisted: "лист ожидания",
+    statusRequested: "запрошено",
+    statusRejected: "отклонено",
+    statusWithdrawn: "отменено",
+    refusedCancelled: "Это мероприятие отменено.",
+    refusedFinished: "Это мероприятие уже завершилось.",
+    refusedClosed: "Регистрация на это мероприятие закрыта.",
+    refusedRequiresInvite: "Это мероприятие только по приглашениям.",
+    refusedRequiresApproval: "Для этого мероприятия требуется подтверждение организатора.",
   },
 } satisfies Catalog;
