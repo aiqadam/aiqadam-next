@@ -24,7 +24,13 @@ import {
   makeEventsListHandler,
 } from "./handlers/event.js";
 import { makeStaffAddHandler, makeStaffRemoveHandler } from "./handlers/staff.js";
-import { makeCheckInHandler } from "./handlers/checkin.js";
+import {
+  CHECKIN_PAGE_PATTERN,
+  CHECKIN_TOGGLE_PATTERN,
+  makeCheckInHandler,
+  makeCheckinPageCallbackHandler,
+  makeCheckinToggleCallbackHandler,
+} from "./handlers/checkin.js";
 import {
   makeProfileChapterCallbackHandler,
   makeProfileChapterHandler,
@@ -141,12 +147,16 @@ bot.command("event_cancel", makeEventCancelHandler(db, notificationSender));
 bot.command("events", makeEventsListHandler(db));
 
 // REQ-018: organizer-only EventStaff assign/remove (chapter-scoped, reuses
-// requireOrganizerForChapter unchanged), and the staff-only /checkin
-// authorization-only stub gate (domain/eventStaffAuthorization.ts — a
-// genuinely different predicate, no role short-circuit).
+// requireOrganizerForChapter unchanged), and the staff-only check-in
+// authorization gate (domain/eventStaffAuthorization.ts — a genuinely
+// different predicate, no role short-circuit).
 bot.command("staff_add", makeStaffAddHandler(db));
 bot.command("staff_remove", makeStaffRemoveHandler(db));
+// REQ-028: /checkin <event_id> [query] now renders the manual check-in door
+// list (design §4.1), plus its toggle and pagination callbacks.
 bot.command("checkin", makeCheckInHandler(db));
+bot.callbackQuery(CHECKIN_TOGGLE_PATTERN, makeCheckinToggleCallbackHandler(db));
+bot.callbackQuery(CHECKIN_PAGE_PATTERN, makeCheckinPageCallbackHandler(db));
 
 // REQ-022: /withdraw <event_id> -- withdraw from a registration and free the
 // seat, gated by a two-step confirm/cancel callback prompt. Registered here,

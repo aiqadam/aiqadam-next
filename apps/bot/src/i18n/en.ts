@@ -105,15 +105,22 @@ export const en = {
     removalNotificationBody:
       "The organizer removed you as check-in staff for \"{event}\". Your check-in access for this event has ended.",
   },
-  // Placeholder/provisional wording (REQ-018 design §5) — CONTENT-BA owns
-  // final copy per decisions/0002. Authorization-only stub (design §0.3): no
-  // check-in business logic exists yet (REQ-028/029's scope).
+  // Placeholder/provisional wording (REQ-018 design §5, REQ-028 design §5) —
+  // CONTENT-BA owns final copy per decisions/0002.
   checkin: {
     usageNoId: "Provide the event id: /checkin <event_id>",
     notFound: "Event not found.",
     notAuthorized: "You are not authorized to check people in for this event.",
-    authorizedStub:
-      "You're authorized to check people in for \"{event}\". Scanning/recording check-ins isn't built yet in this version of the bot.",
+    listHeader: "Event: {event}\nChecked in: {checkedIn} / {total}",
+    listEmpty: "No admitted attendees for this event yet.",
+    searchNoMatches: "No one matched that search.",
+    searchHint: "To search for a guest, send /checkin <event_id> <name>.",
+    searchTruncatedNote: "And {count} more. Refine your search to narrow the list.",
+    checkedInGlyph: "✅",
+    notCheckedInGlyph: "▫️",
+    pageIndicator: "{current} / {total}",
+    refusedNotAdmitted: "Can't check in: this attendee's status has changed.",
+    noNameFallback: "No name on file",
   },
   // Placeholder/provisional wording (REQ-019 design §5) — CONTENT-BA owns
   // final copy per decisions/0002.

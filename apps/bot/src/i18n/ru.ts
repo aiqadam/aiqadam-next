@@ -112,15 +112,22 @@ export const ru = {
     removalNotificationBody:
       "Организатор снял(а) вас со встречи гостей (check-in) для мероприятия «{event}». Доступ к этой функции для данного мероприятия больше недоступен.",
   },
-  // Placeholder/provisional wording (REQ-018 design §5) — CONTENT-BA owns
-  // final copy per decisions/0002. Authorization-only stub (design §0.3):
-  // no check-in business logic exists yet (REQ-028/029's scope).
+  // Placeholder/provisional wording (REQ-018 design §5, REQ-028 design §5) —
+  // CONTENT-BA owns final copy per decisions/0002.
   checkin: {
     usageNoId: "Укажите id мероприятия: /checkin <event_id>",
     notFound: "Мероприятие не найдено.",
     notAuthorized: "У вас нет прав встречать гостей на этом мероприятии.",
-    authorizedStub:
-      "Вы авторизованы для встречи гостей мероприятия «{event}». Сканирование и регистрация прихода пока не реализованы в этой версии бота.",
+    listHeader: "Мероприятие: {event}\nОтметилось: {checkedIn} / {total}",
+    listEmpty: "На этом мероприятии пока нет подтверждённых участников.",
+    searchNoMatches: "По этому запросу никто не найден.",
+    searchHint: "Чтобы найти гостя, отправьте /checkin <event_id> <имя>.",
+    searchTruncatedNote: "И ещё {count}. Уточните запрос, чтобы сузить список.",
+    checkedInGlyph: "✅",
+    notCheckedInGlyph: "▫️",
+    pageIndicator: "{current} / {total}",
+    refusedNotAdmitted: "Отметить нельзя: статус этого участника изменился.",
+    noNameFallback: "Без имени",
   },
   // Placeholder/provisional wording (REQ-019 design §5) — CONTENT-BA owns
   // final copy per decisions/0002.
