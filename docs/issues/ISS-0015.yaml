@@ -1,0 +1,24 @@
+id: ISS-0015
+title: REQ-019 test-spec's AC3b has an internal wording inconsistency between a per-bullet expectation and its own Pass Conditions
+discovered_by: TEST-RUNNER
+discovered_in_run: WF02-REQ-019
+discovered_at: "2026-09-07T09:30:00Z"
+severity: MINOR
+description: >
+  Found during Step 4 execution of docs/agents/test-specs/REQ-019.md's AC3b
+  (the "chapter-but-no-consent" and "forged-skip-while-unconsented"
+  adversarial cases restated from SECURITY-REVIEWER's Step 2c findings). One
+  bullet's narrower "Expected: produces no sendMessage" line conflicts with
+  the AC's own broader Pass Conditions paragraph, which explicitly allows
+  "resolved to the consent prompt" as a valid outcome. Does not affect the
+  correctness of the shipped implementation -- the actual code
+  (`advanceAfterWrite` in apps/bot/src/domain/onboarding.ts unconditionally
+  re-deriving and prompting) takes the allowed branch (re-showing the
+  consent prompt) correctly, and TEST-RUNNER correctly treated that as a
+  PASS per the broader Pass Conditions paragraph rather than the narrower
+  per-bullet line. Left for TEST-DESIGNER to reconcile the two statements in
+  a future pass so a later reader doesn't trust the narrower line and
+  mistake a correct "resolved to consent prompt" outcome for a failure.
+affected_files:
+  - docs/agents/test-specs/REQ-019.md
+status: open
