@@ -101,17 +101,31 @@ export const profiles = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
-    firstName: text("first_name").notNull(),
-    lastName: text("last_name").notNull(),
+    // REQ-019-schema.md §2: relaxed from NOT NULL — a partial-write resumable
+    // form (REQ-019, PRD FR-3) must be able to insert a row holding only some
+    // of these six required columns while the rest are still unanswered.
+    // Completeness is now an application-level read (domain/profile.ts's
+    // isProfileComplete), never a DB constraint (§2's stated reasoning).
+    firstName: text("first_name"),
+    lastName: text("last_name"),
     phone: text("phone"),
     email: text("email"),
-    company: text("company").notNull(),
-    position: text("position").notNull(),
-    isStudent: boolean("is_student").notNull(),
-    experienceLevel: text("experience_level").notNull(),
+    company: text("company"),
+    position: text("position"),
+    isStudent: boolean("is_student"),
+    experienceLevel: text("experience_level"),
     linksGithub: text("links_github"),
     linksLinkedin: text("links_linkedin"),
     linksSite: text("links_site"),
+    // REQ-019-schema.md §3: durable "explicitly skipped" marker per optional
+    // field, distinct from "not yet reached" (both would otherwise read back
+    // as plain NULL). NOT NULL DEFAULT false — a two-valued fact must not
+    // admit a third, unspecified NULL state (§3.2).
+    phoneSkipped: boolean("phone_skipped").notNull().default(false),
+    emailSkipped: boolean("email_skipped").notNull().default(false),
+    linksGithubSkipped: boolean("links_github_skipped").notNull().default(false),
+    linksLinkedinSkipped: boolean("links_linkedin_skipped").notNull().default(false),
+    linksSiteSkipped: boolean("links_site_skipped").notNull().default(false),
     publicBio: text("public_bio"),
     photoFileId: text("photo_file_id"),
     publishConsent: boolean("publish_consent").notNull().default(false),

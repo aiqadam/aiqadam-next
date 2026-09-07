@@ -136,4 +136,50 @@ export interface Catalog {
     // Interpolated with the event title.
     authorizedStub: string;
   };
+  // NEW, REQ-019: profile capture as a resumable step-by-step form, the
+  // consent gate, and the optional-field rule (design §5). Placeholder/
+  // minimal functional copy per decisions/0002 (CONTENT-BA owns final
+  // wording).
+  profile: {
+    startFirst: string;
+    editHint: string;
+    editRejectedPrefix: string;
+    invalidAnswerPrefix: string;
+    invalidEmailFormat: string;
+    completedNotice: string;
+    chapterPrompt: string;
+    chapterUpdatedPrefix: string;
+    skipButton: string;
+    shareContactButton: string;
+    studentYes: string;
+    studentNo: string;
+    experienceUser: string;
+    experienceBuilder: string;
+    experienceAdvanced: string;
+    experienceExpert: string;
+    promptFirstName: string;
+    promptLastName: string;
+    promptCompany: string;
+    promptPosition: string;
+    promptIsStudent: string;
+    promptExperienceLevel: string;
+    promptPhone: string;
+    promptEmail: string;
+    promptGithub: string;
+    promptLinkedin: string;
+    promptSite: string;
+    labelFirstName: string;
+    labelLastName: string;
+    labelCompany: string;
+    labelPosition: string;
+    labelIsStudent: string;
+    labelExperienceLevel: string;
+    labelPhone: string;
+    labelEmail: string;
+    labelGithub: string;
+    labelLinkedin: string;
+    labelSite: string;
+    fieldNotSet: string;
+    fieldSkipped: string;
+  };
 }

@@ -15,6 +15,7 @@ import {
   parseStartPayload,
   setPendingSource,
 } from "../domain/event.js";
+import { advanceOnboarding } from "../domain/onboarding.js";
 import { getVenueById } from "../domain/venue.js";
 import { getFlowUserByTgId, resolveOrCreateUser } from "../domain/user.js";
 import { getCatalog, type BotLang } from "../i18n/catalog.js";
@@ -50,11 +51,18 @@ const CONSENT_AGREE_CALLBACK = "consent:agree";
 // header note below. The consent callback now optionally carries a deep-link
 // payload after a `:`, e.g. `consent:agree:e_<id>__<channel>`, so it must be
 // matched with a pattern, not the old exact string.
-const CONSENT_AGREE_CALLBACK_PATTERN = /^consent:agree(?::(.+))?$/;
+// REQ-019 §3.3 — exported: reused unchanged by handlers/onboarding callers
+// that need to re-derive the same match (none currently do; kept exported
+// per the design's stated file-private-to-exported change list).
+export const CONSENT_AGREE_CALLBACK_PATTERN = /^consent:agree(?::(.+))?$/;
 // Telegram's hard limit on callback_data (bytes, not characters).
 const CALLBACK_DATA_MAX_BYTES = 64;
 
-function matchText(ctx: Context): string {
+// REQ-019 §3.3 — exported (was file-private): reused as-is by
+// handlers/profile.ts, which parses the same `/start <payload>` shape
+// nowhere else but needs this exact helper's behavior for its own module
+// scope conventions.
+export function matchText(ctx: Context): string {
   return typeof ctx.match === "string" ? ctx.match : "";
 }
 
@@ -278,7 +286,12 @@ function buildConsentAgreeCallbackData(payloadText: string | null): string {
   return `${fixedPrefix}${truncateToByteBudget(parsed.channel, budget)}`;
 }
 
-function buildConsentKeyboard(lang: BotLang, payloadText: string | null = null): InlineKeyboard {
+// REQ-019 §3.3 — exported (was file-private): reused by
+// domain/onboarding.ts's advanceOnboarding for the "consent-needed" step.
+export function buildConsentKeyboard(
+  lang: BotLang,
+  payloadText: string | null = null,
+): InlineKeyboard {
   return new InlineKeyboard().text(
     getCatalog(lang).consent.agree,
     buildConsentAgreeCallbackData(payloadText),
@@ -296,8 +309,15 @@ function buildConsentKeyboard(lang: BotLang, payloadText: string | null = null):
  * Returns `"stopped"` when the 2+-chapter ask-once prompt was sent (the flow
  * pauses and resumes in the chapter callback, §2.6); `"continue"` when the
  * caller should proceed straight to the greeting (0 or 1 active chapter).
+ *
+ * REQ-019 §3.2/§3.3 — exported (was file-private): `domain/onboarding.ts`'s
+ * `advanceOnboarding` deliberately does NOT run chapter assignment itself
+ * (keeping this function's existing, already-reviewed 0/1/2+ branching
+ * untouched); `handlers/profile.ts`'s entry points, which have no
+ * pre-existing chapter gate of their own the way `/start`'s call sites do,
+ * call this function directly on a `"chapter-needed"` onboarding step.
  */
-async function assignChapterOrPrompt(
+export async function assignChapterOrPrompt(
   ctx: Context,
   db: DbClient["db"],
   userId: string,
@@ -403,6 +423,22 @@ export function makeStartHandler(db: DbClient["db"]) {
       finalUser?.lang ?? flowUser.lang,
       finalUser?.chapterDefaultLang ?? null,
     );
+
+    // REQ-019 §3.3 — run the shared onboarding progression before falling
+    // back to the plain greeting. Consent and chapter are both already
+    // resolved by this point (the gates above already ran), so this call
+    // only ever asks a profile question or reports "ready" in practice.
+    const outcome = await advanceOnboarding(
+      ctx,
+      db,
+      flowUser.id,
+      true,
+      (finalUser?.chapterId ?? flowUser.chapterId) !== null,
+      finalLang,
+    );
+    if (outcome !== "ready") {
+      return; // "prompted" already sent the next question
+    }
     await ctx.reply(getCatalog(finalLang).start.greeting);
   };
 }
@@ -453,6 +489,15 @@ export function makeChapterCallbackHandler(db: DbClient["db"]) {
       refreshed?.lang ?? flowUser.lang,
       refreshed?.chapterDefaultLang ?? null,
     );
+
+    // REQ-019 §3.3 — run the shared onboarding progression before falling
+    // back to the plain greeting. This callback only ever fires once consent
+    // is already recorded and a chapter was just assigned, so this call only
+    // ever asks a profile question or reports "ready" in practice.
+    const outcome = await advanceOnboarding(ctx, db, flowUser.id, true, true, lang);
+    if (outcome !== "ready") {
+      return; // "prompted" already sent the next question
+    }
     await ctx.reply(getCatalog(lang).start.greeting);
   };
 }
@@ -542,6 +587,23 @@ export function makeConsentCallbackHandler(db: DbClient["db"]) {
       finalUser?.lang ?? flowUser.lang,
       finalUser?.chapterDefaultLang ?? null,
     );
+
+    // REQ-019 §3.3 — run the shared onboarding progression before falling
+    // back to the plain greeting. Consent was just recorded above and
+    // chapter is resolved by this point (chapterOutcome !== "stopped"), so
+    // this call only ever asks a profile question or reports "ready" in
+    // practice.
+    const outcome = await advanceOnboarding(
+      ctx,
+      db,
+      flowUser.id,
+      true,
+      (finalUser?.chapterId ?? flowUser.chapterId) !== null,
+      finalLang,
+    );
+    if (outcome !== "ready") {
+      return; // "prompted" already sent the next question
+    }
     await ctx.reply(getCatalog(finalLang).start.greeting);
   };
 }
