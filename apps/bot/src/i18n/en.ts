@@ -192,4 +192,11 @@ export const en = {
     refusedNotEligible: "This registration has already been withdrawn or was rejected.",
     refusedNotFound: "Registration not found.",
   },
+  // NEW, REQ-023: waitlist auto-promotion notification. Placeholder/minimal
+  // functional copy per decisions/0002 (CONTENT-BA owns final wording).
+  promotion: {
+    admittedPrefix: "A seat opened up — you're in!",
+    whatNext: "What happens next: you'll get a check-in code closer to the event.",
+    qrLabel: "Your check-in code:",
+  },
 } satisfies Catalog;

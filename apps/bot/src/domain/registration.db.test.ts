@@ -6,9 +6,11 @@ import * as schema from "../db/schema.js";
 import { auditLog, chapters, registrations, users, venues } from "../db/schema.js";
 import { createEvent, publishEvent, setPendingSource } from "./event.js";
 import {
+  decidePromotionEligibility,
   decideWithdrawOutcome,
   getRegistrationForEventAndUser,
   getWaitlistPosition,
+  promoteFromWaitlistIfEligible,
   registerForEvent,
   withdrawRegistration,
 } from "./registration.js";
@@ -610,7 +612,7 @@ describe("decideWithdrawOutcome — REQ-022 §2.1: first-match-wins table", () =
           admission,
           checkedInAt: null,
         }),
-      ).toEqual({ kind: "withdrawn" });
+      ).toEqual({ kind: "withdrawn", promotion: { kind: "not-attempted" } });
     }
   });
 });
@@ -640,7 +642,9 @@ describe("withdrawRegistration — REQ-022 AC2: admitted -> withdrawn, seats-lef
       userId,
       new Date("2026-09-02T00:00:00Z"),
     );
-    expect(withdrawOutcome).toEqual({ kind: "withdrawn" });
+    // No waitlist exists for this event -- promotion is attempted (the row
+    // was admitted) but finds nobody to promote (REQ-023 AC3).
+    expect(withdrawOutcome).toEqual({ kind: "withdrawn", promotion: { kind: "no-waitlist" } });
 
     const rows = await db.select().from(registrations).where(eq(registrations.id, registrationId));
     expect(rows[0]?.admission).toBe("withdrawn");
@@ -715,7 +719,7 @@ describe("registerForEvent — REQ-022 AC4: re-registering after withdrawal reus
       userId,
       new Date("2026-09-02T00:00:00Z"),
     );
-    expect(withdrawOutcome).toEqual({ kind: "withdrawn" });
+    expect(withdrawOutcome).toEqual({ kind: "withdrawn", promotion: { kind: "no-waitlist" } });
 
     const secondOutcome = await registerForEvent(db, userId, eventId, new Date("2026-09-03T00:00:00Z"));
     expect(secondOutcome.kind).toBe("admitted");
@@ -778,7 +782,7 @@ describe("withdrawRegistration — REQ-022 AC5: exactly one audit_log row per wi
 
     const beforeCount = (await db.select().from(auditLog)).length;
     const outcome = await withdrawRegistration(db, registrationId, userId, new Date("2026-09-02T00:00:00Z"));
-    expect(outcome).toEqual({ kind: "withdrawn" });
+    expect(outcome).toEqual({ kind: "withdrawn", promotion: { kind: "no-waitlist" } });
     const afterCount = (await db.select().from(auditLog)).length;
     expect(afterCount).toBe(beforeCount + 1);
 
@@ -835,5 +839,371 @@ describe("getRegistrationForEventAndUser — REQ-022 §4.1 step 4: display-only 
 
     const found = await getRegistrationForEventAndUser(db, eventId, userId);
     expect(found).toBeNull();
+  });
+});
+
+// docs/agents/design/REQ-023.md — waitlist auto-promotion on a freed seat,
+// halting at T-24h. Real Postgres, same infrastructure/skip discipline as
+// the rest of this file.
+
+async function insertWaitlisted(eventId: string, userId: string, createdAt: Date): Promise<string> {
+  const rows = await db
+    .insert(registrations)
+    .values({ eventId, userId, admission: "waitlisted", source: "direct", createdAt })
+    .returning({ id: registrations.id });
+  const row = rows[0];
+  if (row === undefined) throw new Error("insertWaitlisted: no row returned");
+  return row.id;
+}
+
+describe("REQ-023 AC1: withdrawal promotes exactly the earliest-created waitlisted registration", () => {
+  it("48h-out event, capacity full, 3 waitlisted at distinct times -> only the earliest is promoted", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const evaluationTime = new Date("2026-09-01T00:00:00Z");
+    const chapterId = await seedChapter();
+    // 48h out (> 24h halt boundary) -> not halted.
+    const eventId = await seedPublishedEvent(chapterId, {
+      capacity: 1,
+      startsAt: new Date("2026-09-03T00:00:00Z"),
+      endsAt: new Date("2026-09-03T02:00:00Z"),
+    });
+
+    const admittedUser = await seedUser();
+    const admittedOutcome = await registerForEvent(db, admittedUser, eventId, evaluationTime);
+    expect(admittedOutcome.kind).toBe("admitted");
+    const admittedRegistrationId = (admittedOutcome as { registrationId: string }).registrationId;
+
+    const userA = await seedUser();
+    const userB = await seedUser();
+    const userC = await seedUser();
+    const regA = await insertWaitlisted(eventId, userA, new Date("2026-09-01T00:00:01Z"));
+    const regB = await insertWaitlisted(eventId, userB, new Date("2026-09-01T00:00:02Z"));
+    const regC = await insertWaitlisted(eventId, userC, new Date("2026-09-01T00:00:03Z"));
+
+    const outcome = await withdrawRegistration(db, admittedRegistrationId, admittedUser, evaluationTime);
+    expect(outcome.kind).toBe("withdrawn");
+    const promotion = (outcome as { promotion: { kind: string } }).promotion;
+    expect(promotion).toMatchObject({ kind: "promoted", registrationId: regA, promotedUserId: userA });
+
+    const rowA = await db.select().from(registrations).where(eq(registrations.id, regA));
+    expect(rowA[0]?.admission).toBe("admitted");
+    expect(rowA[0]?.qrToken).toMatch(/^[0-9a-f]{64}$/);
+
+    // The other two waitlisted rows are never touched.
+    const rowB = await db.select().from(registrations).where(eq(registrations.id, regB));
+    expect(rowB[0]?.admission).toBe("waitlisted");
+    const rowC = await db.select().from(registrations).where(eq(registrations.id, regC));
+    expect(rowC[0]?.admission).toBe("waitlisted");
+  });
+});
+
+describe("REQ-023 AC2: T-24h halt", () => {
+  it("12h-out event -> withdrawal promotes nobody, freed seat stays free", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const evaluationTime = new Date("2026-09-01T00:00:00Z");
+    const chapterId = await seedChapter();
+    // 12h out (<= 24h halt boundary) -> halted.
+    const eventId = await seedPublishedEvent(chapterId, {
+      capacity: 1,
+      startsAt: new Date("2026-09-01T12:00:00Z"),
+      endsAt: new Date("2026-09-01T14:00:00Z"),
+    });
+
+    const admittedUser = await seedUser();
+    const admittedOutcome = await registerForEvent(db, admittedUser, eventId, evaluationTime);
+    const admittedRegistrationId = (admittedOutcome as { registrationId: string }).registrationId;
+
+    const waitlistedUser = await seedUser();
+    const regWaitlisted = await insertWaitlisted(eventId, waitlistedUser, new Date("2026-09-01T00:00:01Z"));
+
+    const outcome = await withdrawRegistration(db, admittedRegistrationId, admittedUser, evaluationTime);
+    expect(outcome).toEqual({ kind: "withdrawn", promotion: { kind: "halted-t24h" } });
+
+    // The waitlisted row is untouched -- still waitlisted, not promoted.
+    const row = await db.select().from(registrations).where(eq(registrations.id, regWaitlisted));
+    expect(row[0]?.admission).toBe("waitlisted");
+
+    // The freed seat stays free (admitted count is now 0, not backfilled).
+    const admittedRows = await db.query.registrations.findMany({
+      where: (reg, { eq: eqOp, and: andOp }) => andOp(eqOp(reg.eventId, eventId), eqOp(reg.admission, "admitted")),
+    });
+    expect(admittedRows).toHaveLength(0);
+  });
+});
+
+describe("REQ-023 AC3: empty waitlist", () => {
+  it("withdrawal against an empty waitlist completes with no error and no promotion", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const evaluationTime = new Date("2026-09-01T00:00:00Z");
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, {
+      capacity: 1,
+      startsAt: new Date("2026-09-03T00:00:00Z"),
+      endsAt: new Date("2026-09-03T02:00:00Z"),
+    });
+    const admittedUser = await seedUser();
+    const admittedOutcome = await registerForEvent(db, admittedUser, eventId, evaluationTime);
+    const admittedRegistrationId = (admittedOutcome as { registrationId: string }).registrationId;
+
+    const outcome = await withdrawRegistration(db, admittedRegistrationId, admittedUser, evaluationTime);
+    expect(outcome).toEqual({ kind: "withdrawn", promotion: { kind: "no-waitlist" } });
+  });
+});
+
+describe("REQ-023 AC4: promotion racing a fresh registration for the same freed seat never over-admits", () => {
+  it(
+    "20 iterations, fresh fixtures each time: withdrawal-triggered promotion racing a fresh registerForEvent " +
+      "for the same freed seat -- exactly one of the two ever ends up admitted",
+    async (t) => {
+      if (!dbAvailable) {
+        t.skip();
+        return;
+      }
+
+      const ITERATIONS = 20;
+      const evaluationTime = new Date("2026-09-01T00:00:00Z");
+
+      for (let i = 0; i < ITERATIONS; i++) {
+        const chapterId = await seedChapter();
+        // 48h out -- not halted. Capacity 1: one admitted seat, one
+        // waitlisted candidate behind it.
+        const eventId = await seedPublishedEvent(chapterId, {
+          capacity: 1,
+          startsAt: new Date("2026-09-03T00:00:00Z"),
+          endsAt: new Date("2026-09-03T02:00:00Z"),
+        });
+
+        const admittedUser = await seedUser();
+        const admittedOutcome = await registerForEvent(db, admittedUser, eventId, evaluationTime);
+        expect(admittedOutcome.kind).toBe("admitted");
+        const admittedRegistrationId = (admittedOutcome as { registrationId: string }).registrationId;
+
+        const waitlistedUser = await seedUser();
+        await insertWaitlisted(eventId, waitlistedUser, new Date("2026-09-01T00:00:01Z"));
+
+        const freshRegistrant = await seedUser();
+
+        // Race: withdrawing the admitted seat (which attempts to promote the
+        // waitlisted user into the freed seat) against a fresh registration
+        // attempt for a completely different, third user -- both competing
+        // for the SAME single freed seat.
+        const [withdrawOutcome, freshOutcome] = await Promise.all([
+          withdrawRegistration(db, admittedRegistrationId, admittedUser, evaluationTime),
+          registerForEvent(db, freshRegistrant, eventId, evaluationTime),
+        ]);
+
+        expect(withdrawOutcome.kind).toBe("withdrawn");
+
+        // Never more than 1 admitted row for this event -- the capacity-1
+        // ceiling holds even under this concurrent promotion-vs-registration
+        // race.
+        const admittedRows = await db.query.registrations.findMany({
+          where: (reg, { eq: eqOp, and: andOp }) =>
+            andOp(eqOp(reg.eventId, eventId), eqOp(reg.admission, "admitted")),
+        });
+        expect(admittedRows.length).toBeLessThanOrEqual(1);
+        expect(admittedRows.length).toBe(1);
+
+        // Exactly one of {waitlisted candidate promoted, fresh registrant
+        // admitted} happened -- never both, never neither (one of them
+        // always fills the single freed seat).
+        const promotion = (withdrawOutcome as { promotion: { kind: string } }).promotion;
+        const promotedTheWaitlisted = promotion.kind === "promoted";
+        const admittedTheFreshOne = freshOutcome.kind === "admitted";
+        expect(promotedTheWaitlisted !== admittedTheFreshOne).toBe(true);
+      }
+    },
+    60000,
+  );
+});
+
+describe("REQ-023 AC5: promotion refuses for a cancelled or finished event", () => {
+  it("refuses promotion into a cancelled event", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const evaluationTime = new Date("2026-09-01T00:00:00Z");
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, {
+      capacity: 1,
+      startsAt: new Date("2026-09-03T00:00:00Z"),
+      endsAt: new Date("2026-09-03T02:00:00Z"),
+    });
+    const waitlistedUser = await seedUser();
+    const regWaitlisted = await insertWaitlisted(eventId, waitlistedUser, new Date("2026-09-01T00:00:01Z"));
+    await db.update(schema.events).set({ status: "cancelled" }).where(eq(schema.events.id, eventId));
+
+    const outcome = await promoteFromWaitlistIfEligible(db, eventId, evaluationTime);
+    expect(outcome).toEqual({ kind: "event-not-eligible" });
+
+    const row = await db.select().from(registrations).where(eq(registrations.id, regWaitlisted));
+    expect(row[0]?.admission).toBe("waitlisted");
+  });
+
+  it("refuses promotion into an event whose ends_at has passed", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const evaluationTime = new Date("2026-09-01T00:00:00Z");
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, {
+      capacity: 1,
+      startsAt: new Date("2025-01-01T18:00:00Z"),
+      endsAt: new Date("2025-01-01T20:00:00Z"),
+    });
+    const waitlistedUser = await seedUser();
+    const regWaitlisted = await insertWaitlisted(eventId, waitlistedUser, new Date("2025-01-01T00:00:01Z"));
+
+    const outcome = await promoteFromWaitlistIfEligible(db, eventId, evaluationTime);
+    expect(outcome).toEqual({ kind: "event-not-eligible" });
+
+    const row = await db.select().from(registrations).where(eq(registrations.id, regWaitlisted));
+    expect(row[0]?.admission).toBe("waitlisted");
+  });
+});
+
+describe("REQ-023 AC7: exactly one audit_log row per promotion; a second run finds nothing to promote", () => {
+  it("writes exactly one audit_log row for a successful promotion", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const evaluationTime = new Date("2026-09-01T00:00:00Z");
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, {
+      capacity: 1,
+      startsAt: new Date("2026-09-03T00:00:00Z"),
+      endsAt: new Date("2026-09-03T02:00:00Z"),
+    });
+    const admittedUser = await seedUser();
+    const admittedOutcome = await registerForEvent(db, admittedUser, eventId, evaluationTime);
+    const admittedRegistrationId = (admittedOutcome as { registrationId: string }).registrationId;
+
+    const waitlistedUser = await seedUser();
+    const regWaitlisted = await insertWaitlisted(eventId, waitlistedUser, new Date("2026-09-01T00:00:01Z"));
+
+    const beforeCount = (await db.select().from(auditLog)).length;
+    const outcome = await withdrawRegistration(db, admittedRegistrationId, admittedUser, evaluationTime);
+    expect(outcome.kind).toBe("withdrawn");
+    const afterCount = (await db.select().from(auditLog)).length;
+    // Exactly two new rows: one for registration.withdraw, one for
+    // registration.promote.
+    expect(afterCount).toBe(beforeCount + 2);
+
+    const promoteRows = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.entityId, regWaitlisted));
+    const promoteAuditRows = promoteRows.filter((r) => r.action === "registration.promote");
+    expect(promoteAuditRows).toHaveLength(1);
+  });
+
+  it("running the promotion path twice for the same freed seat promotes nobody the second time (capacity-full refusal)", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const evaluationTime = new Date("2026-09-01T00:00:00Z");
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, {
+      capacity: 1,
+      startsAt: new Date("2026-09-03T00:00:00Z"),
+      endsAt: new Date("2026-09-03T02:00:00Z"),
+    });
+    const admittedUser = await seedUser();
+    await registerForEvent(db, admittedUser, eventId, evaluationTime);
+
+    const waitlistedUserA = await seedUser();
+    await insertWaitlisted(eventId, waitlistedUserA, new Date("2026-09-01T00:00:01Z"));
+    const waitlistedUserB = await seedUser();
+    await insertWaitlisted(eventId, waitlistedUserB, new Date("2026-09-01T00:00:02Z"));
+
+    // First run: the event is still full (nobody withdrew) -> capacity-full,
+    // nobody promoted, nothing written.
+    const beforeCount = (await db.select().from(auditLog)).length;
+    const firstRun = await promoteFromWaitlistIfEligible(db, eventId, evaluationTime);
+    expect(firstRun).toEqual({ kind: "capacity-full" });
+    const afterFirstRun = (await db.select().from(auditLog)).length;
+    expect(afterFirstRun).toBe(beforeCount);
+
+    // Second run against the same, still-full event: same refusal, same
+    // zero-write outcome -- "running the promotion path twice for the same
+    // freed seat" (here: a seat that was never freed) sends nothing either
+    // time.
+    const secondRun = await promoteFromWaitlistIfEligible(db, eventId, evaluationTime);
+    expect(secondRun).toEqual({ kind: "capacity-full" });
+    const afterSecondRun = (await db.select().from(auditLog)).length;
+    expect(afterSecondRun).toBe(beforeCount);
+
+    // Both waitlisted rows remain untouched.
+    const waitlistedRows = await db.query.registrations.findMany({
+      where: (reg, { eq: eqOp, and: andOp }) =>
+        andOp(eqOp(reg.eventId, eventId), eqOp(reg.admission, "waitlisted")),
+    });
+    expect(waitlistedRows).toHaveLength(2);
+  });
+});
+
+describe("decidePromotionEligibility — REQ-023 §2.2: first-match-wins table", () => {
+  const base = {
+    eventStatus: "published" as const,
+    startsAt: new Date("2026-09-03T00:00:00Z"),
+    endsAt: new Date("2026-09-03T02:00:00Z"),
+    seatsLeft: 1,
+  };
+  const evaluationTime = new Date("2026-09-01T00:00:00Z");
+
+  it("refuses a cancelled event as event-not-eligible", () => {
+    expect(decidePromotionEligibility({ ...base, eventStatus: "cancelled" }, evaluationTime)).toEqual({
+      ok: false,
+      reason: "event-not-eligible",
+    });
+  });
+
+  it("refuses a draft event as event-not-eligible", () => {
+    expect(decidePromotionEligibility({ ...base, eventStatus: "draft" }, evaluationTime)).toEqual({
+      ok: false,
+      reason: "event-not-eligible",
+    });
+  });
+
+  it("refuses a finished event as event-not-eligible", () => {
+    expect(
+      decidePromotionEligibility(
+        { ...base, endsAt: new Date("2026-08-31T00:00:00Z") },
+        evaluationTime,
+      ),
+    ).toEqual({ ok: false, reason: "event-not-eligible" });
+  });
+
+  it("refuses within T-24h as halted-t24h, checked before capacity", () => {
+    expect(
+      decidePromotionEligibility(
+        { ...base, startsAt: new Date("2026-09-01T12:00:00Z"), seatsLeft: 0 },
+        evaluationTime,
+      ),
+    ).toEqual({ ok: false, reason: "halted-t24h" });
+  });
+
+  it("refuses a full event as capacity-full", () => {
+    expect(decidePromotionEligibility({ ...base, seatsLeft: 0 }, evaluationTime)).toEqual({
+      ok: false,
+      reason: "capacity-full",
+    });
+  });
+
+  it("allows an eligible, non-halted, non-full event", () => {
+    expect(decidePromotionEligibility(base, evaluationTime)).toEqual({ ok: true });
   });
 });

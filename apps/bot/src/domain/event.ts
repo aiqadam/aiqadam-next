@@ -731,6 +731,21 @@ export function isFinished(endsAt: Date, evaluationTime: Date): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// docs/agents/design/REQ-023.md §2.1 — isAutoPromotionHalted: T-24h check for
+// waitlist auto-promotion. evaluationTime is an explicit parameter
+// (decisions/0006); this function never reads the clock itself. When 24
+// hours or less remain before startsAt (including the exact T-24h instant),
+// auto-promotion is halted (true). When strictly more than 24 hours remain,
+// auto-promotion is allowed (false). Placed alongside isFinished/
+// isRegistrationOpen as a pure property of an event's timing.
+// ---------------------------------------------------------------------------
+const AUTO_PROMOTION_HALT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export function isAutoPromotionHalted(startsAt: Date, evaluationTime: Date): boolean {
+  return startsAt.getTime() - evaluationTime.getTime() <= AUTO_PROMOTION_HALT_WINDOW_MS;
+}
+
+// ---------------------------------------------------------------------------
 // REQ-017 §1's seats-left-or-waitlist-open composition, used identically by
 // both the card and the list row.
 // ---------------------------------------------------------------------------

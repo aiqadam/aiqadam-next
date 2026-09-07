@@ -1,9 +1,15 @@
 import { randomBytes } from "node:crypto";
-import { and, eq, lt, or } from "drizzle-orm";
+import { and, asc, eq, lt, or } from "drizzle-orm";
 import type { DbClient } from "../db/client.js";
 import { events, registrations, users } from "../db/schema.js";
 import { writeAuditLog } from "./auditLog.js";
-import { computeSeatsLeft, getPendingSource, isFinished, isRegistrationOpen } from "./event.js";
+import {
+  computeSeatsLeft,
+  getPendingSource,
+  isAutoPromotionHalted,
+  isFinished,
+  isRegistrationOpen,
+} from "./event.js";
 
 // docs/agents/design/REQ-020.md — registration for an open event, atomic
 // capacity enforcement, qr_token issuance. Framework-free (decisions/0004):
@@ -304,6 +310,142 @@ export async function getWaitlistPosition(
 }
 
 // ---------------------------------------------------------------------------
+// docs/agents/design/REQ-023.md §2.2 — decidePromotionEligibility: pure, no
+// I/O. First-match-wins table, same convention decideWithdrawOutcome/
+// decideRegistrationOutcome already establish.
+// ---------------------------------------------------------------------------
+export interface PromotionEligibilityInput {
+  eventStatus: "draft" | "published" | "cancelled";
+  startsAt: Date;
+  endsAt: Date;
+  seatsLeft: number;
+}
+
+export type PromotionEligibility =
+  | { ok: true }
+  | { ok: false; reason: "event-not-eligible" }
+  | { ok: false; reason: "halted-t24h" }
+  | { ok: false; reason: "capacity-full" };
+
+export function decidePromotionEligibility(
+  input: PromotionEligibilityInput,
+  evaluationTime: Date,
+): PromotionEligibility {
+  if (input.eventStatus !== "published" || isFinished(input.endsAt, evaluationTime)) {
+    return { ok: false, reason: "event-not-eligible" };
+  }
+  if (isAutoPromotionHalted(input.startsAt, evaluationTime)) {
+    return { ok: false, reason: "halted-t24h" };
+  }
+  if (input.seatsLeft <= 0) {
+    return { ok: false, reason: "capacity-full" };
+  }
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-023.md §3 — promoteFromWaitlistIfEligible: the
+// transactional actor (AC1, AC2, AC3, AC4, AC5, AC7). `tx` is always the same
+// transaction handle the caller (withdrawRegistration) is already inside —
+// this function never opens its own db.transaction(...).
+// ---------------------------------------------------------------------------
+export type PromotionOutcome =
+  | { kind: "not-attempted" }
+  | { kind: "event-not-found" }
+  | { kind: "event-not-eligible" }
+  | { kind: "halted-t24h" }
+  | { kind: "capacity-full" }
+  | { kind: "no-waitlist" }
+  | { kind: "promoted"; registrationId: string; promotedUserId: string; qrToken: string };
+
+export async function promoteFromWaitlistIfEligible(
+  tx: DbClient["db"],
+  eventId: string,
+  evaluationTime: Date,
+): Promise<PromotionOutcome> {
+  // §3 step 1 — lock the events row FIRST, same discipline registerForEvent
+  // (REQ-020 §3.2 step 2) already uses on this table (AC4's serialization).
+  const eventRows = await tx
+    .select({
+      id: events.id,
+      status: events.status,
+      startsAt: events.startsAt,
+      endsAt: events.endsAt,
+      capacity: events.capacity,
+    })
+    .from(events)
+    .where(eq(events.id, eventId))
+    .for("update");
+
+  const event = eventRows[0];
+  if (event === undefined) {
+    return { kind: "event-not-found" };
+  }
+
+  // §3 step 2 — fresh admitted count, inside tx.
+  const admittedRows = await tx
+    .select({ id: registrations.id })
+    .from(registrations)
+    .where(and(eq(registrations.eventId, eventId), eq(registrations.admission, "admitted")));
+  const seatsLeft = computeSeatsLeft(event.capacity, admittedRows.length);
+
+  // §3 step 3 — decide (pure). Not eligible -> no further reads, no write.
+  const eligibility = decidePromotionEligibility(
+    {
+      eventStatus: event.status,
+      startsAt: event.startsAt,
+      endsAt: event.endsAt,
+      seatsLeft,
+    },
+    evaluationTime,
+  );
+  if (!eligibility.ok) {
+    return { kind: eligibility.reason };
+  }
+
+  // §3 step 4 — select rank 1 by the same (created_at, id) tie-break
+  // getWaitlistPosition already establishes (REQ-021 §2.2/§2.3), FOR UPDATE
+  // because this row is about to be written.
+  const candidateRows = await tx
+    .select({ id: registrations.id, userId: registrations.userId })
+    .from(registrations)
+    .where(and(eq(registrations.eventId, eventId), eq(registrations.admission, "waitlisted")))
+    .orderBy(asc(registrations.createdAt), asc(registrations.id))
+    .limit(1)
+    .for("update");
+
+  const candidate = candidateRows[0];
+  if (candidate === undefined) {
+    return { kind: "no-waitlist" };
+  }
+
+  // §3 step 5 — the SET clause names only admission/qr_token.
+  const qrToken = generateQrToken();
+  await tx
+    .update(registrations)
+    .set({ admission: "admitted", qrToken })
+    .where(eq(registrations.id, candidate.id));
+
+  // §3 step 6 — exactly one audit_log row (S8, AC7's "exactly one row" half).
+  await writeAuditLog(tx, {
+    actorUserId: null,
+    action: "registration.promote",
+    entity: "registration",
+    entityId: candidate.id,
+    payload: { eventId },
+    at: evaluationTime,
+  });
+
+  // §3 step 7.
+  return {
+    kind: "promoted",
+    registrationId: candidate.id,
+    promotedUserId: candidate.userId,
+    qrToken,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // docs/agents/design/REQ-022.md §2 — the withdraw domain logic (AC1-AC5).
 // Framework-free (decisions/0004). checkedInAt/admission never read via
 // SQL now()/current_timestamp — the evaluation time is supplied by the
@@ -324,7 +466,7 @@ export type WithdrawOutcome =
   | { kind: "not-owner" }
   | { kind: "checked-in" }
   | { kind: "not-eligible"; admission: AdmissionState }
-  | { kind: "withdrawn" };
+  | { kind: "withdrawn"; promotion: PromotionOutcome };
 
 // §2.1 — first-match-wins table, implemented in the exact stated order.
 export function decideWithdrawOutcome(input: WithdrawDecisionInput): WithdrawOutcome {
@@ -341,7 +483,16 @@ export function decideWithdrawOutcome(input: WithdrawDecisionInput): WithdrawOut
   if (admission !== "requested" && admission !== "waitlisted" && admission !== "admitted") {
     return { kind: "not-eligible", admission };
   }
-  return { kind: "withdrawn" };
+  // docs/agents/design/REQ-023.md §4 — decideWithdrawOutcome is pure (no I/O)
+  // and cannot know the promotion outcome, which requires a DB transaction.
+  // "not-attempted" is the same fixed sentinel the design already defines
+  // for "promotion was never attempted" (§0 step 7) — this pure decision
+  // never actually attempts a promotion itself, so it is the correct value
+  // here too. No caller of decideWithdrawOutcome inspects `.promotion` on the
+  // "withdrawn" branch (the command handler's §4.1 step 5 only checks
+  // outcome.kind); the real, I/O-derived promotion outcome is produced only
+  // by withdrawRegistration itself, further down this file.
+  return { kind: "withdrawn", promotion: { kind: "not-attempted" } };
 }
 
 // §2.2 — the transactional write (AC2, AC3, AC5).
@@ -383,6 +534,11 @@ export async function withdrawRegistration(
       return outcome;
     }
 
+    // docs/agents/design/REQ-023.md §0 — capture the pre-withdrawal admission
+    // before the UPDATE below overwrites it; only an 'admitted' row frees a
+    // seat, so promotion is only attempted in that case.
+    const wasAdmitted = row.admission === "admitted";
+
     // §2.2 step 4 — the one-column UPDATE.
     await tx.update(registrations).set({ admission: "withdrawn" }).where(eq(registrations.id, row.id));
 
@@ -396,7 +552,15 @@ export async function withdrawRegistration(
       at,
     });
 
-    return { kind: "withdrawn" };
+    // docs/agents/design/REQ-023.md §0 steps 6-7 — promotion is attempted
+    // only when the withdrawn row was previously 'admitted' (a freed seat),
+    // using the SAME tx so the withdrawal and the promotion commit/rollback
+    // together atomically.
+    const promotion: PromotionOutcome = wasAdmitted
+      ? await promoteFromWaitlistIfEligible(tx, row.eventId, at)
+      : { kind: "not-attempted" };
+
+    return { kind: "withdrawn", promotion };
   });
 }
 
@@ -407,6 +571,23 @@ export interface RegistrationForEventAndUser {
   id: string;
   admission: AdmissionState;
   checkedInAt: Date | null;
+}
+
+// docs/agents/design/REQ-023.md §6.2 — plumbing read needed by the confirm
+// callback handler: given the WITHDRAWN registration's own id (already in
+// scope from the callback_data match), resolve its eventId so the promotion
+// notification can fetch that event's title/date-time. Plain read, no lock —
+// the authoritative writes have already committed by the time this runs.
+export async function getEventIdForRegistration(
+  db: DbClient["db"],
+  registrationId: string,
+): Promise<string | null> {
+  const rows = await db
+    .select({ eventId: registrations.eventId })
+    .from(registrations)
+    .where(eq(registrations.id, registrationId))
+    .limit(1);
+  return rows[0]?.eventId ?? null;
 }
 
 export async function getRegistrationForEventAndUser(

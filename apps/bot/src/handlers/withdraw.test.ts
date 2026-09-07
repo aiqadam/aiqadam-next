@@ -168,7 +168,7 @@ async function seedVenue(chapterId: string): Promise<string> {
   return row.id;
 }
 
-async function seedPublishedEvent(chapterId: string): Promise<string> {
+async function seedPublishedEvent(chapterId: string, capacity = 5): Promise<string> {
   const venueId = await seedVenue(chapterId);
   const organizer = await resolveOrCreateUser(db, {
     tgId: BigInt(nextTgId++),
@@ -187,7 +187,7 @@ async function seedPublishedEvent(chapterId: string): Promise<string> {
       startsAt: new Date("2026-10-01T18:00:00Z"),
       endsAt: new Date("2026-10-01T20:00:00Z"),
       registrationClosesAt: null,
-      capacity: 5,
+      capacity,
       requiresInvite: false,
       requiresApproval: false,
       coverFileId: null,
@@ -310,5 +310,77 @@ describe("makeWithdrawCommandHandler + confirm/cancel callbacks -- REQ-022 AC1",
     expect(captured).toHaveLength(1);
     expect(textOf(captured[0])).toBe(catalog.withdraw.refusedNotFound);
     expect(captured[0]?.payload["reply_markup"]).toBeUndefined();
+  });
+});
+
+// docs/agents/design/REQ-023.md — waitlist auto-promotion notification, sent
+// via a real grammY dispatch (bot.handleUpdate()) exactly like REQ-022's own
+// AC1 suite above.
+describe("REQ-023 AC6: the promoted person is notified even with broadcast_opt_in=false", () => {
+  it("confirming a withdrawal that frees a seat sends a promotion notification to the promoted person's own chat", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    // Capacity 1: the admitted registration is the only seat.
+    const eventId = await seedPublishedEvent(chapterId, 1);
+
+    const admittedTgId = nextTgId++;
+    const admittedUser = await resolveOrCreateUser(db, {
+      tgId: BigInt(admittedTgId),
+      tgUsername: "admitted-member",
+      lang: "ru",
+    });
+    const admittedInserted = await db
+      .insert(registrations)
+      .values({ eventId, userId: admittedUser.id, admission: "admitted", source: "direct" })
+      .returning({ id: registrations.id });
+    const admittedRegistrationId = admittedInserted[0]?.id;
+    if (admittedRegistrationId === undefined) throw new Error("fixture insert returned no row");
+
+    const promotedTgId = nextTgId++;
+    const promotedUser = await resolveOrCreateUser(db, {
+      tgId: BigInt(promotedTgId),
+      tgUsername: "waitlisted-member",
+      lang: "ru",
+    });
+    // S10 negative case: broadcast_opt_in explicitly false -- the
+    // notification must be sent anyway (transactional, ignores this flag).
+    await db.update(schema.users).set({ broadcastOptIn: false }).where(eq(schema.users.id, promotedUser.id));
+    await db.insert(registrations).values({
+      eventId,
+      userId: promotedUser.id,
+      admission: "waitlisted",
+      source: "direct",
+      createdAt: new Date("2026-09-01T00:00:00.000Z"),
+    });
+
+    const { bot, captured } = makeTestBot();
+    await bot.handleUpdate(callbackUpdate(admittedTgId, `withdraw:confirm:${admittedRegistrationId}`) as never);
+
+    // Three sends: answerCallbackQuery, the promotion notification to the
+    // promoted person's own chat, then the withdrawer's own confirmedReply.
+    const methods = captured.map((c) => c.method);
+    expect(methods).toEqual(["answerCallbackQuery", "sendMessage", "sendMessage"]);
+
+    const promotionSend = captured[1];
+    expect(promotionSend?.payload["chat_id"]).toBe(promotedTgId.toString());
+    const catalog = getCatalog("ru");
+    const promotionText = textOf(promotionSend) ?? "";
+    expect(promotionText).toContain(catalog.promotion.admittedPrefix);
+    expect(promotionText).toContain(catalog.promotion.qrLabel);
+
+    const withdrawerReply = captured[2];
+    expect(textOf(withdrawerReply)).toBe(catalog.withdraw.confirmedReply);
+
+    // The promoted person's registration is now admitted, with a fresh
+    // qr_token.
+    const promotedRows = await db
+      .select()
+      .from(registrations)
+      .where(eq(registrations.userId, promotedUser.id));
+    expect(promotedRows[0]?.admission).toBe("admitted");
+    expect(promotedRows[0]?.qrToken).toMatch(/^[0-9a-f]{64}$/);
   });
 });
