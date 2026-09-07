@@ -324,4 +324,35 @@ export interface Catalog {
     doorsLabel: string;
     startLabel: string;
   };
+  // NEW, REQ-030 (docs/agents/design/REQ-030.md §9): walk-in registration at
+  // the door -- /walkin command, the confirm/cancel/override messages
+  // (state carried in the message text itself, §1.1), and the success/
+  // refusal copy. Placeholder/minimal functional copy per decisions/0002
+  // (CONTENT-BA owns final wording).
+  walkin: {
+    usage: string;
+    eventNotFound: string;
+    notAuthorized: string;
+    missingName: string;
+    missingPhone: string;
+    // Appended to the confirm message (§7.2) -- the door-specific consent
+    // wording (STORY-DETAILS C5).
+    consentStatement: string;
+    // parseWalkinMessageFields failed (§8.2 step 5).
+    staleMessage: string;
+    eventNotReady: string;
+    eventCancelled: string;
+    eventFinished: string;
+    alreadyCheckedIn: string;
+    // AC2 -- interpolated with name, company (never phone -- AC5).
+    success: string;
+    // AC3 -- interpolated with {admittedCount}, {capacity}.
+    overridePrompt: string;
+    // Shown after Cancel/Dismiss (§8.4).
+    cancelled: string;
+    confirmButtonLabel: string;
+    cancelButtonLabel: string;
+    overrideConfirmButtonLabel: string;
+    overrideDismissButtonLabel: string;
+  };
 }

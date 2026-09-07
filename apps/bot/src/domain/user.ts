@@ -1,7 +1,8 @@
 import { eq, sql } from "drizzle-orm";
 import type { DbClient } from "../db/client.js";
-import { chapters, users } from "../db/schema.js";
+import { chapters, profiles, users } from "../db/schema.js";
 import type { BotLang } from "../i18n/catalog.js";
+import { CONSENT_WORDING_VERSION } from "./consent.js";
 
 export interface UserWithChapterLang {
   lang: string | null;
@@ -181,6 +182,68 @@ export async function getUserForNotificationById(
     .limit(1);
 
   return rows[0] ?? null;
+}
+
+// docs/agents/design/REQ-030.md §3.4 — getUserIdByPhone: the walk-in
+// person-matching lookup. Matches strictly on profiles.phone, normalized to
+// digits-only via a declarative SQL-side expression (never an
+// application-level comparison) so a stored representation with formatting
+// characters (spaces, dashes, a leading "+") still matches a digit-only
+// normalizedPhone. Returns the first match's users.id, or null. No index on
+// profiles.phone (open question, §3.4) -- not exercised by any acceptance
+// criterion.
+export async function getUserIdByPhone(
+  db: DbClient["db"],
+  normalizedPhone: string,
+): Promise<string | null> {
+  const rows = await db
+    .select({ id: users.id })
+    .from(users)
+    .innerJoin(profiles, eq(profiles.userId, users.id))
+    .where(
+      sql`${profiles.phone} is not null and regexp_replace(${profiles.phone}, '[^0-9]', '', 'g') = ${normalizedPhone}`,
+    )
+    .limit(1);
+  return rows[0]?.id ?? null;
+}
+
+// docs/agents/design/REQ-030.md §6.3 — createWalkinUser: the ONLY point in
+// the walk-in flow that writes a new User row -- consent_pd_at is set on the
+// very same INSERT (S1: nothing about this specific new person is stored
+// without consent already attached to the same statement that creates their
+// first row). tg_id/tg_username are left NULL (a walk-in has no Telegram
+// identity yet, schema.ts's own documented use case for a nullable tg_id
+// under a unique index). chapterId defaults the new person's chapter to the
+// event's own chapter (§6.3, Open Question 4).
+export interface CreateWalkinUserInput {
+  chapterId: string | null;
+  consentPdAt: Date;
+}
+
+export async function createWalkinUser(
+  db: DbClient["db"],
+  input: CreateWalkinUserInput,
+): Promise<{ id: string }> {
+  const rows = await db
+    .insert(users)
+    .values({
+      tgId: null,
+      tgUsername: null,
+      lang: null,
+      chapterId: input.chapterId,
+      consentPdAt: input.consentPdAt,
+      consentPdVersion: CONSENT_WORDING_VERSION,
+    })
+    .returning({ id: users.id });
+
+  const row = rows[0];
+  if (row === undefined) {
+    // Unreachable in practice: RETURNING on a successful INSERT always
+    // yields exactly one row (no-speculation guard, this codebase's
+    // established convention).
+    throw new Error("createWalkinUser: insert returned no row");
+  }
+  return row;
 }
 
 export async function getUserWithChapterByTgId(
