@@ -1,0 +1,54 @@
+{
+  "handoff_id": "step-03c-security-reviewer-rework1",
+  "run_id": "ISS-0020",
+  "workflow_id": "WF-03",
+  "step": "03c",
+  "from_agent": "SECURITY-REVIEWER",
+  "to_agent": "TEST-DESIGNER",
+  "file": "handoffs/ISS-0020/step-03c-security-reviewer-rework1.json",
+  "status": "COMPLETED",
+  "priority": "HIGH",
+  "context": {
+    "issue_id": "ISS-0020",
+    "related_handoff_ids": [
+      "step-01-issue-fixer",
+      "step-02-code-designer",
+      "step-02b-code-design-validator",
+      "step-02-code-designer-rework1",
+      "step-02b-code-design-validator-regate",
+      "step-03-backend-dev",
+      "step-03b-reviewer",
+      "step-03c-security-reviewer",
+      "step-03-backend-dev-rework1",
+      "step-03b-reviewer-rework1"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/ISS-0020-fix.md",
+      "docs/agents/instructions/security-invariants.md",
+      "apps/bot/src/domain/user.ts",
+      "apps/bot/src/handlers/staff.ts"
+    ],
+    "commit_reviewed": "f17eb4c"
+  },
+  "task": {
+    "description": "Re-verify BACKEND-DEV's rework (step-03-backend-dev-rework1) closing ISS-0020-SEC-1, the timing side-channel this role FAILed at step-03c-security-reviewer.json, against the actual implemented code at commit f17eb4c.",
+    "acceptance_criteria": [
+      "Both branches (blocked/not-blocked) in makeStaffAddHandler and makeStaffRemoveHandler perform the same resolveLangForTg await and body composition before any Bot API call.",
+      "The blocked branch performs a genuine Telegram Bot API network round-trip (not a skip, not a fixed timer) before notificationFailed is set.",
+      "Zero ctx.api.sendMessage calls for a blocked target, in both handlers.",
+      "ctx.api.getMe() has no side effects and does not touch/expose targetUser.",
+      "All original PASS findings (S10 negative case, no reply-text leak, non-blocked path unregressed, scope, no PII exposure) still hold against the new code shape."
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Re-derived every check directly against apps/bot/src/handlers/staff.ts and apps/bot/src/domain/user.ts as they exist at commit f17eb4c (read directly, not from the design doc's or prior handoffs' descriptions), plus a fresh `git diff master...HEAD --stat`.\n\n1. TIMING FIX (this task's focus) -- PASS. Read makeStaffAddHandler (staff.ts:95-112) and makeStaffRemoveHandler (staff.ts:176-193) directly. Both now use a SINGLE try block entered unconditionally for both blocked and not-blocked targets: `const targetLang = await resolveLangForTg(...)` and the catalog `body` composition run first, unconditionally, in both cases -- this is the same DB read the pre-ISS-0020 code always performed, now performed regardless of `targetUser.blocked`. Only afterward does the code branch: `if (targetUser.blocked) { await ctx.api.getMe(); notificationFailed = true; } else { await ctx.api.sendMessage(Number(targetUser.tgId), body); }`. This is a genuine, real Bot API HTTPS call on both paths -- not a skip, not a `setTimeout` stand-in -- so the categorical asymmetry from the FAILed revision (zero awaits/zero network calls vs. one DB read + one network round-trip) is gone. Both outcomes now cost: one DB read + one Telegram API round-trip, before `ctx.reply` is ever reached. This matches design §2.1's table row-for-row, confirmed by reading the code, not the design's claim about it.\n\n2. RESIDUAL TIMING GAP (getMe() vs sendMessage()) -- ACCEPTED, and I agree with the design's proportionality call. getMe() and sendMessage() are not guaranteed identical in microsecond-level cost: sendMessage's payload is larger (message text, chat id, plus whatever server-side delivery-queueing Telegram does for an actual message vs. a bot-metadata read), so a sufficiently patient attacker who can sample many requests and average could in principle still detect a statistical difference between 'blocked' and 'a send that failed for some other reason.' However: (a) both call sites already require an authorized organizer with existing staff-assignment rights over that chapter (S2's gate, unchanged, not a new exposure) -- this is a narrow, already-privileged threat model, not an anonymous attacker; (b) the categorical gap (network call vs. none) that made the leak trivially exploitable via a single reply is closed; (c) closing the residual to a provable zero would require padding sendMessage itself (touching a shared, more heavily used code path and risking new side effects) or a continuously recalibrated measured delay (real operational complexity: needs to track live network conditions or it re-introduces a detectable gap) -- disproportionate machinery for a MEDIUM-severity, narrow-threat-model concern. I agree this residual is acceptable as stated and do not require further work to close it. If this threat model's priority is raised project-wide in the future (per design §5 item 3), closing it further would be a follow-up requirement, not a defect in this fix.\n\n3. getMe() SIDE-EFFECT-FREE CLAIM -- VERIFIED, not just trusted. Reasoned from the Telegram Bot API's own semantics (grammY is a thin typed wrapper over the Bot API's HTTP methods): `getMe` is a no-argument GET-shaped API method that returns the bot's own User object (id, username, capabilities flags) -- it is explicitly a read of the calling bot's own identity/metadata, takes no target parameter, and neither the Bot API spec nor grammY's `Api.getMe` binding accepts any argument that could reference `targetUser` or cause a write. There is no mechanism by which it could message, look up, or expose the target user -- confirmed both from the method's signature (no user-id/chat-id parameter exists to pass) and from its documented purpose (bot self-identification, commonly used for startup health checks). In the code itself, its result is not captured (`await ctx.api.getMe();` -- return value discarded, not assigned to any variable), further confirming nothing derived from it can leak. This holds.\n\n4. NEGATIVE CASE RE-CONFIRMED (zero real sends to blocked target) -- PASS. Constructed the case: `targetUser.blocked === true`. In both handlers, the `else` branch containing the only two `ctx.api.sendMessage` call sites in the file (grepped: staff.ts:108 and :189, exactly two, matching prior verification) is not entered when `targetUser.blocked` is true -- the `if` branch calls only `ctx.api.getMe()`. Zero sends, both handlers, confirmed by control flow, not by trusting BACKEND-DEV's or REVIEWER's report.\n\n5. REPLY-TEXT CHANNEL RE-CONFIRMED -- PASS. `notificationFailed` is set to `true` unconditionally on the blocked path (staff.ts:106, :187) and conditionally by the shared `catch` on any thrown failure (staff.ts:110-111, :191-192) -- both routes converge on the same single boolean, surfaced via the same existing `notificationFailedNote` string appended to the reply (staff.ts:116, :197). No new catalog key, no distinguishable reply text was introduced by this rework -- unchanged from the previous PASS on this axis.\n\n6. NON-BLOCKED PATH UNREGRESSED -- PASS. The `else` branch's `await ctx.api.sendMessage(Number(targetUser.tgId), body)` (staff.ts:108, :189) is textually identical to the pre-ISS-0020 code -- same argument shape, same target resolution, same catalog-sourced body. The resolveLangForTg/body-composition lines it now shares with the blocked branch are the exact same lines the pre-ISS-0020 code already ran unconditionally for every non-blocked send -- no added latency, no changed behavior for a non-blocked target.\n\n7. SCOPE -- PASS. `git diff master...HEAD --stat` shows the only source files touched across the whole ISS-0020 effort (both revisions combined) are apps/bot/src/domain/user.ts (+7/-1, the `blocked` projection) and apps/bot/src/handlers/staff.ts (+26/-... net, both revisions) -- everything else in the diff is docs/agents/design/ISS-0020-fix.md and handoffs/ISS-0020/*.json bookkeeping. No migration, no ledger/domain/notification.ts change, no other handler file, matching this task's stated scope boundary exactly.\n\n8. NO NEW PII/BLOCKED-FLAG EXPOSURE -- PASS. `UserWithTelegram`/`getUserByTgUsername` (domain/user.ts:126-148) still has exactly the two consumers confirmed previously (its own declaration and staff.ts's two call sites) -- the widened `blocked: boolean` field is not read, logged, or surfaced anywhere else. No `console.`/`logger.`/`log(` call exists in staff.ts (re-grepped; the only 'log' substrings are inside the identifier 'catalog'). `blocked` never appears in a reply string, an AuditLog payload, or any log call in this diff.\n\nInvariant checklist: S10 -- applies and passes per items 1/4 above (blocked users are skipped in both notification cases; the timing side-channel that undermined S10's organizer-facing intent in the FAILed revision is now closed to a proportionate degree per item 2). S11 -- checked, clear (item 8). S1-S9, S12-S14 -- N/A, unchanged from the prior pass: this diff touches no consent flow, no authorization decision (S2's `requireOrganizerForChapter` gate is pre-existing and unexercised by this diff), no token, no check-in/capacity/audit-log/export/deletion/publication path.\n\nNo findings. This closes ISS-0020-SEC-1.",
+    "artifacts_out": [
+      "handoffs/ISS-0020/step-03c-security-reviewer-rework1.json"
+    ],
+    "issues": [],
+    "next_action": "Route to TEST-DESIGNER (Step 4 regression check)"
+  },
+  "rework_count": 1,
+  "max_rework": 3
+}
