@@ -1,0 +1,26 @@
+{
+  "handoff_id": "step-03b-test-design-validator-regate",
+  "run_id": "WF02-REQ-027",
+  "workflow_id": "WF-02",
+  "step": "03b",
+  "from_agent": "ORCH",
+  "to_agent": "TEST-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "started_at": "2026-09-07T00:00:00Z",
+  "completed_at": "2026-09-07T00:00:00Z",
+  "context": {
+    "related_handoff_ids": [
+      "step-03b-test-design-validator",
+      "step-03-test-designer",
+      "step-03-test-designer-rework1"
+    ]
+  },
+  "result": {
+    "status": "FAIL",
+    "summary": "Re-gated docs/agents/test-specs/REQ-027.md (branch feature/WF02-REQ-027, commit 1780032) against the specific FAIL recorded in handoffs/WF02-REQ-027/step-03b-test-design-validator.json (AC1's section header reading '3 waitlisted' instead of '5 waitlisted', mismatched against the case body's 'Final admission split' statement and the coverage table).\n\nRead core-directives.md and WF-02 Step 3b. Diffed the rework: `git show 1780032 -- docs/agents/test-specs/REQ-027.md` -- confirmed it touches exactly one line: line 170's AC1 section header, '3 waitlisted' -> '5 waitlisted'. No other line in the diff.\n\nVerified the targeted fix is correct: line 170's header now reads '2 admitted + 5 waitlisted + 2 withdrawn -> exactly 7 notifications', matching line 182's 'Final admission split: **2 admitted, 5 waitlisted, 2 withdrawn**' and the coverage table's row at line 380 ('AC1 (2 admitted/5 waitlisted/2 withdrawn -> exactly 7 notifications, none to withdrawn)'). The case body's own setup (lines 177-181: registrants 1-2 admitted, 3-7 waitlisted [5 registrants], 8-9 withdrawn) sums correctly: 2+5+2=9 registered, 2+5=7 non-withdrawn notified. This part is fixed and consistent.\n\nHowever, re-reading the full file (not just the fixed line) surfaced a second, unfixed instance of the identical mismatch that the rework did not touch. Lines 19-22, the 'Independence note' near the top of the file, which summarizes AC1's fixture for the purpose of contrasting it with BACKEND-DEV's and REVIEWER's own cases, still reads:\n\n'- **AC1** below uses its own fixture -- admission counts `2 admitted / 3 waitlisted / 2 withdrawn` (7 non-withdrawn total), deliberately different from both BACKEND-DEV's own committed case (`3 admitted / 2 waitlisted / 1 withdrawn`) and REVIEWER's independent re-check (`2 admitted / 1 waitlisted / 3 withdrawn`, per this run's task brief)...'\n\nThis still says '3 waitlisted', contradicting the now-corrected header (line 170), the corrected 'Final admission split' statement (line 182), and the coverage table (line 380) -- all of which correctly say '5 waitlisted'. It is the same arithmetic typo the prior gate FAILed on, present in a second location TEST-DESIGNER's single-line rework did not reach. `git show 1780032 -- docs/agents/test-specs/REQ-027.md` confirms lines 19-22 were not part of the diff -- they are unchanged from the pre-rework version.\n\nThis is a real internal inconsistency, not a nitpick: a reader of only the top-of-file Independence note (which exists specifically to state AC1's distinguishing fixture counts at a glance) would come away with the wrong number, still contradicting the case body 3 lines away no differently than the original FAILed version did for the header. FAIL.",
+    "issues": [
+      "docs/agents/test-specs/REQ-027.md line 19-20: 'admission counts `2 admitted / 3 waitlisted / 2 withdrawn`' should read '2 admitted / 5 waitlisted / 2 withdrawn' to match the fixed AC1 header (line 170), the case body's 'Final admission split' statement (line 182), and the coverage table (line 380). Same typo class as the original FAIL, second unfixed occurrence."
+    ],
+    "next_action": "Route back to TEST-DESIGNER for rework2 -- fix the Independence note's AC1 fixture summary (lines 19-20) to read '5 waitlisted', matching every other occurrence in the file."
+  }
+}
