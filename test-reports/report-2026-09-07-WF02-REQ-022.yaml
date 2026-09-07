@@ -1,0 +1,159 @@
+run_id: WF02-REQ-022
+date: "2026-09-07T06:50:00Z"
+branch: feature/WF02-REQ-022
+commit: d560560
+lint: pass
+build: pass
+notes: >
+  npm run lint: 0 errors, 2 pre-existing warnings (apps/web/src/components/landing/
+  Footer.tsx:11 and Nav.tsx:10, <img> LCP warnings, unrelated to this diff -- both
+  files untouched by REQ-022's own diff).
+  npm run build: apps/web (next build) compiled successfully; apps/bot (tsc -p
+  tsconfig.json) clean, zero errors.
+  npx vitest run --no-file-parallelism from REPO ROOT (per ISS-0014, never
+  --root apps/bot): 17 files / 196 tests passed, 0 failed. This is the
+  authoritative count for this run, freshly run and not carried over from any
+  earlier step's report.
+cases:
+  - acceptance_criterion: AC1
+    result: pass
+    notes: >
+      Existing re-run: `npx vitest run --no-file-parallelism
+      apps/bot/src/domain/registration.db.test.ts -t "REQ-022"` -> 14 passed |
+      17 skipped (31), exit 0 (covers the six decideWithdrawOutcome unit cases
+      plus BACKEND-DEV's DB-backed AC2/AC3/AC4x2/AC5x2 cases). This spec's own
+      live-dispatch case through the real register + /withdraw + both
+      withdraw:confirm/withdraw:cancel callbacks: prompt after /withdraw
+      exactly "Withdraw from this event?\nAC1 Event" with inline_keyboard
+      exactly [[{text:'Yes, withdraw',callback_data:'withdraw:confirm:<id>'},
+      {text:'No, keep my spot',callback_data:'withdraw:cancel:<id>'}]].
+      Dismiss path: reply exactly "OK, your registration is unchanged.";
+      admission stayed 'admitted'; audit_log count for the registration
+      stayed 1 (only the original registration.admit row). Confirm path
+      (same still-admitted row): reply exactly "You've withdrawn. Your seat
+      has been freed."; admission flipped to 'withdrawn'; exactly 1 new
+      registration.withdraw audit row.
+  - acceptance_criterion: AC-security
+    result: pass
+    notes: >
+      Owner (tg 1000000510) registered and was admitted; auditCountBefore=1.
+      Attacker (tg 1000000511, no registration of their own) dispatched a
+      forged withdraw:confirm naming the Owner's real registrationId. Reply:
+      exactly "Registration not found." Owner's row after: admission=
+      'admitted' (unchanged), updated_at/created_at byte-identical to the
+      captured "before" values, global audit_log count unchanged at 1, zero
+      registration.withdraw rows for the owner's registration. Non-disclosure
+      comparison: a second forged callback naming a well-formed but
+      never-created uuid produced a reply byte-identical ("Registration not
+      found.") to the cross-user attempt -- the attacker cannot distinguish
+      "exists but not yours" from "does not exist" from the reply text alone.
+      This closes the exact gap SECURITY-REVIEWER flagged: previously only
+      proven at the decideWithdrawOutcome pure-function level, never through a
+      live bot.handleUpdate() dispatch as the wrong Telegram user.
+  - acceptance_criterion: AC2
+    result: pass
+    notes: >
+      Existing re-run: -t "REQ-022 AC2" -> exit 0 (BACKEND-DEV's capacity=1
+      case). This spec's own capacity=2 live-dispatch case: admitted-row count
+      read via SQL was exactly 2 before withdrawal and exactly 1 immediately
+      after (delta of exactly one, from two independent SQL reads, not a
+      single before/after diff statement). A third, previously-unregistered
+      user then registered via the real callback and was admitted (reply
+      started with "You're in!"), proving the freed seat was genuinely usable
+      by a third party, not just a count that looked right in isolation.
+  - acceptance_criterion: AC3
+    result: pass
+    notes: >
+      Existing re-run: -t "REQ-022 AC3" -> exit 0 (BACKEND-DEV's direct-call
+      case). This spec's own case through the real confirm callback
+      (checked-in state constructed via direct SQL per design's
+      display-vs-authoritative-read rationale, not via a real /checkin
+      dispatch): before state admission='admitted',
+      checked_in_at=2026-10-01T18:05:00.000Z. Reply after confirm dispatch:
+      exactly "You've already checked in for this event -- attendance history
+      can't be changed." After state: admission and checked_in_at both
+      unchanged; 0 registration.withdraw audit rows.
+  - acceptance_criterion: AC4
+    result: pass
+    notes: >
+      Existing re-run: -t "REQ-022 AC4" -> exit 0 (BACKEND-DEV's two
+      direct-call cases). This spec's own full register->withdraw->
+      re-register cycle dispatched entirely through real callbacks:
+      registrationIdBefore/createdAtBefore captured after the first register.
+      After withdraw: same id, same created_at, admission='withdrawn'. After
+      re-register: reply started with "You're in!"; exactly one row for the
+      (event,user) pair; id and created_at both exactly equal
+      (millisecond-equal via .getTime() comparison) to the values captured at
+      the very start.
+  - acceptance_criterion: AC5
+    result: pass
+    notes: >
+      Existing re-run: -t "REQ-022 AC5" -> exit 0 (BACKEND-DEV's two
+      direct-call cases). Audit-row count table built from AC1/AC-security/
+      AC3's own read-backs, all four deltas named explicitly: AC1 dismiss
+      (withdraw:cancel) -> before 1, after 1, delta 0. AC1 confirm
+      (withdraw:confirm, eligible) -> before 1, after 2, delta +1 with
+      action='registration.withdraw'. AC-security (withdraw:confirm, forged
+      cross-user) -> before 1 (global), after 1 (global), delta 0. AC3
+      (withdraw:confirm, checked-in) -> before 1, after 1, delta 0. All four
+      deltas match the spec's stated expectation exactly.
+  - acceptance_criterion: AC-schema
+    result: pass
+    notes: >
+      `git diff master...HEAD --stat -- apps/bot/drizzle` produced zero
+      output -- no migration introduced, matching design's explicit "no
+      schema change" claim.
+  - acceptance_criterion: AC-catalog
+    result: pass
+    notes: >
+      Grep of the 9 withdraw catalog keys across types.ts/ru.ts/en.ts returned
+      30 total matches, not the spec's literally-stated 27 -- the extra 3 are
+      usageNoId appearing a second time in each file because REQ-018's
+      pre-existing checkin catalog section reuses the identical key name.
+      Independently confirmed all 9 withdraw keys are present in all 3 files
+      at the withdraw section's own line ranges (types.ts:211-220,
+      ru.ts:192-200, en.ts:185-193): 27/27 withdraw-specific matches genuinely
+      present, en.ts values verbatim-matching what AC1/AC-security/AC2/AC3's
+      live dispatches actually produced. index.ts grep confirmed all 3
+      handler registrations present and reachable
+      (bot.command("withdraw", makeWithdrawCommandHandler(db)),
+      bot.callbackQuery(WITHDRAW_CONFIRM_PATTERN, ...),
+      bot.callbackQuery(WITHDRAW_CANCEL_PATTERN, ...)). Filed as a MINOR
+      spec-wording note (see issues below) rather than a FAIL.
+issues_found:
+  - severity: MINOR
+    title: "REQ-022.md's AC-security fixture contains an invalid-hex UUID literal that cannot be inserted into a uuid column"
+    description: >
+      docs/agents/test-specs/REQ-022.md's AC-security fixture INSERTs a user
+      row with id 'c0002200-0000-0000-0000-00000000a5o1' -- the last group
+      contains the character 'o', which is not valid hex (0-9a-f), so the
+      INSERT fails with Postgres error 22P02 (invalid input syntax for type
+      uuid). TEST-RUNNER substituted the semantically-identical valid-hex id
+      'c0002200-0000-0000-0000-00000000a501' in its own scratch harness to
+      unblock verification (a like-for-like fixture-literal fix, not a change
+      to the case's logic or expected outcomes) and confirmed the case passes
+      with that substitution. Flagging so REQ-022.md's AC-security fixture can
+      be corrected at the source before a future re-run copies the broken
+      literal verbatim.
+    affected_files:
+      - docs/agents/test-specs/REQ-022.md
+  - severity: MINOR
+    title: "REQ-022.md's AC-catalog grep count of 27 does not account for a pre-existing checkin-catalog key sharing the name usageNoId"
+    description: >
+      AC-catalog's grep pattern includes "usageNoId", which is also the name
+      of a pre-existing key in the checkin catalog section (apps/bot/src/i18n/
+      {types,ru,en}.ts) unrelated to withdraw. The literal grep therefore
+      returns 30 matches (9 withdraw keys x 3 files = 27, plus 3 incidental
+      checkin usageNoId hits), not the spec's stated 27. TEST-RUNNER
+      independently confirmed all 9 withdraw keys are genuinely present in
+      all 3 files at the withdraw section's own line ranges (27/27
+      withdraw-specific matches), so this is a spec wording imprecision, not
+      a real coverage gap. Flagging so REQ-022.md's AC-catalog can either
+      scope the grep to the withdraw block or state the expected total as 30
+      with the extra 3 named.
+    affected_files:
+      - docs/agents/test-specs/REQ-022.md
+harness_teardown:
+  scratch_files_deleted: true
+  docker_compose_down: true
+  git_status_porcelain_clean: true
