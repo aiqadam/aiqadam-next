@@ -1,0 +1,20 @@
+{
+  "handoff_id": "step-04-test-runner",
+  "run_id": "WF02-REQ-027",
+  "workflow_id": "WF-02",
+  "step": "04",
+  "from_agent": "ORCH",
+  "to_agent": "TEST-RUNNER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Executed docs/agents/test-specs/REQ-027.md against branch feature/WF02-REQ-027 at commit 93e9229. Wrote the new committed test file apps/bot/src/handlers/event.dispatch.test.ts (6 cases: AC1-AC5 plus the non-organizer-refusal case), all driven through a real bot.handleUpdate() dispatch of /event_cancel per the spec -- the first committed test anywhere in this repo to dispatch makeEventCancelHandler through grammY.\n\nnpm run lint: 0 errors (2 pre-existing apps/web <img>/LCP warnings, unrelated to this change). npm run build: apps/web (Next.js) and apps/bot (tsc) both clean.\n\nnpx vitest run --no-file-parallelism from the REPO ROOT (TEST_DATABASE_URL against the migrated scratch Postgres): 25 test files / 266 tests passed, 0 failed -- up from the 260-test baseline by exactly the 6 new cases this run added. This is the authoritative, freshly-run repo-root count.\n\nAC1: 2 admitted/5 waitlisted/2 withdrawn -> 8 total sendMessage calls (7 registrant notifications + 1 organizer confirmation, confirmation captured LAST), 7 ledger rows all matching non-withdrawn registrationIds, zero to either withdrawn registrant, events.status='cancelled' -- PASS. AC2: first real dispatch sends 3 registrant + 1 organizer (4 total, 3 ledger rows); a direct second notifyNonWithdrawnRegistrants call with a fresh sender2 adds 0 sends, ledger still exactly 3 rows -- PASS. AC3: both broadcast_opt_in=false and =true registrants receive the cancellation (2 registrant notifications + 1 organizer = 3 total, 2 ledger rows); structural grep `classification:` in handlers/event.ts returns exactly one match, the literal string \"transactional\" -- PASS. AC4: full before/after registrations row set (5 rows) deep-equal, explicit admission spot checks correct (2 admitted/2 waitlisted/1 pre-existing withdrawn unchanged), events.status flips to 'cancelled' -- PASS. AC5: registrant seeded lang:'en' on a chapter defaultLang:'ru' -- composed message's 3 lines exact-match getCatalog('en').event.cancelledNotificationHeader / the exact title \"Regression Verification Meetup\" / getCatalog('en').event.deepLinkSeeUpcoming, in that order -- PASS. Non-organizer refusal (REQ-016 regression case): an unrelated attacker (no staff row, no lang) is refused with getCatalog('ru').event.notAuthorized, events.status stays 'published', zero registrant sends, zero ledger rows -- PASS.\n\nFull detail and real command output is in test-reports/report-2026-09-07-WF02-REQ-027.yaml.",
+    "issues": [
+      {
+        "severity": "MINOR",
+        "description": "The new test file's seedOrganizer helper required a fix during this run (this run's own responsibility, not a blocker): resolveOrCreateUser leaves users.role at its schema default (\"member\") with no chapter_id, so an organizer fixture dispatching through the real bot must also directly db.update the user's role to \"organizer\" and set chapterId to authorize against requireOrganizerForChapter -- this was not called out in the spec's shared setup section, and no prior committed dispatch test in this repo needed to construct an organizer fixture this way (withdraw.test.ts's dispatched commands are not organizer-gated). Recommend TEST-DESIGNER note this construction explicitly on a future spec revision touching an organizer-gated dispatch case."
+      }
+    ],
+    "next_action": "Route to RELEASE-VALIDATOR (Step 5)"
+  }
+}

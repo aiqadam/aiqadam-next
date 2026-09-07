@@ -1,0 +1,21 @@
+{
+  "handoff_id": "step-01-code-designer-rework1",
+  "run_id": "WF02-REQ-027",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "CODE-DESIGNER",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "REWORK_COMPLETE",
+    "summary": "Rework iteration 1 of 3 on docs/agents/design/REQ-027.md, addressing the one MAJOR and two MINOR findings in handoffs/WF02-REQ-027/step-01b-design-validator.json. Everything else in the design (the cancelEvent scope-boundary claim, AC4's structural registrations-untouched argument, Sec2's WHERE-clause exclusion matching AC1's 5-notification arithmetic, the full AC1-AC5 map in Sec7, and open questions 1-3 in Sec8) was verified correct by the validator's own independent re-check and was not touched.\n\nMAJOR (Sec3, notifyNonWithdrawnRegistrants rule point 2): the fenced sendLedgeredNotification({...}) call -- a concrete object literal with an inline arrow function for composeMessage -- was replaced with prose introducing a field/source table: db from the function's own db parameter; sender from its own sender parameter; registrationId from candidate.registrationId; kind as the literal string \"event_cancelled\"; classification as the literal string \"transactional\"; userId from candidate.userId; composeMessage described as 'a function of lang that calls composeCancellationMessage with db, candidate.registrationId, the eventTitle parameter of notifyNonWithdrawnRegistrants, and that lang' -- no call expression, no arrow-function syntax, no object literal remains. Field sourcing is unchanged from the failed version; only the syntax changed from an executable call to a description, matching REQ-026's own rework precedent (commit 65704b4) for the same violation class.\n\nMINOR (Sec5, handler-wiring paragraph): the literal before/after index.ts lines (bot.command(\"event_cancel\", makeEventCancelHandler(db)); becoming ...makeEventCancelHandler(db, notificationSender));) were replaced with a prose sentence: 'index.ts's existing bot.command(\"event_cancel\", ...) registration, which currently constructs makeEventCancelHandler with only db, is updated to construct it with the process-wide notificationSender as a second argument' -- same fact (one added constructor argument, same reused sender instance, no new configuration), stated without quoting executable code.\n\nMINOR (Sec8, open questions): added a 4th open question naming the synchronous-batch-blocks-the-single-threaded-long-poll-loop risk precisely as the validator described it (apps/bot/src/index.ts:195 bot.start() with no @grammyjs/runner concurrent dispatcher; notifyNonWithdrawnRegistrants awaited before the handler's own ctx.reply; delay bounded by rateLimiter.ts's ~N/25s pacing but otherwise unbounded in N; no repo-local PRD volume figures found to bound N). Recorded my own judgment explicitly rather than leaving it silent: accept this as a known Release-1 limitation, not a blocker -- no AC exercises event scale, PRD 1's 'do not add infrastructure' stance rules out introducing a concurrent runner or job queue for this one call site, and fire-and-forget dispatch would weaken AC1's 'notifications sent' guarantee (no way to surface a failure of a detached call back to the organizer) for no proven volume benefit at Release-1's expected chapter sizes. Named a future requirement (bounded-concurrency send or a real background job) as the correct place to revisit this if real usage later shows the delay is actually reached.\n\nNo other line in docs/agents/design/REQ-027.md was changed; this is a surgical three-spot fix (one MAJOR rewrite, one MINOR rewrite, one MINOR addition).",
+    "issues": [],
+    "next_action": "Route to CODE-DESIGN-VALIDATOR (Step 1b re-gate)"
+  },
+  "context": {
+    "requirement_id": "REQ-027",
+    "depends_on": ["REQ-026"],
+    "branch_name": "feature/WF02-REQ-027",
+    "artifacts_out": ["docs/agents/design/REQ-027.md"]
+  }
+}

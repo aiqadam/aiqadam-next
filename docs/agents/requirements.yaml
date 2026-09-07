@@ -1390,7 +1390,7 @@ requirements:
   - id: REQ-027
     title: Event cancellation notifies every non-withdrawn registrant, once
     owner: BACKEND-DEV
-    status: pending
+    status: done
     description: >
       Closes PRD 14 build-order step 4 by supplying the notification REQ-016
       deliberately deferred. PRD 6 states "Cancelling notifies every non-withdrawn

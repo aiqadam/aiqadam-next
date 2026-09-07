@@ -1,0 +1,27 @@
+{
+  "handoff_id": "step-03-test-designer-rework2",
+  "run_id": "WF02-REQ-027",
+  "workflow_id": "WF-02",
+  "step": "03",
+  "from_agent": "TEST-DESIGNER",
+  "to_agent": "TEST-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "REWORK_COMPLETE",
+    "summary": "Rework iteration 2 of 3 on docs/agents/test-specs/REQ-027.md, addressing the sole finding in handoffs/WF02-REQ-027/step-03b-test-design-validator-regate.json (Step 3b re-gate FAIL): the 'Independence note' near the top of the file (lines 19-20) still read '2 admitted / 3 waitlisted / 2 withdrawn', a second unfixed occurrence of the same arithmetic typo the prior rework only fixed at the AC1 section header (line 170). Fixed by changing the Independence note's fixture summary to '2 admitted / 5 waitlisted / 2 withdrawn', matching the AC1 header (line 170), the case body's 'Final admission split' statement (line 182), and the coverage table (line 380). BACKEND-DEV's and REVIEWER's own fixture counts quoted in the same sentence ('3 admitted / 2 waitlisted / 1 withdrawn' and '2 admitted / 1 waitlisted / 3 withdrawn') were left untouched -- they are deliberately different comparison fixtures, not instances of this typo. After the edit, ran a full-document grep for '3 waitlisted' across the entire file: zero matches remain, confirming no third instance is lurking anywhere else in the document (coverage table, case body, and Independence note are now all consistent at '5 waitlisted').",
+    "issues": [],
+    "next_action": "Route to TEST-DESIGN-VALIDATOR (Step 3b re-gate)"
+  },
+  "context": {
+    "requirement_id": "REQ-027",
+    "depends_on": ["REQ-026"],
+    "branch_name": "feature/WF02-REQ-027",
+    "artifacts_out": ["docs/agents/test-specs/REQ-027.md"],
+    "related_handoff_ids": [
+      "step-03-test-designer",
+      "step-03-test-designer-rework1",
+      "step-03b-test-design-validator",
+      "step-03b-test-design-validator-regate"
+    ]
+  }
+}

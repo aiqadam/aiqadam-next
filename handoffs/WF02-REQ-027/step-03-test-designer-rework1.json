@@ -1,0 +1,25 @@
+{
+  "handoff_id": "step-03-test-designer-rework1",
+  "run_id": "WF02-REQ-027",
+  "workflow_id": "WF-02",
+  "step": "03",
+  "from_agent": "TEST-DESIGNER",
+  "to_agent": "TEST-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "REWORK_COMPLETE",
+    "summary": "Rework iteration 1 of 3 on docs/agents/test-specs/REQ-027.md, addressing the sole finding in handoffs/WF02-REQ-027/step-03b-test-design-validator.json (Step 3b FAIL): AC1's section header at line 170 read '2 admitted + 3 waitlisted + 2 withdrawn', contradicting the same case's own body two paragraphs later ('Final admission split: 2 admitted, 5 waitlisted, 2 withdrawn' -- 9 total, matching its own 'register 9 users' setup) and the coverage table further down (also '5 waitlisted'). Fixed by changing the header's '3' to '5', so it now reads '2 admitted + 5 waitlisted + 2 withdrawn' -- consistent with the case body, the coverage table, and the 9-user setup (2+5+2=9). No other line in the document was touched.",
+    "issues": [],
+    "next_action": "Route to TEST-DESIGN-VALIDATOR (Step 3b re-gate)"
+  },
+  "context": {
+    "requirement_id": "REQ-027",
+    "depends_on": ["REQ-026"],
+    "branch_name": "feature/WF02-REQ-027",
+    "artifacts_out": ["docs/agents/test-specs/REQ-027.md"],
+    "related_handoff_ids": [
+      "step-03-test-designer",
+      "step-03b-test-design-validator"
+    ]
+  }
+}

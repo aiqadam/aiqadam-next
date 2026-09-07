@@ -1,0 +1,140 @@
+run_id: WF02-REQ-027
+requirement_id: REQ-027
+workflow_step: WF-02 Step 4
+branch: feature/WF02-REQ-027
+commit: 93e9229
+executed_by: TEST-RUNNER
+executed_at: "2026-09-07T13:00:02Z"
+spec: docs/agents/test-specs/REQ-027.md
+
+summary: >
+  Wrote the new committed test file apps/bot/src/handlers/event.dispatch.test.ts
+  (6 cases: AC1-AC5 plus the non-organizer-refusal case), all driven through a
+  real bot.handleUpdate() dispatch of /event_cancel per the spec -- the first
+  committed test anywhere in this repo to dispatch makeEventCancelHandler
+  through grammY. All lint/build/test checks pass. Routing to RELEASE-VALIDATOR
+  (Step 5).
+
+commands:
+  - command: "npm run lint"
+    result: PASS
+    output: |
+      > lint
+      > npm run lint -w apps/web -w apps/bot
+
+      > app@0.1.0 lint
+      > eslint
+
+      apps/web/src/components/landing/Footer.tsx
+        11:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. ... @next/next/no-img-element
+      apps/web/src/components/landing/Nav.tsx
+        10:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. ... @next/next/no-img-element
+
+      2 problems (0 errors, 2 warnings) -- pre-existing, unrelated to this change (apps/web landing images, not touched by REQ-027)
+
+      > bot@0.1.0 lint
+      > eslint .
+      (0 errors, 0 warnings)
+  - command: "npm run build"
+    result: PASS
+    output: |
+      apps/web (Next.js/Turbopack): "Compiled successfully", TypeScript finished, static pages generated -- clean.
+      apps/bot (tsc -p tsconfig.json): clean, no output (no errors).
+  - command: "npx vitest run --no-file-parallelism (repo root, TEST_DATABASE_URL=postgres://bot:bot@localhost:55432/bot)"
+    result: PASS
+    output: |
+      Test Files  25 passed (25)
+      Tests  266 passed (266)
+      Duration  66.67s
+    note: >
+      Up from the 260-test baseline by exactly the 6 new cases this run added
+      (event.dispatch.test.ts). This is the authoritative repo-root count, run
+      fresh after writing the new test file -- never carried over from an
+      earlier step's report, per this run's own instructions (WF02-REQ-019's
+      documented 284/288-vs-144 miscount history).
+  - command: "npx vitest run --no-file-parallelism apps/bot/src/handlers/event.dispatch.test.ts --reporter=verbose"
+    result: PASS
+    output: |
+      makeEventCancelHandler -- REQ-027 AC1: real /event_cancel dispatch, 2 admitted + 5 waitlisted + 2 withdrawn > exactly 7 registrant notifications, none to either withdrawn registrant, plus the organizer's own confirmation last -- PASS (989ms)
+      makeEventCancelHandler -- REQ-027 AC2: batch re-run after a real dispatch adds no messages > first dispatch sends 3 registrant notifications + 1 organizer reply; a direct second batch run adds zero -- PASS (945ms)
+      makeEventCancelHandler -- REQ-027 AC3: broadcast_opt_in=false still receives it, via real dispatch > both the opted-out and opted-in registrant receive the cancellation -- PASS (737ms)
+      makeEventCancelHandler -- REQ-027 AC4: registrations rows survive cancellation unchanged, via real dispatch > full before/after row set is deep-equal; only events.status changes -- PASS (618ms)
+      makeEventCancelHandler -- REQ-027 AC5: onward-path message, via real dispatch, own title/own en lang > header, exact event title, and deepLinkSeeUpcoming appear in that exact line order, in the registrant's own resolved lang -- PASS (534ms)
+      makeEventCancelHandler -- non-organizer /event_cancel is refused (REQ-016 regression, new dispatch coverage) > an unrelated non-organizer is refused: no cancellation, no notifications -- PASS (528ms)
+
+      Test Files  1 passed (1)
+      Tests  6 passed (6)
+  - command: 'grep -n "classification:" apps/bot/src/handlers/event.ts'
+    result: PASS
+    output: |
+      411:      classification: "transactional",
+    note: "Exactly one match, literal string -- AC3's structural cross-check."
+
+acceptance_criteria:
+  - id: AC1
+    description: "2 admitted + 5 waitlisted + 2 withdrawn -> exactly 7 notifications, none to either withdrawn registrant, via real /event_cancel dispatch"
+    result: PASS
+    detail: >
+      8 total sendMessage calls (7 registrant notifications + 1 organizer
+      confirmation), the organizer's confirmation is the LAST captured call,
+      exactly 7 notification_ledger rows with kind='event_cancelled' all
+      matching non-withdrawn registrationIds, zero rows/sends for either
+      withdrawn registrant, events.status = 'cancelled'.
+  - id: AC2
+    description: "Running the batch a second time (after a real dispatch) adds no messages"
+    result: PASS
+    detail: >
+      First real dispatch: 3 registrant sends + 1 organizer reply (4 total),
+      3 ledger rows. Direct second call to notifyNonWithdrawnRegistrants with
+      a fresh sender2: 0 sends, ledger still exactly 3 rows (counted across
+      both runs, never reset).
+  - id: AC3
+    description: "broadcast_opt_in=false registrant still receives the cancellation, via real dispatch"
+    result: PASS
+    detail: >
+      Both the opted-out and opted-in registrant appear among captured
+      sendMessage chat_ids (2 registrant notifications + 1 organizer
+      confirmation = 3 total), exactly 2 ledger rows. Structural grep confirms
+      classification is a literal "transactional" string (one match).
+  - id: AC4
+    description: "Every registrations row for the event survives cancellation with admission unchanged, via real dispatch (own before/after comparison)"
+    result: PASS
+    detail: >
+      5 rows before and after, full deep-equality holds (every column, not
+      just admission), explicit spot checks (2 admitted, 2 waitlisted, 1
+      pre-existing withdrawn) all correct, events.status flips to 'cancelled'.
+  - id: AC5
+    description: "Message offers the upcoming events list as an onward path, via real dispatch (own event title, own language)"
+    result: PASS
+    detail: >
+      Registrant seeded with lang:'en' on a chapter with defaultLang:'ru' --
+      composed message's 3 lines match getCatalog('en').event.cancelledNotificationHeader,
+      the exact title "Regression Verification Meetup", and
+      getCatalog('en').event.deepLinkSeeUpcoming, in that exact order.
+  - id: "non-organizer-refusal"
+    description: "Non-organizer /event_cancel is refused, no cancellation, no notifications sent (REQ-016 regression case)"
+    result: PASS
+    detail: >
+      Attacker (never granted a staff/organizer row, no lang assigned)
+      dispatches /event_cancel; reply equals getCatalog('ru').event.notAuthorized
+      (ru is the attacker's own resolved default), events.status stays
+      'published', zero sends to either registrant, zero notification_ledger
+      rows for kind='event_cancelled'.
+
+issues:
+  - severity: MINOR
+    description: >
+      The new test file's seedOrganizer helper required a fix during this run:
+      resolveOrCreateUser leaves users.role at its schema default ("member")
+      with no chapter_id, so an organizer fixture dispatching through the real
+      bot must also directly db.update the user's role to "organizer" and set
+      chapterId -- this was not called out explicitly in the spec's shared
+      setup section (which only describes makeTestBot()/commandUpdate()), and
+      no prior committed dispatch test in this repo (withdraw.test.ts included)
+      needed to construct an organizer fixture this way, since REQ-027's
+      event.dispatch.test.ts is the first dispatch test whose command requires
+      organizer authorization. Filed as a TEST-DESIGNER spec-clarity note for a
+      future revision, not a blocker -- the fixture now correctly authorizes
+      and every case passes.
+
+next_action: "Route to RELEASE-VALIDATOR (Step 5)"

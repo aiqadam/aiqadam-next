@@ -1,0 +1,24 @@
+id: ISS-0024
+title: REQ-027 test-spec's shared setup doesn't call out the organizer-role fixture step needed for /event_cancel dispatch
+discovered_by: TEST-RUNNER
+discovered_in_run: WF02-REQ-027
+discovered_at: "2026-09-07T18:15:00Z"
+severity: MINOR
+description: >
+  Found while authoring apps/bot/src/handlers/event.dispatch.test.ts for
+  docs/agents/test-specs/REQ-027.md. `resolveOrCreateUser` leaves users.role
+  at its default "member" with no chapter_id, so any fixture dispatching an
+  organizer-gated command (like /event_cancel) through the real bot needs an
+  explicit db.update to role: "organizer" plus a chapterId -- this step
+  isn't called out anywhere in the spec's shared setup section. It wasn't
+  caught earlier because no prior committed dispatch test in this codebase
+  was organizer-gated (REQ-027's is the first). TEST-RUNNER added the
+  missing update inline in its own fixtures and all cases pass; no
+  implementation defect, purely a spec-completeness gap for future authors.
+  Recommended fix: TEST-DESIGNER adds the organizer-role/chapter-id setup
+  step to docs/agents/test-specs/REQ-027.md's shared setup section (or a
+  dedicated helper reference) in a future pass, so a reader implementing
+  this spec from scratch doesn't have to rediscover the missing step.
+affected_files:
+  - docs/agents/test-specs/REQ-027.md
+status: open
