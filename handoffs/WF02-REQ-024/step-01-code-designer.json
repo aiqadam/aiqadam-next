@@ -1,0 +1,21 @@
+{
+  "handoff_id": "step-01-code-designer",
+  "run_id": "WF02-REQ-024",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Wrote docs/agents/design/REQ-024.md: /my registrations view with live status, computed waitlist position, per-row withdraw, and the QR pass. NO SCHEMA CHANGE -- checked apps/bot/src/db/schema.ts directly: registrations already has admission/qr_token/event_id/user_id/checked_in_at/created_at, events has title/starts_at/ends_at/chapter_id, chapters has timezone. DATA-DESIGNER not dispatched for this run.\n\nDESIGN DECISION 1 (QR library) RESOLVED: recommend adding the `qrcode` npm package to apps/bot/package.json (checked directly -- no QR dependency exists today, only grammy/drizzle-orm/pg). Reasoning stated in Sec0.1: de-facto-standard maintained pure-JS encoder, its toBuffer(text, {type:'png'}) return shape (a plain Buffer) matches grammY's InputFile/replyWithPhoto with no re-encoding step, and it has no native-binary/build-step complication (pure JS, zero Dockerfile/deploy impact).\n\nDESIGN DECISION 2 (withdraw wiring) RESOLVED: /my's row-level withdraw action reuses REQ-022's existing withdraw:confirm:<id> callback_data pattern LITERALLY -- one button per eligible row, handled by the already-registered makeWithdrawConfirmCallbackHandler, zero changes to withdraw.ts, zero new callback pattern. No withdraw:cancel button per row (the row's own visible context already serves as the confirmation surface; not tapping is the cancellation). Row eligibility is computed by calling the existing, unchanged, pure decideWithdrawOutcome (REQ-022 Sec2.1) per row -- reused for a second purpose (display gating), not reimplemented.\n\nDESIGN DECISION 3 (S3 privacy) RESOLVED: getMyRegistrations(db, userId) takes exactly one caller-derived input, userId, sourced only from resolveActingUser(db, BigInt(ctx.from.id)) -- Telegram's own authenticated sender id. The function's signature has no eventId/registrationId/second-user-id parameter anywhere, making it structurally impossible (not merely conventional) for another user's id to enter the WHERE registrations.user_id = userId clause. No downstream per-row lookup by any caller-suppliable id exists either.\n\nNew exports: domain/registration.ts gains getMyRegistrations (one join query, all admission states returned -- deliberately unfiltered so withdrawn/rejected rows keep showing per the requirement's no-dead-ends bullet); domain/qr.ts (NEW FILE) gains the single shared renderCheckInQrPng({botUsername, qrToken}): Promise<Buffer> -- composes the exact `https://t.me/<botUsername>?start=ci_<qrToken>` template (stated as a literal-piece table, no code) and calls the qrcode package's PNG buffer encoder; framework-free (no grammy import), db-free -- this is the function AC5 requires REQ-026 to reuse rather than reimplement. handlers/my.ts (NEW FILE) gains makeMyCommandHandler wiring /my: one message per row (required so each row can carry its own inline keyboard and, for admitted rows, its own photo) -- status label reused from handlers/registration.ts's existing STATUS_CATALOG_KEY map (needs an `export` keyword added, no new mapping), waitlist position reused from REQ-021's getWaitlistPosition called live per row, QR gated strictly to admission==='admitted' && qrToken!==null. New i18n Catalog.my section (header/emptyState/withdrawButton) -- row status/position lines reuse catalog.registration.* keys directly, no parallel status strings invented.\n\nEvery AC mapped to a concrete design element in Sec6's table. Explicit scope boundary named (Sec2, Sec5): this requirement builds only the QR *encoding* side -- decoding a scanned ci_ deep link at check-in time remains handlers/checkin.ts's own already-documented REQ-028/029 future scope, untouched here.",
+    "artifacts_out": ["docs/agents/design/REQ-024.md"],
+    "issues": [],
+    "next_action": "Route to CODE-DESIGN-VALIDATOR (Step 1b)"
+  },
+  "context": {
+    "requirement_id": "REQ-024",
+    "depends_on": ["REQ-023"],
+    "branch_name": "feature/WF02-REQ-024"
+  }
+}
