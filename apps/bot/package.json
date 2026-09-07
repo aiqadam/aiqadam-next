@@ -12,11 +12,16 @@
   "dependencies": {
     "grammy": "1.46.0",
     "drizzle-orm": "0.45.2",
-    "pg": "8.23.0"
+    "pg": "8.23.0",
+    "qrcode": "1.5.4"
   },
   "devDependencies": {
     "drizzle-kit": "0.31.10",
     "@types/pg": "8.23.1",
+    "@types/qrcode": "1.5.6",
+    "jsqr": "1.4.0",
+    "pngjs": "7.0.0",
+    "@types/pngjs": "6.0.5",
     "typescript": "^5",
     "@types/node": "^22",
     "eslint": "^9",

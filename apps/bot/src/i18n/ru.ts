@@ -201,6 +201,13 @@ export const ru = {
   },
   // NEW, REQ-023: waitlist auto-promotion notification. Placeholder/minimal
   // functional copy per decisions/0002 (CONTENT-BA owns final wording).
+  // NEW, REQ-024: /my registrations view. Placeholder/minimal functional
+  // copy per decisions/0002 (CONTENT-BA owns final wording).
+  my: {
+    header: "Ваши регистрации:",
+    emptyState: "У вас пока нет регистраций. Посмотрите /events, чтобы найти мероприятие.",
+    withdrawButton: "Отменить регистрацию",
+  },
   promotion: {
     admittedPrefix: "Освободилось место — вы участвуете!",
     whatNext: "Что дальше: ближе к мероприятию вы получите код для входа.",

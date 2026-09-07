@@ -15,7 +15,10 @@ import { formatDateTimeInTimezone } from "../i18n/formatTimeInTimezone.js";
 // CHAPTER_CALLBACK_PATTERN already establishes in handlers/start.ts.
 export const REGISTER_CALLBACK_PATTERN = new RegExp(`^${REGISTER_CALLBACK_PREFIX}(.+)$`);
 
-const STATUS_CATALOG_KEY: Record<AdmissionState, keyof ReturnType<typeof getCatalog>["registration"]> = {
+// REQ-024 §4 — exported so handlers/my.ts can reuse this mapping directly
+// rather than a second copy being written. No other export/type/behavior of
+// this file changes.
+export const STATUS_CATALOG_KEY: Record<AdmissionState, keyof ReturnType<typeof getCatalog>["registration"]> = {
   admitted: "statusAdmitted",
   waitlisted: "statusWaitlisted",
   requested: "statusRequested",

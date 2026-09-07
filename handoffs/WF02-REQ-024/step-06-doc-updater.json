@@ -1,0 +1,19 @@
+{
+  "handoff_id": "step-06-doc-updater",
+  "run_id": "WF02-REQ-024",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "ORCH",
+  "to_agent": "DOC-UPDATER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "REQ-024 (/my registrations view with live status, computed waitlist position and the QR pass, GitHub issue #27, sixth and FINAL requirement of Phase 4) had RELEASE-VALIDATOR PASS at Step 5 (current HEAD c3f8116, 'chore(handoff): RELEASE-VALIDATOR PASS for WF02-REQ-024 (/my registrations view)'), which also ran a genuine end-to-end integration test: dispatched /my through a real grammY bot instance, parsed the actual rendered withdraw button, fired that real callback, and confirmed the targeted registration flipped to withdrawn with the QR image no longer appearing on a subsequent /my call. Verified the factual claims directly against the real code before writing the status-history note: read apps/bot/src/domain/qr.ts's renderCheckInQrPng({botUsername, qrToken}) (the single shared QR renderer, framework-free, no grammy/DbClient dependency, building the exact `https://t.me/<botUsername>?start=ci_<qrToken>` deep link and passing it to the `qrcode` npm package's QRCode.toBuffer, a fresh buffer per call) and confirmed `qrcode` is exact-pinned (1.5.4, no caret/tilde) in apps/bot/package.json line 16; read apps/bot/src/domain/registration.ts's getMyRegistrations(db, userId) (lines 617-650, userId as its ONLY parameter, one SELECT with two inner joins registrations->events->chapters, WHERE registrations.userId = userId, ordered by createdAt DESC), confirming the S3 own-data-only scoping is structural (no other caller-suppliable identifier appears in the signature at all); read apps/bot/src/handlers/my.ts's makeMyCommandHandler and confirmed it reuses REQ-021's getWaitlistPosition() (only for waitlisted rows, never cached), reuses REQ-022's decideWithdrawOutcome() with zero changes to withdraw.ts (git diff confirms withdraw.ts untouched by this run), and gates the QR image strictly on admission==='admitted' && qrToken !== null. Confirmed no schema change (git diff master...HEAD --stat shows no new drizzle migration file).\n\nActions taken:\n1. Flipped docs/agents/requirements.yaml's REQ-024 entry status: pending -> done. No other field needed correction -- description/acceptance_criteria already matched the shipped mechanism exactly.\n2. Appended one 'done' event to docs/status/requirement_status.yaml (append-only; read the full file first; `git diff --numstat` confirmed 5 insertions / 0 deletions on this file before committing), including a 'PHASE 4 COMPLETE' note matching the established convention from REQ-014's Phase 2 completion and REQ-018's Phase 3 completion.\n3. Checked README.md (grep for my/registration/qr/apps-bot terms) -- still contains no bot-flow-specific content beyond the one generic apps/bot description line from REQ-009's doc-update step, so no README update was made -- same checked-then-skipped pattern as every prior bot requirement (REQ-010 through REQ-023).\n4. Checked docs/ for an existing bot-command-reference doc (find for *command*, excluding node_modules) -- none exists anywhere in the repo, consistent with the established pattern noted at REQ-018 through REQ-023's doc-update steps, so none was created here.\n5. PHASE 4 COMPLETE: with REQ-024 done, all six requirements of Phase 4 (REQ-019 profile capture, REQ-020 registration + atomic capacity, REQ-021 waitlist position display, REQ-022 withdraw, REQ-023 auto-promotion, REQ-024 /my view + QR pass) are now done. No standalone 'Phase N complete' marker exists in requirements.yaml itself (phases are tracked only in requirement_status.yaml's notes) -- none invented here, consistent with precedent.",
+    "issues": [],
+    "artifacts_out": [
+      "docs/agents/requirements.yaml",
+      "docs/status/requirement_status.yaml"
+    ],
+    "next_action": "Route to Step Final (git merge)"
+  }
+}

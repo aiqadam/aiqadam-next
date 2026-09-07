@@ -228,4 +228,13 @@ export interface Catalog {
     whatNext: string;
     qrLabel: string;
   };
+  // NEW, REQ-024: /my registrations view (design §4). Reuses
+  // catalog.registration.* status keys directly (no second, parallel set of
+  // status strings). Placeholder/minimal functional copy per decisions/0002
+  // (CONTENT-BA owns final wording).
+  my: {
+    header: string;
+    emptyState: string;
+    withdrawButton: string;
+  };
 }

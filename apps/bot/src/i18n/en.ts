@@ -194,6 +194,13 @@ export const en = {
   },
   // NEW, REQ-023: waitlist auto-promotion notification. Placeholder/minimal
   // functional copy per decisions/0002 (CONTENT-BA owns final wording).
+  // NEW, REQ-024: /my registrations view. Placeholder/minimal functional
+  // copy per decisions/0002 (CONTENT-BA owns final wording).
+  my: {
+    header: "Your registrations:",
+    emptyState: "You have no registrations yet. Check /events to find one.",
+    withdrawButton: "Withdraw",
+  },
   promotion: {
     admittedPrefix: "A seat opened up — you're in!",
     whatNext: "What happens next: you'll get a check-in code closer to the event.",
