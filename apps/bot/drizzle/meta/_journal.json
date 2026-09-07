@@ -29,6 +29,13 @@
       "when": 1788718331874,
       "tag": "0003_absurd_blob",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788750452576,
+      "tag": "0004_fancy_zombie",
+      "breakpoints": true
     }
   ]
 }

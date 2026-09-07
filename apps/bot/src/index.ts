@@ -25,6 +25,17 @@ import {
 } from "./handlers/event.js";
 import { makeStaffAddHandler, makeStaffRemoveHandler } from "./handlers/staff.js";
 import { makeCheckInHandler } from "./handlers/checkin.js";
+import {
+  makeProfileChapterCallbackHandler,
+  makeProfileChapterHandler,
+  makeProfileCommandHandler,
+  makeProfileContactHandler,
+  makeProfileEditHandler,
+  makeProfileExperienceCallbackHandler,
+  makeProfileSkipCallbackHandler,
+  makeProfileStudentCallbackHandler,
+  makeProfileTextAnswerHandler,
+} from "./handlers/profile.js";
 
 let config: BotConfig;
 
@@ -91,5 +102,29 @@ bot.command("events", makeEventsListHandler(db));
 bot.command("staff_add", makeStaffAddHandler(db));
 bot.command("staff_remove", makeStaffRemoveHandler(db));
 bot.command("checkin", makeCheckInHandler(db));
+
+// REQ-019: profile capture as a resumable step-by-step form, the consent
+// gate, and the optional-field rule (design §4). The two generic listeners
+// (message:text, message:contact) MUST be registered after every
+// bot.command(...) registration above — grammY's command matcher and this
+// generic text listener both react to text messages, and a `/`-prefixed
+// message is excluded by the listener's own guard (handlers/profile.ts
+// §4.5 step 1), not by registration order, but registering the generic
+// listeners last keeps every command handler's own dispatch unambiguous.
+bot.command("profile", makeProfileCommandHandler(db));
+bot.command("profile_edit", makeProfileEditHandler(db));
+bot.command("profile_chapter", makeProfileChapterHandler(db));
+bot.callbackQuery(/^profile:chapter:(.+)$/, makeProfileChapterCallbackHandler(db));
+bot.callbackQuery(
+  /^profile:skip:(phone|email|linksGithub|linksLinkedin|linksSite)$/,
+  makeProfileSkipCallbackHandler(db),
+);
+bot.callbackQuery(/^profile:student:(yes|no)$/, makeProfileStudentCallbackHandler(db));
+bot.callbackQuery(
+  /^profile:experience:(user|builder|advanced|expert)$/,
+  makeProfileExperienceCallbackHandler(db),
+);
+bot.on("message:contact", makeProfileContactHandler(db));
+bot.on("message:text", makeProfileTextAnswerHandler(db));
 
 bot.start();

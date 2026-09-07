@@ -1,0 +1,186 @@
+run_id: WF02-REQ-019
+date: 2026-09-07T04:04:35Z
+requirement_id: REQ-019
+branch: feature/WF02-REQ-019
+commit_at_run: e804213
+lint: pass
+build: pass
+unit_test_suite:
+  command: "npx vitest run --no-file-parallelism (apps/bot, per ISS-0014)"
+  result: pass
+  files: 26
+  tests: 288
+cases:
+  - acceptance_criterion: AC1
+    description: "Kill+restart mid-form resumes at the next unanswered field, first answers preserved"
+    result: pass
+    notes: >
+      Unit re-run (npx vitest run --no-file-parallelism src/domain/profile.test.ts -t
+      "AC1's own case"): 1 passed | 19 skipped, exit 0. Genuine two-process live
+      integration: seeded a chapter + user past consent/chapter (tg_id 1000000201).
+      Phase 1 (apps/bot/scratch-verify-req019-ac1-phase1.ts) launched via
+      `npx tsx ... &`, dispatched firstName/lastName/company answers, printed
+      "PROCESS_READY_TO_KILL pid=38488" (found after 2 x 1s poll iterations, bounded
+      cap 30). Confirmed the PID was a live node.exe via `tasklist /FI "PID eq 38488"`
+      before killing. Force-terminated with `taskkill /F /PID 38488` ("SUCCESS: ...
+      terminated"), then confirmed it was genuinely gone (not merely that the kill
+      command returned) via a bounded tasklist poll -- "No tasks are running which
+      match the specified criteria" on the first check. Read-back immediately after
+      the kill: first_name='First', last_name='Last', company='Acme Co',
+      position/is_student/experience_level all NULL -- the 3 answers survived the hard
+      kill as committed rows. Phase 2 (scratch-verify-req019-ac1-phase2.ts), a wholly
+      separate `npx tsx` invocation/process with no reference to phase 1, dispatched
+      "Some Position" and its own fresh (empty-started) `captured` array showed exactly
+      one sendMessage: the isStudent prompt ("Are you a student?" with the student
+      keyboard) -- proving phase 2 accepted the dispatch as the `position` answer
+      (never re-asking firstName/lastName/company) and correctly advanced to the next
+      field. Read-back after phase 2: first_name/last_name/company byte-for-byte
+      unchanged, position='Some Position' (newly written), is_student/experience_level
+      still NULL.
+  - acceptance_criterion: AC1b
+    description: "Forged field-mismatch skip and stale-replayed skip never desync from the derived onboarding step"
+    result: pass
+    notes: >
+      Fixture: user with all 6 required fields answered, current derived step is
+      `phone` (tg_id 1000000202). Field-mismatch dispatch (forged
+      profile:skip:email while real step is phone): captured showed exactly
+      answerCallbackQuery + a re-prompt for phone ("Share your phone number (or tap
+      Skip).") -- never a github prompt, meaning email was never treated as answered.
+      Stale-replay dispatch: real profile:skip:phone (honored, advances to email
+      prompt) followed by replaying the same stale profile:skip:phone data again --
+      that second call produced only answerCallbackQuery + a re-prompt for email
+      (no state change). Final read-back: phone_skipped=true (from the one honored
+      call), email_skipped=false (proving the field-mismatch call never wrote either
+      flag, and the stale replay was never reinterpreted as answering the
+      now-current field).
+  - acceptance_criterion: AC2
+    description: "Skipping every optional field still completes the profile; /profile then renders the view"
+    result: pass
+    notes: >
+      Unit re-run (npx vitest run --no-file-parallelism src/domain/profile.test.ts -t
+      "AC2"): 1 passed | 19 skipped, exit 0. Live dispatch: fixture with all 6 required
+      fields answered (tg_id 1000000203). Skip via reply-keyboard text ("Skip") for
+      phone, then profile:skip:email/linksGithub/linksLinkedin/linksSite callbacks in
+      sequence. Read-back: all five *_skipped columns true, all five value columns
+      still NULL. captured's entry right after the 5th skip was
+      "Your profile is complete. Use /profile to view it." (profile.completedNotice
+      verbatim) -- never a 6th field prompt. Follow-up /profile dispatch produced the
+      formatProfileDump output (each optional line reading "skipped") followed by
+      profile.editHint -- confirmed the view surface, not a resumed form.
+  - acceptance_criterion: AC3
+    description: "Declining consent: zero profiles rows, a plain consent prompt, not an error"
+    result: pass
+    notes: >
+      Unit re-run (npx vitest run --no-file-parallelism src/domain/onboarding.test.ts
+      -t "consent-needed wins"): 1 passed | 3 skipped, exit 0. Live dispatch: brand-new
+      user (tg_id 1000000204), /start then bare /profile, never tapping Agree.
+      captured: exactly two entries, both sendMessage with text equal to
+      consent.prompt verbatim (Russian default-lang wording, consistent with prior
+      REQ-018's documented "ru" fallback for a user with no stored lang preference) --
+      never profile.startFirst, never a profile-field prompt. Read-back:
+      `SELECT count(*) FROM profiles` = 0; `consent_pd_at` for this user NULL.
+  - acceptance_criterion: AC3b
+    description: "Chapter-but-no-consent and forged-skip-while-unconsented never reach profiles"
+    result: pass
+    notes: >
+      Scenario 1 (chapter assigned, consent_pd_at NULL, direct /profile): produced
+      exactly one sendMessage equal to consent.prompt verbatim -- never a chapter or
+      profile-field prompt. profiles row count for this user: 0. Scenario 2 (brand-new
+      user via /start, never consenting, then a forged profile:skip:phone with no
+      legitimate prompt ever sent): the callback was answered
+      (answerCallbackQuery) and the code's own advanceAfterWrite step then also
+      re-sent the consent prompt (a real sendMessage) -- profiles count for this
+      user stayed 0 throughout (getProfileByUserId is never called while
+      !hasConsented, confirmed by the DB read). This satisfies the spec's own
+      overarching Pass Conditions paragraph verbatim ("both are correctly resolved to
+      the consent prompt (or a silent callback-answer-only no-op)") even though one
+      narrower per-bullet "Expected" line in the same AC's write-up said "produces no
+      sendMessage" for this exact scenario -- filing this internal spec-wording
+      inconsistency below (MINOR, not a product defect; the actual code behavior is
+      safe and matches the AC's real gating criterion).
+  - acceptance_criterion: AC4
+    description: "An already-complete profile is asked no profile question on a second /profile pass"
+    result: pass
+    notes: >
+      Unit re-run (npx vitest run --no-file-parallelism src/domain/onboarding.test.ts
+      -t "ready \(AC4\)"): 1 passed | 3 skipped, exit 0. Live dispatch: a genuinely
+      complete profile (all 6 required + all 5 optional fields answered with real
+      values, not skips) for tg_id 1000000207, two consecutive /profile dispatches.
+      captured contained exactly 4 sendMessage entries (2 pairs: formatProfileDump
+      output then profile.editHint, once per dispatch). Grepped the raw captured
+      output for all 11 literal profile.prompt* strings (read verbatim from
+      src/i18n/en.ts) plus profile.chapterPrompt's literal text -- zero matches for
+      any of them.
+  - acceptance_criterion: AC5
+    description: "Phone/email entered, an error path triggered: real stdout/stderr contain neither value"
+    result: pass
+    notes: >
+      Fixture: user with phone already set to a real value ('+15559998888') and all
+      required fields answered, current step is email. Ran
+      `npx tsx scratch-verify-req019-ac5.ts > ac5-stdout.log 2>ac5-stderr.log`
+      (redirecting the harness process's own real stdout/stderr, not the mocked
+      Telegram captures) and dispatched an invalid-format email ("not-an-email").
+      captured showed exactly one sendMessage equal to profile.invalidEmailFormat
+      verbatim ("That doesn't look like a valid email. Try again, or tap Skip.") --
+      the rejected string itself never appears in the reply. Read-back: email still
+      NULL, email_skipped still false. `grep -F "+15559998888" ac5-stdout.log
+      ac5-stderr.log` and `grep -F "not-an-email" ac5-stdout.log ac5-stderr.log` both
+      returned zero matches (grep exit code 1) in the actual capture files.
+  - acceptance_criterion: AC6
+    description: "Email accepted absent (skip), format-validated only when a value is supplied"
+    result: pass
+    notes: >
+      Unit re-run (npx vitest run --no-file-parallelism src/domain/profile.test.ts -t
+      "AC6"): 6 passed | 14 skipped, exit 0. Branch A (live profile:skip:email
+      dispatch, current step is email): captured advanced straight to the linksGithub
+      prompt with no invalidEmailFormat rejection anywhere in between; read-back
+      email NULL / email_skipped true. Branch B (fresh instance of the same
+      current-step-is-email fixture, live dispatch of "not-valid" then
+      "person@example.com"): first dispatch produced profile.invalidEmailFormat with
+      no write; second dispatch produced no rejection and advanced to linksGithub;
+      read-back email='person@example.com', email_skipped=false.
+  - acceptance_criterion: AC-schema
+    description: "The migration matches docs/agents/design/REQ-019-schema.md §5 exactly"
+    result: pass
+    notes: >
+      Read apps/bot/drizzle/0004_fancy_zombie.sql directly and
+      `git diff master...HEAD -- apps/bot/src/db/schema.ts apps/bot/drizzle` myself:
+      exactly 11 statements in the exact stated order -- 6
+      `ALTER TABLE "profiles" ALTER COLUMN "<col>" DROP NOT NULL` for first_name,
+      last_name, company, position, is_student, experience_level, then 5
+      `ALTER TABLE "profiles" ADD COLUMN "<col>_skipped" boolean DEFAULT false NOT
+      NULL` for phone, email, links_github, links_linkedin, links_site -- matching
+      REQ-019-schema.md §5's predicted statement list verbatim, same column order, no
+      other statement, no other table touched.
+  - acceptance_criterion: AC-catalog
+    description: "i18n parity for profile.* keys, and command/listener registration"
+    result: pass
+    notes: >
+      types.ts's profile block: recounted live at exactly 40 keys (startFirst through
+      fieldSkipped). ru.ts and en.ts each define a profile object with the identical
+      40-key set in the identical order (confirmed via a sorted grep -A45 diff of all
+      three files -- content identical, only source line numbers differed). index.ts:
+      exactly three command registrations (profile, profile_edit, profile_chapter,
+      lines 114-116), the two generic listeners (message:contact line 127,
+      message:text line 128), and four profile:-prefixed callback registrations
+      (chapter line 117, skip lines 118-121, student line 122, experience lines
+      123-126) -- all reachable, none commented out, all matching the make*Handler
+      factory names from handlers/profile.ts.
+issues_found:
+  - severity: MINOR
+    description: >
+      docs/agents/test-specs/REQ-019.md's AC3b, second scenario ("forged skip while
+      unconsented"), has an internal inconsistency between its own per-bullet
+      "Expected" line ("produces no sendMessage") and its AC-level "Pass conditions"
+      paragraph (which explicitly allows "resolved to the consent prompt" as an
+      alternative to a silent no-op). The actual implementation
+      (handlers/profile.ts's makeProfileSkipCallbackHandler, step 7,
+      unconditionally calling advanceAfterWrite) correctly re-sends the consent
+      prompt on this path -- this is safe, intended behavior (matches the identical
+      re-derive-then-prompt pattern AC1b's cases also exercise), not a product
+      defect. Recommend TEST-DESIGNER tighten the per-bullet wording to match the
+      AC-level pass condition so a future TEST-RUNNER doesn't have to reconcile the
+      two independently. Not blocking -- reported here per the "No Issue Left
+      Local-Only" directive for ORCH to file as its own docs/issues/ entry.
+overall_result: PASS
+next_action: "Route to RELEASE-VALIDATOR (Step 5)"

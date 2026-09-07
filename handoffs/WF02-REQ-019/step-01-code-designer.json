@@ -1,0 +1,29 @@
+{
+  "handoff_id": "step-01-code-designer",
+  "run_id": "WF02-REQ-019",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Wrote docs/agents/design/REQ-019.md: resumable step-by-step profile capture (6 required fields then 5 skippable optional fields, fixed order), folded into the SAME consent->chapter->profile onboarding pipeline REQ-014's /start already runs (a new domain/onboarding.ts progression engine, with handlers/start.ts's three existing greeting tail-points modified to call it instead of unconditionally greeting), plus /profile view+edit (including the chapter-change REQ-014 deferred here) via /profile_edit's text-block convention (matches venue/event CRUD precedent) and a dedicated /profile_chapter picker. Resumability is fully computed-never-stored (determineNextProfileField walks the fixed field order reading persisted column state fresh on every message/callback -- no step-cursor column, matching REQ-017's established discipline), except one genuinely new piece of state the schema does not yet support: a durable 'explicitly skipped' marker per optional field, needed to distinguish 'skipped' from 'not yet reached' (both currently read as NULL). 'Declining consent' (AC3) is modeled as 'has not yet accepted' (no dedicated Decline button invented) since REQ-019's text never describes a distinct decline event. S11/AC5 satisfied via log.ts's pre-existing field-name redaction (REQ-012, unchanged) plus this design's explicit no-raw-phone/email-in-log-or-error rule, anchored to the concrete email-format-rejection error path; this requirement writes zero audit_log rows at all (profile writes are not a status transition), so the audit-payload clause is satisfied vacuously (stated explicitly, not silently skipped, per REQ-018 Sec0.3's own precedent for this pattern).\n\nSCHEMA CHANGE IS NEEDED (Sec1 of the design) and this design does NOT write it -- checked precedent first (REQ-014-schema.md, REQ-016-schema.md: both authored by DATA-DESIGNER as a SEPARATE Step 1 handoff dispatched by ORCH alongside CODE-DESIGNER, per WF-02 Sec0.9's own routing table). This run's handoff named only CODE-DESIGNER, so I did not receive a parallel DATA-DESIGNER dispatch to build on. Filed as a BLOCKER-severity issue below rather than writing docs/agents/design/REQ-019-schema.md myself under a different role's byline. What the schema change must do, stated precisely in Sec1: (a) relax NOT NULL on profiles.first_name/last_name/company/position/is_student/experience_level (currently blocks the partial-write rule from ever inserting a row with fewer than all six known) -- recommend relaxing all six uniformly including first_name, for a uniform completeness predicate, though only the other five are strictly forced by the acceptance criteria; (b) add a durable per-optional-field skip marker (5 booleans recommended, e.g. phone_skipped etc., vs. one array column -- left open, DATA-DESIGNER's call). No step-cursor/current-step column is proposed or needed for either the required or optional segment once (a) and (b) land.",
+    "artifacts_out": ["docs/agents/design/REQ-019.md"],
+    "issues": [
+      {
+        "severity": "BLOCKER",
+        "description": "REQ-019's design depends on a profiles schema change (docs/agents/design/REQ-019.md Sec1: relax NOT NULL on 6 named required columns; add a durable skip-vs-not-yet-reached marker for 5 named optional columns) that no DATA-DESIGNER artefact has yet specified. This run's Step 1 handoff dispatched only CODE-DESIGNER; per WF-02 Sec0.9's routing table and the REQ-014/REQ-016 precedent (both had DATA-DESIGNER dispatched in parallel at Step 1 for a comparable stored-data gap), a bot requirement that alters stored data needs DATA-DESIGNER's own docs/agents/design/REQ-019-schema.md before CODE-DESIGN-VALIDATOR can treat this design as buildable. Recommend ORCH dispatch DATA-DESIGNER now, scoped to exactly the two changes named in Sec1."
+      },
+      {
+        "severity": "MINOR",
+        "description": "docs/agents/design/REQ-019.md Sec8 flags two assumptions not resolvable by this role alone: (2) 'declining consent' has no dedicated UI affordance in this design (modeled as 'has not yet accepted' rather than an explicit Decline button) -- a legitimate alternative CONTENT-BA or a later requirement may prefer; (3) AC4's own stated verification method ('running the registration flow') cannot literally execute since REQ-020 does not exist yet -- an interim substitute verification is named in the design for TEST-DESIGNER's benefit."
+      },
+      {
+        "severity": "MINOR",
+        "description": "Incidental finding, not fixed here (Unblock-Everything's scope boundary -- noticed, not blocking this task): apps/bot/src/index.ts has no global bot.catch handler (confirmed by inspection -- its only try/catch wraps loadConfig before bot.start()). Not required by any of REQ-019's own acceptance criteria (the validation-rejection paths this design defines are controlled, expected branches, not uncaught exceptions), so left unfixed and forwarded for ORCH to file as its own issue."
+      }
+    ],
+    "next_action": "Route to CODE-DESIGN-VALIDATOR (Step 1b)"
+  }
+}

@@ -1,0 +1,38 @@
+id: ISS-0013
+title: CI has no Postgres service, so DB-backed automated tests never run in CI
+discovered_by: BACKEND-DEV
+discovered_in_run: WF02-REQ-019
+discovered_at: "2026-09-07T09:00:00Z"
+severity: MAJOR
+description: >
+  While building REQ-019 (profile capture form), BACKEND-DEV wrote
+  apps/bot/src/handlers/start.test.ts -- the first automated test in this
+  codebase that dispatches real bot.handleUpdate() calls against a real
+  Postgres instance (via apps/bot/docker-compose.yml). The test self-skips
+  gracefully when Postgres is unreachable, which is why it did not break CI,
+  but it also means this and any future DB-backed test suite currently
+  provides ZERO coverage in the actual CI pipeline -- .github/workflows/
+  ci-cd.yml's Test job has no Postgres service defined, confirmed by direct
+  read by both BACKEND-DEV (who first flagged it) and REVIEWER (who
+  independently re-confirmed by reading the workflow file at the Step 2b
+  re-gate for WF02-REQ-019, commit a6674bc).
+  This means every "live-integration" verification this project's pipeline
+  performs (BACKEND-DEV's own AC checks, REVIEWER's re-verification,
+  TEST-RUNNER's Step 4 execution, RELEASE-VALIDATOR's Step 5 re-checks) has
+  so far only ever run on a developer/agent's local machine against a
+  manually-started scratch Postgres, never automatically on every push/PR via
+  CI. A regression introduced by a future change that isn't caught by a local
+  agent run would ship with zero automated safety net until the next manual
+  local verification pass.
+  Recommended fix: add a Postgres service container to the Test job in
+  .github/workflows/ci-cd.yml (matching apps/bot/docker-compose.yml's image/
+  version), run apps/bot's drizzle migrations against it before the test step,
+  and ensure DB-backed test files (start.test.ts and any future ones) no
+  longer self-skip once that service is present -- turning the current
+  graceful degradation into a hard requirement in CI specifically, while
+  local runs without Postgres can keep skipping.
+affected_files:
+  - .github/workflows/ci-cd.yml
+  - apps/bot/src/handlers/start.test.ts
+  - apps/bot/docker-compose.yml
+status: open

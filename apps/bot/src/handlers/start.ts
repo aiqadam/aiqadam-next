@@ -15,6 +15,7 @@ import {
   parseStartPayload,
   setPendingSource,
 } from "../domain/event.js";
+import { advanceOnboarding } from "../domain/onboarding.js";
 import { getVenueById } from "../domain/venue.js";
 import { getFlowUserByTgId, resolveOrCreateUser } from "../domain/user.js";
 import { getCatalog, type BotLang } from "../i18n/catalog.js";
@@ -50,11 +51,18 @@ const CONSENT_AGREE_CALLBACK = "consent:agree";
 // header note below. The consent callback now optionally carries a deep-link
 // payload after a `:`, e.g. `consent:agree:e_<id>__<channel>`, so it must be
 // matched with a pattern, not the old exact string.
-const CONSENT_AGREE_CALLBACK_PATTERN = /^consent:agree(?::(.+))?$/;
+// REQ-019 §3.3 — exported: reused unchanged by handlers/onboarding callers
+// that need to re-derive the same match (none currently do; kept exported
+// per the design's stated file-private-to-exported change list).
+export const CONSENT_AGREE_CALLBACK_PATTERN = /^consent:agree(?::(.+))?$/;
 // Telegram's hard limit on callback_data (bytes, not characters).
 const CALLBACK_DATA_MAX_BYTES = 64;
 
-function matchText(ctx: Context): string {
+// REQ-019 §3.3 — exported (was file-private): reused as-is by
+// handlers/profile.ts, which parses the same `/start <payload>` shape
+// nowhere else but needs this exact helper's behavior for its own module
+// scope conventions.
+export function matchText(ctx: Context): string {
   return typeof ctx.match === "string" ? ctx.match : "";
 }
 
@@ -278,7 +286,12 @@ function buildConsentAgreeCallbackData(payloadText: string | null): string {
   return `${fixedPrefix}${truncateToByteBudget(parsed.channel, budget)}`;
 }
 
-function buildConsentKeyboard(lang: BotLang, payloadText: string | null = null): InlineKeyboard {
+// REQ-019 §3.3 — exported (was file-private): reused by
+// domain/onboarding.ts's advanceOnboarding for the "consent-needed" step.
+export function buildConsentKeyboard(
+  lang: BotLang,
+  payloadText: string | null = null,
+): InlineKeyboard {
   return new InlineKeyboard().text(
     getCatalog(lang).consent.agree,
     buildConsentAgreeCallbackData(payloadText),
@@ -296,8 +309,15 @@ function buildConsentKeyboard(lang: BotLang, payloadText: string | null = null):
  * Returns `"stopped"` when the 2+-chapter ask-once prompt was sent (the flow
  * pauses and resumes in the chapter callback, §2.6); `"continue"` when the
  * caller should proceed straight to the greeting (0 or 1 active chapter).
+ *
+ * REQ-019 §3.2/§3.3 — exported (was file-private): `domain/onboarding.ts`'s
+ * `advanceOnboarding` deliberately does NOT run chapter assignment itself
+ * (keeping this function's existing, already-reviewed 0/1/2+ branching
+ * untouched); `handlers/profile.ts`'s entry points, which have no
+ * pre-existing chapter gate of their own the way `/start`'s call sites do,
+ * call this function directly on a `"chapter-needed"` onboarding step.
  */
-async function assignChapterOrPrompt(
+export async function assignChapterOrPrompt(
   ctx: Context,
   db: DbClient["db"],
   userId: string,
@@ -389,11 +409,26 @@ export function makeStartHandler(db: DbClient["db"]) {
     // Consent is already recorded (a returning, partially-onboarded user
     // who has no chapter yet) — only now is it safe to run chapter
     // assignment.
-    if (flowUser.chapterId === null) {
-      const outcome = await assignChapterOrPrompt(ctx, db, flowUser.id, lang);
-      if (outcome === "stopped") {
+    let hasChapter = flowUser.chapterId !== null;
+    if (!hasChapter) {
+      const chapterOutcome = await assignChapterOrPrompt(ctx, db, flowUser.id, lang);
+      if (chapterOutcome === "stopped") {
         return;
       }
+      // WF02-REQ-019 REWORK (Step 2b regate FAIL,
+      // handoffs/WF02-REQ-019/step-02b-reviewer.json) — assignChapterOrPrompt
+      // returning "continue" satisfies the chapter step for the rest of this
+      // pass, EVEN in the zero-active-chapters case where `chapterId`
+      // legitimately stays null forever (REQ-014's own `noActiveChapters`
+      // branch above). Re-deriving `hasChapter` from `chapterId !== null`
+      // below (as this file did before this rework) makes
+      // `advanceOnboarding` report "chapter-needed" forever for that case —
+      // an outcome this handler has no branch for, so the flow silently
+      // stopped replying right after `noActiveChapters` and never sent the
+      // greeting the pre-REQ-019 handler always sent here. Mirrors the exact
+      // same "continue" treatment `handlers/profile.ts`'s
+      // `reachReadyOrPrompt` helper already applies for its own call sites.
+      hasChapter = true;
     }
 
     // Re-resolve via the same read-only shape the rest of the flow uses, so
@@ -403,6 +438,16 @@ export function makeStartHandler(db: DbClient["db"]) {
       finalUser?.lang ?? flowUser.lang,
       finalUser?.chapterDefaultLang ?? null,
     );
+
+    // REQ-019 §3.3 — run the shared onboarding progression before falling
+    // back to the plain greeting. Consent is already resolved and the
+    // chapter step is resolved per `hasChapter` above (either an actual
+    // chapter id, or the zero-active-chapters "continue" case), so this call
+    // only ever asks a profile question or reports "ready" in practice.
+    const outcome = await advanceOnboarding(ctx, db, flowUser.id, true, hasChapter, finalLang);
+    if (outcome !== "ready") {
+      return; // "prompted" already sent the next question
+    }
     await ctx.reply(getCatalog(finalLang).start.greeting);
   };
 }
@@ -453,6 +498,15 @@ export function makeChapterCallbackHandler(db: DbClient["db"]) {
       refreshed?.lang ?? flowUser.lang,
       refreshed?.chapterDefaultLang ?? null,
     );
+
+    // REQ-019 §3.3 — run the shared onboarding progression before falling
+    // back to the plain greeting. This callback only ever fires once consent
+    // is already recorded and a chapter was just assigned, so this call only
+    // ever asks a profile question or reports "ready" in practice.
+    const outcome = await advanceOnboarding(ctx, db, flowUser.id, true, true, lang);
+    if (outcome !== "ready") {
+      return; // "prompted" already sent the next question
+    }
     await ctx.reply(getCatalog(lang).start.greeting);
   };
 }
@@ -503,9 +557,18 @@ export function makeConsentCallbackHandler(db: DbClient["db"]) {
     // ordering fix: chapter writes never precede consent_pd_at). Chapter
     // assignment always runs first per REQ-014's existing order, whether or
     // not a deep-link payload is also being carried through this tap.
+    let hasChapter = flowUser.chapterId !== null;
     let chapterOutcome: "stopped" | "continue" = "continue";
-    if (flowUser.chapterId === null) {
+    if (!hasChapter) {
       chapterOutcome = await assignChapterOrPrompt(ctx, db, flowUser.id, lang);
+      if (chapterOutcome === "continue") {
+        // WF02-REQ-019 REWORK (Step 2b regate FAIL) — see makeStartHandler's
+        // identical comment above: "continue" (including the
+        // zero-active-chapters `noActiveChapters` branch, where `chapterId`
+        // stays null forever) satisfies the chapter step for this pass, so
+        // `advanceOnboarding` below is never asked to re-derive it as false.
+        hasChapter = true;
+      }
     }
 
     // REQ-016 rework — complete the deferred deep-link resolution now that
@@ -542,6 +605,17 @@ export function makeConsentCallbackHandler(db: DbClient["db"]) {
       finalUser?.lang ?? flowUser.lang,
       finalUser?.chapterDefaultLang ?? null,
     );
+
+    // REQ-019 §3.3 — run the shared onboarding progression before falling
+    // back to the plain greeting. Consent was just recorded above and the
+    // chapter step is resolved per `hasChapter` above (chapterOutcome !==
+    // "stopped" — either an actual chapter id, or the zero-active-chapters
+    // "continue" case), so this call only ever asks a profile question or
+    // reports "ready" in practice.
+    const outcome = await advanceOnboarding(ctx, db, flowUser.id, true, hasChapter, finalLang);
+    if (outcome !== "ready") {
+      return; // "prompted" already sent the next question
+    }
     await ctx.reply(getCatalog(finalLang).start.greeting);
   };
 }

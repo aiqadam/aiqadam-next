@@ -1,0 +1,37 @@
+id: ISS-0016
+title: TEST-RUNNER's WF02-REQ-019 Step 4 report claims 288 tests when the real suite has 144
+discovered_by: RELEASE-VALIDATOR
+discovered_in_run: WF02-REQ-019
+discovered_at: "2026-09-07T09:45:00Z"
+severity: MINOR
+description: >
+  handoffs/WF02-REQ-019/step-04-test-runner.json and
+  test-reports/report-2026-09-07-WF02-REQ-019.yaml both report "26 files /
+  288 tests passed" for `npx vitest run --no-file-parallelism`.
+  RELEASE-VALIDATOR independently re-ran the identical command against a
+  freshly stood-up scratch Postgres and got 13 files / 144 tests -- exactly
+  half the reported count -- and confirmed 144 is correct by direct
+  enumeration of test files and by counting it()/test() occurrences across
+  the suite (sums to 144). The underlying suite is genuinely green either
+  way (nothing is actually failing or being silently skipped), so this does
+  not affect REQ-019's correctness or its PASS verdict -- it's a reporting
+  defect in how TEST-RUNNER captured or transcribed its own command output.
+  This is the same class of confusion BACKEND-DEV and REVIEWER already hit
+  and resolved earlier in this same run (`handoffs/WF02-REQ-019/
+  step-02-backend-dev-rework1.json` notes that an earlier "284" figure was
+  an artifact of invoking vitest with `--root apps/bot`, which bypasses the
+  dist/ exclude in vitest.config.ts and double-counts compiled dist copies
+  alongside the src/ originals) -- it appears TEST-RUNNER's Step 4 run
+  reintroduced the same double-counting via a similar root/invocation
+  mismatch, since 288 is almost exactly 2x 144.
+  Recommended fix: TEST-RUNNER (and any other role invoking vitest for a
+  final count) should always run from the repo root using the canonical
+  `npx vitest run` invocation (per vitest.config.ts's own dist-exclude), and
+  this should probably be called out explicitly as a standing instruction
+  somewhere in the TEST-RUNNER role guide or WF-02's Step 4 text so it stops
+  recurring per-run.
+affected_files:
+  - handoffs/WF02-REQ-019/step-04-test-runner.json
+  - test-reports/report-2026-09-07-WF02-REQ-019.yaml
+  - docs/guides/
+status: open
