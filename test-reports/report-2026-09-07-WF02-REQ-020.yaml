@@ -1,0 +1,179 @@
+run_id: WF02-REQ-020
+date: "2026-09-07T05:13:43Z"
+branch: feature/WF02-REQ-020
+commit: e2c6629
+lint: pass
+build: pass
+notes: >
+  npm run lint: 0 errors, 2 pre-existing warnings (apps/web/src/components/landing/
+  Footer.tsx:11 and Nav.tsx:10, <img> LCP warnings, unrelated to this diff -- both
+  files untouched by REQ-020's own diff).
+  npm run build: apps/web (next build) compiled successfully; apps/bot (tsc -p
+  tsconfig.json) clean, zero errors.
+  npx vitest run --no-file-parallelism from REPO ROOT (per ISS-0016, never
+  --root apps/bot): 15 files / 172 tests passed, 0 failed. This is the
+  authoritative count for this run (not carried over from any earlier step's
+  report).
+cases:
+  - acceptance_criterion: AC1
+    result: pass
+    notes: >
+      Existing re-run: `cd apps/bot && npx vitest run --no-file-parallelism
+      src/domain/registration.db.test.ts -t "AC1"` -> 1 passed | 12 skipped (13),
+      exit 0. This spec's own 30-iteration/4-caller/capacity=3 live-dispatch race
+      through the real register:<eventId> callback handler (bot.handleUpdate via
+      Promise.all, fresh fixtures each of the 30 iterations): result
+      {"totalIterations": 30, "anyError": false, "badIterations": [], "allPassed":
+      true} -- every single iteration produced exactly 3 admitted + 1 waitlisted,
+      zero thrown exceptions across all 120 concurrent handler invocations.
+  - acceptance_criterion: AC2
+    result: pass
+    notes: >
+      Existing re-run: -t "AC2" -> 1 passed | 12 skipped (13), exit 0. This spec's
+      own genuinely concurrent same-user double-tap (Promise.allSettled, capacity=5):
+      both dispatches fulfilled (no rejection/uncaught unique-violation), exactly 1
+      registrations row for the (event,user) pair, captured replies were exactly one
+      "You're in!..." confirmation and one "You're already registered for this
+      event. Status:\nadmitted..." -- one of each kind.
+  - acceptance_criterion: AC3
+    result: pass
+    notes: >
+      Existing re-run: -t "generateQrToken" -> 2 passed | 13 skipped (15), exit 0.
+      This spec's own 5000-token script: {"generated": 5000, "uniqueCount": 5000,
+      "distinctHexCharsSeen": 16, "anyPathologicalRun": false}. Zero collisions,
+      every token matched /^[0-9a-f]{64}$/, all 16 hex digits observed.
+      anyPathologicalRun=false is recorded informationally per spec and did not
+      factor into the verdict either way.
+  - acceptance_criterion: AC4
+    result: pass
+    notes: >
+      Existing DB re-run: -t "AC4" -> 3 passed | 10 skipped (13), exit 0.
+      Authoritative exact-boundary re-run: `npx vitest run --no-file-parallelism
+      src/domain/registration.test.ts -t "row 4: registration closed"` -> 1 passed
+      | 14 skipped (15), exit 0 -- confirms decideRegistrationOutcome with
+      registrationClosesAt === evaluationTime (the literal same Date instant)
+      still asserts {kind: "registration-closed"}, i.e. the boundary instant is
+      exclusive (closed side), algebraically, with zero timing dependency.
+      Live dispatch (cancelled/finished/boundary-at-~0.5s-past-close via a real
+      handler new Date() call, registration_closes_at computed at Date.now()+2000ms
+      then a 2.5s wait before dispatch): all 3 taps produced the exact expected
+      verbatim text ("This event has been cancelled.\nSee what's coming up with
+      /events", "This event has already finished.\n...", "Registration for this
+      event is closed.\n...") and zero registrations rows were written.
+  - acceptance_criterion: AC5
+    result: pass
+    notes: >
+      Existing re-run: -t "AC5" -> 2 passed | 11 skipped (13), exit 0. This spec's
+      own live end-to-end /start -> consent -> Register dispatch: the spec's
+      literal dispatch text ("/start e0002000-...") was missing the mandatory
+      "e_" deep-link prefix that domain/event.ts's parseStartPayload requires
+      (confirmed against parseStartPayload's own source and against every prior
+      spec -- REQ-016.md/REQ-017.md -- which always dispatch "/start e_<uuid>").
+      Filed as a MINOR test-spec defect (see issues below) and corrected in the
+      harness to "/start e_e0002000-..." to actually exercise the deep-link path
+      this AC is about. With the corrected prefix: channel-suffixed link ->
+      source='linkedin', pending_source=NULL after; bare link -> source='direct',
+      pending_source=NULL after. Both went through the real /start -> consent:agree
+      -> register:<id> dispatch chain with no direct registerForEvent/
+      setPendingSource call anywhere in the harness.
+  - acceptance_criterion: AC6
+    result: pass
+    notes: >
+      Existing re-run: -t "AC6" -> 2 passed | 11 skipped (13), exit 0. Live dispatch
+      against two capacity=5 events (requires_invite, requires_approval): tap 1
+      reply text exactly "This event is invite-only.", tap 2 exactly "This event
+      requires organizer approval to register.", zero registrations rows written
+      despite 5 free seats on both.
+  - acceptance_criterion: AC7
+    result: pass
+    notes: >
+      Existing re-run: -t "AC7" -> 3 passed | 10 skipped (13), exit 0. Live dispatch,
+      capacity=1, two tappers: read-back showed exactly 2 audit_log rows joined to
+      their registrations -- row 1 admission=admitted, action=registration.admit,
+      payload contains the correct eventId, actor_user_id = first tapper's own
+      users.id; row 2 admission=waitlisted, action=registration.waitlist,
+      actor_user_id = second tapper's own users.id. Total audit_log rows with
+      entity='registration' = 2, matching exactly.
+  - acceptance_criterion: AC8
+    result: pass
+    notes: >
+      Live dispatch against a directly-stored capacity=0 event: registrations
+      read-back = admission='waitlisted', qr_token=NULL (empty). Reply text starts
+      with "You're on the waitlist for:". Never admitted, no qr_token issued.
+  - acceptance_criterion: AC9
+    result: pass
+    notes: >
+      Live dispatch of register:00000000-0000-0000-0000-000000000000 (well-formed,
+      never-created id): reply text exactly "This event isn't available right
+      now.\nSee what's coming up with /events" (the same generic non-disclosure
+      text used elsewhere), registrations count = 0, audit_log count = 0. No
+      thrown/unhandled error.
+  - acceptance_criterion: AC-card
+    result: pass
+    notes: >
+      Live /start e_<id> dispatch (corrected prefix, see AC5 note) against a
+      published event with a venue: single sendMessage, reply_markup.inline_keyboard
+      = exactly [[{text: "Register", callback_data:
+      "register:e0002000-0000-0000-0000-000000000ac0"}]] -- one row, one button.
+      Card text ("Card Event\n...\nSeats left: 10") contains no "cardCta" literal
+      and no leftover text-CTA sentence.
+  - acceptance_criterion: AC-schema
+    result: pass
+    notes: >
+      `git diff master...HEAD --stat -- apps/bot/drizzle` produced no output --
+      zero files changed under apps/bot/drizzle/, confirming REQ-020 introduces no
+      migration.
+  - acceptance_criterion: AC-catalog
+    result: pass
+    notes: >
+      apps/bot/src/i18n/types.ts's registration block has exactly 15 keys
+      (registerButton, confirmedPrefix, whatNext, waitlistedPrefix,
+      alreadyRegisteredPrefix, statusAdmitted, statusWaitlisted, statusRequested,
+      statusRejected, statusWithdrawn, refusedCancelled, refusedFinished,
+      refusedClosed, refusedRequiresInvite, refusedRequiresApproval), recounted
+      directly from the live file. ru.ts and en.ts each define the identical key
+      set with real translated/English strings, verified by direct grep+read, no
+      key present in one file and missing from another. "cardCta" grep across
+      types.ts/ru.ts/en.ts: zero matches in all three. index.ts: exactly one
+      `bot.callbackQuery(REGISTER_CALLBACK_PATTERN, makeRegisterCallbackHandler(db))`
+      registration line, reachable (not inside a dead/commented block).
+issues_found:
+  - severity: MINOR
+    title: "REQ-020.md's AC5 and AC-card live-dispatch cases omit the mandatory 'e_' deep-link prefix in their literal /start dispatch text"
+    description: >
+      docs/agents/test-specs/REQ-020.md's AC5 case specifies
+      `/start e0002000-0000-0000-0000-000000000a50__linkedin` and
+      `/start e0002000-0000-0000-0000-000000000a50`, and AC-card specifies
+      `/start e0002000-0000-0000-0000-000000000ac0` -- all three omit the "e_"
+      prefix that apps/bot/src/domain/event.ts's parseStartPayload requires
+      (`if (!trimmed.startsWith("e_")) return { kind: "none" }`). Every prior
+      spec that dispatches a /start deep link (docs/agents/test-specs/REQ-016.md,
+      REQ-017.md) always includes the "e_" prefix. As literally written, AC5's
+      /start dispatch is silently treated as a payload-less /start (kind: "none")
+      -- the case still happens to reach the correct end state because AC5's
+      subsequent consent:agree callback_data carries its own explicit "e_"
+      prefix independent of the /start payload -- but AC-card has no such
+      callback step, so running AC-card exactly as literally specified makes
+      the user fall into the ordinary profile-onboarding flow ("What's your
+      first name?") instead of ever reaching the event card, which would have
+      produced a false FAIL entirely due to the spec's own typo, not a product
+      defect. TEST-RUNNER corrected the harness to use "e_"-prefixed dispatch
+      text for both AC5 and AC-card and confirmed both pass with the real
+      deep-link path genuinely exercised.
+    affected_files:
+      - docs/agents/test-specs/REQ-020.md
+  - severity: MINOR
+    title: "REQ-020.md's AC-card fixture uses an invalid (non-hex) UUID literal for the venue id"
+    description: >
+      The AC-card fixture's venue INSERT statement uses id
+      'c0002000-0000-0000-0000-00000000ac0v' -- the trailing 'v' is not a valid
+      hex digit, so Postgres rejects it with "invalid input syntax for type
+      uuid". TEST-RUNNER substituted a valid uuid
+      ('c0002000-0000-0000-0000-00000000ac0a') with no other change to the
+      fixture and confirmed AC-card passes.
+    affected_files:
+      - docs/agents/test-specs/REQ-020.md
+harness_teardown:
+  scratch_files_deleted: true
+  docker_compose_down: true
+  git_status_porcelain_clean: true
