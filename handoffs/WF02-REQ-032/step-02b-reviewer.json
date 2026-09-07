@@ -1,0 +1,63 @@
+{
+  "handoff_id": "step-02b-reviewer",
+  "run_id": "WF02-REQ-032",
+  "workflow_id": "WF-02",
+  "step": "02b",
+  "from_agent": "REVIEWER",
+  "to_agent": "SECURITY-REVIEWER",
+  "file": "handoffs/WF02-REQ-032/step-02b-reviewer.json",
+  "created_at": "2026-09-07T21:28:15Z",
+  "started_at": "2026-09-07T21:24:40Z",
+  "completed_at": "2026-09-07T21:28:15Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-032"],
+    "related_handoff_ids": ["step-01-code-designer", "step-01-data-designer", "step-01b-code-design-validator", "step-02-backend-dev"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-032.md",
+      "docs/agents/design/REQ-032-schema.md",
+      ".claude/agents/reviewer.md",
+      "docs/agents/instructions/core-directives.md",
+      "docs/guides/frontend_developer_guide.md",
+      "docs/agents/anti-patterns.md",
+      "docs/agents/decisions/0004-telegram-framework-grammy.md",
+      "docs/agents/decisions/0005-orm-drizzle.md",
+      "docs/agents/decisions/0006-test-framework-vitest.md",
+      "handoffs/WF02-REQ-032/step-02-backend-dev.json"
+    ]
+  },
+  "task": {
+    "description": "WF-02 Step 2b review gate for REQ-032 (no-show reason capture), the final requirement of Release 1, on branch feature/WF02-REQ-032.",
+    "acceptance_criteria": [
+      "isNoShow is a pure derivation, never stored, no boolean column/cache/materializing write anywhere in the diff",
+      "writeNoShowReason is the ONLY write path to registrations.no_show_reason",
+      "Exactly one job/kind (no_show_reason_request) exists; no reminder mechanism; schema.ts has zero diff",
+      "noShow.ts handlers resolve identity from the acting Telegram user, never trust the encoded registrationId as authorization (S3 pattern)",
+      "i18n wording is blame-free/factual and the handoff discloses it as provisional pending the product owner (AC7)",
+      "apps/bot/src/handlers/staff.ts (ISS-0020) has zero diff",
+      "npm run lint -w apps/bot and npm run build -w apps/bot pass",
+      "npx vitest run --no-file-parallelism passes clean"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Reviewed the full diff (git diff master...HEAD) for feature/WF02-REQ-032 against docs/agents/design/REQ-032.md, REQ-032-schema.md, the requirement's 7 ACs (docs/agents/requirements.yaml), decisions/0004 (grammY: domain logic outside handlers) and decisions/0006 (no now()/current_timestamp in a time-dependent predicate). Findings: (1) isNoShow (apps/bot/src/domain/registration.ts) is a pure 4-parameter function matching the design's first-match-wins table verbatim, delegates its 'strictly after ends_at' branch to the existing isFinished, takes evaluationTime as an explicit parameter (never reads the clock) -- traced every call site (composeNoShowReasonRequest in scheduler/noShowJobs.ts is the only caller) and confirmed no boolean is ever persisted; grep of the full diff for a no_show boolean column/materializing write found none. (2) grep of noShowReason/no_show_reason across apps/bot/src confirms writeNoShowReason (registration.ts) is the ONLY write site to registrations.no_show_reason -- every other reference is a read (getRegistrationNoShowContext, schema.ts's column declaration, the three already-answered gate checks in noShowJobs.ts/noShow.ts). (3) scheduler/noShowJobs.ts defines exactly one ScheduledJobDefinition (makeNoShowReasonRequestJob) and one new NotificationKind member ('no_show_reason_request'); no second/reminder job exists anywhere in the diff; git diff master...HEAD -- apps/bot/src/db/schema.ts is empty (zero diff, confirmed by direct diff command), matching DATA-DESIGNER's 'no migration needed' decision -- no asked-at column added. AC3's 'no reminder' guarantee rests structurally on this absence plus sendLedgeredNotification's existing UNIQUE(registration_id,kind) ledger constraint, reused unchanged. (4) handlers/noShow.ts: read the full file. Every handler (makeNoShowReasonCallbackHandler, makeNoShowOtherCallbackHandler, makeNoShowTextReplyHandler) resolves identity via ctx.from?.id -> getFlowUserByTgId(db, BigInt(tgId)) -- the acting Telegram user -- and then checks context.userId !== flowUser.id before any write, refusing with notYours/silent-return on mismatch. The registrationId embedded in callback_data or the reply's ref line is used only to look up the row via getRegistrationNoShowContext; it is never trusted as authorization by itself. This matches REQ-031's established S3 ownership pattern exactly -- verified against the actual code, not just BACKEND-DEV's claim. (5) Read apps/bot/src/i18n/en.ts and ru.ts noShow.* entries directly: prompt ('We noticed there's no check-in recorded for this event. Would you like to share what got in the way?'), reason labels, thanksMessage, alreadyAnswered, staleMessage, notYours -- none imply fault ('you missed it', 'you failed to attend' framing is absent); genuinely reads as factual/neutral per STORY-DETAILS D3. Confirmed the handoff's result.issues contains an explicit MAJOR-severity entry stating the wording is provisional pending the product owner, quoting the exact English strings used -- this is the AC7-mandated disclosure and it is present, not merely implied. (6) git diff master...HEAD -- apps/bot/src/handlers/staff.ts is empty -- confirmed zero diff, ISS-0020 scope boundary respected. (7) Ran npm run lint -w apps/bot myself: clean, zero warnings/errors. (8) Ran npm run build -w apps/bot myself: clean, zero type errors. (9) Ran npx vitest run --no-file-parallelism myself (the ISS-0014-mandated flag) from the repo root: 33 test files / 316 tests, ALL PASSED, 28.99s. This directly contradicts nothing -- it corroborates BACKEND-DEV's own root-cause attribution: their bare `npm test` run (no flag) saw 80 failures with deadlock-detected/foreign-key-violation signatures across unrelated db.test.ts files, which they attributed to a parallel-worker DB-contention issue (ISS-0027) after reproducing the identical failure set at the branch's pre-change state. Running the MANDATED serialized command myself, on this branch's actual current state (with REQ-032's changes included, not stashed out), gives a clean 316/316 pass -- the real CI-equivalent signal is green, confirming the parallel-worker flakiness explanation rather than leaving it as an unverified claim. No design-system check applies (apps/bot has no CSS/visual surface, per REQ-032.md §7 and every prior Release-1 bot requirement's identical reasoning). Scope: diff touches exactly the 8 files the design/handoff list (registration.ts, notification.ts, noShowJobs.ts [new], noShow.ts [new], i18n/{types,en,ru}.ts, index.ts) plus the expected docs/handoffs additions -- no unlisted apps/bot file, no apps/web file, no workspace/build-output change (Docker rebuild verification not triggered).",
+    "artifacts_out": [
+      "handoffs/WF02-REQ-032/step-02b-reviewer.json"
+    ],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-032",
+      "commit_sha_list": ["be151fb", "d700df2", "3bbf9e7"],
+      "verification_commands_run": [
+        "npm run lint -w apps/bot",
+        "npm run build -w apps/bot",
+        "npx vitest run --no-file-parallelism"
+      ]
+    },
+    "next_action": "Route to SECURITY-REVIEWER (Step 2c)"
+  },
+  "rework_count": 0,
+  "max_rework": 3
+}
