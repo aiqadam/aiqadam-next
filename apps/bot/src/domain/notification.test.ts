@@ -142,7 +142,17 @@ async function seedRegistration(
 
 function makeFakeSender(): { sender: NotificationSender; sentTo: bigint[] } {
   const sentTo: bigint[] = [];
-  return { sender: { async send(tgId) { sentTo.push(tgId); } }, sentTo };
+  return {
+    sender: {
+      async send(tgId) {
+        sentTo.push(tgId);
+      },
+      async sendPhoto(tgId) {
+        sentTo.push(tgId);
+      },
+    },
+    sentTo,
+  };
 }
 
 describe("sendLedgeredNotification -- REQ-025 S10 truth table (AC3/AC4)", () => {
@@ -160,7 +170,7 @@ describe("sendLedgeredNotification -- REQ-025 S10 truth table (AC3/AC4)", () => 
       kind: "admission_result",
       classification: "transactional",
       userId,
-      composeMessage: () => "test",
+      composeMessage: () => ({ kind: "text" as const, text: "test" }),
     });
     expect(outcome).toEqual({ kind: "sent" });
     expect(sentTo).toHaveLength(1);
@@ -190,7 +200,7 @@ describe("sendLedgeredNotification -- REQ-025 S10 truth table (AC3/AC4)", () => 
       kind: "admission_result",
       classification: "transactional",
       userId,
-      composeMessage: () => "test",
+      composeMessage: () => ({ kind: "text" as const, text: "test" }),
     });
     expect(outcome).toEqual({ kind: "skipped-blocked" });
     expect(sentTo).toHaveLength(0);
@@ -223,7 +233,7 @@ describe("sendLedgeredNotification -- REQ-025 S10 truth table (AC3/AC4)", () => 
       kind: "feedback_request",
       classification: "marketing",
       userId,
-      composeMessage: () => "test",
+      composeMessage: () => ({ kind: "text" as const, text: "test" }),
     });
     expect(outcome).toEqual({ kind: "sent" });
     expect(sentTo).toHaveLength(1);
@@ -256,7 +266,7 @@ describe("sendLedgeredNotification -- REQ-025 S10 truth table (AC3/AC4)", () => 
       kind: "feedback_request",
       classification: "marketing",
       userId,
-      composeMessage: () => "test",
+      composeMessage: () => ({ kind: "text" as const, text: "test" }),
     });
     expect(outcome).toEqual({ kind: "skipped-no-broadcast-opt-in" });
     expect(sentTo).toHaveLength(0);
@@ -289,7 +299,7 @@ describe("sendLedgeredNotification -- REQ-025 S10 truth table (AC3/AC4)", () => 
       kind: "feedback_request",
       classification: "marketing",
       userId,
-      composeMessage: () => "test",
+      composeMessage: () => ({ kind: "text" as const, text: "test" }),
     });
     expect(outcome).toEqual({ kind: "skipped-blocked" });
     expect(sentTo).toHaveLength(0);
@@ -323,7 +333,7 @@ describe("sendLedgeredNotification -- REQ-025 S10 truth table (AC3/AC4)", () => 
       kind: "admission_result",
       classification: "transactional",
       userId,
-      composeMessage: () => "test transactional",
+      composeMessage: () => ({ kind: "text" as const, text: "test transactional" }),
     });
     expect(outcome1).toEqual({ kind: "sent" });
 
@@ -334,7 +344,7 @@ describe("sendLedgeredNotification -- REQ-025 S10 truth table (AC3/AC4)", () => 
       kind: "waitlist_promotion",
       classification: "marketing",
       userId,
-      composeMessage: () => "test marketing",
+      composeMessage: () => ({ kind: "text" as const, text: "test marketing" }),
     });
     expect(outcome2).toEqual({ kind: "skipped-no-broadcast-opt-in" });
 
@@ -359,7 +369,7 @@ describe("sendLedgeredNotification -- concurrent-call race (REQ-025)", () => {
         kind: "admission_result",
         classification: "transactional",
         userId,
-        composeMessage: () => "concurrent test",
+        composeMessage: () => ({ kind: "text" as const, text: "concurrent test" }),
       });
 
     const [outcomeA, outcomeB] = await Promise.all([callOnce(), callOnce()]);
@@ -399,7 +409,7 @@ describe("sendLedgeredNotification -- concurrent-call race (REQ-025)", () => {
           kind: "waitlist_promotion",
           classification: "transactional",
           userId,
-          composeMessage: () => "pool A",
+          composeMessage: () => ({ kind: "text" as const, text: "pool A" }),
         }),
         sendLedgeredNotification({
           db: dbB,
@@ -408,7 +418,7 @@ describe("sendLedgeredNotification -- concurrent-call race (REQ-025)", () => {
           kind: "waitlist_promotion",
           classification: "transactional",
           userId,
-          composeMessage: () => "pool B",
+          composeMessage: () => ({ kind: "text" as const, text: "pool B" }),
         }),
       ]);
 

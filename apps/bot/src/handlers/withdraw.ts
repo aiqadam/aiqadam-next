@@ -180,7 +180,7 @@ export function makeWithdrawConfirmCallbackHandler(db: DbClient["db"], sender: N
 // stays Promise<void>: the SendOutcome is not acted on here, matching
 // REQ-023 §6.2 step 3's "never blocks or affects the withdrawer's own
 // reply" precedent.
-async function sendPromotionNotification(
+export async function sendPromotionNotification(
   db: DbClient["db"],
   sender: NotificationSender,
   promotedRegistrationId: string,
@@ -212,13 +212,16 @@ async function sendPromotionNotification(
         }
       }
 
-      return [
+      const text = [
         catalog.promotion.admittedPrefix,
         eventTitle,
         dateTimeText,
         `${catalog.promotion.qrLabel} ${qrToken}`,
         catalog.promotion.whatNext,
       ].join("\n");
+      // docs/agents/design/REQ-026.md §1.4 — mechanical wrapper-shape
+      // migration only; the joined-lines text itself is unchanged.
+      return { kind: "text" as const, text };
     },
   });
 }

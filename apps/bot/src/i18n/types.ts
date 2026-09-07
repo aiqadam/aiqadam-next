@@ -237,4 +237,18 @@ export interface Catalog {
     emptyState: string;
     withdrawButton: string;
   };
+  // NEW, REQ-026: T-24h "Still coming?" reconfirmation and T-3h route/QR
+  // reminder jobs (design §6). Placeholder/minimal functional copy per
+  // decisions/0002 (CONTENT-BA owns final wording).
+  reminder24h: {
+    prompt: string;
+    confirmButton: string;
+    declineButton: string;
+    reconfirmedReply: string;
+  };
+  reminder3h: {
+    header: string;
+    doorsLabel: string;
+    startLabel: string;
+  };
 }

@@ -1,0 +1,156 @@
+run_id: WF02-REQ-026
+workflow_id: WF-02
+step: "04"
+role: TEST-RUNNER
+requirement: WF02-REQ-026
+branch: feature/WF02-REQ-026
+commit_at_start: e7c5b56
+date: 2026-09-07
+spec: docs/agents/test-specs/REQ-026.md
+
+commands:
+  lint:
+    command: "npm run lint"
+    result: "0 errors, 2 pre-existing apps/web <img>/LCP warnings in Footer.tsx/Nav.tsx (unrelated to this branch's diff, apps/web not touched by REQ-026)"
+    exit_code: 0
+  build:
+    command: "npm run build"
+    result: "apps/web (Next.js/Turbopack) and apps/bot (tsc -p tsconfig.json) both clean"
+    exit_code: 0
+  vitest_full_repo_root:
+    command: "npx vitest run --no-file-parallelism"
+    cwd: repo root
+    result: "23 test files passed (23), 255 tests passed (255), 0 failed"
+    note: "Up from the 249-test baseline by exactly 6 -- the 3 new committed cases in apps/bot/src/handlers/reminder24h.forgery.test.ts, plus 3 new committed cases in apps/bot/src/scheduler/reminderJobs.db.test.ts (AC4's own mid-flight-withdraw race case, AC7's own fixture, AC8's own fixture). This count is from a fresh run taken AFTER the AC3 scratch-file teardown, per ISS-0014's own TEST-RUNNER instruction to never carry over a number from an earlier step."
+
+new_committed_test_files:
+  - path: apps/bot/src/handlers/reminder24h.forgery.test.ts
+    describes:
+      - "reminder24h:confirm/:decline -- forged callback naming another user's registrationId (2 cases, tg_id 990_000_000+)"
+      - "reminder24h:confirm -- REQ-026 AC2 order-of-operations: reconfirm after decline is impossible (1 case)"
+  - path: apps/bot/src/scheduler/reminderJobs.db.test.ts
+    note: "existing BACKEND-DEV file, amended with 3 new describe/it blocks per the spec's own fixture instructions for AC4, AC7, AC8"
+
+acceptance_criteria:
+  - id: AC1
+    description: "event exactly 24h out, 1 admitted registration -> T-24h job sends exactly one message with both buttons"
+    verification: "npx vitest run --no-file-parallelism src/scheduler/reminderJobs.db.test.ts -t \"AC1\" (from apps/bot)"
+    result: "PASS -- 2 passed (the -t \"AC1\" substring also matches this file's AC10 describe block, since \"AC10\" contains \"AC1\"; both passed)"
+  - id: AC2
+    description: "confirm sets reconfirmed_at, admission unchanged; decline withdraws/frees seat; PLUS this spec's own confirm-after-decline order-of-operations case"
+    verification: "npx vitest run --no-file-parallelism src/handlers/reminder24h.test.ts -t \"AC2\" (existing 3 cases) PLUS the new forgery.test.ts order-of-operations case"
+    result: "PASS -- reminder24h.test.ts: 3 passed. reminder24h.forgery.test.ts's own order-of-operations case: passed as part of the full repo-root run (confirm dispatched after a prior decline on the same registrationId is refused with withdraw.refusedNotEligible, reconfirmedAt stays null, zero registration.reconfirm audit rows)."
+  - id: AC3
+    description: "genuine two-process kill-then-restart -- run, KILL process, restart, run same job again -> exactly ONE message"
+    verification: "scratch-verify-req026-p1.ts / -p2.ts, run sequentially via npx tsx against the scratch Postgres, per the spec's exact fixture/kill-point construction"
+    result: >-
+      PASS. p1: built fixture (chapter Asia/Almaty, event EVENT_KILL startsAt 2026-11-10T20:00:00Z,
+      KILL_SUBJECT tg_id 1000000991, registration 639f7881-657a-43b8-a111-1800190c07e8 via a real
+      registerForEvent call), called makeReminder24hJob(db, sender, 300000).run(new Date("2026-11-10T00:00:00Z")).then(() => process.exit(0)).
+      Observed shell exit code 0. Direct SQL after p1: exactly 1 notification_ledger row for
+      (registration_id, kind='reminder_24h'); deliveries file exactly 1 line.
+      p2 (npx tsx, a genuinely fresh Pool/drizzle instance via createDbClient, no shared JS heap
+      with p1): read registrationId from the sidecar file, called the identical
+      makeReminder24hJob(...).run(evaluationTime) again, exit code 0. After p2: deliveries file
+      still exactly 1 line (same pid as p1's -- confirms p2 never called sender.send), ledger row
+      count still exactly 1, KILL_SUBJECT's registration still admission='admitted'. All 3 pass
+      conditions held. Teardown: all 4 scratch files deleted; git status --porcelain confirmed
+      clean of any stray AC3 artefact.
+  - id: AC4
+    description: "withdrawn BEFORE either job runs receives nothing; PLUS this spec's own withdrawn-BETWEEN-selection-and-send (at-send-time recheck) case"
+    verification: "npx vitest run --no-file-parallelism src/scheduler/reminderJobs.db.test.ts -t \"AC4\" (from apps/bot) PLUS full repo-root run for the new race case"
+    result: >-
+      PASS, with one recorded MINOR test-spec deviation (see issues below). The existing
+      "withdrawn before either job runs" case: 1 passed as expected. The spec's OWN literal
+      construction for the mid-flight-withdraw case ("call withdrawRegistration... before calling
+      makeReminder24hJob(...).run(evaluationTime)") was found NOT to reach the property it claims:
+      selectRegistrationsForReminder24h (domain/reminders.ts) is a live SQL query filtering
+      admission='admitted' at the moment run() executes, so withdrawing the single candidate
+      BEFORE run() excludes it from selection entirely (produced 0 ledger rows, 0 sends when run
+      literally as specified -- confirmed by direct execution, not conjecture). This is
+      indistinguishable from AC4's own already-covered "excluded from selection entirely" case and
+      does not exercise composeMessage's own at-send-time recheck at all. Rewrote the case (same
+      file, same acceptance intent, own construction) to seed TWO admitted registrations in the
+      window and withdraw the second one as a side effect of the first one's own sender.send()
+      resolving -- this genuinely lands the withdrawal in the true gap (after
+      selectRegistrationsForReminder24h's one read, before the second candidate's own
+      composeMessage call). Result: exactly one candidate sent, the other's row is withdrawn while
+      its ledger row is still committed (1 row, kind reminder_24h) -- proving step 4's insert
+      commits independently of step 5's compose-time skip, exactly as REQ-026.md's own §1.2 rule
+      states.
+  - id: AC5
+    description: "T-3h message has address, both map links, chapter-timezone start time, and a QR decoding to the exact deep link"
+    verification: "npx vitest run --no-file-parallelism src/scheduler/reminderJobs.db.test.ts -t \"AC5\" (from apps/bot)"
+    result: "PASS -- 1 passed, exit 0"
+  - id: AC6
+    description: "doors item in agenda -> T-3h quotes BOTH doors time and start time"
+    verification: "Subsumed by AC7's own case (both existing BACKEND-DEV AC6/AC7 case and this spec's new AC7 case assert both lines present)"
+    result: "PASS"
+  - id: AC7
+    description: "doors time byte-for-byte identical to REQ-017's card rendering, this spec's own fixture (America/Argentina/Buenos_Aires, en, different doors value/label than BACKEND-DEV's)"
+    verification: "New case in reminderJobs.db.test.ts, executed as part of the full repo-root run"
+    result: >-
+      PASS, with one authoring fix recorded (this run's own responsibility, not a spec defect):
+      the first draft reused the shared seedAdmittedRegistration helper, which hardcodes the
+      registrant's own lang to \"ru\" -- since resolveLang derives the resolved lang from the
+      USER's own lang (not the chapter alone), this silently produced a Russian-language caption
+      even with the chapter's defaultLang set to \"en\", and the exact-substring assertion against
+      the English-formatted expectedDoorsText failed (caption contained no \"Nov 5, 2026, 18:45\"
+      substring at all). Fixed by seeding this case's own registrant directly via
+      resolveOrCreateUser(..., lang: \"en\") + registerForEvent, matching the spec's own stated
+      intent (\"lang: 'en' instead of 'ru'\"). After the fix: message.caption contains
+      expectedDoorsText; buildEventCardContent's own cardDoorsLine.timeText === expectedDoorsText;
+      and the exact-substring extracted from the caption's own doors line (split on \"\\n\",
+      strip the English catalog.reminder3h.doorsLabel prefix and one space) is byte-for-byte ===
+      cardDoorsLine.timeText.
+  - id: AC8
+    description: "non-doors-only agenda (workshop/afterparty kinds) -> starts_at alone, no leaked agenda time"
+    verification: "New case in reminderJobs.db.test.ts, executed as part of the full repo-root run"
+    result: "PASS -- caption contains the start-time line, does not contain catalog.reminder3h.doorsLabel, and does not contain either non-doors item's own formatted time."
+  - id: AC9
+    description: "no doors_at (or equivalent) column exists anywhere"
+    verification: "git grep -in \"doors_at\" -- apps/bot ; git grep -in \"doorsAt\" -- apps/bot/src ; git diff master...HEAD --stat -- apps/bot/drizzle"
+    result: >-
+      PASS, with the one hit investigated and attributed structurally. First grep (doors_at, all
+      of apps/bot) found ONE hit: apps/bot/src/db/schema.ts:232, a comment ("No doors_at column
+      exists anywhere (PRD 5)") documenting the REJECTED design, not a stored column -- confirmed
+      via git blame (commit 584707f9, dated 2026-09-06, predates this branch) and
+      git diff master...HEAD --name-only (schema.ts does not appear in this branch's diff at all).
+      Per core-directives.md's Failure Attribution route 1 ("the failing file and its dependencies
+      do not appear in git diff --name-only main...HEAD"), this hit is structurally pre-existing
+      and not introduced by REQ-026 -- the underlying property (no doors_at COLUMN anywhere) holds.
+      Second grep (doorsAt, apps/bot/src): zero matches. Third command: empty output -- no new
+      migration file, confirmed REQ-026 ships zero migrations.
+  - id: AC10
+    description: "both reminders reach broadcast_opt_in=false users; structural classification: literal-string cross-check"
+    verification: "npx vitest run --no-file-parallelism src/scheduler/reminderJobs.db.test.ts -t \"AC10\" (from apps/bot) ; grep -n \"classification:\" apps/bot/src/scheduler/reminderJobs.ts"
+    result: "PASS -- 1 passed. grep found exactly 2 matches, both reading classification: \"transactional\", (lines 126 and 152), neither a variable/conditional expression."
+  - id: forged-callback-non-authorization
+    description: "committed regression coverage for the property SECURITY-REVIEWER verified ad hoc and deleted -- attacker naming a victim's registrationId in a forged reminder24h:confirm/:decline callback"
+    verification: "apps/bot/src/handlers/reminder24h.forgery.test.ts, 2 cases, executed as part of the full repo-root run"
+    result: >-
+      PASS -- both cases pass exactly as specified. Case 1 (no-registration attacker attempts
+      confirm): reply is catalog.withdraw.refusedNotFound (non-disclosing), victim row unaffected
+      (admission still admitted, reconfirmedAt still null), zero registration.reconfirm audit
+      rows for the victim's id. Case 2 (attacker with own separate registration attempts decline):
+      reply is refusedNotFound, victim's seat NOT freed (admission still admitted), attacker's OWN
+      registration also untouched (rules out a silent-substitution bug), zero
+      registration.withdraw audit rows for the victim's id.
+
+overall_verdict: PASS
+routing: RELEASE-VALIDATOR (Step 5)
+
+issues:
+  - severity: MINOR
+    description: >-
+      docs/agents/test-specs/REQ-026.md's AC4 own-case construction ("call withdrawRegistration...
+      before calling makeReminder24hJob(...).run(evaluationTime)") does not actually land the
+      withdrawal in the gap it claims to, because selectRegistrationsForReminder24h is a live SQL
+      query re-evaluated at run() call time, not a snapshot taken earlier -- withdrawing the sole
+      candidate before run() simply excludes it from selection (produces 0 ledger rows), which is
+      indistinguishable from AC4's own already-covered "excluded from selection entirely" case and
+      never exercises composeMessage's own at-send-time recheck. This run reconstructed the case
+      (same acceptance intent, two registrations, second one withdrawn as a side effect of the
+      first's own sender.send resolving) to genuinely reach the property, and it passes. Recommend
+      TEST-DESIGNER correct the spec's own wording/construction for this case on a future revision
+      so a fresh TEST-RUNNER does not need to re-derive the same fix independently.

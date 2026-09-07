@@ -649,6 +649,137 @@ export async function getMyRegistrations(
   }));
 }
 
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-026.md §2 — getRegistrationAdmissionAndEvent: the
+// at-send-time re-check read both reminder jobs' composeMessage closures
+// call. Plain SELECT, no lock (a read, not a write — the actual withdraw/
+// reconfirm writes each take their own row lock inside their own
+// transaction). Returns null when no row exists. `qrToken` (§5.2, amended)
+// is included since the T-3h path is the first composeMessage caller that
+// needs it.
+// ---------------------------------------------------------------------------
+export interface RegistrationAdmissionAndEvent {
+  admission: AdmissionState;
+  eventId: string;
+  userId: string;
+  qrToken: string | null;
+}
+
+export async function getRegistrationAdmissionAndEvent(
+  db: DbClient["db"],
+  registrationId: string,
+): Promise<RegistrationAdmissionAndEvent | null> {
+  const rows = await db
+    .select({
+      admission: registrations.admission,
+      eventId: registrations.eventId,
+      userId: registrations.userId,
+      qrToken: registrations.qrToken,
+    })
+    .from(registrations)
+    .where(eq(registrations.id, registrationId))
+    .limit(1);
+
+  const row = rows[0];
+  if (row === undefined) {
+    return null;
+  }
+  return {
+    admission: row.admission as AdmissionState,
+    eventId: row.eventId,
+    userId: row.userId,
+    qrToken: row.qrToken,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-026.md §4 — the reconfirm path (AC1, AC2). Mirrors
+// decideWithdrawOutcome/withdrawRegistration's shape exactly: a pure decision
+// function plus a transactional write.
+// ---------------------------------------------------------------------------
+export interface ReconfirmDecisionInput {
+  registrationExists: boolean;
+  ownerUserId: string | null;
+  actingUserId: string;
+  admission: AdmissionState | null;
+}
+
+export type ReconfirmOutcome =
+  | { kind: "not-found" }
+  | { kind: "not-owner" }
+  | { kind: "not-eligible"; admission: AdmissionState }
+  | { kind: "reconfirmed" };
+
+// §4's first-match-wins table, implemented in the exact stated order.
+export function decideReconfirmOutcome(input: ReconfirmDecisionInput): ReconfirmOutcome {
+  if (!input.registrationExists) {
+    return { kind: "not-found" };
+  }
+  if (input.ownerUserId !== input.actingUserId) {
+    return { kind: "not-owner" };
+  }
+  if (input.admission !== "admitted") {
+    return { kind: "not-eligible", admission: input.admission as AdmissionState };
+  }
+  return { kind: "reconfirmed" };
+}
+
+// §4's transactional write, same shape as withdrawRegistration's.
+export async function reconfirmRegistration(
+  db: DbClient["db"],
+  registrationId: string,
+  actingUserId: string,
+  at: Date,
+): Promise<ReconfirmOutcome> {
+  return db.transaction(async (tx) => {
+    // Step 1 — row lock, fresh read inside this transaction (never reused
+    // from whatever data populated the reminder message).
+    const rows = await tx
+      .select({
+        id: registrations.id,
+        eventId: registrations.eventId,
+        userId: registrations.userId,
+        admission: registrations.admission,
+      })
+      .from(registrations)
+      .where(eq(registrations.id, registrationId))
+      .for("update");
+
+    const row = rows[0];
+
+    // Step 2 — build the decision input and decide (pure, no I/O).
+    const outcome = decideReconfirmOutcome({
+      registrationExists: row !== undefined,
+      ownerUserId: row?.userId ?? null,
+      actingUserId,
+      admission: (row?.admission as AdmissionState | undefined) ?? null,
+    });
+
+    // Step 3 — every non-"reconfirmed" outcome returns unchanged: no write,
+    // no audit row.
+    if (outcome.kind !== "reconfirmed" || row === undefined) {
+      return outcome;
+    }
+
+    // Step 4 — the one-column UPDATE. `admission` is never written by this
+    // function, which is what makes AC2's "admission UNCHANGED" true
+    // structurally, not by convention.
+    await tx.update(registrations).set({ reconfirmedAt: at }).where(eq(registrations.id, row.id));
+
+    // Step 5 — exactly one audit_log row, same transaction (S8).
+    await writeAuditLog(tx, {
+      actorUserId: actingUserId,
+      action: "registration.reconfirm",
+      entity: "registration",
+      entityId: row.id,
+      payload: { eventId: row.eventId },
+      at,
+    });
+
+    return { kind: "reconfirmed" };
+  });
+}
+
 export async function getRegistrationForEventAndUser(
   db: DbClient["db"],
   eventId: string,

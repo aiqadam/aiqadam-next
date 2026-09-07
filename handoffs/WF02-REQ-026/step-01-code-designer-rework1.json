@@ -1,0 +1,21 @@
+{
+  "handoff_id": "step-01-code-designer-rework1",
+  "run_id": "WF02-REQ-026",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "CODE-DESIGNER",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "REWORK_COMPLETE",
+    "summary": "Rework iteration 1 of 3 on docs/agents/design/REQ-026.md, addressing the single MAJOR finding in handoffs/WF02-REQ-026/step-01b-design-validator.json (check 2d, implementation code present). Every other check the validator ran (agenda-shape/doors-identification, the AC7 byte-identity claim, the AC8 negative case, the reconfirmed_at claim, the NotificationSender extension vs. REQ-025's S9/S10 guarantees, the index.ts sequencing fix, and the full AC1-AC10 design-element map) was independently verified sound and was not touched.\n\nThe FAIL identified two real executable-code fragments in an otherwise disciplined document: Sec5.1 point 4 (T-24h composeMessage), which built `text` via a literal array assigned to a bare array-literal expression run through a real `.join(\"\\n\")` call, and built `buttons` via a literal two-element array containing template-literal `callbackData` interpolation (`` `reminder24h:confirm:${registrationId}` ``); and Sec5.2 point 4 (T-3h composeMessage), which built two of the caption's lines via inline template-literal interpolation (`` `${catalog.reminder3h.doorsLabel} ${formatDateTimeInTimezone(...)}` `` and the equivalent start-line expression).\n\nSec5.1 point 4: replaced the fenced code block with prose plus two tables. The first table states the T-24h text as a newline-joined, three-line composition (prompt from `catalog.reminder24h.prompt`, event title from `event.title`, date/time from `formatDateTimeInTimezone(event.startsAt, event.chapterTimezone, lang)`), in that order, citing the same 'join array, no conditional reordering' discipline REQ-017 Sec3.6 already uses for its own card text. The second table states the two-element `buttons` array: each row names the button's order, its `label` source (a catalog string), and its `callbackData` as a fixed literal prefix (`reminder24h:confirm:` or `reminder24h:decline:`) immediately followed by `registrationId`, with no separator character between them -- described as a composition rule, not as a template-literal expression. Point 5 (the `{ kind: \"text\", text, buttons }` return) is unchanged, now referring back to 'the text and buttons composed in point 4.'\n\nSec5.2 point 4: replaced the bulleted list (which contained two inline template-literal expressions) with prose plus one seven-row table stating the caption's lines in order: header, event title, doors line (conditional on `doorsItem !== null`, described as 'doorsLabel followed by a single space, followed by [the exact formatDateTimeInTimezone call with its three arguments, in the same order as buildEventCardContent's agendaLines mapping]' -- the AC7 byte-identity reasoning is preserved verbatim, only the syntax describing the concatenation changed from a template literal to prose), start line (always present, same 'label followed by a single space followed by the formatted value' phrasing), and the three venue lines (address/yandexUrl/googleUrl, each stated as 'sourced from venue.<field> when venue is non-null, otherwise an empty line' rather than the original `venue?.field ?? \"\"` expression). No `.join`, no array literal, no template-literal syntax remains in either point.\n\nContent and field-sourcing are unchanged from the failed version in both spots -- same lines, same order, same conditions, same cited functions/arguments -- only the syntax changed from executable TypeScript to prose/table description, matching the style the validator pointed to in REQ-017.md Sec3.2/Sec3.6 and REQ-025.md Sec4. No other line in docs/agents/design/REQ-026.md was changed; this is a surgical two-spot fix.",
+    "issues": [],
+    "next_action": "Route to CODE-DESIGN-VALIDATOR (Step 1b re-gate)"
+  },
+  "context": {
+    "requirement_id": "REQ-026",
+    "depends_on": ["REQ-025"],
+    "branch_name": "feature/WF02-REQ-026",
+    "artifacts_out": ["docs/agents/design/REQ-026.md"]
+  }
+}
