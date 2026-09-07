@@ -1525,7 +1525,7 @@ requirements:
   - id: REQ-030
     title: Walk-in registration at the door with in-flow consent and logged capacity override
     owner: BACKEND-DEV
-    status: pending
+    status: done
     description: >
       Closes PRD 14 build-order step 5. Implements USER-STORIES C5 /
       STORY-DETAILS C5 (Let a good walk-in in) and PRD FR-14a's "walk-in add".
