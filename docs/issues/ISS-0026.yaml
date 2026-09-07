@@ -1,0 +1,29 @@
+id: ISS-0026
+title: apps/bot/src/handlers/checkinQr.forgery.test.ts and walkin.db.test.ts both start tg_id allocation at 942_000_000
+discovered_by: TEST-DESIGNER
+discovered_in_run: WF02-REQ-030
+discovered_at: "2026-09-07T23:48:00Z"
+severity: MINOR
+description: >
+  Found while designing docs/agents/test-specs/REQ-030.md's own tg_id range.
+  apps/bot/src/handlers/checkinQr.forgery.test.ts (REQ-029) and
+  apps/bot/src/handlers/walkin.db.test.ts (REQ-030, this run) both declare a
+  local `nextTgId = 942_000_000` counter for generating fresh test users.
+  This has not caused an observed test failure yet -- both files currently
+  pass under `--no-file-parallelism` (ISS-0014's mandated flag), which
+  serializes file execution and each file's own counter only increments
+  within that file's own run. But the ranges are not reserved distinctly
+  from each other the way every other test file in this codebase's suite
+  deliberately does (each new requirement's test author has been picking a
+  fresh unclaimed range), so this is latent: any future change that
+  re-introduces file-level parallelism, or a shared fixture helper that
+  pools tg_ids across files, would start colliding on `users.tg_id`'s
+  unique constraint.
+  Recommended fix: a future pass (either editing one of the two existing
+  files, or a small shared test-utility change) gives each file its own
+  distinct tg_id range, matching the established one-range-per-file
+  convention every other test file in apps/bot/src follows.
+affected_files:
+  - apps/bot/src/handlers/checkinQr.forgery.test.ts
+  - apps/bot/src/handlers/walkin.db.test.ts
+status: open
