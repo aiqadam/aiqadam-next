@@ -245,4 +245,27 @@ export const en = {
     doorsLabel: "Doors open:",
     startLabel: "Starts:",
   },
+  // NEW, REQ-030: walk-in registration at the door. Placeholder/minimal
+  // functional copy per decisions/0002 (CONTENT-BA owns final wording).
+  walkin: {
+    usage: "Usage: /walkin <event_id> <name>|<company>|<phone>",
+    eventNotFound: "Event not found.",
+    notAuthorized: "You don't have organizer rights for this event.",
+    missingName: "Please provide a name.",
+    missingPhone: "Please provide a phone number.",
+    consentStatement:
+      "By registering this person, you confirm they have agreed to have their data stored.",
+    staleMessage: "This message is stale. Please run /walkin again.",
+    eventNotReady: "This event isn't ready for registration yet.",
+    eventCancelled: "This event has been cancelled.",
+    eventFinished: "This event has already finished.",
+    alreadyCheckedIn: "This person has already checked in for this event.",
+    success: "Done: {name}{company} is registered and checked in.",
+    overridePrompt: "No seats left ({admittedCount}/{capacity}). Add anyway?",
+    cancelled: "Cancelled, nothing was saved.",
+    confirmButtonLabel: "Confirm",
+    cancelButtonLabel: "Cancel",
+    overrideConfirmButtonLabel: "Add anyway",
+    overrideDismissButtonLabel: "Don't add",
+  },
 } satisfies Catalog;

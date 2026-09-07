@@ -318,6 +318,35 @@ export function validateProfileEditInput(fields: Record<string, string>): Profil
 }
 
 // ---------------------------------------------------------------------------
+// docs/agents/design/REQ-030.md §6.4 — createWalkinProfile: the walk-in
+// flow's own profile INSERT, used ONLY when no phone match was found
+// (domain/walkin.ts's commitWalkin §6.2 step 3). Every column beyond
+// user_id/first_name/company/phone is left at its column default/NULL --
+// the same partially-filled, resumable-later row shape REQ-019's own form
+// produces for someone mid-onboarding. The whole door-collected name string
+// is stored into first_name as-is; last_name stays NULL (§6.4, Open
+// Question 5 -- no first/last split is attempted here).
+// ---------------------------------------------------------------------------
+export interface CreateWalkinProfileInput {
+  userId: string;
+  name: string;
+  company: string; // "" treated as "no company given"
+  phone: string;
+}
+
+export async function createWalkinProfile(
+  db: DbClient["db"],
+  input: CreateWalkinProfileInput,
+): Promise<void> {
+  await db.insert(profiles).values({
+    userId: input.userId,
+    firstName: input.name,
+    company: input.company === "" ? null : input.company,
+    phone: input.phone,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // §2.5 — formatProfileDump, the view surface. S11's redaction rule does NOT
 // apply here — this is a direct reply to the same person whose data it is
 // (§2.5's own stated exception), never a log line, error message, or audit

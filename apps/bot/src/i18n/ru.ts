@@ -251,4 +251,27 @@ export const ru = {
     doorsLabel: "Открытие дверей:",
     startLabel: "Начало:",
   },
+  // NEW, REQ-030: регистрация на месте у входа. Предварительный/минимальный
+  // текст согласно decisions/0002 (окончательный текст утверждает CONTENT-BA).
+  walkin: {
+    usage: "Использование: /walkin <event_id> <имя>|<компания>|<телефон>",
+    eventNotFound: "Мероприятие не найдено.",
+    notAuthorized: "У вас нет прав организатора для этого мероприятия.",
+    missingName: "Укажите имя.",
+    missingPhone: "Укажите телефон.",
+    consentStatement:
+      "Регистрируя этого человека, вы подтверждаете, что он согласен на хранение своих данных.",
+    staleMessage: "Это сообщение устарело. Пожалуйста, повторите /walkin заново.",
+    eventNotReady: "Это мероприятие ещё не готово к регистрации.",
+    eventCancelled: "Это мероприятие отменено.",
+    eventFinished: "Это мероприятие уже завершилось.",
+    alreadyCheckedIn: "Этот человек уже отметился на мероприятии.",
+    success: "Готово: {name}{company} зарегистрирован(а) и отмечен(а).",
+    overridePrompt: "Мест нет ({admittedCount}/{capacity}). Всё равно добавить?",
+    cancelled: "Отменено, ничего не сохранено.",
+    confirmButtonLabel: "Подтвердить",
+    cancelButtonLabel: "Отмена",
+    overrideConfirmButtonLabel: "Всё равно добавить",
+    overrideDismissButtonLabel: "Не добавлять",
+  },
 } satisfies Catalog;

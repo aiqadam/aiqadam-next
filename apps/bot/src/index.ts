@@ -33,6 +33,14 @@ import {
 } from "./handlers/checkin.js";
 import { CHECKIN_OVERRIDE_PATTERN, makeCheckinOverrideCallbackHandler } from "./handlers/checkinQr.js";
 import {
+  makeWalkinCancelCallbackHandler,
+  makeWalkinCommandHandler,
+  makeWalkinConfirmCallbackHandler,
+  makeWalkinOverrideCallbackHandler,
+  WALKIN_CONFIRM_PATTERN,
+  WALKIN_OVERRIDE_PATTERN,
+} from "./handlers/walkin.js";
+import {
   makeProfileChapterCallbackHandler,
   makeProfileChapterHandler,
   makeProfileCommandHandler,
@@ -211,5 +219,16 @@ bot.callbackQuery(REGISTER_CALLBACK_PATTERN, makeRegisterCallbackHandler(db));
 // command, same precedent as /events (REQ-017) and /withdraw (REQ-022)
 // above.
 bot.command("my", makeMyCommandHandler(db));
+
+// REQ-030: /walkin <event_id> <name>|<company>|<phone> -- walk-in
+// registration at the door. Registered alongside the other
+// organizer-authorized, id-parameterized commands. The confirm/override/
+// cancel callbacks carry their state in the message text itself (§1.1) --
+// walkin:cancel is shared by both the initial Cancel and the override
+// step's Dismiss button.
+bot.command("walkin", makeWalkinCommandHandler(db));
+bot.callbackQuery(WALKIN_CONFIRM_PATTERN, makeWalkinConfirmCallbackHandler(db));
+bot.callbackQuery(WALKIN_OVERRIDE_PATTERN, makeWalkinOverrideCallbackHandler(db));
+bot.callbackQuery("walkin:cancel", makeWalkinCancelCallbackHandler());
 
 bot.start();
