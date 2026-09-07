@@ -36,6 +36,13 @@
       "when": 1788750452576,
       "tag": "0004_fancy_zombie",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788775034795,
+      "tag": "0005_violet_venom",
+      "breakpoints": true
     }
   ]
 }

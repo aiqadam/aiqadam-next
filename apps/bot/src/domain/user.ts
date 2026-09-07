@@ -157,6 +157,10 @@ export interface UserForNotification {
   lang: string | null;
   chapterDefaultLang: string | null;
   blocked: boolean;
+  // docs/agents/design/REQ-025.md §6 — needed by sendLedgeredNotification's
+  // §3.1 step 3 marketing-classification check. Never read for a
+  // transactional send.
+  broadcastOptIn: boolean;
 }
 
 export async function getUserForNotificationById(
@@ -169,6 +173,7 @@ export async function getUserForNotificationById(
       lang: users.lang,
       chapterDefaultLang: chapters.defaultLang,
       blocked: users.blocked,
+      broadcastOptIn: users.broadcastOptIn,
     })
     .from(users)
     .leftJoin(chapters, eq(users.chapterId, chapters.id))

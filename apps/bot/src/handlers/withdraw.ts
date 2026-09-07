@@ -8,8 +8,9 @@ import {
   getRegistrationForEventAndUser,
   withdrawRegistration,
 } from "../domain/registration.js";
+import { sendLedgeredNotification, type NotificationSender } from "../domain/notification.js";
 import { getCatalog, type BotLang } from "../i18n/catalog.js";
-import { getFlowUserByTgId, getUserForNotificationById } from "../domain/user.js";
+import { getFlowUserByTgId } from "../domain/user.js";
 import { resolveLang } from "../i18n/resolveLang.js";
 import { formatDateTimeInTimezone } from "../i18n/formatTimeInTimezone.js";
 
@@ -100,7 +101,7 @@ export function makeWithdrawCommandHandler(db: DbClient["db"]) {
 }
 
 // §4.2 — withdraw:confirm:<registrationId> callback.
-export function makeWithdrawConfirmCallbackHandler(db: DbClient["db"]) {
+export function makeWithdrawConfirmCallbackHandler(db: DbClient["db"], sender: NotificationSender) {
   return async (ctx: Context): Promise<void> => {
     const match = WITHDRAW_CONFIRM_PATTERN.exec(ctx.callbackQuery?.data ?? "");
     const registrationId = match?.[1];
@@ -140,8 +141,8 @@ export function makeWithdrawConfirmCallbackHandler(db: DbClient["db"]) {
     if (outcome.kind === "withdrawn" && outcome.promotion.kind === "promoted") {
       await sendPromotionNotification(
         db,
-        ctx,
-        registrationId,
+        sender,
+        outcome.promotion.registrationId,
         outcome.promotion.promotedUserId,
         outcome.promotion.qrToken,
       );
@@ -170,60 +171,56 @@ export function makeWithdrawConfirmCallbackHandler(db: DbClient["db"]) {
   };
 }
 
-// docs/agents/design/REQ-023.md §6.2 — composes and sends the promotion
-// notification to the promoted person's own tgId, using the PROMOTED
-// person's own language, never the withdrawer's. The one call site in this
-// codebase that addresses a chat other than the current update's own (ctx.api
-// is bound to the bot instance, not to ctx's own chat).
+// docs/agents/design/REQ-025.md §4 — rewritten to call the shared
+// sendLedgeredNotification (domain/notification.ts) instead of a bare
+// ctx.api.sendMessage. Every guard/compose step REQ-023's own version of
+// this function used to duplicate (blocked check, null-tgId guard, language
+// resolution) now lives once, centrally, inside sendLedgeredNotification —
+// this function is a thin composeMessage + one call. Its own return type
+// stays Promise<void>: the SendOutcome is not acted on here, matching
+// REQ-023 §6.2 step 3's "never blocks or affects the withdrawer's own
+// reply" precedent.
 async function sendPromotionNotification(
   db: DbClient["db"],
-  ctx: Context,
-  withdrawnRegistrationId: string,
+  sender: NotificationSender,
+  promotedRegistrationId: string,
   promotedUserId: string,
   qrToken: string,
 ): Promise<void> {
-  const promotedUser = await getUserForNotificationById(db, promotedUserId);
-  // Defensive guard (design §6.2 step 1): every row reaching 'admitted' was
-  // created through a Telegram flow that always sets tgId — kept as a guard
-  // rather than an assumption, per this codebase's no-speculation discipline.
-  if (promotedUser === null || promotedUser.tgId === null) {
-    return;
-  }
-  // security-invariants.md S10: "blocked users are skipped in both cases" --
-  // this send is transactional (never gated on broadcast_opt_in) but a
-  // blocked user is still skipped. The promotion itself (admission, audit
-  // row, seat accounting) already committed before this function is ever
-  // called; only the notification send is withheld here.
-  if (promotedUser.blocked) {
-    return;
-  }
-  const lang = resolveLang(promotedUser.lang, promotedUser.chapterDefaultLang);
-  const catalog = getCatalog(lang);
+  await sendLedgeredNotification({
+    db,
+    sender,
+    registrationId: promotedRegistrationId,
+    kind: "waitlist_promotion",
+    classification: "transactional",
+    userId: promotedUserId,
+    composeMessage: async (lang) => {
+      const catalog = getCatalog(lang);
 
-  const eventId = await getEventIdForRegistration(db, withdrawnRegistrationId);
-  let eventTitle = "";
-  let dateTimeText = "";
-  if (eventId !== null) {
-    const event = await getEventByIdWithChapterTimezone(db, eventId);
-    if (event !== null) {
-      eventTitle = event.title;
-      const startsAtText =
-        event.startsAt !== null ? formatDateTimeInTimezone(event.startsAt, event.chapterTimezone, lang) : "";
-      const endsAtText =
-        event.endsAt !== null ? formatDateTimeInTimezone(event.endsAt, event.chapterTimezone, lang) : "";
-      dateTimeText = `${startsAtText}–${endsAtText}`;
-    }
-  }
+      const eventId = await getEventIdForRegistration(db, promotedRegistrationId);
+      let eventTitle = "";
+      let dateTimeText = "";
+      if (eventId !== null) {
+        const event = await getEventByIdWithChapterTimezone(db, eventId);
+        if (event !== null) {
+          eventTitle = event.title;
+          const startsAtText =
+            event.startsAt !== null ? formatDateTimeInTimezone(event.startsAt, event.chapterTimezone, lang) : "";
+          const endsAtText =
+            event.endsAt !== null ? formatDateTimeInTimezone(event.endsAt, event.chapterTimezone, lang) : "";
+          dateTimeText = `${startsAtText}–${endsAtText}`;
+        }
+      }
 
-  const text = [
-    catalog.promotion.admittedPrefix,
-    eventTitle,
-    dateTimeText,
-    `${catalog.promotion.qrLabel} ${qrToken}`,
-    catalog.promotion.whatNext,
-  ].join("\n");
-
-  await ctx.api.sendMessage(promotedUser.tgId.toString(), text);
+      return [
+        catalog.promotion.admittedPrefix,
+        eventTitle,
+        dateTimeText,
+        `${catalog.promotion.qrLabel} ${qrToken}`,
+        catalog.promotion.whatNext,
+      ].join("\n");
+    },
+  });
 }
 
 // §4.3 — withdraw:cancel:<registrationId> callback. No domain call of any
