@@ -1,0 +1,158 @@
+run_id: WF02-REQ-031-step04
+date: "2026-09-07T20:55:40Z"
+requirement: REQ-031
+branch: feature/WF02-REQ-031
+lint: pass
+build: pass
+lint_command: "npm run lint -w apps/bot"
+lint_output: |
+  > bot@0.1.0 lint
+  > eslint .
+  (no errors/warnings)
+build_command: "npm run build -w apps/bot"
+build_output: |
+  > bot@0.1.0 build
+  > tsc -p tsconfig.json
+  (no errors)
+test_command: "npx vitest run --no-file-parallelism (repo root, per ISS-0014)"
+test_files_written:
+  - apps/bot/src/scheduler/feedbackJobs.db.test.ts
+  - apps/bot/src/handlers/feedback.db.test.ts
+test_result: pass
+test_counts:
+  test_files: 33
+  tests_total: 316
+  tests_passed: 316
+  tests_failed: 0
+  tests_skipped: 0
+  note: >
+    Two consecutive full repo-root runs (after the AC2 assertion fix below)
+    both produced 33 files / 316 tests / 0 failures. An earlier run (before
+    that fix) additionally showed 4-5 unrelated failures in
+    domain/notification.test.ts, domain/registration.db.test.ts, and
+    handlers/checkin.forgery.test.ts -- none of these files were touched by
+    this branch's diff. Root-caused as transient connection-pool contention
+    under the shared scratch Postgres during genuinely-concurrent
+    (Promise.all) DB races, not a regression: excluding this run's two new
+    test files reproduced a clean 31/31-file pass, but re-including them on
+    a subsequent run also passed cleanly (2 clean runs in a row) -- the
+    failures did not reproduce deterministically either with or without the
+    new files, consistent with the pre-existing intermittent pattern already
+    recorded in ISS-0027 (scratch-Postgres contention under this project's
+    current local docker-compose setup) rather than something introduced by
+    this run. Reported per core-directives.md's "Failure Attribution Is
+    Structural" -- not attributed by mere count-matching to ISS-0027, but by
+    the causal experiment above (same code, same flag, same DB, flaky in
+    both directions).
+own_defect_found_and_fixed:
+  - description: >
+      handlers/feedback.db.test.ts's AC2 raw duplicate-INSERT assertion
+      originally asserted `.rejects.toMatchObject({ code: "23505" })`
+      directly against the thrown error. Drizzle (drizzle-orm's node-postgres
+      driver) wraps the raw pg error one level deep as
+      `DrizzleQueryError.cause` -- the same shape
+      domain/notification.ts's own `pgErrorCode()` helper explicitly unwraps
+      (see domain/notification.ts lines 86-90). Fixed to
+      `.rejects.toMatchObject({ cause: { code: "23505" } })`. This was this
+      test file's own bug, not a spec or implementation defect -- fixed
+      before the final run above.
+spec_defect_flagged_not_silently_worked_around:
+  - acceptance_criterion: AC6
+    description: >
+      test-specs/REQ-031.md's AC6 static check instructs
+      `git grep -in "talk|speaker|want to speak"` across a file list that
+      includes apps/bot/src/db/schema.ts in full, expecting zero matches.
+      Run exactly as specified, this produces ONE match:
+      schema.ts:240's pre-existing comment "// Array of { kind, at, label }
+      objects — non-talk agenda items only" (git blame: commit 584707f9,
+      2026-09-06, REQ-011 -- predates this branch entirely, confirmed via
+      `git log -S"non-talk agenda items"`). This is a false-positive
+      substring match on "non-talk" containing "talk", documenting that
+      agenda items explicitly EXCLUDE talks -- the opposite of the feature
+      AC6 is guarding against, not a talk/speaker feature.
+      Re-running the identical grep restricted to only the files this
+      requirement actually introduced/touched (domain/feedback.ts,
+      handlers/feedback.ts, scheduler/feedbackJobs.ts, i18n/types.ts,
+      i18n/ru.ts, i18n/en.ts -- i.e. every file in the list except the
+      pre-existing schema.ts comment) produces zero matches (exit code 1).
+      Per this run's task instructions ("STOP and report back precisely
+      rather than silently altering the test to force a pass"), this is
+      reported as-is rather than narrowing the committed grep command.
+      Disposition: the SUBSTANCE of AC6 (no talk/speaker feature or entity
+      was introduced by REQ-031) is genuinely satisfied; the literal grep
+      command as specified is imprecise (schema.ts should either be scoped
+      to REQ-031's own new `feedback` table definition, or the pattern
+      should exclude "non-talk"). Recommend filing this as a MINOR
+      test-spec-precision issue against test-specs/REQ-031.md for
+      TEST-DESIGNER, not a blocker on this run.
+ac6_static_grep:
+  full_command_as_specified: |
+    git grep -in "talk\|speaker\|want to speak" -- apps/bot/src/db/schema.ts apps/bot/src/domain/feedback.ts apps/bot/src/handlers/feedback.ts apps/bot/src/scheduler/feedbackJobs.ts apps/bot/src/i18n/types.ts apps/bot/src/i18n/ru.ts apps/bot/src/i18n/en.ts
+  full_command_output: |
+    apps/bot/src/db/schema.ts:240:  // Array of { kind, at, label } objects — non-talk agenda items only
+  scoped_to_req031_own_files_output: "(zero matches, exit code 1)"
+  result: pass (substance), spec-imprecision flagged (see above)
+cases:
+  - acceptance_criterion: AC1
+    result: pass
+    notes: >
+      scheduler/feedbackJobs.db.test.ts -- checked-in registration A (11
+      buttons "0".."10", correct callbackData, ledger row kind
+      feedback_request) sent exactly once; admitted-but-never-checked-in
+      registration B receives nothing (0 ledger rows). feedback table has
+      zero rows (no NPS answered yet).
+  - acceptance_criterion: AC2
+    result: pass
+    notes: >
+      handlers/feedback.db.test.ts -- full NPS+liked+improve+topicVotes
+      sequence produces exactly one feedback row with correct column values
+      at each step; raw duplicate db.insert against the same registrationId
+      rejects with Postgres code 23505 (via DrizzleQueryError.cause), row
+      count/nps unchanged after the rejected insert.
+  - acceptance_criterion: AC3
+    result: pass
+    notes: >
+      Sub-case A: skip all three optional fields -- feedback row still saves
+      with nps set, all three optional fields null, all three *Skipped=true,
+      flow still advances to broadcast-ask. Sub-case B: a stale reply to the
+      already-superseded "liked" prompt (while the flow's current field is
+      "improve") is a silent no-op -- liked/improve/improveSkipped/updatedAt
+      all unchanged, no new captured Telegram call.
+  - acceptance_criterion: AC4
+    result: pass
+    notes: >
+      scheduler/feedbackJobs.db.test.ts -- Run 1 (T+24h) sends+ledgers
+      exactly once; Run 2 (same evaluationTime, ledger-dedup path) still
+      exactly one send/ledger row; Run 3 (T+48h, window-exclusion path)
+      still exactly one send/ledger row across all three runs combined.
+  - acceptance_criterion: AC5
+    result: pass
+    notes: >
+      Decline case: regTwo's flow never re-shows the broadcast-ask prompt
+      after regOne's decline; a stale "yes" tap on regTwo does not flip
+      broadcastOptIn. Accept case (separate user V): regTwo never re-shows
+      the prompt after regOne's accept, and broadcastOptIn stays true
+      (unchanged) through the second registration's own completion.
+  - acceptance_criterion: AC6
+    result: pass (with spec-precision note)
+    notes: see spec_defect_flagged_not_silently_worked_around above.
+  - acceptance_criterion: AC7
+    result: pass
+    notes: >
+      Piggybacked onto AC1's own fixture -- registration A's user has
+      broadcastOptIn=false, and the T+2h transactional send still happened
+      (sent.length === 1), proving the transactional classification never
+      reads broadcastOptIn.
+  - acceptance_criterion: S3 exploit
+    result: pass
+    notes: >
+      handlers/feedback.db.test.ts -- all three attacks (NPS callback
+      forgery, text-reply forgery, broadcast callback forgery) by Bob naming
+      Alice's own registration id are refused: answerCallbackQuery carries
+      show_alert:true + notYourFeedback for the two callback attacks; the
+      text-reply attack is a silent no-op (no new captured sendMessage).
+      Alice's feedback/user rows and Bob's own user row are unchanged by
+      every attack.
+docker_compose: "apps/bot: docker compose up -d (bot-postgres-1, already running/reused)"
+migrations_applied: "npx drizzle-kit migrate (0006_smiling_leader.sql -- feedback table + users.broadcast_opt_in_asked_at) -- applied successfully"
+next_action: "Route to RELEASE-VALIDATOR (Step 5)"
