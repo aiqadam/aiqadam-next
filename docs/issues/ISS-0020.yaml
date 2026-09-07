@@ -30,4 +30,49 @@ affected_files:
   - apps/bot/src/handlers/staff.ts
   - apps/bot/src/domain/user.ts
   - docs/agents/design/REQ-023.md
-status: open
+status: resolved
+resolved_by: ISSUE-FIXER
+resolving_run_id: ISS-0020
+resolved_at: "2026-09-08T00:15:00Z"
+resolution: >
+  RESOLVED via WF-03 run ISS-0020 (branch fix/ISS-0020, commit 592af0a). Root cause
+  confirmed by direct diagnosis: apps/bot/src/domain/user.ts's getUserByTgUsername
+  (UserWithTelegram projection) did not select users.blocked, and
+  apps/bot/src/handlers/staff.ts's makeStaffAddHandler/makeStaffRemoveHandler
+  unconditionally called ctx.api.sendMessage on the resolved target -- confirmed
+  directly against pre-fix commit 09377bd, which had zero blocked-check of any kind in
+  either handler and no blocked column in the projection.
+
+  Fix (design: docs/agents/design/ISS-0020-fix.md; implementation: BACKEND-DEV):
+  added blocked: users.blocked to getUserByTgUsername's projection, and in both
+  staff.ts handlers added an `if (targetUser.blocked) {...} else {...}` guard around
+  the notification step so the blocked branch never reaches ctx.api.sendMessage,
+  surfacing the same generic notificationFailedNote reply text as any other delivery
+  failure (mirrors the REQ-023 sendPromotionNotification / withdraw.ts pattern).
+
+  One rework iteration: SECURITY-REVIEWER's first pass (step-03c-security-reviewer)
+  FAILed the fix over ISS-0020-SEC-1, a timing side-channel the fix itself
+  introduced -- the blocked branch returned immediately (zero awaits) while the
+  non-blocked branch always performed a DB read (resolveLangForTg) plus a Telegram
+  API round-trip, making "target has blocked us" distinguishable from "send failed
+  for another reason" by reply latency alone, despite identical reply text. Closed by
+  BACKEND-DEV (step-03-backend-dev-rework1) by giving both branches the same cost
+  shape: both now perform the identical resolveLangForTg DB read and body
+  composition unconditionally, then both perform a real Bot API network round-trip
+  (ctx.api.getMe() on the blocked branch, side-effect-free and result discarded, vs.
+  ctx.api.sendMessage() on the non-blocked branch) before notificationFailed is set.
+  REVIEWER and SECURITY-REVIEWER both re-gated PASS against this shape
+  (step-03b-reviewer-rework1, step-03c-security-reviewer-rework1); SECURITY-REVIEWER
+  explicitly accepted the residual (non-categorical, sub-network-jitter) cost
+  difference between getMe() and sendMessage() as proportionate for this
+  already-privileged (organizer-only) threat model.
+
+  Regression proof (fail-then-pass, independently reproduced twice): TEST-DESIGNER
+  wrote apps/bot/src/handlers/staff.test.ts (docs/agents/test-specs/ISS-0020.md);
+  TEST-DESIGN-VALIDATOR independently re-ran the same test file in a worktree checked
+  out at pre-fix commit 09377bd and reproduced the exact FAIL
+  ("expected [ 1010000001, 1010000000 ] to not include 1010000001" for both the
+  add and remove handlers), then re-ran it on the fix branch tip (dcb4d13) and got
+  4/4 PASS. Full suite independently re-run: 329/329 passing (one earlier 45-failed
+  run attributed to transient FK-constraint contention from a concurrent worktree DB
+  session, not this diff -- cleared on two immediate clean reruns).

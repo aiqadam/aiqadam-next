@@ -1,0 +1,58 @@
+{
+  "handoff_id": "97964ee6-c703-4011-b5d8-8d02ee65e4af",
+  "run_id": "ISS-0020",
+  "workflow_id": "WF-03",
+  "step": "01",
+  "from_agent": "ISSUE-FIXER",
+  "to_agent": "CODE-DESIGNER",
+  "file": "handoffs/ISS-0020/step-01-issue-fixer.json",
+  "created_at": "2026-09-07T23:07:08Z",
+  "started_at": "2026-09-07T23:07:08Z",
+  "completed_at": "2026-09-07T23:07:08Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": [],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": [],
+    "artifacts_in": [
+      "docs/issues/ISS-0020.yaml",
+      "apps/bot/src/handlers/staff.ts",
+      "apps/bot/src/domain/user.ts",
+      "apps/bot/src/handlers/withdraw.ts",
+      "apps/bot/src/domain/notification.ts",
+      "apps/bot/src/db/schema.ts",
+      "docs/agents/instructions/security-invariants.md"
+    ]
+  },
+  "task": {
+    "description": "WF-03 Step 0.5 (registry lookup) + Step 1 (diagnose) for ISS-0020 -- the S10 blocked-user notification gap in apps/bot/src/handlers/staff.ts. Diagnosis only, no fix.",
+    "acceptance_criteria": [
+      "Registry lookup performed against docs/issues/*.yaml for a matching resolved entry",
+      "Gap confirmed present (or absent) by reading current code, not the issue's prose",
+      "Root cause and exact minimal change stated",
+      "Scope recommendation (minimal fix vs. ledger-routing) stated with reasoning"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "STEP 0.5 (registry lookup): grepped docs/issues/*.yaml for 'blocked' -- ISS-0020 is the only issue file that mentions it; no prior *resolved* issue entry covers this symptom (REQ-023's own S10 fix was a requirement-run fix, not a filed/resolved issue, and re-checking it below shows it has since been superseded by REQ-025, not merely 'already fixed'). No recurrence flag applies since there is no prior resolved match. STEP 1 (diagnose), verified against the current tree at commit 8c678ab (branch fix/ISS-0020): the gap is GENUINELY STILL PRESENT today, in BOTH staff.ts notification sites, not just the assignment one the issue names. apps/bot/src/handlers/staff.ts's makeStaffAddHandler (assignment notification, line 98: `await ctx.api.sendMessage(Number(targetUser.tgId), body)`) and makeStaffRemoveHandler (removal notification, line 168: same raw call) both send directly via ctx.api.sendMessage to a recipient resolved by getUserByTgUsername (domain/user.ts lines 132-142), which selects only {id, tgId, tgUsername} -- it does not project users.blocked at all, so neither send site has any way to know the recipient is blocked. This violates security-invariants.md S10 ('blocked users are skipped in both [transactional and marketing] cases') for both the add and remove paths. ROOT CAUSE: getUserByTgUsername's projection is missing the blocked column, and staff.ts's two notification call sites perform no blocked check before sending -- identical shape to REQ-023's original gap in sendPromotionNotification, just at a different lookup function (getUserByTgUsername vs. what was then a bespoke lookup) and predating it (REQ-018 vs REQ-023). IMPORTANT CORRECTION TO THE ISSUE'S OWN RECOMMENDATION: ISS-0020 recommends mirroring 'apps/bot/src/handlers/withdraw.ts's sendPromotionNotification guard' -- I read that function as it exists TODAY (not as it was when ISS-0020 was filed on 2026-09-07 during REQ-023) and it no longer contains an inline guard. docs/agents/design/REQ-025.md §4 rewrote it: sendPromotionNotification (withdraw.ts lines 183-227) is now a thin composeMessage wrapper that delegates entirely to domain/notification.ts's sendLedgeredNotification, which does the blocked check centrally (step 2, notification.ts lines 114-118) plus registration-scoped ledgered idempotency. So the 'established pattern' to mirror has moved on from a local ad hoc guard to routing through the shared sendLedgeredNotification. I checked whether that routing is actually available to staff.ts and it is NOT, cleanly: sendLedgeredNotification's SendNotificationInput requires a registrationId (schema.ts lines 356-362: notification_ledger.registration_id is NOT NULL, FK to registrations.id, restrict-on-delete), and its NotificationKind union (notification.ts lines 15-26) is a closed set of registration-linked kinds (admission_result, waitlist_promotion, reminder_24h/3h, feedback_request/reminder, event_cancelled, no_show_reason_request) -- none of which fit an EventStaff assignment/removal, which has no registration at all. Routing staff.ts through sendLedgeredNotification would require a schema migration (a nullable-registration or staff-scoped ledger variant) and a NotificationKind/design extension -- well beyond a MAJOR bug fix's scope, and not what ISS-0020 asked for. RECOMMENDATION: the MINIMAL, targeted fix is still correct, but its exact shape must mirror sendLedgeredNotification's blocked-check semantics (silent skip, no ledger) rather than reusing withdraw.ts's now-removed inline guard as literal code to copy: (1) add `blocked: users.blocked` to getUserByTgUsername's projection in domain/user.ts (or add a new lookup/overload used only by staff.ts, CODE-DESIGNER's call), (2) in both makeStaffAddHandler and makeStaffRemoveHandler (staff.ts), check `targetUser.blocked` immediately before each ctx.api.sendMessage call and skip the send silently (same shape as the null-tgId guard already present at lines 71-76/145-148 -- note the existing reply-with-notificationFailedNote branch: CODE-DESIGNER must decide whether a blocked-skip should also surface 'notificationFailedNote' to the organizer, or be silent to both sides, per S10's 'skipped' semantics in sendLedgeredNotification which does NOT report failure to the caller). AFFECTED FILES: apps/bot/src/handlers/staff.ts (both handlers), apps/bot/src/domain/user.ts (getUserByTgUsername), docs/agents/design/REQ-023.md (§6.2's 'the one call site' claim already flagged inaccurate by ISS-0020 itself -- CODE-DESIGNER should note in the new design artefact that REQ-023.md's claim is doubly inaccurate now: staff.ts predates it too, AND withdraw.ts's own guard no longer looks like what REQ-023.md describes since REQ-025 rewrote it).",
+    "artifacts_out": [
+      "handoffs/ISS-0020/step-01-issue-fixer.json"
+    ],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "fix/ISS-0020",
+      "commit_sha_list": [],
+      "remote_branch": "origin/fix/ISS-0020",
+      "push_status": "ok",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Route to CODE-DESIGNER for fix design"
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}

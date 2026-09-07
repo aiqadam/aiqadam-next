@@ -1,0 +1,53 @@
+{
+  "handoff_id": "step-03-backend-dev",
+  "run_id": "ISS-0020",
+  "workflow_id": "WF-03",
+  "step": "03",
+  "from_agent": "BACKEND-DEV",
+  "to_agent": "REVIEWER",
+  "file": "handoffs/ISS-0020/step-03-backend-dev.json",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "issue_id": "ISS-0020",
+    "related_handoff_ids": [
+      "step-01-issue-fixer",
+      "step-02-code-designer",
+      "step-02b-code-design-validator"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/ISS-0020-fix.md",
+      "docs/agents/security-invariants.md"
+    ]
+  },
+  "task": {
+    "description": "Implement the approved fix for ISS-0020 exactly per docs/agents/design/ISS-0020-fix.md: project users.blocked onto domain/user.ts's getUserByTgUsername (extend UserWithTelegram interface + query select), and gate both handlers/staff.ts notification sends (makeStaffAddHandler, makeStaffRemoveHandler) behind a blocked check that reuses the existing notificationFailed flag/notificationFailedNote message -- no new i18n key. Do not touch addEventStaff/removeEventStaff or the ledger/sendLedgeredNotification system.",
+    "acceptance_criteria": [
+      "getUserByTgUsername's returned UserWithTelegram now includes blocked: boolean, sourced from users.blocked.",
+      "makeStaffAddHandler skips ctx.api.sendMessage and sets notificationFailed=true when targetUser.blocked is true, without entering the try block.",
+      "makeStaffRemoveHandler has the identical guard.",
+      "addEventStaff/removeEventStaff (the staff mutation itself) are untouched -- the mutation still commits regardless of blocked status.",
+      "No new i18n key introduced; the existing notificationFailedNote message is reused.",
+      "npm run lint -w apps/bot and npm run build -w apps/bot are clean.",
+      "Full existing suite (npx vitest run --no-file-parallelism) still passes."
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Applied the approved ISS-0020-fix.md design exactly. domain/user.ts: UserWithTelegram gained `blocked: boolean`; getUserByTgUsername's select now projects `blocked: users.blocked` alongside id/tgId/tgUsername -- confirmed via grep this function has exactly two callers, both in staff.ts, so the widened shape breaks nothing else. handlers/staff.ts: both makeStaffAddHandler and makeStaffRemoveHandler now check `if (targetUser.blocked) { notificationFailed = true; } else { try { ...ctx.api.sendMessage... } catch { notificationFailed = true; } }` -- the guard sits immediately before the existing try block, reuses the existing notificationFailed flag and its downstream notificationFailedNote surfacing, with no new i18n key added anywhere. addEventStaff/removeEventStaff run before this block, unchanged, and still commit the staff mutation regardless of blocked status -- S10 gates only the notification, not the admin action, per design. npm run lint -w apps/bot: clean, zero warnings/errors. npm run build -w apps/bot: clean, zero type errors (tsc -p tsconfig.json). npx vitest run --no-file-parallelism from repo root: 35 test files / 325 tests, all passed, 36.17s, no failures, no flakiness observed. No new test files were written at this step per WF-03's own procedure -- TEST-DESIGNER writes the fail-then-pass regression case at Step 4, next. Note on process: an earlier BACKEND-DEV dispatch for this same step left this exact diff uncommitted in the working tree (matching the design verbatim) but reported an internal wait-loop instead of completing normally; this run inspected that uncommitted diff, verified it against docs/agents/design/ISS-0020-fix.md line-by-line, re-ran lint/build/test myself rather than trusting any prior claim, and committed it -- no rework was needed, the stalled agent's actual code changes were already correct.",
+    "artifacts_out": [
+      "apps/bot/src/domain/user.ts",
+      "apps/bot/src/handlers/staff.ts",
+      "handoffs/ISS-0020/step-03-backend-dev.json"
+    ],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "fix/ISS-0020",
+      "remote_branch": "origin/fix/ISS-0020",
+      "push_status": "ok"
+    },
+    "next_action": "Route to REVIEWER (Step 3's review, same as WF-02 Step 2b)."
+  },
+  "rework_count": 0,
+  "max_rework": 3
+}

@@ -1,0 +1,53 @@
+{
+  "handoff_id": "step-02b-code-design-validator-regate",
+  "run_id": "ISS-0020",
+  "workflow_id": "WF-03",
+  "step": "02b",
+  "from_agent": "CODE-DESIGN-VALIDATOR",
+  "to_agent": "BACKEND-DEV",
+  "file": "handoffs/ISS-0020/step-02b-code-design-validator-regate.json",
+  "status": "COMPLETED",
+  "priority": "HIGH",
+  "timestamp": "2026-09-07T23:31:02Z",
+  "context": {
+    "issue_id": "ISS-0020",
+    "related_handoff_ids": [
+      "handoffs/ISS-0020/step-01-issue-fixer.json",
+      "handoffs/ISS-0020/step-02-code-designer.json",
+      "handoffs/ISS-0020/step-02b-code-design-validator.json",
+      "handoffs/ISS-0020/step-03-backend-dev.json",
+      "handoffs/ISS-0020/step-03b-reviewer.json",
+      "handoffs/ISS-0020/step-03c-security-reviewer.json",
+      "handoffs/ISS-0020/step-02-code-designer-rework1.json"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/ISS-0020-fix.md",
+      "handoffs/ISS-0020/step-03c-security-reviewer.json",
+      "handoffs/ISS-0020/step-02-code-designer-rework1.json",
+      "docs/agents/instructions/security-invariants.md",
+      "apps/bot/src/handlers/staff.ts",
+      "apps/bot/src/domain/user.ts"
+    ]
+  },
+  "task": {
+    "description": "Re-gate the reworked docs/agents/design/ISS-0020-fix.md (Sec2/2.1/2.2) that CODE-DESIGNER produced to close ISS-0020-SEC-1, the MEDIUM timing side-channel SECURITY-REVIEWER found in the previously-implemented guard-clause shape.",
+    "acceptance_criteria": [
+      "The blocked branch and the not-blocked branch perform the same DB read (resolveLangForTg) and exactly one Telegram Bot API network round-trip each, before notificationFailed is resolved and ctx.reply is reached, in both makeStaffAddHandler and makeStaffRemoveHandler",
+      "Zero ctx.api.sendMessage calls still occur for a blocked EventStaff target",
+      "The mechanism is justified against alternatives with explicit reasoning, and any residual timing difference is stated rather than silently claimed away",
+      "No new implementation code in the design doc",
+      "Diff scope stays within docs/agents/design/ISS-0020-fix.md"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Read docs/agents/design/ISS-0020-fix.md's current (reworked) Sec0-Sec5 in full independently, cross-checked against handoffs/ISS-0020/step-03c-security-reviewer.json's original FAIL and handoffs/ISS-0020/step-02-code-designer-rework1.json's stated intent, and re-derived each check against the artefact itself rather than trusting the rework summary.\n\n1. TIMING LEAK ACTUALLY CLOSED (not just narrowed) -- PASS, with the disclosure quality itself checked. Sec2.1's table gives both branches the identical sequence: (1) await resolveLangForTg, (2) compose body, (3) exactly one awaited Bot API network round-trip (getMe() vs sendMessage()), (4) resolve notificationFailed. This closes the CATEGORICAL asymmetry SEC-1 flagged (zero network calls vs one) -- the actual defect named in the FAIL, which was a discrete zero-vs-one gap, not a demand for byte-identical timing. Sec2.2 explicitly separates 'equalized' (the categorical gap) from 'not claimed equalized' (getMe() vs sendMessage() differ in payload size and server-side handling, so a patient statistical attacker averaging many samples could in principle still detect a difference) and states this is a proportional, not swept-under-the-rug, call for a MEDIUM-severity, narrow-threat-model fix (an already-authorized organizer probing one target's blocked flag). This is honest disclosure, not overclaiming -- confirmed by reading Sec2.2 and Sec5 item 3 directly, both of which name the residual rather than asserting full closure anywhere in the document. Judged reasonable and non-blocking: the residual is a sub-network-round-trip statistical signal requiring many repeated samples, against a threat actor who already holds legitimate staff-assignment authority over that chapter -- proportionate to MEDIUM severity.\n\n2. getMe() SIDE-EFFECT-FREE CLAIM -- verified independently, not trusted. getMe() is a read-only, argument-less Bot API method that returns the bot's own identity; it performs no send, no state mutation, no target addressing. On rate limiting: Telegram's Bot API rate limits that matter for message delivery (per-chat/per-second send throttling, the 30 msg/sec global send ceiling) are scoped to sendMessage and other content-delivery methods, not to metadata calls like getMe() -- calling getMe() does not consume or interact with the send-rate budget shared with real sends, so it introduces no new resource-contention or delivery-delay side effect. No other observable side effect exists (nothing written, nothing logged, no third party addressed). Design's characterization holds.\n\n3. S10 ZERO-DELIVERY GUARANTEE PRESERVED -- PASS. Sec2.1's table row 3 is unambiguous: blocked branch calls ctx.api.getMe() (targets no user, discards result); not-blocked branch calls ctx.api.sendMessage(Number(targetUser.tgId), body) exactly as today. No code path in the reworked design routes a real sendMessage call, to the blocked target or to anyone else, on the blocked branch -- zero delivery, zero leaked-to-third-party risk, confirmed by reading the table's branch column, not by trusting the rework summary's restatement of it.\n\n4. notificationFailed FORCED TRUE, NOT SHORT-CIRCUITED BY THE SHARED TRY -- PASS. Table row 4 states notificationFailed is set unconditionally immediately after the blocked branch's getMe() await settles (i.e., on the synchronous-success path, not inside any conditional), and separately notes that if getMe() itself throws, the shared catch block (unchanged, wraps the whole try) also sets notificationFailed = true -- a redundant, not conflicting, assignment. Both of the try block's exit paths for the blocked branch (falls through normally / throws) converge on notificationFailed = true; nothing in the design reintroduces a path where the blocked branch could exit with notificationFailed still false. Traced this explicitly rather than accepting the design's own 'no new branch needed' claim at face value -- it holds.\n\n5. NON-BLOCKED PATH UNCHANGED -- PASS. Table's not-blocked column is identical at every step to the pre-fix/pre-rework shape (same resolveLangForTg call, same body composition, same sendMessage call, same catch behavior) -- confirmed against the still-live FAILed implementation in apps/bot/src/handlers/staff.ts (lines 96, 101, 103 / 170, 175, 177, grepped directly) as the 'before' baseline the design claims not to disturb. No regression introduced by folding both paths into one try block.\n\n6. SCOPE DISCIPLINE -- PASS. `git show --stat 4e19f4e` (the rework commit) touches exactly docs/agents/design/ISS-0020-fix.md and its own handoffs/ISS-0020/step-02-code-designer-rework1.json -- no apps/bot/** file touched by this design-stage rework, as expected (implementation happens after this gate). The design's own Sec2/2.1 scope statement (staff.ts + user.ts only, no ledger/schema/other-handler touch) is unchanged from the already-approved Sec0/Sec1/Sec3 and consistent with step-03c's own scope finding.\n\n7. NO IMPLEMENTATION CODE / NO TBD -- PASS. Sec2.1's table and prose describe control-flow shape and name existing Bot API methods (ctx.api.getMe(), ctx.api.sendMessage(...)) at the same level of concreteness the original (already-gated) Sec2 used for the guard-clause shape -- no function bodies, no new types, no copy-pasteable diff. No 'TBD'/'later'/placeholder language anywhere in Sec2, Sec2.1, Sec2.2, Sec4, or Sec5 -- Sec5's three open items are each explicitly scoped as deliberately-deferred future work, not gaps in this design.\n\nAll five task acceptance criteria met. Verdict: PASS.",
+    "artifacts_out": [
+      "handoffs/ISS-0020/step-02b-code-design-validator-regate.json"
+    ],
+    "issues": [],
+    "next_action": "Route to BACKEND-DEV for re-implementation"
+  },
+  "rework_count": 0,
+  "max_rework": 3
+}

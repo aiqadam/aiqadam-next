@@ -1,0 +1,57 @@
+{
+  "handoff_id": "step-05-issue-fixer",
+  "run_id": "ISS-0020",
+  "workflow_id": "WF-03",
+  "step": "05",
+  "from_agent": "ISSUE-FIXER",
+  "to_agent": "ORCH",
+  "file": "handoffs/ISS-0020/step-05-issue-fixer.json",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "issue_id": "ISS-0020",
+    "related_handoff_ids": [
+      "step-00-git-setup",
+      "step-01-issue-fixer",
+      "step-02-code-designer",
+      "step-02b-code-design-validator",
+      "step-02-code-designer-rework1",
+      "step-02b-code-design-validator-regate",
+      "step-03-backend-dev",
+      "step-03b-reviewer",
+      "step-03c-security-reviewer",
+      "step-03-backend-dev-rework1",
+      "step-03b-reviewer-rework1",
+      "step-03c-security-reviewer-rework1",
+      "step-04-test-designer",
+      "step-04b-test-design-validator"
+    ],
+    "artifacts_in": [
+      "docs/issues/ISS-0020.yaml",
+      "docs/agents/protocols/ISSUE_QUEUE.md",
+      "docs/agents/workflows/WF-03_issue_resolving.md"
+    ]
+  },
+  "task": {
+    "description": "WF-03 Step 5: close ISS-0020 with the outcome, evidence, and one-rework story actually established by all prior gates (all PASS), and check for a linked GitHub issue to close.",
+    "acceptance_criteria": [
+      "docs/issues/ISS-0020.yaml status set to the outcome the evidence actually supports (resolved), with the resolving run-id and a real UTC timestamp",
+      "Resolution note summarizes root cause, fix, the one rework iteration (SEC-1 timing side-channel), and the regression proof",
+      "GitHub mirror checked and closed with evidence if github_issue field exists; otherwise none required",
+      "Change committed and pushed to fix/ISS-0020"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "All WF-03 gates for ISS-0020 passed (CODE-DESIGN-VALIDATOR with one rework re-gated PASS, REVIEWER PASS re-checked after rework, SECURITY-REVIEWER FAILED once over ISS-0020-SEC-1 then PASSED after rework, TEST-DESIGN-VALIDATOR PASS with independently-reproduced fail-then-pass regression proof, 329/329 suite). Updated docs/issues/ISS-0020.yaml: status open -> resolved, added resolved_by: ISSUE-FIXER, resolving_run_id: ISS-0020, resolved_at: 2026-09-08T00:15:00Z (real UTC), and a resolution: narrative block (following the docs/issues/ISS-0004.yaml precedent format, since ISSUE_QUEUE.md documents the status vocabulary but not a rigid field schema) covering: (1) root cause -- getUserByTgUsername's UserWithTelegram projection lacked `blocked`, and both staff.ts handlers called ctx.api.sendMessage unconditionally, confirmed directly against pre-fix commit 09377bd; (2) the fix -- blocked: users.blocked added to the projection, if/else guard added around the notification step in both handlers, mirroring the REQ-023/withdraw.ts pattern; (3) the one rework iteration -- SECURITY-REVIEWER's step-03c-security-reviewer FAILed over ISS-0020-SEC-1 (a timing side-channel: the blocked branch returned with zero awaits while the non-blocked branch always paid a DB read + Bot API round-trip, making the two notificationFailed causes distinguishable by latency despite identical reply text), closed by BACKEND-DEV giving both branches the same DB-read-then-Bot-API-round-trip cost shape (ctx.api.getMe() on the blocked branch, ctx.api.sendMessage() on the other), re-gated PASS by both REVIEWER and SECURITY-REVIEWER; (4) the regression proof -- apps/bot/src/handlers/staff.test.ts, fail-then-pass independently reproduced by TEST-DESIGN-VALIDATOR against pre-fix commit 09377bd (FAIL, exact AssertionErrors matching the spec) and fix-branch tip dcb4d13 (4/4 PASS), full suite 329/329.\n\nChecked docs/issues/ISS-0020.yaml for a github_issue field before and after this run's own additions: none present, and the original filing (discovered_by: REVIEWER during WF02-REQ-023, an internal-bookkeeping discovery, not filed externally) never had one. Per WF-03 Step 5 and ISSUE_QUEUE.md, no GitHub mirror exists to close -- no action needed there.\n\nCommitted docs/issues/ISS-0020.yaml and this handoff to fix/ISS-0020 and pushed to origin.",
+    "artifacts_out": [
+      "docs/issues/ISS-0020.yaml",
+      "handoffs/ISS-0020/step-05-issue-fixer.json"
+    ],
+    "issues": [],
+    "next_action": "Route to ORCH for merge (Step Final)"
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "completed_at": "2026-09-08T00:15:00Z"
+}

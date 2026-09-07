@@ -1,0 +1,50 @@
+{
+  "handoff_id": "step-03b-reviewer-rework1",
+  "run_id": "ISS-0020",
+  "workflow_id": "WF-03",
+  "step": "03b",
+  "from_agent": "REVIEWER",
+  "to_agent": "SECURITY-REVIEWER",
+  "file": "handoffs/ISS-0020/step-03b-reviewer-rework1.json",
+  "status": "COMPLETED",
+  "priority": "HIGH",
+  "context": {
+    "issue_id": "ISS-0020",
+    "related_handoff_ids": [
+      "step-01-issue-fixer",
+      "step-02-code-designer",
+      "step-02b-code-design-validator",
+      "step-03-backend-dev",
+      "step-03b-reviewer",
+      "step-03c-security-reviewer",
+      "step-02-code-designer-rework1",
+      "step-02b-code-design-validator-regate",
+      "step-03-backend-dev-rework1"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/ISS-0020-fix.md",
+      "handoffs/ISS-0020/step-03-backend-dev-rework1.json",
+      "apps/bot/src/handlers/staff.ts"
+    ]
+  },
+  "task": {
+    "description": "Re-run REVIEWER for BACKEND-DEV's rework of ISS-0020's fix (commit dcedf36), which replaces the guard-clause shape FAILed by SECURITY-REVIEWER (ISS-0020-SEC-1, timing side-channel) with a single-try-block shape per the reworked and re-gated design docs/agents/design/ISS-0020-fix.md.",
+    "acceptance_criteria": [
+      "Implementation matches the reworked design (§2/§2.1/§2.2) exactly.",
+      "The non-blocked path's send behavior is unchanged from the original pre-ISS-0020 code (same sendMessage call, same catch handling).",
+      "No dead code left over from the prior guard-clause structure; comments are accurate and not stale.",
+      "npm run lint -w apps/bot, npm run build -w apps/bot, and npx vitest run --no-file-parallelism (325/325) all pass, run directly by REVIEWER."
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Re-derived the verdict directly against the diff and design doc, not from BACKEND-DEV's self-report.\n\n1. DESIGN CONFORMANCE -- PASS. Read docs/agents/design/ISS-0020-fix.md §2.1's table row-for-row against apps/bot/src/handlers/staff.ts (both makeStaffAddHandler ~lines 91-112 and makeStaffRemoveHandler ~lines 172-193). Both branches now sit inside the SAME try block: step 1 `await resolveLangForTg(db, Number(targetUser.tgId))` runs unconditionally; step 2 composes `body` from the catalog + `.replace(\"{event}\", event.title)` unconditionally; step 3 branches only on `targetUser.blocked` to pick which Bot API call to make -- `await ctx.api.getMe()` (result discarded, no argument, no side effect) for blocked, `await ctx.api.sendMessage(Number(targetUser.tgId), body)` for not-blocked; step 4 sets `notificationFailed = true` unconditionally immediately after the blocked branch's await, matching the design's stated 'unconditionally, immediately after step 3's await settles' instruction. The single `catch { notificationFailed = true; }` wraps the whole try block unchanged, matching the design's 'no-op re-assignment' note for the blocked path. This is the exact mechanism from design §2.1 option 2 (chosen direction) -- no fixed no-op delay (option 1, rejected) was introduced, no timer or new primitive appears in the file.\n\n2. NON-BLOCKED PATH BYTE-IDENTITY -- PASS. Ran `git diff 2b9faba dcedf36 -- apps/bot/src/handlers/staff.ts` against 2b9faba (the pre-ISS-0020 REQ-018 commit, i.e. before either ISS-0020 attempt). The non-blocked branch's `await ctx.api.sendMessage(Number(targetUser.tgId), body)` is textually identical to the original pre-fix line in both handlers -- confirmed via direct diff read, not inferred. The wrapping `try { const targetLang = ...; const body = ...; } catch { notificationFailed = true; }` structure and the resolveLangForTg/body-composition lines are also unchanged from the original -- the only structural change from the original file is the added `if (targetUser.blocked) { ... } else { <original line> }` branch and its accompanying comment. No change to the catch block's behavior.\n\n3. CODE QUALITY -- PASS. No leftover fragment of the FAILed guard-clause shape (`if (targetUser.blocked) { notificationFailed = true; } else { try { ... } }`) remains anywhere in the file -- grepped for `targetUser.blocked` and confirmed both occurrences are the new in-try branch condition, one per handler, not a second stale guard. Comments are accurate: the new 4-line comment block above each `let notificationFailed = false;` (present in both handlers, identical text) correctly describes the current control flow ('both branches enter the SAME try block ... Only the Bot API call made differs'), matching what the code actually does -- not a copy-paste of stale reasoning from the FAILed revision. The pre-existing comment above it ('F8 notification ... A failed send does not roll back the assignment already committed above.') remains accurate and unchanged -- still true under the new shape. The new inline comment on the `getMe()` call ('Side-effect-free, no-argument Bot API call standing in for the skipped sendMessage round-trip (design §2.1) -- result discarded') is accurate and matches design §2.1's own wording for why `getMe()` was chosen.\n\n4. SCOPE -- PASS. `git diff dcedf36~1 dcedf36 --stat` shows exactly two files: apps/bot/src/handlers/staff.ts (the only source change) and handoffs/ISS-0020/step-03-backend-dev-rework1.json (bookkeeping). No change to apps/bot/src/domain/user.ts (already correct from the first implementation, per this rework's own scope) or any other file. No new npm workspace, no build-output relocation -- the Docker-build check in REVIEWER's role file does not apply here.\n\n5. DECISION-RECORD / ANTI-PATTERN CHECKS (apps/bot changes) -- PASS. (a) Domain-logic-outside-handlers (decisions/0004): the `targetUser.blocked` branch only selects which already-domain-sourced Bot API side effect to invoke (blocked itself is a plain projected column from domain/user.ts's getUserByTgUsername, added in the prior, unchallenged implementation) -- this is presentation/notification-dispatch sequencing, not a new admission/capacity/promotion/idempotency rule, so it does not need to move into a domain module. (b) No now()/current_timestamp in a time-dependent predicate: this diff contains no SQL and no time-dependent query at all. (c) No migration in this diff, so the SQL-review-as-migration and S13 sign-off requirements do not apply.\n\n6. VERIFICATION -- all three commands run directly by REVIEWER, real output read:\n- `npm run lint -w apps/bot`: clean (`eslint .`, exit 0, no output).\n- `npm run build -w apps/bot`: clean (`tsc -p tsconfig.json`, exit 0, no output).\n- `npx vitest run --no-file-parallelism`: 35 test files / 325 tests, all passed, 32.13s, 0 failures -- matches the required 325/325 exactly.\n\nNo findings. The rework closes ISS-0020-SEC-1 exactly as designed, with no regression to the non-blocked path and no leftover cruft.",
+    "artifacts_out": [
+      "handoffs/ISS-0020/step-03b-reviewer-rework1.json"
+    ],
+    "issues": [],
+    "next_action": "Route to SECURITY-REVIEWER for timing-fix re-verification"
+  },
+  "rework_count": 1,
+  "max_rework": 3
+}

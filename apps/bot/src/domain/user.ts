@@ -127,6 +127,7 @@ export interface UserWithTelegram {
   id: string;
   tgId: bigint | null;
   tgUsername: string | null;
+  blocked: boolean;
 }
 
 export async function getUserByTgUsername(
@@ -134,7 +135,12 @@ export async function getUserByTgUsername(
   tgUsername: string,
 ): Promise<UserWithTelegram | null> {
   const rows = await db
-    .select({ id: users.id, tgId: users.tgId, tgUsername: users.tgUsername })
+    .select({
+      id: users.id,
+      tgId: users.tgId,
+      tgUsername: users.tgUsername,
+      blocked: users.blocked,
+    })
     .from(users)
     .where(eq(users.tgUsername, tgUsername))
     .limit(1);

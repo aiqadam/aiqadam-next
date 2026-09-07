@@ -1,0 +1,55 @@
+{
+  "handoff_id": "step-03c-security-reviewer",
+  "run_id": "ISS-0020",
+  "workflow_id": "WF-03",
+  "step": "03c",
+  "from_agent": "SECURITY-REVIEWER",
+  "to_agent": "BACKEND-DEV",
+  "file": "handoffs/ISS-0020/step-03c-security-reviewer.json",
+  "status": "COMPLETED",
+  "priority": "HIGH",
+  "context": {
+    "issue_id": "ISS-0020",
+    "related_handoff_ids": [
+      "step-01-issue-fixer",
+      "step-02-code-designer",
+      "step-02b-code-design-validator",
+      "step-03-backend-dev",
+      "step-03b-reviewer"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/ISS-0020-fix.md",
+      "docs/agents/instructions/security-invariants.md",
+      "apps/bot/src/domain/user.ts",
+      "apps/bot/src/handlers/staff.ts"
+    ]
+  },
+  "task": {
+    "description": "Run security-invariants.md against ISS-0020's fix (S10: blocked users skipped for staff-assignment/removal notifications), per REVIEWER's step-03b recommendation.",
+    "acceptance_criteria": [
+      "Zero ctx.api.sendMessage calls for a blocked EventStaff target, in both makeStaffAddHandler and makeStaffRemoveHandler.",
+      "The design's S3 organizer-surfacing reasoning (generic notificationFailedNote, no blocked-specific message) holds against ALL observable signals, not just reply text -- including timing.",
+      "Non-blocked delivery is unregressed.",
+      "Diff scope is exactly apps/bot/src/domain/user.ts and apps/bot/src/handlers/staff.ts.",
+      "No new PII/blocked-flag exposure via logs or other surfaces."
+    ]
+  },
+  "result": {
+    "status": "FAIL",
+    "summary": "Re-derived each check directly against the diff (git diff master...fix/ISS-0020) and the current file contents rather than trusting step-03b's report.\n\n1. NEGATIVE CASE (zero sends) -- PASS. Constructed the scenario explicitly: users.blocked=true row resolved by getUserByTgUsername (domain/user.ts:133-148, now projecting blocked: users.blocked). In makeStaffAddHandler (staff.ts:91-105) and makeStaffRemoveHandler (staff.ts:165-179), `if (targetUser.blocked) { notificationFailed = true; }` sits as a guard BEFORE the pre-existing `try { ... await ctx.api.sendMessage(...) }` block, in an if/else where the try-block (containing the only two ctx.api.sendMessage call sites in the file, confirmed via Grep -- lines 101 and 175) is the else branch. For a blocked target, the else branch's body, including sendMessage, is never entered. Zero calls, both handlers. Confirmed by reading control flow, not by trusting the design doc's claim.\n\n2. LEAK-DETECTION (this task's flagged focus) -- FAIL. Reply-text channel is clean: `notificationFailedNote` is a single fixed string per locale (i18n/en.ts:102 ' (failed to notify the user)', i18n/ru.ts:109), reused identically for both the blocked-skip path and the pre-existing thrown-error path -- confirmed by reading the actual reply-construction code (staff.ts:107-111 and :181-185), not just the design doc's assertion. No new catalog key, no distinguishable reply, no distinguishable error code -- design S3's stated reasoning holds ON THIS AXIS.\n\nBut timing is a second, uninspected axis, and it leaks. Pre-fix, EVERY path through the notification step performed the same two awaits (resolveLangForTg's DB read, then ctx.api.sendMessage's network round-trip) regardless of outcome -- there was no timing asymmetry to exploit. This diff introduces one: the blocked branch (staff.ts:92-93 / :166-167) returns from the notification step immediately, performing neither await, while the else branch (:94-104 / :168-178) still performs both -- a DB read plus a Telegram API round-trip -- whether that attempt ultimately succeeds or is caught as a failure. Telegram API round-trips are not sub-millisecond; the skip path is. This makes the two notificationFailed=true outcomes ('target has blocked us' vs. 'send failed for any other reason') distinguishable to the organizer by wall-clock time to reply, even though the reply text is identical -- exactly the distinction design S3 states it is trying not to leak ('does not leak the distinction \"this specific person has blocked us\" vs. \"some other delivery failure occurred\"'). An organizer who already has the authorization to run /staff_add/_remove on a given username (S2's existing gate -- this is not a new authorization bypass) can now additionally infer, by timing a single reply or by repeating remove+add cycles to sharpen the signal, whether that specific person has the internal blocked flag set -- information the design explicitly intended to withhold from them via the text channel. This is a regression introduced BY this diff (pre-fix code had no such asymmetry), not a pre-existing condition, so it is in scope for this fix rather than a separately-filed issue.\n\n3. NON-REGRESSION -- PASS. The else branch in both handlers is byte-identical to the pre-fix try/catch (same resolveLangForTg call, same catalog lookup, same sendMessage call, same catch setting notificationFailed=true) -- confirmed via diff read, a pure wrap not a rewrite. A legitimate non-blocked EventStaff assignment/removal is notified exactly as before, with no added latency or behavior change.\n\n4. SCOPE -- PASS. `git diff master...fix/ISS-0020 --stat` shows exactly two source files touched: apps/bot/src/domain/user.ts (+5/-1) and apps/bot/src/handlers/staff.ts (+22/-14); everything else in the diff is docs/agents/design/ISS-0020-fix.md and handoffs/ISS-0020/*.json. No migration, no ledger/domain/notification.ts change, no other handler file.\n\n5. NO NEW PII EXPOSURE -- PASS. Grepped getUserByTgUsername/UserWithTelegram across apps/bot/src: exactly 2 files reference either (domain/user.ts's own declaration, staff.ts's two call sites) -- no third consumer that could log or surface the widened shape. Grepped console./logger./log(/JSON.stringify in apps/bot/src/handlers/staff.ts: the only 'log' substring matches are inside the identifier 'catalog' -- no actual logging call exists in this file. `blocked` (a boolean, not itself PII) is never written to a log, AuditLog payload, or reply string anywhere in this diff.\n\nInvariant checklist: S10 applies directly (result above). S1-S9, S12-S14 N/A -- this diff touches no consent flow, no authorization check (the pre-existing requireOrganizerForChapter is unchanged and unexercised by this diff), no token, no check-in/capacity/audit-log path, no export, no deletion, no publication. S11 (PII in logs) checked and clear (item 5). S3 (own-profile-only read) N/A -- no Profile data is read or returned by this diff.",
+    "artifacts_out": [
+      "handoffs/ISS-0020/step-03c-security-reviewer.json"
+    ],
+    "issues": [
+      {
+        "id": "ISS-0020-SEC-1",
+        "severity": "MEDIUM",
+        "description": "Timing side-channel newly introduced by this diff: the blocked-skip branch (staff.ts:92-93 in makeStaffAddHandler, :166-167 in makeStaffRemoveHandler) returns from the notification step without awaiting resolveLangForTg or ctx.api.sendMessage, while the else branch always awaits both regardless of outcome. This makes 'target has the internal blocked flag set' distinguishable from 'send failed for any other reason' by reply latency, even though the two outcomes share an identical reply string (notificationFailedNote) -- undermining design ISS-0020-fix.md §3's explicit stated goal of not leaking that distinction to the organizer.",
+        "required_fix": "Make the blocked branch cost-equivalent to the attempt-send branch before ctx.reply is sent, e.g. still perform an equivalent-cost no-op await (the same resolveLangForTg call already computed for i18n purposes, plus a fixed matching delay standing in for the network round-trip) in the `if (targetUser.blocked)` branch of both makeStaffAddHandler and makeStaffRemoveHandler, so wall-clock time to reply does not depend on which notificationFailed path was taken. Scope stays within staff.ts -- no schema, ledger, or other-file changes needed."
+      }
+    ],
+    "next_action": "Return to BACKEND-DEV for rework: close the timing side-channel named in ISS-0020-SEC-1 in both handlers, then re-run this SECURITY-REVIEWER step before TEST-DESIGNER (Step 4)."
+  },
+  "rework_count": 0,
+  "max_rework": 3
+}

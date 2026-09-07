@@ -1,0 +1,47 @@
+{
+  "handoff_id": "step-02-code-designer-rework1",
+  "run_id": "ISS-0020",
+  "workflow_id": "WF-03",
+  "step": "02",
+  "from_agent": "CODE-DESIGNER",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "file": "handoffs/ISS-0020/step-02-code-designer-rework1.json",
+  "status": "COMPLETED",
+  "priority": "HIGH",
+  "context": {
+    "issue_id": "ISS-0020",
+    "related_handoff_ids": [
+      "handoffs/ISS-0020/step-01-issue-fixer.json",
+      "handoffs/ISS-0020/step-02-code-designer.json",
+      "handoffs/ISS-0020/step-02b-code-design-validator.json",
+      "handoffs/ISS-0020/step-03-backend-dev.json",
+      "handoffs/ISS-0020/step-03b-reviewer.json",
+      "handoffs/ISS-0020/step-03c-security-reviewer.json"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/ISS-0020-fix.md",
+      "docs/agents/instructions/security-invariants.md",
+      "handoffs/ISS-0020/step-03c-security-reviewer.json",
+      "apps/bot/src/handlers/staff.ts"
+    ]
+  },
+  "task": {
+    "description": "Rework docs/agents/design/ISS-0020-fix.md to close ISS-0020-SEC-1, the MEDIUM timing side-channel SECURITY-REVIEWER found in the implemented (now-FAILed) shape: the blocked branch returned immediately, skipping both the resolveLangForTg DB read and the ctx.api.sendMessage network round-trip, while the non-blocked branch (including its own thrown-failure case) always performed both -- making the two notificationFailed=true outcomes distinguishable to the organizer by reply latency, even though the reply text is identical. This is a regression introduced by the FAILed diff, not pre-existing (pre-fix, every path performed the same two awaits regardless of outcome).",
+    "acceptance_criteria": [
+      "The blocked branch and the not-blocked branch perform the same DB read (resolveLangForTg) and exactly one Telegram Bot API network round-trip each, before notificationFailed is resolved and ctx.reply is reached, in both makeStaffAddHandler and makeStaffRemoveHandler",
+      "Zero ctx.api.sendMessage calls still occur for a blocked EventStaff target (the AC from the original design is not weakened by this rework)",
+      "The mechanism chosen is justified against at least the two alternatives named in the driving task (fixed no-op delay vs. restructuring the awaits) with explicit reasoning, and any residual (non-eliminated) timing difference is stated rather than silently claimed away",
+      "No new implementation code in the design doc (signatures/prose rule tables only)",
+      "Diff scope stays within docs/agents/design/ISS-0020-fix.md -- no other file touched by this design rework"
+    ]
+  },
+  "result": {
+    "status": "REWORK_COMPLETE",
+    "summary": "Rework iteration 1 of docs/agents/design/ISS-0020-fix.md, addressing the single MEDIUM finding in handoffs/ISS-0020/step-03c-security-reviewer.json (ISS-0020-SEC-1): the FAILed implementation's guard-clause shape (`if (targetUser.blocked) { notificationFailed = true; } else { try { ...await resolveLangForTg...; ...await ctx.api.sendMessage... } catch { notificationFailed = true; } }`) let the blocked branch skip both awaits entirely, creating a network-round-trip-vs-none timing asymmetry the pre-fix code never had.\n\nOf the three options the driving task offered, chose and refined option 2 (restructure so the same awaits still occur, only the actual sendMessage call differs) over option 1 (a fixed setTimeout delay, rejected as a magic-number smell that can never match real, variable Telegram latency and introduces a new kind of primitive -- a timer -- the file otherwise has none of). Concretely: both branches now enter the SAME try block and perform the SAME resolveLangForTg DB read and body composition; the only branch point moved from 'enter the try block or not' to 'which Bot API method to call inside it' -- ctx.api.getMe() (a read-only, side-effect-free, no-argument call against the same api.telegram.org host, whose result is discarded entirely) for the blocked case, vs. the existing ctx.api.sendMessage(...) for the not-blocked case. notificationFailed is set to true unconditionally right after the blocked branch's await settles (and redundantly by the existing catch if getMe() itself throws, which is a no-op re-assignment, not new behavior) -- so the outcome is identical to today's semantics (blocked always yields notificationFailed=true) while the control-flow shape no longer skips the network round-trip category.\n\ndocs/agents/design/ISS-0020-fix.md changes:\n1. Sec2: added a REWORK NOTE explaining the FAIL and pointing at the new Sec2.1/2.2, replacing the old guard-clause rule table.\n2. Sec2.1 (new): states and weighs all three options from the driving task (fixed delay / restructure via getMe / other), states the chosen mechanism as a per-step table (both branches' DB read, body composition, and Bot API call, and when notificationFailed is set), and justifies ctx.api.getMe() specifically (already on the same client, targets no user, no side effects, same latency-class network round-trip -- not a guessed constant).\n3. Sec2.2 (new): explicitly separates what is equalized (the categorical zero-network-calls-vs-one asymmetry SECURITY-REVIEWER found) from what is NOT claimed to be equalized (getMe()'s and sendMessage()'s payloads/server-side handling differ, so a sufficiently patient statistical attacker could in principle still detect a difference) -- named as a proportionality call given this is a MEDIUM-severity, narrow-threat-model bug fix, not silently folded into the 'equalized' claim.\n4. Sec4 (AC map): added one row for the new AC (blocked-vs-other-failure distinction not leaked via reply latency), citing Sec2.1/2.2.\n5. Sec5 (open questions): added item 3 naming Sec2.2's residual explicitly as a known, not-eliminated gap, so a future stricter timing-side-channel policy has a named follow-up rather than an implied-closed assumption.\n\nSec0/Sec1/Sec3 are unchanged verbatim from the version step-03b/step-03c already evaluated (the getUserByTgUsername projection widening and the organizer-facing-surfacing decision are untouched by this rework -- neither was the subject of the FAIL).\n\nRe-gate recommendation: YES, a CODE-DESIGN-VALIDATOR re-gate IS warranted despite this being a narrow, already-approved-shape rework, because the fix is not a pure tightening of an existing guard -- it introduces a genuinely new mechanism (a stand-in Bot API call, ctx.api.getMe(), used purely for timing cover) that was not present in, and was not evaluated as part of, the original design gate. This exact file already failed once downstream (SECURITY-REVIEWER, not CODE-DESIGN-VALIDATOR) on a control-flow subtlety in this same notification step; a second, orthogonal gate (CODE-DESIGN-VALIDATOR checking AC coverage, no-implementation-code, and internal consistency of the new Sec2.1/2.2) before BACKEND-DEV re-implements is cheap insurance against a second rework loop, and is exactly the kind of thing WF-03's staged gates exist to catch before implementation effort is spent. Routing to CODE-DESIGN-VALIDATOR accordingly, not directly to BACKEND-DEV.",
+    "artifacts_out": ["docs/agents/design/ISS-0020-fix.md"],
+    "issues": [],
+    "next_action": "Route to CODE-DESIGN-VALIDATOR for a re-gate of the Sec2/Sec2.1/Sec2.2 rework (AC coverage, no-implementation-code, internal consistency), before returning to BACKEND-DEV for re-implementation and then back through REVIEWER and SECURITY-REVIEWER (re-run per step-03c's own next_action)."
+  },
+  "rework_count": 1,
+  "max_rework": 3
+}
