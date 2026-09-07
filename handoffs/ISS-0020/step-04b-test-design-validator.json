@@ -1,0 +1,48 @@
+{
+  "handoff_id": "step-04b-test-design-validator",
+  "run_id": "ISS-0020",
+  "workflow_id": "WF-03",
+  "step": "04b",
+  "from_agent": "TEST-DESIGN-VALIDATOR",
+  "to_agent": "ISSUE-FIXER",
+  "file": "handoffs/ISS-0020/step-04b-test-design-validator.json",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "issue_id": "ISS-0020",
+    "related_handoff_ids": [
+      "step-04-test-designer"
+    ],
+    "artifacts_in": [
+      "docs/agents/test-specs/ISS-0020.md",
+      "apps/bot/src/handlers/staff.test.ts",
+      "docs/agents/design/ISS-0020-fix.md",
+      "apps/bot/src/handlers/staff.ts",
+      "apps/bot/src/domain/user.ts"
+    ]
+  },
+  "task": {
+    "description": "WF-03 Step 4's gate: independently validate docs/agents/test-specs/ISS-0020.md and the real vitest code apps/bot/src/handlers/staff.test.ts TEST-DESIGNER wrote against the requirement's acceptance criteria, re-deriving the fail-then-pass claim rather than trusting the transcript.",
+    "acceptance_criteria": [
+      "Every acceptance criterion has >=1 verification case, no TODO left, each case precise enough to run without judgment",
+      "The fail-then-pass claim is independently re-verified, not trusted from the transcript",
+      "The tg_id range is confirmed genuinely fresh by an independent grep",
+      "The structural getMe()-was-called timing-cover assertion is sound and would catch the FAILed guard-clause shape",
+      "Non-regression cases genuinely assert the real notification still sends for non-blocked targets",
+      "The working tree/test file are confirmed intact after the reported worktree incident",
+      "Full suite re-run independently: 329/329 (or current count)"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Independently validated docs/agents/test-specs/ISS-0020.md against apps/bot/src/handlers/staff.test.ts and the current staff.ts/ISS-0020-fix.md design. All checks pass; no rework needed.\n\n1. Coverage: read the test spec and the actual test file side by side. All 6 task acceptance_criteria from step-04-test-designer.json map to a concrete, named verification case (Case 1-4 in the spec, each naming the exact describe/it block, route (/staff_add or /staff_remove with exact args), setup, and expected assertions with exact catalog keys and payload fields) -- no 'TODO' anywhere in the spec, no vague 'check it looks right' language. The timing-cover AC (#4) and tg_id-freshness AC (#6) are each covered by a dedicated, reasoned section rather than a test case, which is appropriate since they are properties of the test design itself, not separate runtime behavior.\n\n2. Pre-fix baseline confirmed: `git log --oneline` on fix/ISS-0020 shows 09377bd is master HEAD immediately before this run's own git-setup commit (8c678ab) and its first ISS-0020 implementation (7585829) -- i.e., 09377bd is the genuinely-original pre-ISS-0020-at-all baseline, not merely 'before the rework.' Confirmed by reading `git show 09377bd:apps/bot/src/handlers/staff.ts` directly: both handlers call `ctx.api.sendMessage(...)` completely unconditionally, no blocked check of any kind exists, and `git show 09377bd:apps/bot/src/domain/user.ts` confirms `UserWithTelegram`/`getUserByTgUsername`'s projection has no `blocked` field at all at that commit (the design doc's own §0 claim, re-verified independently, not trusted).\n\n3. Fail-then-pass independently re-executed (not trusted from the transcript): created `git worktree add ../aiqadam-prefix-validate-check 09377bd`, diffed package.json/apps/bot/package.json between 09377bd and dcb4d13 (byte-identical), symlinked node_modules, copied the exact current staff.test.ts in unchanged, and ran `TEST_DATABASE_URL=postgres://bot:bot@localhost:55432/bot npx vitest run apps/bot/src/handlers/staff.test.ts --no-file-parallelism`. Result: 2 failed / 2 passed, with the identical AssertionErrors the spec quotes (`expected [ 1010000001, 1010000000 ] to not include 1010000001` and the analogous remove-handler one) -- matches the spec's transcript exactly, independently reproduced. Then ran the same command against the current branch tip (dcb4d13): 4 passed / 0 failed, and `dbAvailable` was true (no skip-warning in output, all 4 tests reported as run).\n\n4. Timing-cover assertion soundness: confirmed the reasoning in the spec's 'Timing-cover (SEC-1) verification decision' section is sound -- the fake bot.api.config.use transformer in staff.test.ts resolves every method on the same immediately-resolved-Promise tick (read directly in staff.test.ts lines 85-98), so a wall-clock assertion genuinely could not discriminate real latency in this harness; the structural `methods.toContain('getMe')` assertion is the correct substitute and would fail against the previously-FAILed guard-clause shape (`if (blocked) { notificationFailed = true } else { try {...} }`, no try entered on the blocked path, no getMe() call) -- confirmed by reading dcedf36's diff description in docs/agents/design/ISS-0020-fix.md §2, rework note, which states this exact prior shape. Current staff.ts (both handlers) shows the correct rework shape: one try block, both branches call resolveLangForTg + compose body, branching only on which Bot API method is invoked.\n\n5. Non-regression cases (3 and 4): confirmed both assert a real `sendMessage` call exists with the target's own `chat_id` and body text containing the real assignment/removal notification body (via getCatalog('ru').staff.assignmentNotificationBody / removalNotificationBody with the actual event title substituted) -- not merely 'no error thrown.' Confirmed `assignmentNotificationBody`/`removalNotificationBody`/`notificationFailedNote` all exist in apps/bot/src/i18n/ru.ts.\n\n6. tg_id range: independently grepped `let nextTgId\\s*=` across apps/bot/src/**. Highest existing range besides staff.test.ts is domain/notification.test.ts at 1_000_000_900. staff.test.ts's 1_010_000_000 clears every range found, confirming the spec's freshness claim.\n\n7. Worktree incident: while removing my own verification worktree (`git worktree remove ../aiqadam-prefix-validate-check --force`), apps/bot/** and apps/web/** were briefly deleted from the MAIN working tree as well -- the exact incident TEST-DESIGNER reported, independently reproduced by me. Recovered immediately via `git checkout -- apps/`; confirmed `git status` clean and `git diff --stat` empty afterward, staff.ts/staff.test.ts/user.ts content intact and unchanged.\n\n8. Full suite: first `npx vitest run --no-file-parallelism` run showed 45 failed/284 passed, all failures foreign-key violations from TRUNCATE racing a concurrent transaction (`events_chapter_id_chapters_id_fk` violation) -- structurally a transient DB-contention artifact from my own just-prior worktree test run against the same scratch Postgres instance, not a code defect (no touched file in the diff relates to event/chapter FK handling). Re-ran twice more with no other DB activity in between: 329/329 passed both times, stably. Attributing the single flaky run to transient external contention (the worktree verification I had just run moments before against the same port), not to this branch's diff, per core-directives.md's structural-attribution rule -- backed by immediate, repeated clean reruns of the identical code.",
+    "artifacts_out": [
+      "handoffs/ISS-0020/step-04b-test-design-validator.json"
+    ],
+    "issues": [],
+    "next_action": "Route to ISSUE-FIXER (Step 5, close issue)"
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "completed_at": "2026-09-07T23:53:32Z"
+}
