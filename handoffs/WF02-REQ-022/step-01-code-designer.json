@@ -1,0 +1,30 @@
+{
+  "handoff_id": "step-01-code-designer",
+  "run_id": "WF02-REQ-022",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Wrote docs/agents/design/REQ-022.md: withdraw domain logic (decideWithdrawOutcome + withdrawRegistration, both new exports on the existing apps/bot/src/domain/registration.ts), a two-step inline-keyboard confirm/cancel UX (no prior confirm-before-destructive-action pattern exists anywhere in apps/bot/src/handlers/*.ts -- checked directly, grep for 'confirm' across that directory found none), the re-registration-reuses-row mechanism, and the audit-log integration. NO SCHEMA CHANGE -- checked apps/bot/src/db/schema.ts directly: the admission pgEnum already has 'withdrawn' (REQ-011), checked_in_at already exists (nullable timestamptz, with the existing CHECK chk_registrations_checked_in_only_if_admitted already enforcing checked-in-only-while-admitted at the DB level), and uq_registrations_event_user already exists. DATA-DESIGNER not dispatched for this run.\n\n/my-DOESN'T-EXIST-YET SCOPING ISSUE RESOLVED EXPLICITLY (Sec0): built a standalone /withdraw <event_id> command implementing the FULL withdraw domain logic and confirmation flow now, following the exact precedent REQ-018 (/checkin <event_id> before any registration list existed) and REQ-021 (Sec0's own 'referencing feature doesn't exist yet' resolution) already set in this pipeline. Design states explicitly that REQ-024's future /my should point its list row's Withdraw button at this design's same withdraw:confirm:<id>/withdraw:cancel:<id> callback pair (Sec0 point 4, flagged as a recommendation for REQ-024 to decide, not binding on it).\n\nregisterForEvent DOES need modification (checked its current insert logic directly, per task instruction) -- confirmed in Sec3: today a withdrawn row's non-null admission trips decideRegistrationOutcome's existing 'already-registered' branch, and step 8's write is an unconditional INSERT that would violate uq_registrations_event_user if that branch were bypassed. The fix keeps decideRegistrationOutcome itself byte-for-byte UNCHANGED (Sec3.3) -- only registerForEvent's own computation of the existingAdmission value it passes in changes (a withdrawn row's admission is normalized to null before the call, every other admission value passed through as today), plus step 8 branches to an UPDATE (admission/source/qr_token only, id/created_at never in the SET clause -- Sec3.1's proof) when a prior withdrawn row was found, vs. today's unconditional INSERT otherwise.\n\ndecideWithdrawOutcome is a 5-row ordered table (not-found / not-owner / checked-in / not-eligible-already-terminal / withdrawn), stated in prose only per this role's zero-implementation-code rule -- checked-in is evaluated before eligibility since a checked-in row is always admission='admitted' by the schema's own CHECK, so the ordering never masks a distinct case. withdrawRegistration does one FOR UPDATE row-lock read + decideWithdrawOutcome + (on the one write-worthy outcome) one UPDATE + exactly one writeAuditLog call in the same transaction (S8), re-deriving ownership/checked-in-status fresh at confirm time independent of whatever the /withdraw command displayed earlier (Sec2.3 closes the check-in-during-the-confirmation-window race).\n\nEvery AC mapped to a concrete design element in Sec7's table.",
+    "artifacts_out": ["docs/agents/design/REQ-022.md"],
+    "issues": [
+      {
+        "severity": "MINOR",
+        "description": "docs/agents/design/REQ-022.md Sec6 open question 1 leaves 'new handlers/withdraw.ts vs. extending handlers/registration.ts' to BACKEND-DEV's judgment -- both satisfy every acceptance criterion identically, named explicitly rather than silently picked, per this role's 'don't silently resolve an ambiguity' rule."
+      },
+      {
+        "severity": "MINOR",
+        "description": "docs/agents/design/REQ-022.md Sec0 point 4 and Sec6 open question 2: this design recommends that REQ-024's future /my point its registration-list 'Withdraw' button at this design's withdraw:confirm/withdraw:cancel callback pair, but REQ-024 is not designed yet and this document cannot bind that future design -- flagged so REQ-024's own CODE-DESIGNER sees and considers the recommendation rather than reinventing the callback shape."
+      }
+    ],
+    "next_action": "Route to CODE-DESIGN-VALIDATOR (Step 1b)"
+  },
+  "context": {
+    "requirement_id": "REQ-022",
+    "depends_on": ["REQ-021"],
+    "branch_name": "feature/WF02-REQ-022"
+  }
+}

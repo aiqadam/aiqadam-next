@@ -204,4 +204,19 @@ export interface Catalog {
     refusedRequiresInvite: string;
     refusedRequiresApproval: string;
   };
+  // NEW, REQ-022: /withdraw <event_id> -- the two-step confirm/cancel UX
+  // (design §4) and its refusal copy (design §2.1). Placeholder/minimal
+  // functional copy per decisions/0002 (CONTENT-BA owns final wording).
+  withdraw: {
+    usageNoId: string;
+    // Interpolated with the event title.
+    confirmPrompt: string;
+    confirmButton: string;
+    cancelButton: string;
+    confirmedReply: string;
+    cancelledReply: string;
+    refusedCheckedIn: string;
+    refusedNotEligible: string;
+    refusedNotFound: string;
+  };
 }

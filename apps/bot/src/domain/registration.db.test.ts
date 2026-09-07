@@ -1,11 +1,17 @@
 import { Pool } from "pg";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, it, expect } from "vitest";
 import * as schema from "../db/schema.js";
 import { auditLog, chapters, registrations, users, venues } from "../db/schema.js";
 import { createEvent, publishEvent, setPendingSource } from "./event.js";
-import { getWaitlistPosition, registerForEvent } from "./registration.js";
+import {
+  decideWithdrawOutcome,
+  getRegistrationForEventAndUser,
+  getWaitlistPosition,
+  registerForEvent,
+  withdrawRegistration,
+} from "./registration.js";
 
 // docs/agents/design/REQ-020.md — AC1 (atomic capacity, real concurrency),
 // AC2 (double registration), AC4 (closed/cancelled/finished refusal +
@@ -528,5 +534,306 @@ describe("registerForEvent — REQ-021 AC4: waitlist accepts unbounded registrat
     const lastRow = waitlistedRows.reduce((latest, r) => (r.createdAt > latest.createdAt ? r : latest));
     const lastPosition = await getWaitlistPosition(db, eventId, lastRow.id);
     expect(lastPosition).toBe(WAITLIST_COUNT);
+  });
+});
+
+// docs/agents/design/REQ-022.md — decideWithdrawOutcome is pure, no I/O; unit
+// tests need no database.
+describe("decideWithdrawOutcome — REQ-022 §2.1: first-match-wins table", () => {
+  it("returns not-found when the registration does not exist", () => {
+    expect(
+      decideWithdrawOutcome({
+        registrationExists: false,
+        ownerUserId: null,
+        actingUserId: "user-1",
+        admission: null,
+        checkedInAt: null,
+      }),
+    ).toEqual({ kind: "not-found" });
+  });
+
+  it("returns not-owner when the acting user does not own the row", () => {
+    expect(
+      decideWithdrawOutcome({
+        registrationExists: true,
+        ownerUserId: "someone-else",
+        actingUserId: "user-1",
+        admission: "admitted",
+        checkedInAt: null,
+      }),
+    ).toEqual({ kind: "not-owner" });
+  });
+
+  it("returns checked-in before eligibility, even though a checked-in row is always admitted", () => {
+    expect(
+      decideWithdrawOutcome({
+        registrationExists: true,
+        ownerUserId: "user-1",
+        actingUserId: "user-1",
+        admission: "admitted",
+        checkedInAt: new Date("2026-09-01T00:00:00Z"),
+      }),
+    ).toEqual({ kind: "checked-in" });
+  });
+
+  it("returns not-eligible for an already-withdrawn row", () => {
+    expect(
+      decideWithdrawOutcome({
+        registrationExists: true,
+        ownerUserId: "user-1",
+        actingUserId: "user-1",
+        admission: "withdrawn",
+        checkedInAt: null,
+      }),
+    ).toEqual({ kind: "not-eligible", admission: "withdrawn" });
+  });
+
+  it("returns not-eligible for a rejected row", () => {
+    expect(
+      decideWithdrawOutcome({
+        registrationExists: true,
+        ownerUserId: "user-1",
+        actingUserId: "user-1",
+        admission: "rejected",
+        checkedInAt: null,
+      }),
+    ).toEqual({ kind: "not-eligible", admission: "rejected" });
+  });
+
+  it("returns withdrawn for an eligible, owned, not-checked-in row", () => {
+    for (const admission of ["requested", "waitlisted", "admitted"] as const) {
+      expect(
+        decideWithdrawOutcome({
+          registrationExists: true,
+          ownerUserId: "user-1",
+          actingUserId: "user-1",
+          admission,
+          checkedInAt: null,
+        }),
+      ).toEqual({ kind: "withdrawn" });
+    }
+  });
+});
+
+describe("withdrawRegistration — REQ-022 AC2: admitted -> withdrawn, seats-left +1 at next read", () => {
+  it("flips admission to withdrawn and frees the seat for computeSeatsLeft's next read", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 1 });
+    const userId = await seedUser();
+
+    const registerOutcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    expect(registerOutcome.kind).toBe("admitted");
+    const registrationId = (registerOutcome as { registrationId: string }).registrationId;
+
+    const admittedBefore = await db.query.registrations.findMany({
+      where: (reg, { eq: eqOp, and: andOp }) => andOp(eqOp(reg.eventId, eventId), eqOp(reg.admission, "admitted")),
+    });
+    expect(admittedBefore).toHaveLength(1);
+
+    const withdrawOutcome = await withdrawRegistration(
+      db,
+      registrationId,
+      userId,
+      new Date("2026-09-02T00:00:00Z"),
+    );
+    expect(withdrawOutcome).toEqual({ kind: "withdrawn" });
+
+    const rows = await db.select().from(registrations).where(eq(registrations.id, registrationId));
+    expect(rows[0]?.admission).toBe("withdrawn");
+
+    // computeSeatsLeft's underlying count (admission = 'admitted') no longer
+    // includes this row on the very next read -- the seat is freed.
+    const admittedAfter = await db.query.registrations.findMany({
+      where: (reg, { eq: eqOp, and: andOp }) => andOp(eqOp(reg.eventId, eventId), eqOp(reg.admission, "admitted")),
+    });
+    expect(admittedAfter).toHaveLength(0);
+
+    // A fresh registration attempt for a different user is now admitted
+    // (capacity 1, seat freed).
+    const nextUser = await seedUser();
+    const nextOutcome = await registerForEvent(db, nextUser, eventId, new Date("2026-09-03T00:00:00Z"));
+    expect(nextOutcome.kind).toBe("admitted");
+  });
+});
+
+describe("withdrawRegistration — REQ-022 AC3: checked-in registration refuses, row unchanged", () => {
+  it("refuses withdrawal for a non-null checked_in_at, leaving admission untouched", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 1 });
+    const userId = await seedUser();
+
+    const registerOutcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    expect(registerOutcome.kind).toBe("admitted");
+    const registrationId = (registerOutcome as { registrationId: string }).registrationId;
+
+    // Direct SQL check-in flip -- no check-in feature exists yet in this
+    // codebase (REQ-028/029's scope), same discipline REQ-021's own test
+    // used for a withdrawal state flip it also had no feature for yet.
+    await pool.query(
+      "UPDATE registrations SET checked_in_at = $1, admission = 'admitted' WHERE id = $2",
+      [new Date("2026-09-01T12:00:00Z"), registrationId],
+    );
+
+    const outcome = await withdrawRegistration(db, registrationId, userId, new Date("2026-09-02T00:00:00Z"));
+    expect(outcome).toEqual({ kind: "checked-in" });
+
+    const rows = await db.select().from(registrations).where(eq(registrations.id, registrationId));
+    expect(rows[0]?.admission).toBe("admitted");
+    expect(rows[0]?.checkedInAt).not.toBeNull();
+  });
+});
+
+describe("registerForEvent — REQ-022 AC4: re-registering after withdrawal reuses the same row", () => {
+  it("UPDATEs the existing row (same id, same created_at) instead of inserting a new one", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5 });
+    const userId = await seedUser();
+
+    const firstOutcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    expect(firstOutcome.kind).toBe("admitted");
+    const registrationId = (firstOutcome as { registrationId: string }).registrationId;
+
+    const beforeRows = await db.select().from(registrations).where(eq(registrations.id, registrationId));
+    const createdAtBefore = beforeRows[0]?.createdAt;
+    expect(createdAtBefore).toBeDefined();
+
+    const withdrawOutcome = await withdrawRegistration(
+      db,
+      registrationId,
+      userId,
+      new Date("2026-09-02T00:00:00Z"),
+    );
+    expect(withdrawOutcome).toEqual({ kind: "withdrawn" });
+
+    const secondOutcome = await registerForEvent(db, userId, eventId, new Date("2026-09-03T00:00:00Z"));
+    expect(secondOutcome.kind).toBe("admitted");
+    expect((secondOutcome as { registrationId: string }).registrationId).toBe(registrationId);
+
+    // Never a second row for this (event, user) pair.
+    const allRowsForUser = await db
+      .select()
+      .from(registrations)
+      .where(and(eq(registrations.eventId, eventId), eq(registrations.userId, userId)));
+    expect(allRowsForUser).toHaveLength(1);
+
+    const afterRows = await db.select().from(registrations).where(eq(registrations.id, registrationId));
+    expect(afterRows[0]?.id).toBe(registrationId);
+    expect(afterRows[0]?.createdAt).toEqual(createdAtBefore);
+    expect(afterRows[0]?.admission).toBe("admitted");
+  });
+
+  it("also reuses the row when re-registering while the event is still full (rejoins the waitlist at the original position)", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 1 });
+    const filler = await seedUser();
+    await registerForEvent(db, filler, eventId, new Date("2026-09-01T00:00:00Z"));
+
+    const userId = await seedUser();
+    const firstOutcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:01Z"));
+    expect(firstOutcome.kind).toBe("waitlisted");
+    const registrationId = (firstOutcome as { registrationId: string }).registrationId;
+
+    const beforeRows = await db.select().from(registrations).where(eq(registrations.id, registrationId));
+    const createdAtBefore = beforeRows[0]?.createdAt;
+
+    await withdrawRegistration(db, registrationId, userId, new Date("2026-09-02T00:00:00Z"));
+
+    const secondOutcome = await registerForEvent(db, userId, eventId, new Date("2026-09-03T00:00:00Z"));
+    expect(secondOutcome.kind).toBe("waitlisted");
+    expect((secondOutcome as { registrationId: string }).registrationId).toBe(registrationId);
+
+    const afterRows = await db.select().from(registrations).where(eq(registrations.id, registrationId));
+    expect(afterRows[0]?.createdAt).toEqual(createdAtBefore);
+  });
+});
+
+describe("withdrawRegistration — REQ-022 AC5: exactly one audit_log row per withdrawal", () => {
+  it("writes exactly one audit_log row for a successful withdrawal", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5 });
+    const userId = await seedUser();
+
+    const registerOutcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    const registrationId = (registerOutcome as { registrationId: string }).registrationId;
+
+    const beforeCount = (await db.select().from(auditLog)).length;
+    const outcome = await withdrawRegistration(db, registrationId, userId, new Date("2026-09-02T00:00:00Z"));
+    expect(outcome).toEqual({ kind: "withdrawn" });
+    const afterCount = (await db.select().from(auditLog)).length;
+    expect(afterCount).toBe(beforeCount + 1);
+
+    const rows = await db.select().from(auditLog).where(eq(auditLog.entityId, registrationId));
+    const withdrawRows = rows.filter((r) => r.action === "registration.withdraw");
+    expect(withdrawRows).toHaveLength(1);
+  });
+
+  it("writes no audit_log row for a refusal (already withdrawn)", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5 });
+    const userId = await seedUser();
+
+    const registerOutcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    const registrationId = (registerOutcome as { registrationId: string }).registrationId;
+    await withdrawRegistration(db, registrationId, userId, new Date("2026-09-02T00:00:00Z"));
+
+    const beforeCount = (await db.select().from(auditLog)).length;
+    const secondOutcome = await withdrawRegistration(db, registrationId, userId, new Date("2026-09-03T00:00:00Z"));
+    expect(secondOutcome).toEqual({ kind: "not-eligible", admission: "withdrawn" });
+    const afterCount = (await db.select().from(auditLog)).length;
+    expect(afterCount).toBe(beforeCount);
+  });
+});
+
+describe("getRegistrationForEventAndUser — REQ-022 §4.1 step 4: display-only read", () => {
+  it("returns the registration row for (event, user) when one exists", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5 });
+    const userId = await seedUser();
+    const registerOutcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    const registrationId = (registerOutcome as { registrationId: string }).registrationId;
+
+    const found = await getRegistrationForEventAndUser(db, eventId, userId);
+    expect(found).toEqual({ id: registrationId, admission: "admitted", checkedInAt: null });
+  });
+
+  it("returns null when no registration exists for that (event, user) pair", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5 });
+    const userId = await seedUser();
+
+    const found = await getRegistrationForEventAndUser(db, eventId, userId);
+    expect(found).toBeNull();
   });
 });

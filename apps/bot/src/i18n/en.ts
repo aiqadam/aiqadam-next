@@ -179,4 +179,17 @@ export const en = {
     refusedRequiresInvite: "This event is invite-only.",
     refusedRequiresApproval: "This event requires organizer approval to register.",
   },
+  // NEW, REQ-022: /withdraw <event_id>. Placeholder/minimal functional copy
+  // per decisions/0002 (CONTENT-BA owns final wording).
+  withdraw: {
+    usageNoId: "Provide the event id: /withdraw <event_id>",
+    confirmPrompt: "Withdraw from this event?",
+    confirmButton: "Yes, withdraw",
+    cancelButton: "No, keep my spot",
+    confirmedReply: "You've withdrawn. Your seat has been freed.",
+    cancelledReply: "OK, your registration is unchanged.",
+    refusedCheckedIn: "You've already checked in for this event -- attendance history can't be changed.",
+    refusedNotEligible: "This registration has already been withdrawn or was rejected.",
+    refusedNotFound: "Registration not found.",
+  },
 } satisfies Catalog;

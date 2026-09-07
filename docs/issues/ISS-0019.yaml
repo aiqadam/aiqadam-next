@@ -1,0 +1,26 @@
+id: ISS-0019
+title: REQ-022 test-spec has two minor fixture/count issues (invalid UUID, key-count collision)
+discovered_by: TEST-RUNNER
+discovered_in_run: WF02-REQ-022
+discovered_at: "2026-09-07T12:05:00Z"
+severity: MINOR
+description: >
+  Found during Step 4 execution of docs/agents/test-specs/REQ-022.md. Neither
+  affects the correctness of the shipped implementation -- TEST-RUNNER worked
+  around both and reported PASS with real evidence.
+  1. AC-security's owner fixture UUID contains a non-hex character (`o`),
+     rejected outright by Postgres. Worked around with a like-for-like valid
+     UUID.
+  2. AC-catalog's grep for withdraw-specific keys returns 30 matches instead
+     of the spec's stated 27, because `usageNoId` collides with a
+     pre-existing checkin-catalog key of the same name. Independently
+     confirmed all 9 withdraw keys are genuinely present in all 3 i18n
+     files (en.ts, ru.ts, types.ts) despite the raw grep count mismatch.
+  Recommended fix: TEST-DESIGNER corrects both spots in
+  docs/agents/test-specs/REQ-022.md in a future pass -- replace the invalid
+  UUID with a valid hex one, and either scope the AC-catalog grep to the
+  withdraw-specific key names only (avoiding the checkin collision) or
+  update the expected count to 30 with a note about the shared key name.
+affected_files:
+  - docs/agents/test-specs/REQ-022.md
+status: open
