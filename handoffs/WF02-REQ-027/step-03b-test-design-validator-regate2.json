@@ -1,0 +1,27 @@
+{
+  "handoff_id": "step-03b-test-design-validator-regate2",
+  "run_id": "WF02-REQ-027",
+  "workflow_id": "WF-02",
+  "step": "03b",
+  "from_agent": "ORCH",
+  "to_agent": "TEST-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "started_at": "2026-09-07T00:00:00Z",
+  "completed_at": "2026-09-07T00:00:00Z",
+  "context": {
+    "related_handoff_ids": [
+      "step-03b-test-design-validator",
+      "step-03b-test-design-validator-regate",
+      "step-03-test-designer",
+      "step-03-test-designer-rework1",
+      "step-03-test-designer-rework2",
+      "step-02c-security-reviewer"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Re-gated docs/agents/test-specs/REQ-027.md (branch feature/WF02-REQ-027, commit f4a027a) against the specific FAIL recorded in the prior re-gate: a second, unfixed instance of the '3 waitlisted' typo for AC1's fixture, in the Independence note at lines 19-20, which still read '3 waitlisted' when the AC1 header (line 170), case body (lines 178-182), and coverage table (line 380) all already read '5 waitlisted'.\n\nRead core-directives.md and WF-02 Step 3b. Diffed the rework myself: `git show f4a027a -- docs/agents/test-specs/REQ-027.md` shows exactly one line changed -- line 19-20's fixture description now reads '2 admitted / 5 waitlisted / 2 withdrawn', matching the header/body/table. `git show --stat f4a027a` confirms only docs/agents/test-specs/REQ-027.md (1 line changed) plus TEST-DESIGNER's own handoffs/WF02-REQ-027/step-03-test-designer-rework2.json were touched -- no other content in the spec was altered.\n\nIndependently ran my own full-document search (`grep -n waitlisted docs/agents/test-specs/REQ-027.md`), not trusting TEST-DESIGNER's grep claim. Results:\n- Line 19: '2 admitted / 5 waitlisted / 2 withdrawn' (Independence note, AC1's own fixture) -- now correct.\n- Line 21: '3 admitted / 2 waitlisted / 1 withdrawn' -- BACKEND-DEV's own committed fixture, a deliberately different comparison count; correctly untouched.\n- Line 22: '2 admitted / 1 waitlisted / 3 withdrawn' -- REVIEWER's independent re-check fixture, also deliberately different; correctly untouched.\n- Line 170: AC1 section header -- '2 admitted + 5 waitlisted + 2 withdrawn' -- matches.\n- Lines 178-182: case body -- 'Registrants 3-7 land waitlisted (5 registrants...)' and 'Final admission split: 2 admitted, 5 waitlisted, 2 withdrawn' -- matches.\n- Line 281: unrelated four-user illustrative example (2 admitted, 2 waitlisted) -- not part of AC1's fixture, no typo relevance.\n- Line 299: unrelated prose about '2 waitlisted rows' in a different context -- not AC1's fixture count.\n- Line 380: coverage table AC1 row -- '2 admitted/5 waitlisted/2 withdrawn' -- matches.\n\nNo remaining '3 waitlisted' instance tied to AC1's own fixture anywhere in the document. All four AC1-fixture references (Independence note, header, case body, coverage table) are now internally consistent at '5 waitlisted'. The two other '...waitlisted...' occurrences that still show different counts (lines 21-22) belong to BACKEND-DEV's and REVIEWER's own distinct fixtures by design and were correctly left alone.\n\nAlso re-confirmed no 'TODO' markers exist in the file (grep -in TODO: zero matches) and that every AC still has at least one precise, mechanically-runnable verification case (unchanged from the prior gate's already-passed checks on AC2-AC10, forged-callback coverage, and general precision, none of which were touched by this rework). PASS.",
+    "issues": [],
+    "next_action": "Route to TEST-RUNNER (Step 4)"
+  }
+}
