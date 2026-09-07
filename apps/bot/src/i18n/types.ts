@@ -355,4 +355,30 @@ export interface Catalog {
     overrideConfirmButtonLabel: string;
     overrideDismissButtonLabel: string;
   };
+  // NEW, REQ-031 (docs/agents/design/REQ-031.md §7): the T+2h feedback
+  // request / T+24h reminder, NPS/liked/improve/topicVotes prompts, the
+  // once-only broadcast-opt-in ask. Placeholder/minimal functional copy per
+  // decisions/0002 (CONTENT-BA owns final wording). `refLinePrefix`/
+  // `fieldLinePrefix` are listed here only so catalogs.test.ts's runtime
+  // parity check keeps enforcing they stay present with the identical
+  // literal value in both locale files — they are fixed, machine-parseable
+  // anchors (domain/feedback.ts's own FEEDBACK_REF_LINE_PREFIX/
+  // FEEDBACK_FIELD_LINE_PREFIX constants), never actually looked up through
+  // this per-language catalog at runtime.
+  feedback: {
+    npsPrompt: string;
+    reminderPrefix: string;
+    likedPrompt: string;
+    improvePrompt: string;
+    topicVotesPrompt: string;
+    skipButton: string;
+    broadcastAskPrompt: string;
+    broadcastYesLabel: string;
+    broadcastNoLabel: string;
+    completedNotice: string;
+    staleMessage: string;
+    notYourFeedback: string;
+    refLinePrefix: string;
+    fieldLinePrefix: string;
+  };
 }

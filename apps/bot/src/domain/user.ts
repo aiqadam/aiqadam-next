@@ -246,6 +246,50 @@ export async function createWalkinUser(
   return row;
 }
 
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-031.md §2.6 — two new functions for the feedback
+// flow's broadcast-opt-in "ask once" mechanism.
+// ---------------------------------------------------------------------------
+export interface UserFeedbackState {
+  id: string;
+  broadcastOptIn: boolean;
+  broadcastOptInAskedAt: Date | null;
+}
+
+export async function getUserFeedbackStateById(
+  db: DbClient["db"],
+  userId: string,
+): Promise<UserFeedbackState | null> {
+  const rows = await db
+    .select({
+      id: users.id,
+      broadcastOptIn: users.broadcastOptIn,
+      broadcastOptInAskedAt: users.broadcastOptInAskedAt,
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+// §2.6 — the ONLY function anywhere in this design (or, by inspection of the
+// current codebase, anywhere in apps/bot/src) that ever writes
+// users.broadcast_opt_in or users.broadcast_opt_in_asked_at. Both columns
+// written by the SAME statement, always together — mirroring
+// consentPdAt/consentPdVersion's existing pairing discipline
+// (REQ-014-schema.md §10).
+export async function writeBroadcastOptInAnswer(
+  db: DbClient["db"],
+  userId: string,
+  answer: boolean,
+  at: Date,
+): Promise<void> {
+  await db
+    .update(users)
+    .set({ broadcastOptIn: answer, broadcastOptInAskedAt: at })
+    .where(eq(users.id, userId));
+}
+
 export async function getUserWithChapterByTgId(
   db: DbClient["db"],
   tgId: bigint,

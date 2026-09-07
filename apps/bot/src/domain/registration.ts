@@ -1356,6 +1356,50 @@ export function decideOverrideOutcome(input: OverrideDecisionInput): OverrideOut
 // check_in_method is 'manual' here (an organizer's administrative act, not a
 // camera scan) -- never 'qr'.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-031.md §2.5 — getRegistrationFeedbackContext: the
+// at-send-time/at-write-time context the feedback flow needs. A new function
+// rather than extending getRegistrationAdmissionAndEvent (REQ-026) — that
+// function's own callers (reminderJobs.ts) do not need checkedInAt, and this
+// design does not touch call sites it has no reason to touch. `checkedInAt`
+// is what makes AC1 ("admitted but never checked in receives NOTHING")
+// checkable, both here (used defensively at compose/write time) and in
+// scheduler/feedbackJobs.ts's own selection queries.
+// ---------------------------------------------------------------------------
+export interface RegistrationFeedbackContext {
+  userId: string;
+  eventId: string;
+  admission: AdmissionState;
+  checkedInAt: Date | null;
+}
+
+export async function getRegistrationFeedbackContext(
+  db: DbClient["db"],
+  registrationId: string,
+): Promise<RegistrationFeedbackContext | null> {
+  const rows = await db
+    .select({
+      userId: registrations.userId,
+      eventId: registrations.eventId,
+      admission: registrations.admission,
+      checkedInAt: registrations.checkedInAt,
+    })
+    .from(registrations)
+    .where(eq(registrations.id, registrationId))
+    .limit(1);
+
+  const row = rows[0];
+  if (row === undefined) {
+    return null;
+  }
+  return {
+    userId: row.userId,
+    eventId: row.eventId,
+    admission: row.admission as AdmissionState,
+    checkedInAt: row.checkedInAt,
+  };
+}
+
 export async function overrideAdmitAndCheckIn(
   db: DbClient["db"],
   registrationId: string,

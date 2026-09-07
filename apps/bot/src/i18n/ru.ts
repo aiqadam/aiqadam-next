@@ -274,4 +274,22 @@ export const ru = {
     overrideConfirmButtonLabel: "Всё равно добавить",
     overrideDismissButtonLabel: "Не добавлять",
   },
+  feedback: {
+    npsPrompt:
+      "Оцените, пожалуйста, мероприятие от 0 до 10 — насколько вы готовы порекомендовать его друзьям?",
+    reminderPrefix: "Напоминаем: ",
+    likedPrompt: "Что понравилось больше всего? (или ответьте «skip», чтобы пропустить)",
+    improvePrompt: "Что стоит улучшить? (или ответьте «skip», чтобы пропустить)",
+    topicVotesPrompt:
+      "Какие темы вам интересны на будущих мероприятиях? (или ответьте «skip», чтобы пропустить)",
+    skipButton: "skip",
+    broadcastAskPrompt: "Можно ли писать вам о будущих мероприятиях?",
+    broadcastYesLabel: "Да",
+    broadcastNoLabel: "Нет",
+    completedNotice: "Спасибо за обратную связь!",
+    staleMessage: "Это сообщение устарело.",
+    notYourFeedback: "Это не ваша обратная связь.",
+    refLinePrefix: "Feedback ref: ",
+    fieldLinePrefix: "Feedback field: ",
+  },
 } satisfies Catalog;

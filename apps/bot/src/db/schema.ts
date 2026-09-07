@@ -84,6 +84,16 @@ export const users = pgTable(
     // REQ-020 copies it into registrations.source and clears this back to
     // NULL. Nullable — the overwhelming majority of rows never set it.
     pendingSource: text("pending_source"),
+    // REQ-031-schema.md §3: nullable timestamptz, set together with
+    // broadcastOptIn (above) by the same write (domain/feedback.ts's
+    // writeBroadcastOptInAnswer, the ONLY function that ever writes either
+    // column). NULL means "never asked"; non-null means "asked, and
+    // broadcastOptIn holds the answer that was given" — the global,
+    // per-user "ask once" gate REQ-031's flow reads (never re-derived from
+    // broadcastOptIn's own boolean value). Mirrors consentPdAt/
+    // consentPdVersion's existing pairing convention; placed immediately
+    // after broadcastOptIn per that same precedent.
+    broadcastOptInAskedAt: timestamp("broadcast_opt_in_asked_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -363,6 +373,47 @@ export const notificationLedger = pgTable(
       table.registrationId,
       table.kind,
     ),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// REQ-031: feedback — 1:1 with a Registration, created only on the NPS
+// answer (domain/feedback.ts's writeFeedbackNps is the sole INSERT path).
+//
+// Pure schema (decisions/0004). See docs/agents/design/REQ-031-schema.md for
+// the full reasoning. `registrationId`'s UNIQUE index is the entire
+// mechanism behind AC2 ("a second feedback row for the same registration
+// fails on a database constraint") — it must hold as a database object a raw
+// duplicate INSERT collides with, independent of any application code.
+// `nps NOT NULL` is what makes "skipping NPS saves nothing" a schema fact:
+// since no row can exist without an NPS value, "no row" and "no NPS answer"
+// are the same fact, with nothing else needed to keep them in sync.
+// ---------------------------------------------------------------------------
+
+export const feedback = pgTable(
+  "feedback",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    registrationId: uuid("registration_id")
+      .notNull()
+      .references(() => registrations.id, { onDelete: "restrict" }),
+    nps: integer("nps").notNull(),
+    liked: text("liked"),
+    improve: text("improve"),
+    topicVotes: text("topic_votes").array(),
+    likedSkipped: boolean("liked_skipped").notNull().default(false),
+    improveSkipped: boolean("improve_skipped").notNull().default(false),
+    topicVotesSkipped: boolean("topic_votes_skipped").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_feedback_registration_id").on(table.registrationId),
+    check("chk_feedback_nps_range", sql`${table.nps} >= 0 AND ${table.nps} <= 10`),
   ],
 );
 
