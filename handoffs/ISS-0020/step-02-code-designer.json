@@ -1,0 +1,62 @@
+{
+  "handoff_id": "b3c1f5a2-6e4d-4a1b-9c2f-7d8e5f0a1b2c",
+  "run_id": "ISS-0020",
+  "workflow_id": "WF-03",
+  "step": "02",
+  "from_agent": "CODE-DESIGNER",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "file": "handoffs/ISS-0020/step-02-code-designer.json",
+  "created_at": "2026-09-08T00:00:00Z",
+  "started_at": "2026-09-08T00:00:00Z",
+  "completed_at": "2026-09-08T00:00:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": [],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["handoffs/ISS-0020/step-01-issue-fixer.json"],
+    "artifacts_in": [
+      "docs/issues/ISS-0020.yaml",
+      "handoffs/ISS-0020/step-01-issue-fixer.json",
+      "apps/bot/src/handlers/staff.ts",
+      "apps/bot/src/domain/user.ts",
+      "apps/bot/src/domain/notification.ts",
+      "docs/agents/design/REQ-023.md",
+      "docs/agents/instructions/security-invariants.md"
+    ]
+  },
+  "task": {
+    "description": "WF-03 Step 2 (fix design) for ISS-0020 -- design the fix for the S10 blocked-user notification gap present at BOTH notification sites in apps/bot/src/handlers/staff.ts (makeStaffAddHandler and makeStaffRemoveHandler), per ISSUE-FIXER's diagnosis.",
+    "acceptance_criteria": [
+      "Design covers both call sites (assignment and removal), not just the one ISS-0020 originally named",
+      "getUserByTgUsername's projection change specified exactly, with no-other-caller verification",
+      "Skip-check logic at both sites specified precisely (guard-clause shape, no new control flow beyond it), matching sendLedgeredNotification's skip semantics rather than the now-removed withdraw.ts inline guard",
+      "Open question (organizer-facing surfacing of a blocked-skip) explicitly resolved with reasoning, not silently assumed",
+      "REQ-023.md §6.2's now-doubly-inaccurate claim noted as a correction in the new artefact, without editing REQ-023.md itself",
+      "No implementation code (design doc contains no .ts/.tsx code blocks with real logic -- signatures, interfaces, and a prose rule table only)",
+      "Scope held to the minimal fix -- no ledger routing, no staff.ts refactor beyond the two call sites and one lookup function"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Wrote docs/agents/design/ISS-0020-fix.md. Verified ISSUE-FIXER's diagnosis independently: confirmed both staff.ts sites (lines 98, 168) lack a blocked check, confirmed getUserByTgUsername (domain/user.ts lines 132-142) has exactly one caller file (staff.ts, both handlers) via grep, so widening its UserWithTelegram return interface to add `blocked: boolean` (projecting users.blocked) is purely additive and safe. Confirmed withdraw.ts's inline guard no longer exists (REQ-025 replaced it with sendLedgeredNotification) and confirmed sendLedgeredNotification is structurally unavailable to staff.ts (registrationId NOT NULL FK, closed NotificationKind union with no staff-assignment member) -- ledger routing correctly excluded from scope. Design: getUserByTgUsername's signature is unchanged; only its returned UserWithTelegram interface gains `blocked`. At both call sites, a guard clause skips entering the existing try{...ctx.api.sendMessage...} block when targetUser.blocked is true, and reuses the SAME existing notificationFailed flag (no new variable/branch) -- treating a blocked-skip identically to the pre-existing thrown-send-failure path. RESOLVED the organizer-surfacing open question: surface it via the existing notificationFailedNote reply-suffix (reusing the same string, no new catalog key), reasoning that staff.ts's synchronous organizer-initiated command context differs materially from sendLedgeredNotification's passive scheduled-job callers, and reusing the existing generic message avoids leaking the specific 'this person blocked us' distinction while still telling the organizer the send didn't land. Noted REQ-023.md §6.2's now-doubly-inaccurate precedent claim in the new artefact §0 without editing REQ-023.md (out of scope, per task instruction). No implementation code written -- only interface/signature snippets and a prose rule table for the skip-check logic.",
+    "artifacts_out": [
+      "docs/agents/design/ISS-0020-fix.md",
+      "handoffs/ISS-0020/step-02-code-designer.json"
+    ],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "fix/ISS-0020",
+      "commit_sha_list": [],
+      "remote_branch": "origin/fix/ISS-0020",
+      "push_status": "pending",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Route to CODE-DESIGN-VALIDATOR for design gate"
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}
