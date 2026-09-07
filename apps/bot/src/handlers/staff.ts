@@ -88,20 +88,27 @@ export function makeStaffAddHandler(db: DbClient["db"]) {
     // own reasoning: no restart/retry path exists for a single request-scoped
     // API call, so S9 is not at risk here). A failed send does not roll back
     // the assignment already committed above.
+    // ISS-0020-SEC-1 rework (design §2.1): both branches enter the SAME try
+    // block and perform the SAME resolveLangForTg await + body composition,
+    // so a blocked target cannot be distinguished from a non-blocked one by
+    // the organizer's reply latency. Only the Bot API call made differs.
     let notificationFailed = false;
-    if (targetUser.blocked) {
-      notificationFailed = true;
-    } else {
-      try {
-        const targetLang = await resolveLangForTg(db, Number(targetUser.tgId));
-        const body = getCatalog(targetLang).staff.assignmentNotificationBody.replace(
-          "{event}",
-          event.title,
-        );
-        await ctx.api.sendMessage(Number(targetUser.tgId), body);
-      } catch {
+    try {
+      const targetLang = await resolveLangForTg(db, Number(targetUser.tgId));
+      const body = getCatalog(targetLang).staff.assignmentNotificationBody.replace(
+        "{event}",
+        event.title,
+      );
+      if (targetUser.blocked) {
+        // Side-effect-free, no-argument Bot API call standing in for the
+        // skipped sendMessage round-trip (design §2.1) — result discarded.
+        await ctx.api.getMe();
         notificationFailed = true;
+      } else {
+        await ctx.api.sendMessage(Number(targetUser.tgId), body);
       }
+    } catch {
+      notificationFailed = true;
     }
 
     let reply = `${getCatalog(lang).staff.addSuccessPrefix} ${targetUser.tgUsername ?? parsed.tgUsername}`;
@@ -162,20 +169,27 @@ export function makeStaffRemoveHandler(db: DbClient["db"]) {
     // §4.2 step 9 — removal notification, same shape as §4.1 step 10. "The
     // screen is gone" is entirely satisfied by the row no longer existing
     // (design §4.2's own closing note) — no separate mechanism to build.
+    // ISS-0020-SEC-1 rework (design §2.1): both branches enter the SAME try
+    // block and perform the SAME resolveLangForTg await + body composition,
+    // so a blocked target cannot be distinguished from a non-blocked one by
+    // the organizer's reply latency. Only the Bot API call made differs.
     let notificationFailed = false;
-    if (targetUser.blocked) {
-      notificationFailed = true;
-    } else {
-      try {
-        const targetLang = await resolveLangForTg(db, Number(targetUser.tgId));
-        const body = getCatalog(targetLang).staff.removalNotificationBody.replace(
-          "{event}",
-          event.title,
-        );
-        await ctx.api.sendMessage(Number(targetUser.tgId), body);
-      } catch {
+    try {
+      const targetLang = await resolveLangForTg(db, Number(targetUser.tgId));
+      const body = getCatalog(targetLang).staff.removalNotificationBody.replace(
+        "{event}",
+        event.title,
+      );
+      if (targetUser.blocked) {
+        // Side-effect-free, no-argument Bot API call standing in for the
+        // skipped sendMessage round-trip (design §2.1) — result discarded.
+        await ctx.api.getMe();
         notificationFailed = true;
+      } else {
+        await ctx.api.sendMessage(Number(targetUser.tgId), body);
       }
+    } catch {
+      notificationFailed = true;
     }
 
     let reply = `${getCatalog(lang).staff.removeSuccessPrefix} ${targetUser.tgUsername ?? parsed.tgUsername}`;

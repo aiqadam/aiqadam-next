@@ -1,0 +1,61 @@
+{
+  "handoff_id": "step-03-backend-dev-rework1",
+  "run_id": "ISS-0020",
+  "workflow_id": "WF-03",
+  "step": "03",
+  "from_agent": "BACKEND-DEV",
+  "to_agent": "REVIEWER",
+  "file": "handoffs/ISS-0020/step-03-backend-dev-rework1.json",
+  "status": "COMPLETED",
+  "priority": "HIGH",
+  "context": {
+    "issue_id": "ISS-0020",
+    "related_handoff_ids": [
+      "step-01-issue-fixer",
+      "step-02-code-designer",
+      "step-02b-code-design-validator",
+      "step-03-backend-dev",
+      "step-03b-reviewer",
+      "step-03c-security-reviewer",
+      "step-02-code-designer-rework1",
+      "step-02b-code-design-validator-regate"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/ISS-0020-fix.md",
+      "handoffs/ISS-0020/step-02-code-designer-rework1.json",
+      "handoffs/ISS-0020/step-02b-code-design-validator-regate.json",
+      "handoffs/ISS-0020/step-03c-security-reviewer.json",
+      "apps/bot/src/handlers/staff.ts"
+    ]
+  },
+  "task": {
+    "description": "Re-implement ISS-0020's fix in apps/bot/src/handlers/staff.ts per the reworked and re-gated (PASS) docs/agents/design/ISS-0020-fix.md §2/§2.1/§2.2, closing ISS-0020-SEC-1 (MEDIUM timing side-channel SECURITY-REVIEWER found in the first implementation's guard-clause shape, commit 7585829). Replace the `if (targetUser.blocked) { notificationFailed = true; } else { try {...} catch {...} }` structure with: both branches enter the SAME try block, both always await resolveLangForTg first, then branch only on which Bot API call to make -- ctx.api.getMe() (discarded result) for blocked, ctx.api.sendMessage(...) unchanged for not-blocked -- with notificationFailed set true unconditionally on the blocked path. No changes to domain/user.ts (already correct from the first implementation).",
+    "acceptance_criteria": [
+      "Both makeStaffAddHandler and makeStaffRemoveHandler perform the same resolveLangForTg await and body composition regardless of targetUser.blocked, before any Bot API call is made.",
+      "The blocked branch calls ctx.api.getMe() (result discarded) instead of ctx.api.sendMessage, and sets notificationFailed = true unconditionally.",
+      "The not-blocked branch is byte-for-byte unchanged from the pre-rework implementation (ctx.api.sendMessage(Number(targetUser.tgId), body)).",
+      "Zero ctx.api.sendMessage calls occur for a blocked EventStaff target in either handler.",
+      "The single catch block (unchanged) still sets notificationFailed = true as a fallback for either branch's unexpected failure.",
+      "No changes to apps/bot/src/domain/user.ts or any file outside handlers/staff.ts.",
+      "npm run lint -w apps/bot and npm run build -w apps/bot are clean.",
+      "npx vitest run --no-file-parallelism reports 325/325 passing (no new tests expected at this step)."
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Replaced the FAILed guard-clause shape in both makeStaffAddHandler (originally lines 91-105) and makeStaffRemoveHandler (originally lines 165-179) of apps/bot/src/handlers/staff.ts with the re-gated design's single-try-block shape: both branches now unconditionally await resolveLangForTg(db, Number(targetUser.tgId)) and compose `body` from the same catalog key + .replace(\"{event}\", event.title) before any Bot API call is made. Inside that same try block, the branch on targetUser.blocked now only selects which Bot API method to call: `await ctx.api.getMe()` (result discarded, no argument, no side effect) for blocked, setting notificationFailed = true unconditionally immediately after; `await ctx.api.sendMessage(Number(targetUser.tgId), body)` unchanged for not-blocked. The existing single `catch { notificationFailed = true; }` wraps the whole try block unchanged, covering unexpected failures on either path (a no-op re-assignment on the already-true blocked path if getMe() itself throws). apps/bot/src/domain/user.ts was not touched -- its blocked projection on UserWithTelegram/getUserByTgUsername from the first implementation is already correct per the design and was out of scope for this rework. No file outside apps/bot/src/handlers/staff.ts was modified.\n\nVerification (all run synchronously, real output read, none predicted):\n- `npm run lint -w apps/bot`: clean, zero warnings/errors (`eslint .` exit 0, no output).\n- `npm run build -w apps/bot`: clean, zero type errors (`tsc -p tsconfig.json` exit 0, no output).\n- `npx vitest run --no-file-parallelism` from repo root: 35 test files / 325 tests, all passed, 34.47s, no failures. Matches the pre-rework baseline exactly (325/325) -- no regression test yet exists for this timing fix; TEST-DESIGNER's task per this run's instruction.\n\nDiff scope: apps/bot/src/handlers/staff.ts only, both notification blocks (assignment + removal), matching docs/agents/design/ISS-0020-fix.md §2.1's table row-for-row -- confirmed by re-reading the design table and the resulting diff side by side before finalizing.",
+    "artifacts_out": [
+      "apps/bot/src/handlers/staff.ts",
+      "handoffs/ISS-0020/step-03-backend-dev-rework1.json"
+    ],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "fix/ISS-0020",
+      "remote_branch": "origin/fix/ISS-0020",
+      "push_status": "ok"
+    },
+    "next_action": "Route to REVIEWER, then SECURITY-REVIEWER for a re-check of the timing fix against the actual implemented code (not just the design), per step-02b-code-design-validator-regate.json's and this run's own instruction."
+  },
+  "rework_count": 1,
+  "max_rework": 3
+}
