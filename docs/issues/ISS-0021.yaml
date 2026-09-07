@@ -1,0 +1,20 @@
+id: ISS-0021
+title: REQ-024 test-spec's AC5 grep expects "exactly one line" but a comment also matches
+discovered_by: TEST-RUNNER
+discovered_in_run: WF02-REQ-024
+discovered_at: "2026-09-07T14:15:00Z"
+severity: MINOR
+description: >
+  Found during Step 4 execution of docs/agents/test-specs/REQ-024.md's AC5
+  (single-shared-QR-renderer structural check). The spec's codebase-wide
+  grep for `?start=ci_` returns 2 lines instead of the literal "exactly one
+  line" it expects -- one is the real code in apps/bot/src/domain/qr.ts,
+  the other is a comment in the same file. There is no actual duplication
+  of QR-rendering logic anywhere; TEST-RUNNER confirmed this and did not
+  fail AC5 over it.
+  Recommended fix: TEST-DESIGNER tightens AC5's grep instruction in a
+  future pass -- either exclude comment lines, or restate the expectation
+  as "all matches are within domain/qr.ts" rather than a literal line count.
+affected_files:
+  - docs/agents/test-specs/REQ-024.md
+status: open
