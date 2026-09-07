@@ -1265,7 +1265,7 @@ requirements:
   - id: REQ-025
     title: Scheduled job runner and the idempotent send-once notification ledger
     owner: BACKEND-DEV
-    status: pending
+    status: done
     description: >
       First slice of PRD 14 build-order step 4 ("Scheduler: T-24h 'Still coming?' and
       T-3h route + QR, both idempotent"). Split into REQ-025 (the mechanism),

@@ -1,0 +1,138 @@
+run_id: WF02-REQ-025
+date: 2026-09-07T10:39:16Z
+branch: feature/WF02-REQ-025
+commit: 8a4fb75
+lint: pass
+build: pass
+vitest_repo_root_count: "228 tests / 20 files passed, 0 failed (up from 217 before this run's 11 new committed cases)"
+cases:
+  - acceptance_criterion: AC1
+    result: pass
+    notes: >
+      Genuine two-process kill-then-restart test, kill point constructed after
+      sender.send() resolves (p1's sendLedgeredNotification(...).then(() =>
+      process.exit(0)), no code after the exit call). p1 (npx tsx
+      scratch-verify-req025-p1.ts) built the fixture (chapter/venue/published
+      event capacity 5, RESTART_SUBJECT tg_id 1000000901, registration
+      1e141970-d660-4c0c-8d36-52099036087e via a real registerForEvent call),
+      called sendLedgeredNotification with kind="reminder_24h",
+      classification="transactional", and exited with code 0 after printing
+      "p1: send resolved, exiting". Shell-observed exit code was 0 before p2
+      was started (fully sequential, no overlap). Direct SQL confirmed exactly
+      one notification_ledger row for (registration_id, kind='reminder_24h')
+      and the delivery-log file had exactly one line (pid 36412) before p2 ran.
+      p2 (npx tsx scratch-verify-req025-p2.ts, a fresh Pool/drizzle instance,
+      no shared JS heap with p1) read the registrationId from the sidecar
+      file, called the identical sendLedgeredNotification, and its captured
+      SendOutcome was exactly {"kind":"skipped-already-sent"} -- not "sent".
+      After p2: deliveries file still exactly 1 line (p2 added zero -- same
+      pid 36412 as before, confirming sender.send was never invoked by p2);
+      notification_ledger count for (registration_id, kind='reminder_24h')
+      still exactly 1. All three pass conditions held. Harness scripts and
+      artefacts deleted at teardown; git status --porcelain confirmed clean.
+  - acceptance_criterion: AC2
+    result: pass
+    notes: >
+      git grep -nE "new (Set|Map)\s*<|new (Set|Map)\s*\(" -- apps/bot/src/domain/notification.ts
+      apps/bot/src/scheduler/rateLimiter.ts apps/bot/src/scheduler/runner.ts
+      apps/bot/src/handlers/withdraw.ts -> zero matches (exit 1, no output).
+      Direct duplicate-insert SQL against the constraint itself (using AC1's
+      registration row): first INSERT (registration_id, kind='admission_result')
+      succeeded; second identical INSERT failed with Postgres 23505, "duplicate
+      key value violates unique constraint \"uq_notification_ledger_registration_kind\"".
+      A third INSERT with the same registration_id but kind='waitlist_promotion'
+      succeeded, confirming the constraint is genuinely composite. All three SQL
+      assertions held.
+  - acceptance_criterion: AC3
+    result: pass
+    notes: >
+      New committed apps/bot/src/domain/notification.test.ts, describe("sendLedgeredNotification
+      -- REQ-025 S10 truth table (AC3/AC4)"): "transactional + not-blocked -> sent"
+      and "marketing + opted-in + not-blocked -> sent" cells plus the dedicated
+      "AC3: broadcast_opt_in=false -- transactional sends, marketing does not, for
+      the same user/registration" case (one user/registration, two calls) all pass.
+  - acceptance_criterion: AC4
+    result: pass
+    notes: >
+      Same file: "transactional + blocked -> skipped-blocked" and "marketing +
+      blocked -> skipped-blocked, even when opted in" cells both pass, confirming
+      the blocked check precedes the classification branch.
+  - acceptance_criterion: AC5
+    result: pass
+    notes: >
+      grep -n "classification" apps/bot/src/domain/notification.ts -> 4 lines:
+      line 24 (comment), line 37 "classification: SendClassification;" (no ? no
+      default), line 90 (comment), line 98 "input.classification === \"marketing\""
+      (comparison). No line shows "classification?:" or a literal default
+      assignment. grep -n "classification:" apps/bot/src/handlers/withdraw.ts ->
+      exactly one line, "classification: \"transactional\",".
+  - acceptance_criterion: AC6
+    result: pass
+    notes: >
+      Same file, describe("createRateLimitedSender -- REQ-025 AC6"): (1) a 429
+      on the first attempt is retried, message delivered exactly once
+      (callCount=2, sendMessageCalls.length=2) -- pass. (2) exhaustion: a
+      persistent 429 (maxRetries=2) causes send() to reject with a GrammyError
+      after exactly 2 attempts -- pass. (3) a non-429 (403 Forbidden) error is
+      not retried, send() rejects immediately with callCount=1 -- pass.
+  - acceptance_criterion: concurrent-call-race
+    result: pass
+    notes: >
+      Same file: "two concurrent calls for the same (registrationId, kind)
+      result in exactly one send" (same pool) -- outcomes sorted to
+      ["sent","skipped-already-sent"], exactly 1 sentTo entry, exactly 1 ledger
+      row. "two concurrent calls from two SEPARATE connection pools still
+      result in exactly one send" -- same assertions across two independent
+      Pool/drizzle instances. Both pass.
+  - acceptance_criterion: REQ-023-regression
+    result: pass
+    notes: >
+      npx vitest run --no-file-parallelism apps/bot/src/handlers/withdraw.test.ts
+      -t "REQ-023 AC6" -> 1 passed | 5 skipped, exit 0.
+      npx vitest run --no-file-parallelism apps/bot/src/handlers/withdraw.test.ts
+      -t "S10 rework" -> 1 passed | 5 skipped, exit 0. Both existing blocks
+      (lines 321-388, 394-464) pass unchanged post-migration.
+  - acceptance_criterion: AC-schema
+    result: pass
+    notes: >
+      git diff master...HEAD --stat -- apps/bot/drizzle shows exactly one new
+      migration (0005_violet_venom.sql) plus its meta files. Direct inspection
+      of 0005_violet_venom.sql confirms: id UUID PK DEFAULT gen_random_uuid()
+      NOT NULL; registration_id UUID NOT NULL with FK to registrations(id) ON
+      DELETE restrict; kind text NOT NULL (not a pgEnum); created_at/updated_at
+      both timestamp with time zone NOT NULL DEFAULT now(); CREATE UNIQUE INDEX
+      uq_notification_ledger_registration_kind ON (registration_id, kind). All
+      six stated facts confirmed by direct migration-file inspection, matching
+      schema.ts's notificationLedger definition.
+      DEVIATION FROM SPEC WORDING (not a functional failure): the migration
+      does contain one ALTER TABLE statement (ADD CONSTRAINT ... FOREIGN KEY,
+      on the newly-created notification_ledger table itself) -- the spec's
+      literal wording says "this migration should contain no ALTER TABLE
+      statements whatsoever, only the one CREATE TABLE." Checked: every prior
+      migration in this repo (0000 through 0004) also emits an ALTER TABLE for
+      its own new table's FK constraints -- this is drizzle-kit's standard,
+      unavoidable generation pattern for any table with a foreign key, not
+      schema drift. Zero existing tables' columns are altered (confirmed: the
+      only ALTER TABLE targets notification_ledger, the new table). The actual
+      property AC-schema exists to protect (no existing table touched) holds;
+      only the spec's literal wording is imprecise about drizzle-kit's known
+      output shape. Filed as a MINOR issue below rather than as a FAIL.
+  - acceptance_criterion: AC-deps
+    result: pass
+    notes: >
+      git diff master...HEAD --stat -- apps/bot/package.json -> no output. No
+      new dependency introduced by this requirement.
+issues:
+  - severity: MINOR
+    description: >
+      AC-schema's spec wording ("this migration should contain no ALTER TABLE
+      statements whatsoever, only the one CREATE TABLE") does not account for
+      drizzle-kit's standard pattern of emitting an ALTER TABLE ADD CONSTRAINT
+      for a new table's own FK, which every migration in this repo (0000-0005)
+      does. Recommend TEST-DESIGNER tighten the wording on a future spec
+      revision to "no ALTER TABLE targeting any table other than the new one"
+      or similar, matching the actual property (no existing table altered)
+      rather than a literal statement-type count that drizzle-kit's own output
+      can never satisfy for any FK-bearing new table.
+verdict: PASS
+next_action: Route to RELEASE-VALIDATOR (Step 5)

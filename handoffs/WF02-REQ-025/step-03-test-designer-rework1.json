@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-03-test-designer-rework1",
+  "run_id": "WF02-REQ-025",
+  "workflow_id": "WF-02",
+  "step": "03",
+  "from_agent": "TEST-DESIGNER",
+  "to_agent": "TEST-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "REWORK_COMPLETE",
+    "summary": "Rework iteration 1 of 3 on docs/agents/test-specs/REQ-025.md, addressing the single FAIL finding in handoffs/WF02-REQ-025/step-03b-test-design-validator.json (AC5's second verification command producing a false positive).\n\nRoot cause confirmed myself before rewriting: the spec's second command, `grep -n \"classification\\s*=\" apps/bot/src/domain/notification.ts`, is a plain substring/regex match for the two characters `classification` followed eventually by `=` with only whitespace between -- it has no way to distinguish a literal default-value assignment from the `=` characters embedded inside `===`/`!==` comparison operators. Line 98's `input.classification === \"marketing\"` is a legitimate, correct comparison (part of AC3/AC4's own branching under test), not a default value, but the pattern matches it anyway, so the command's stated pass condition ('must return no output') is violated by a genuinely correct implementation -- exactly the false-positive the validator identified.\n\nFix applied, per the validator's own suggested safest option (its finding text: 'simply drop the second grep in favor of reading the interface declaration and the one destructured call site directly, since AC5's first grep already surfaces every line for a precise, judgment-free line-by-line check'): the second grep command is removed entirely. AC5 now runs only the first command, `grep -n \"classification\" apps/bot/src/domain/notification.ts`, and the spec instructs TEST-RUNNER to read every line that single command reports directly: the one `SendNotificationInput` interface property line must read exactly `classification: SendClassification;` (no `?`, no `=` default), and every other reported line (destructured parameter list, comparison usages like `=== \"marketing\"`) must be checked by eye for `classification?:` or a literal `classification =` default -- never for the mere presence of `=` anywhere near the word, so a `===`/`!==` comparison inside the function body no longer trips a false match. This keeps AC5 mechanically followable (every line to inspect is enumerated by the one command already run) without reintroducing a second broad pattern that could misfire again.\n\nThe production-call-site check (`grep -n \"classification:\" apps/bot/src/handlers/withdraw.ts`) and the coverage table's AC5 row (already worded generically as 'Direct grep of the interface and the one call site', not tied to the removed command's exact text) are both untouched -- confirmed by re-reading the table row, no edit needed there. No other AC, the shared setup, the harness note, or any other section of the spec was touched -- this is a one-spot fix confined to AC5's second-command paragraph, per the task's explicit instruction.",
+    "issues": [],
+    "next_action": "Route to TEST-DESIGN-VALIDATOR (Step 3b re-gate)"
+  }
+}

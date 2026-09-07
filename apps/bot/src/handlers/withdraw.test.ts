@@ -15,6 +15,7 @@ import {
   WITHDRAW_CANCEL_PATTERN,
   WITHDRAW_CONFIRM_PATTERN,
 } from "./withdraw.js";
+import { createRateLimitedSender, DEFAULT_RATE_LIMITER_CONFIG } from "../scheduler/rateLimiter.js";
 
 // docs/agents/design/REQ-022.md — AC1 (confirmation required; dismissing
 // leaves admission unchanged), exercised through a real grammY dispatch
@@ -94,8 +95,9 @@ function makeTestBot(): { bot: Bot; captured: Captured[] } {
     } as never;
   });
 
+  const sender = createRateLimitedSender(bot, DEFAULT_RATE_LIMITER_CONFIG);
   bot.command("withdraw", makeWithdrawCommandHandler(db));
-  bot.callbackQuery(WITHDRAW_CONFIRM_PATTERN, makeWithdrawConfirmCallbackHandler(db));
+  bot.callbackQuery(WITHDRAW_CONFIRM_PATTERN, makeWithdrawConfirmCallbackHandler(db, sender));
   bot.callbackQuery(WITHDRAW_CANCEL_PATTERN, makeWithdrawCancelCallbackHandler(db));
 
   return { bot, captured };

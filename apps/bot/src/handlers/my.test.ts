@@ -18,6 +18,7 @@ import {
   WITHDRAW_CONFIRM_PATTERN,
 } from "./withdraw.js";
 import { makeMyCommandHandler } from "./my.js";
+import { createRateLimitedSender, DEFAULT_RATE_LIMITER_CONFIG } from "../scheduler/rateLimiter.js";
 
 type JsQRFn = (
   data: Uint8ClampedArray,
@@ -110,8 +111,9 @@ function makeTestBot(): { bot: Bot; captured: Captured[] } {
     } as never;
   });
 
+  const sender = createRateLimitedSender(bot, DEFAULT_RATE_LIMITER_CONFIG);
   bot.command("my", makeMyCommandHandler(db));
-  bot.callbackQuery(WITHDRAW_CONFIRM_PATTERN, makeWithdrawConfirmCallbackHandler(db));
+  bot.callbackQuery(WITHDRAW_CONFIRM_PATTERN, makeWithdrawConfirmCallbackHandler(db, sender));
 
   return { bot, captured };
 }

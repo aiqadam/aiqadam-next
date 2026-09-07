@@ -321,6 +321,51 @@ export const eventStaff = pgTable(
   ],
 );
 
+// ---------------------------------------------------------------------------
+// REQ-025: notification_ledger — the send-once idempotency guard.
+//
+// Pure schema (decisions/0004). See docs/agents/design/REQ-025-schema.md for
+// the full reasoning. This table's only job is the `UNIQUE(registration_id,
+// kind)` constraint `sendLedgeredNotification` (domain/notification.ts)
+// depends on to detect "already sent" after a crash/restart — it is not an
+// audit trail (audit_log already owns that, S8) and carries no actor column.
+//
+// `kind` is deliberately `text`, not a `pgEnum` (REQ-025-schema.md §2): the
+// value set grows roughly once per near-term requirement (reminder_24h/
+// reminder_3h, event_cancelled, two more Release-3 marketing kinds already
+// named), unlike admission/event_status's genuinely fixed sets — validated at
+// the application level against the `NotificationKind` union in
+// domain/notification.ts, the same precedent as audit_log.action/entity.
+//
+// `created_at`/`updated_at` are `DEFAULT now()` (REQ-025-schema.md §3): a
+// write-time fact recording when this row was inserted, never read back into
+// a decisions/0006 time-dependent predicate — not the caller-supplied-Date
+// case that discipline governs.
+// ---------------------------------------------------------------------------
+
+export const notificationLedger = pgTable(
+  "notification_ledger",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    registrationId: uuid("registration_id")
+      .notNull()
+      .references(() => registrations.id, { onDelete: "restrict" }),
+    kind: text("kind").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_notification_ledger_registration_kind").on(
+      table.registrationId,
+      table.kind,
+    ),
+  ],
+);
+
 export const auditLog = pgTable("audit_log", {
   id: uuid("id").primaryKey().defaultRandom(),
   // Nullable: a genuinely system-initiated action (e.g. a scheduled job) has

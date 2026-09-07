@@ -45,6 +45,8 @@ import {
   WITHDRAW_CONFIRM_PATTERN,
 } from "./handlers/withdraw.js";
 import { makeMyCommandHandler } from "./handlers/my.js";
+import { createRateLimitedSender, DEFAULT_RATE_LIMITER_CONFIG } from "./scheduler/rateLimiter.js";
+import { startScheduledJobs } from "./scheduler/runner.js";
 
 let config: BotConfig;
 
@@ -64,6 +66,15 @@ const { db } = createDbClient(config.databaseUrl);
 log.info("bot starting");
 
 const bot = new Bot(config.botToken);
+
+// REQ-025 §5/§7 — the one process-wide NotificationSender (rate-limited,
+// 429-backoff) and the scheduled-job runner. Passed to every present and
+// future call site that sends a ledgered notification (withdraw.ts today;
+// REQ-026's reminder jobs, REQ-027's cancellation notice later). No concrete
+// reminder job ships in this requirement — an empty job list, per §7's own
+// scope note.
+const notificationSender = createRateLimitedSender(bot, DEFAULT_RATE_LIMITER_CONFIG);
+startScheduledJobs([]);
 
 bot.command("health", (ctx) => ctx.reply("ok"));
 
@@ -118,7 +129,7 @@ bot.command("checkin", makeCheckInHandler(db));
 // message:contact generic listeners below, per this file's own ordering
 // discipline for bot.command(...) registrations.
 bot.command("withdraw", makeWithdrawCommandHandler(db));
-bot.callbackQuery(WITHDRAW_CONFIRM_PATTERN, makeWithdrawConfirmCallbackHandler(db));
+bot.callbackQuery(WITHDRAW_CONFIRM_PATTERN, makeWithdrawConfirmCallbackHandler(db, notificationSender));
 bot.callbackQuery(WITHDRAW_CANCEL_PATTERN, makeWithdrawCancelCallbackHandler(db));
 
 // REQ-019: profile capture as a resumable step-by-step form, the consent
