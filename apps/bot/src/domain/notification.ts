@@ -19,7 +19,11 @@ export type NotificationKind =
   | "reminder_3h"
   | "feedback_request"
   | "feedback_reminder"
-  | "event_cancelled";
+  | "event_cancelled"
+  // docs/agents/design/REQ-032.md §3.1 — the single no-show reason-request
+  // send. One-line addition, not a migration: notification_ledger.kind is
+  // already `text`.
+  | "no_show_reason_request";
 
 // AC5: exactly two members, and every call site must choose one explicitly —
 // enforced structurally by `SendNotificationInput.classification` below

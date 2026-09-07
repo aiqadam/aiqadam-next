@@ -292,4 +292,23 @@ export const ru = {
     refLinePrefix: "Feedback ref: ",
     fieldLinePrefix: "Feedback field: ",
   },
+  // Placeholder/provisional wording (REQ-032 design §5.1, AC7) — plain,
+  // factual, blame-free copy, no framing that assigns fault. Provisional
+  // pending the product owner; see this requirement's handoff result.issues.
+  noShow: {
+    prompt:
+      "Мы заметили, что отметка о присутствии на мероприятии отсутствует. Расскажете, что помешало прийти?",
+    reasonWorkRanOver: "Задержался(-лась) на работе",
+    reasonIllness: "Заболел(а)",
+    reasonForgot: "Забыл(а)",
+    reasonTransport: "Проблемы с транспортом",
+    reasonLostInterest: "Пропал интерес к теме",
+    otherLabel: "Другое",
+    otherPrompt: "Напишите, что помешало прийти, в свободной форме.",
+    thanksMessage: "Спасибо, мы записали ваш ответ.",
+    alreadyAnswered: "Ответ по этому мероприятию уже записан.",
+    staleMessage: "Это сообщение устарело.",
+    notYours: "Это сообщение адресовано не вам.",
+    refLinePrefix: "No-show ref: ",
+  },
 } satisfies Catalog;

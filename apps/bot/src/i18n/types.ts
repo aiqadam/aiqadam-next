@@ -381,4 +381,28 @@ export interface Catalog {
     refLinePrefix: string;
     fieldLinePrefix: string;
   };
+  // NEW, REQ-032 (docs/agents/design/REQ-032.md §5): no-show reason capture,
+  // asked once via the notification ledger's own UNIQUE(registration_id,
+  // kind) constraint, no reminder. Placeholder/minimal functional copy —
+  // wording is provisional pending the product owner (design §5.1, AC7):
+  // plain, factual, blame-free, no framing that assigns fault. `refLinePrefix`
+  // is a fixed, non-localized machine-parseable anchor (handlers/noShow.ts's
+  // own NO_SHOW_REF_LINE_PREFIX constant), listed here only so
+  // catalogs.test.ts's runtime parity check keeps enforcing it stays present
+  // with the identical literal value in both locale files.
+  noShow: {
+    prompt: string;
+    reasonWorkRanOver: string;
+    reasonIllness: string;
+    reasonForgot: string;
+    reasonTransport: string;
+    reasonLostInterest: string;
+    otherLabel: string;
+    otherPrompt: string;
+    thanksMessage: string;
+    alreadyAnswered: string;
+    staleMessage: string;
+    notYours: string;
+    refLinePrefix: string;
+  };
 }
