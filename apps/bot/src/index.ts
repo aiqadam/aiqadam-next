@@ -37,6 +37,13 @@ import {
   makeProfileTextAnswerHandler,
 } from "./handlers/profile.js";
 import { makeRegisterCallbackHandler, REGISTER_CALLBACK_PATTERN } from "./handlers/registration.js";
+import {
+  makeWithdrawCancelCallbackHandler,
+  makeWithdrawCommandHandler,
+  makeWithdrawConfirmCallbackHandler,
+  WITHDRAW_CANCEL_PATTERN,
+  WITHDRAW_CONFIRM_PATTERN,
+} from "./handlers/withdraw.js";
 
 let config: BotConfig;
 
@@ -103,6 +110,15 @@ bot.command("events", makeEventsListHandler(db));
 bot.command("staff_add", makeStaffAddHandler(db));
 bot.command("staff_remove", makeStaffRemoveHandler(db));
 bot.command("checkin", makeCheckInHandler(db));
+
+// REQ-022: /withdraw <event_id> -- withdraw from a registration and free the
+// seat, gated by a two-step confirm/cancel callback prompt. Registered here,
+// alongside the other id-parameterized commands and before the message:text/
+// message:contact generic listeners below, per this file's own ordering
+// discipline for bot.command(...) registrations.
+bot.command("withdraw", makeWithdrawCommandHandler(db));
+bot.callbackQuery(WITHDRAW_CONFIRM_PATTERN, makeWithdrawConfirmCallbackHandler(db));
+bot.callbackQuery(WITHDRAW_CANCEL_PATTERN, makeWithdrawCancelCallbackHandler(db));
 
 // REQ-019: profile capture as a resumable step-by-step form, the consent
 // gate, and the optional-field rule (design §4). The two generic listeners

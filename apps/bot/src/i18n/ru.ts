@@ -186,4 +186,17 @@ export const ru = {
     refusedRequiresInvite: "Это мероприятие только по приглашениям.",
     refusedRequiresApproval: "Для этого мероприятия требуется подтверждение организатора.",
   },
+  // NEW, REQ-022: /withdraw <event_id>. Placeholder/minimal functional copy
+  // per decisions/0002 (CONTENT-BA owns final wording).
+  withdraw: {
+    usageNoId: "Укажите id мероприятия: /withdraw <event_id>",
+    confirmPrompt: "Отменить регистрацию на это мероприятие?",
+    confirmButton: "Да, отменить",
+    cancelButton: "Нет, оставить место",
+    confirmedReply: "Регистрация отменена. Место освобождено.",
+    cancelledReply: "Хорошо, ваша регистрация не изменена.",
+    refusedCheckedIn: "Вы уже отметились на этом мероприятии — историю посещения нельзя изменить.",
+    refusedNotEligible: "Эта регистрация уже отменена или отклонена.",
+    refusedNotFound: "Регистрация не найдена.",
+  },
 } satisfies Catalog;
