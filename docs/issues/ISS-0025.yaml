@@ -1,0 +1,26 @@
+id: ISS-0025
+title: REQ-028 test-spec's AC1 worked example uses unpadded lastName values that don't sort to the claimed page
+discovered_by: TEST-RUNNER
+discovered_in_run: WF02-REQ-028
+discovered_at: "2026-09-07T22:05:00Z"
+severity: MINOR
+description: >
+  Found while authoring apps/bot/src/handlers/checkin.forgery.test.ts's AC1
+  (page-turn interleaving) case per docs/agents/test-specs/REQ-028.md. The
+  spec's worked example names unpadded lastName values "A0" through "A11"
+  and claims "A10" sorts to index 10 (landing on page 1 of a 2-page, 12-per-page
+  split). Under Postgres's default lexicographic text ordering, unpadded
+  numeric suffixes don't sort numerically -- "A10" actually sorts to index 2
+  (page 0), not page 1, because "A1" < "A10" < "A11" < "A2" lexicographically.
+  TEST-RUNNER verified this before building on it and used zero-padded
+  "A00" through "A11" instead, which achieves the spec's actual intent
+  (deterministic alphabetical order with the target landing on page 1). The
+  shipped test is correct; only the spec's illustrative example is wrong.
+  Recommended fix: TEST-DESIGNER corrects the worked example in
+  docs/agents/test-specs/REQ-028.md to use zero-padded lastName values (or
+  otherwise states explicitly that lexicographic, not numeric, ordering
+  applies), so a future reader implementing this spec from scratch doesn't
+  reproduce the same off-by-page-boundary construction.
+affected_files:
+  - docs/agents/test-specs/REQ-028.md
+status: open
