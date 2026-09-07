@@ -1,0 +1,25 @@
+{
+  "handoff_id": "step-01-code-designer",
+  "run_id": "WF02-REQ-020",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Wrote docs/agents/design/REQ-020.md: registration for an open event, gated on requires_invite/requires_approval (Release 1 refuses both rather than implementing them), with atomic capacity enforcement and qr_token issuance. NO SCHEMA CHANGE NEEDED -- checked apps/bot/src/db/schema.ts directly: registrations.qr_token (nullable, unique-indexed) and registrations.source (NOT NULL) already exist from REQ-011's schema, so DATA-DESIGNER is not dispatched for this run (same precedent as REQ-017, confirmed in Sec10 of the design).\n\nATOMIC CAPACITY MECHANISM CHOSEN: a `SELECT ... FROM events WHERE id = $eventId FOR UPDATE` row lock, taken inside registerForEvent's single db.transaction, held across the read-count-decide-write span (Sec1). Rejected SERIALIZABLE + retry-on-40001 (this codebase has no existing retry-on-db-error pattern anywhere and the row lock gives the same correctness by making a second concurrent transaction wait rather than fail, at PRD 1's 0.06 rps peak load where correctness matters far more than throughput). Rejected a single INSERT...SELECT WHERE (SELECT count) < capacity conditional guard (unsafe at READ COMMITTED without also folding a FOR UPDATE lock into that same statement, which is not idiomatically expressible in Drizzle's query builder without dropping to raw SQL, breaking this codebase's established framework-free/query-builder-only discipline -- confirmed Drizzle's PgSelectBuilder.for('update') is a real typed method, used instead). Two different events never contend since the lock is per-event-row, not global.\n\nqr_token: generateQrToken() -- node:crypto randomBytes(32) (256 bits, well over S4's >=128-bit floor), hex-encoded, no Math.random anywhere, one call, no loop. source: resolveRegistrationSource -- pendingSource unchanged when non-null, else the literal 'direct' (no requirement/decision names a 'no channel' sentinel, so this design states one explicitly). pending_source is cleared back to NULL on write, matching the schema comment's own stated contract from REQ-016.\n\nAudit logging (AC7/S8): writes one audit_log row on BOTH 'admitted' and 'waitlisted' outcomes (action registration.admit / registration.waitlist), reasoned from S8's broader 'every status change' wording even though AC7's literal text only tests the admitted case -- flagged in Sec9 open question 4 for SECURITY-REVIEWER to confirm rather than silently assumed settled.\n\nEntry point: the only existing full-card render is REQ-017's /start deep-link resolution (handlers/start.ts); this design attaches the Register button there (replacing REQ-017's inert text CTA, answering REQ-017 Sec8's own open question 3) via a new register:<eventId> callback pattern and a new handlers/registration.ts. /events itself still renders rows only (unchanged, REQ-017 Sec0) -- flagged as open question 1 whether a second entry point should exist. Also flagged, not silently resolved: whether registration should require a completed REQ-019 profile first (open question 2, no AC asks for this); no retry-on-qr_token-collision loop (open question 3); the requires_invite/requires_approval refusals carry no onward-path pointer since AC6 doesn't ask for one, unlike AC4's three states (open question 5); the arbitrary ordering among the closed/cancelled/finished/invite/approval checks (open question 6).",
+    "artifacts_out": ["docs/agents/design/REQ-020.md"],
+    "issues": [
+      {
+        "severity": "MINOR",
+        "description": "docs/agents/design/REQ-020.md Sec9 open question 4: this design resolves an ambiguity between AC7's literal text (audits admission only) and security-invariants.md S8's broader wording ('every status change') by writing one audit_log row on both admitted and waitlisted outcomes. This is a reasoned choice, not an invented one, but SECURITY-REVIEWER should independently confirm the reading at Step 2c rather than this design's own say-so being taken as settled."
+      },
+      {
+        "severity": "MINOR",
+        "description": "docs/agents/design/REQ-020.md Sec9 open question 1/2: two ambiguities the requirement text leaves genuinely open -- (1) whether a future requirement should add a second card entry point beyond the /start deep link (today the only place a Register button can attach), and (2) whether registration should be gated on REQ-019 profile completeness. Neither is resolved by this design; both are named explicitly rather than guessed."
+      }
+    ],
+    "next_action": "Route to CODE-DESIGN-VALIDATOR (Step 1b)"
+  }
+}
