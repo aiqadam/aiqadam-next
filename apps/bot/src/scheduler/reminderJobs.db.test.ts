@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, it, expect } from "vitest";
 import * as schema from "../db/schema.js";
 import { registrations } from "../db/schema.js";
+import { withdrawRegistration } from "../domain/registration.js";
 import {
   buildEventCardContent,
   createEvent,
@@ -276,6 +277,126 @@ describe("makeReminder24hJob -- REQ-026 AC4: withdrawn before job runs -> nothin
   });
 });
 
+describe("makeReminder24hJob -- REQ-026 AC4 (spec's own case): withdrawn BETWEEN selection and send", () => {
+  it("a registration withdrawn after selectRegistrationsForReminder24h's own read but before its own composeMessage re-check runs is skipped, not sent, with the ledger row still committed", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    // Deviation from the literal spec construction, recorded per
+    // core-directives.md's "Instruction Precedence" conflict-recording rule
+    // (filed as a MINOR test-spec issue for TEST-DESIGNER): the spec's own
+    // wording ("call withdrawRegistration... before calling
+    // makeReminder24hJob(...).run(evaluationTime)") does not actually land
+    // the withdrawal in the gap it claims to -- selectRegistrationsForReminder24h
+    // (domain/reminders.ts) is a live SQL query filtering
+    // `admission = 'admitted'` at the moment run() executes, so withdrawing
+    // the single candidate BEFORE run() excludes it from selection entirely
+    // (confirmed: that construction produced 0 ledger rows, 0 sends --
+    // indistinguishable from AC4's own already-covered
+    // "withdrawn-before-either-job-runs" case, not a test of the
+    // composeMessage recheck at all). To actually land a withdrawal in the
+    // true gap (after selectRegistrationsForReminder24h's one read, before
+    // that SAME candidate's own composeMessage call), this case seeds TWO
+    // admitted registrations in the window and withdraws the second one as a
+    // side effect of the first one's own `sender.send` resolving -- both
+    // registrations are captured as candidates by the one select call, and
+    // the second one's withdrawal is only applied once the loop has already
+    // moved past it in-memory but before its composeMessage's own
+    // getRegistrationAdmissionAndEvent re-check runs.
+    const evaluationTime = new Date("2026-09-01T00:00:00Z");
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, {
+      startsAt: new Date("2026-09-02T00:00:00Z"),
+      endsAt: new Date("2026-09-02T02:00:00Z"),
+    });
+
+    const tgIdA = BigInt(nextTgId++);
+    const userA = await resolveOrCreateUser(db, { tgId: tgIdA, tgUsername: `raceA${nextTgId}`, lang: "ru" });
+    const resultA = await registerForEvent(db, userA.id, eventId, new Date("2026-08-31T00:00:00Z"));
+    if (resultA.kind !== "admitted" || resultA.registrationId === undefined) {
+      throw new Error(`AC4 fixture: registerForEvent (A) did not admit -- ${resultA.kind}`);
+    }
+    const registrationIdA = resultA.registrationId;
+
+    const tgIdB = BigInt(nextTgId++);
+    const userB = await resolveOrCreateUser(db, { tgId: tgIdB, tgUsername: `raceB${nextTgId}`, lang: "ru" });
+    const resultB = await registerForEvent(db, userB.id, eventId, new Date("2026-08-31T00:00:00Z"));
+    if (resultB.kind !== "admitted" || resultB.registrationId === undefined) {
+      throw new Error(`AC4 fixture: registerForEvent (B) did not admit -- ${resultB.kind}`);
+    }
+    const registrationIdB = resultB.registrationId;
+
+    let otherWithdrawn = false;
+    const sent: { tgId: bigint; text: string }[] = [];
+    const sender: NotificationSender = {
+      async send(tgId, text) {
+        sent.push({ tgId, text });
+        if (!otherWithdrawn) {
+          otherWithdrawn = true;
+          // Whichever candidate the job processes FIRST triggers the
+          // concurrent withdrawal of the OTHER one, landing it precisely
+          // between that other candidate's already-completed selection read
+          // and its own not-yet-run composeMessage call.
+          const isA = tgId === tgIdA;
+          const otherRegistrationId = isA ? registrationIdB : registrationIdA;
+          const otherUserId = isA ? userB.id : userA.id;
+          const outcome = await withdrawRegistration(db, otherRegistrationId, otherUserId, new Date("2026-08-31T12:00:00Z"));
+          expect(outcome.kind).toBe("withdrawn");
+        }
+      },
+      async sendPhoto() {
+        throw new Error("makeReminder24hJob never sends a photo");
+      },
+    };
+
+    await makeReminder24hJob(db, sender, 300000).run(evaluationTime);
+
+    // Exactly one of the two candidates actually got sent -- the one
+    // processed first, before its sibling was withdrawn.
+    expect(sent).toHaveLength(1);
+    const sentTgId = sent[0]?.tgId;
+    const skippedRegistrationId = sentTgId === tgIdA ? registrationIdB : registrationIdA;
+    const sentRegistrationId = sentTgId === tgIdA ? registrationIdA : registrationIdB;
+
+    // The skipped one's row is withdrawn (by this test's own injected
+    // concurrent withdraw); the sent one's row is untouched.
+    const skippedRow = (
+      await db.select().from(registrations).where(eq(registrations.id, skippedRegistrationId))
+    )[0];
+    expect(skippedRow?.admission).toBe("withdrawn");
+    const sentRow = (await db.select().from(registrations).where(eq(registrations.id, sentRegistrationId)))[0];
+    expect(sentRow?.admission).toBe("admitted");
+
+    // Both candidates' ledger rows are committed -- step 4's insert runs
+    // before composeMessage's own recheck for BOTH candidates, per
+    // sendLedgeredNotification's own ordering (domain/notification.ts),
+    // proving the skipped one's ledger row stays committed even though its
+    // send never happened.
+    const ledgerRowsSkipped = await db
+      .select()
+      .from(schema.notificationLedger)
+      .where(
+        and(
+          eq(schema.notificationLedger.registrationId, skippedRegistrationId),
+          eq(schema.notificationLedger.kind, "reminder_24h"),
+        ),
+      );
+    expect(ledgerRowsSkipped).toHaveLength(1);
+
+    const ledgerRowsSent = await db
+      .select()
+      .from(schema.notificationLedger)
+      .where(
+        and(
+          eq(schema.notificationLedger.registrationId, sentRegistrationId),
+          eq(schema.notificationLedger.kind, "reminder_24h"),
+        ),
+      );
+    expect(ledgerRowsSent).toHaveLength(1);
+  });
+});
+
 describe("makeReminder24hJob / makeReminder3hJob -- REQ-026 AC10: broadcast_opt_in=false still receives both", () => {
   it("transactional classification bypasses broadcast_opt_in for both reminders", async (t) => {
     if (!dbAvailable) {
@@ -484,6 +605,154 @@ describe("makeReminder3hJob -- REQ-026 AC6/AC7/AC8: doors-time rendering", () =>
     }
     if (closingText !== startsText) {
       expect(message.caption).not.toContain(closingText);
+    }
+  });
+});
+
+describe("makeReminder3hJob -- REQ-026 AC7 (spec's own fixture): doors time byte-for-byte identical to buildEventCardContent's own output", () => {
+  it("its own timezone/doors-value/label/lang (America/Argentina/Buenos_Aires, en) produces an exact-substring match, not merely a 'contains'", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const evaluationTime = new Date("2026-11-05T22:00:00Z"); // 2h before startsAt -- inside the T-3h window
+    chapterSeq += 1;
+    const chapterRows = await db
+      .insert(schema.chapters)
+      .values({
+        code: `chapter-req026-ac7-${chapterSeq}`,
+        name: `Chapter REQ-026 AC7 ${chapterSeq}`,
+        timezone: "America/Argentina/Buenos_Aires",
+        defaultLang: "en",
+        active: true,
+      })
+      .returning({ id: schema.chapters.id });
+    const chapterRow = chapterRows[0];
+    if (chapterRow === undefined) throw new Error("chapter insert returned no row");
+    const chapterId = chapterRow.id;
+
+    const eventId = await seedPublishedEvent(chapterId, {
+      startsAt: new Date("2026-11-06T00:00:00Z"),
+      endsAt: new Date("2026-11-06T03:00:00Z"),
+    });
+    await updateEvent(
+      db,
+      await seedOrganizer(),
+      eventId,
+      chapterId,
+      { agenda: [{ kind: "doors", at: "2026-11-05T21:45:00Z", label: "Registration & drinks" }] },
+      ["agenda"],
+      new Date(),
+    );
+    // NOTE: seedAdmittedRegistration hardcodes the registrant's own lang to
+    // "ru" (mirroring every other case in this file, whose chapters are all
+    // "ru"). This case's independence turns on `lang: "en"` reaching
+    // composeMessage, which resolveLang derives from the USER's own lang,
+    // not the chapter's alone -- so this case seeds its own registrant
+    // directly with lang: "en" rather than reusing that shared helper.
+    const registrant = await resolveOrCreateUser(db, {
+      tgId: BigInt(nextTgId++),
+      tgUsername: `member${nextTgId}`,
+      lang: "en",
+    });
+    const registerResult = await registerForEvent(db, registrant.id, eventId, new Date("2026-08-31T00:00:00Z"));
+    if (registerResult.kind !== "admitted") {
+      throw new Error(`AC7 fixture: registerForEvent did not admit -- ${registerResult.kind}`);
+    }
+
+    const { sender, sent } = makeFakeSender();
+    await makeReminder3hJob(db, sender, BOT_USERNAME, 300000).run(evaluationTime);
+
+    expect(sent).toHaveLength(1);
+    const message = sent[0];
+    if (message?.kind !== "photo") throw new Error("expected photo message");
+
+    const event = await getEventByIdWithChapterTimezone(db, eventId);
+    if (event === null || event.startsAt === null) throw new Error("event not found");
+    const { formatDateTimeInTimezone } = await import("../i18n/formatTimeInTimezone.js");
+    const expectedDoorsText = formatDateTimeInTimezone(
+      new Date("2026-11-05T21:45:00Z"),
+      "America/Argentina/Buenos_Aires",
+      "en",
+    );
+
+    expect(message.caption).toContain(expectedDoorsText);
+
+    const venue = event.venueId !== null ? await getVenueById(db, event.venueId) : null;
+    const admittedRows = await db
+      .select({ id: registrations.id })
+      .from(registrations)
+      .where(and(eq(registrations.eventId, eventId), eq(registrations.admission, "admitted")));
+    const cardContent = buildEventCardContent(event, venue, admittedRows.length, "en");
+    const cardDoorsLine = cardContent.agendaLines.find((line) => line.label === "Registration & drinks");
+    expect(cardDoorsLine).toBeDefined();
+    expect(cardDoorsLine?.timeText).toBe(expectedDoorsText);
+
+    const catalog = (await import("../i18n/catalog.js")).getCatalog("en");
+    const captionLines = message.caption.split("\n");
+    const doorsLine = captionLines.find((line) => line.startsWith(catalog.reminder3h.doorsLabel));
+    if (doorsLine === undefined) throw new Error("no doors line found in caption");
+    const extractedDoorsText = doorsLine.slice(catalog.reminder3h.doorsLabel.length + 1);
+    expect(extractedDoorsText).toBe(cardDoorsLine?.timeText as string);
+  });
+});
+
+describe("makeReminder3hJob -- REQ-026 AC8 (spec's own fixture): different agenda-kind vocabulary confirms a real kind === \"doors\" equality check", () => {
+  it("workshop/afterparty agenda kinds (not BACKEND-DEV's networking/close) -> starts_at alone, no leaked agenda time", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, {
+      startsAt: new Date("2026-11-06T00:00:00Z"),
+      endsAt: new Date("2026-11-06T05:00:00Z"),
+    });
+    await updateEvent(
+      db,
+      await seedOrganizer(),
+      eventId,
+      chapterId,
+      {
+        agenda: [
+          { kind: "workshop", at: "2026-11-05T21:00:00Z", label: "Hands-on workshop" },
+          { kind: "afterparty", at: "2026-11-06T04:00:00Z", label: "Afterparty" },
+        ],
+      },
+      ["agenda"],
+      new Date(),
+    );
+    await seedAdmittedRegistration(eventId, { registerAt: new Date("2026-08-31T00:00:00Z") });
+
+    // Evaluate 2h before this event's own startsAt so it falls inside the
+    // T-3h window -- this fixture's startsAt (2026-11-06) is far from the
+    // evaluationTime used by this describe block's sibling cases, so this
+    // case computes its own evaluation time rather than reusing the outer
+    // evaluationTime constant.
+    const ac8EvaluationTime = new Date("2026-11-05T22:00:00Z");
+
+    const { sender, sent } = makeFakeSender();
+    await makeReminder3hJob(db, sender, BOT_USERNAME, 300000).run(ac8EvaluationTime);
+
+    expect(sent).toHaveLength(1);
+    const message = sent[0];
+    if (message?.kind !== "photo") throw new Error("expected photo message");
+
+    const event = await getEventByIdWithChapterTimezone(db, eventId);
+    if (event === null || event.startsAt === null) throw new Error("event not found");
+    const { formatDateTimeInTimezone } = await import("../i18n/formatTimeInTimezone.js");
+    const startsText = formatDateTimeInTimezone(event.startsAt, event.chapterTimezone, "ru");
+    const workshopText = formatDateTimeInTimezone(new Date("2026-11-05T21:00:00Z"), event.chapterTimezone, "ru");
+    const afterpartyText = formatDateTimeInTimezone(new Date("2026-11-06T04:00:00Z"), event.chapterTimezone, "ru");
+
+    const catalog = (await import("../i18n/catalog.js")).getCatalog("ru");
+    expect(message.caption).not.toContain(catalog.reminder3h.doorsLabel);
+    expect(message.caption).toContain(startsText);
+    if (workshopText !== startsText) {
+      expect(message.caption).not.toContain(workshopText);
+    }
+    if (afterpartyText !== startsText) {
+      expect(message.caption).not.toContain(afterpartyText);
     }
   });
 });
