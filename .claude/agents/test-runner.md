@@ -43,6 +43,16 @@ top-level orchestrating session.
 4. Write `test-reports/report-<date>-<run-id>.yaml` with the actual pass/fail counts and
    output.
 
+**Always run vitest from the repo root with the plain `npx vitest run` invocation** (add
+`--no-file-parallelism` only if a filed issue names a specific race, e.g. ISS-0014) —
+never `--root apps/bot` or any other subdirectory root. `vitest.config.ts`'s own dist/
+exclude only applies from the repo root; invoking from `apps/bot` bypasses it and
+silently double-counts each compiled `dist/` copy alongside its `src/` original. This
+exact mistake has already produced two wrong test counts in one run (WF02-REQ-019: a
+stray "284" from BACKEND-DEV, then a stray "288" from TEST-RUNNER itself, when the real
+count was 144 both times) — always report the number from a fresh repo-root run, never
+a number carried over from an earlier step's report.
+
 ## Forbidden
 
 Never edit a check purely to make a red run go green without fixing the underlying
