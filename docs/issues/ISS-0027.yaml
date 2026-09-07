@@ -1,0 +1,26 @@
+id: ISS-0027
+title: "npm test (without --no-file-parallelism) intermittently deadlocks DB-backed test files against the shared scratch Postgres pool"
+discovered_by: BACKEND-DEV
+discovered_in_run: WF02-REQ-031
+discovered_at: "2026-09-08T01:00:00Z"
+severity: MINOR
+description: >
+  Found while implementing REQ-031. Running the bare `npm test` script (as
+  opposed to the mandated `npx vitest run --no-file-parallelism`, ISS-0014)
+  intermittently produces deadlocks when multiple DB-backed test files run
+  concurrently against the shared scratch Postgres instance -- file-level
+  parallelism lets two files' transactions contend for the same rows/locks.
+  Confirmed pre-existing and NOT a regression: reproduces identically at the
+  merge-base (master, before this run's changes) when stashed and re-run the
+  same way. The mandated `--no-file-parallelism` flag (ISS-0014) already
+  works around this by serializing file execution, so the actual CI/test-run
+  path used across this project's WF-02 pipeline is unaffected. This issue
+  exists only to record that the bare `npm test` script itself is not safe to
+  run directly without that flag, in case a future contributor reaches for it
+  out of habit.
+  Recommended fix: either make `--no-file-parallelism` the default inside the
+  `npm test` script definition itself (removing the need to remember the
+  flag), or document the requirement prominently near the script.
+affected_files:
+  - package.json
+status: open
