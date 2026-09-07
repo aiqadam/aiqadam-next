@@ -1235,7 +1235,7 @@ requirements:
   - id: REQ-024
     title: /my registrations view with live status, computed waitlist position and the QR pass
     owner: BACKEND-DEV
-    status: pending
+    status: done
     description: >
       Closes PRD 14 build-order step 3 by giving the member the surface every preceding
       requirement wrote state into. Implements PRD 8's /my ("my registrations, waitlist
