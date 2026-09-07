@@ -165,6 +165,8 @@ export const en = {
     confirmedPrefix: "You're in!",
     whatNext: "What happens next: you'll get a check-in code closer to the event.",
     waitlistedPrefix: "You're on the waitlist for:",
+    waitlistedPositionPrefix: "Your position:",
+    waitlistedWhatNext: "What happens next: you'll move up automatically as seats open.",
     alreadyRegisteredPrefix: "You're already registered for this event. Status:",
     statusAdmitted: "admitted",
     statusWaitlisted: "waitlisted",

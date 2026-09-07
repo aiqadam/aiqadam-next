@@ -172,6 +172,8 @@ export const ru = {
     confirmedPrefix: "Вы зарегистрированы!",
     whatNext: "Что дальше: ближе к мероприятию вы получите код для входа.",
     waitlistedPrefix: "Вы в листе ожидания на:",
+    waitlistedPositionPrefix: "Ваша позиция:",
+    waitlistedWhatNext: "Что дальше: вы автоматически продвинетесь в списке, если освободятся места.",
     alreadyRegisteredPrefix: "Вы уже зарегистрированы на это мероприятие. Статус:",
     statusAdmitted: "подтверждено",
     statusWaitlisted: "лист ожидания",

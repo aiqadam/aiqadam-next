@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, lt, or } from "drizzle-orm";
 import type { DbClient } from "../db/client.js";
 import { events, registrations, users } from "../db/schema.js";
 import { writeAuditLog } from "./auditLog.js";
@@ -213,4 +213,60 @@ export async function registerForEvent(
       ...(qrToken !== null ? { qrToken } : {}),
     };
   });
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-021.md §2 — getWaitlistPosition: a pure, read-only,
+// never-cached position computation (AC1, AC2, AC3). Performs exactly one
+// SELECT ... LIMIT 1 (the target row) and one SELECT count(*)-shaped query
+// (rows strictly ahead of it), both against the live state of `registrations`
+// — no write, no stored/cached intermediate anywhere. Uses only plain
+// Drizzle eq/lt/and/or filters (no raw SQL, no window function), matching
+// the shape of `registrations_waitlist_order_idx` (event_id, created_at)
+// WHERE admission = 'waitlisted'.
+// ---------------------------------------------------------------------------
+export async function getWaitlistPosition(
+  db: DbClient["db"],
+  eventId: string,
+  registrationId: string,
+): Promise<number | null> {
+  // §2.2 step 1 — read the target row's own created_at/admission.
+  const targetRows = await db
+    .select({
+      createdAt: registrations.createdAt,
+      admission: registrations.admission,
+    })
+    .from(registrations)
+    .where(eq(registrations.id, registrationId))
+    .limit(1);
+
+  const target = targetRows[0];
+  // §2.2 step 1 — defensive: no row found.
+  if (target === undefined) {
+    return null;
+  }
+  // §2.2 step 2 — defensive: the row is not (or no longer) waitlisted.
+  if (target.admission !== "waitlisted") {
+    return null;
+  }
+
+  // §2.2 step 3 — count rows strictly ahead: same event, waitlisted, and
+  // (created_at earlier) OR (created_at equal AND id lower) — §2.3's
+  // tie-break, making the ranking a total order.
+  const aheadRows = await db
+    .select({ id: registrations.id })
+    .from(registrations)
+    .where(
+      and(
+        eq(registrations.eventId, eventId),
+        eq(registrations.admission, "waitlisted"),
+        or(
+          lt(registrations.createdAt, target.createdAt),
+          and(eq(registrations.createdAt, target.createdAt), lt(registrations.id, registrationId)),
+        ),
+      ),
+    );
+
+  // §2.2 step 4 — 1-based position.
+  return aheadRows.length + 1;
 }

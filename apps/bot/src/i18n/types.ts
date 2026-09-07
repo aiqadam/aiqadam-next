@@ -190,6 +190,8 @@ export interface Catalog {
     confirmedPrefix: string;
     whatNext: string;
     waitlistedPrefix: string;
+    waitlistedPositionPrefix: string;
+    waitlistedWhatNext: string;
     alreadyRegisteredPrefix: string;
     statusAdmitted: string;
     statusWaitlisted: string;

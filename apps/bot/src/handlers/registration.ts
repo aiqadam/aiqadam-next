@@ -2,7 +2,7 @@ import type { Context } from "grammy";
 import type { DbClient } from "../db/client.js";
 import { resolveActingUser } from "../domain/eventAuthorization.js";
 import { getEventByIdWithChapterTimezone } from "../domain/event.js";
-import { registerForEvent, type AdmissionState } from "../domain/registration.js";
+import { getWaitlistPosition, registerForEvent, type AdmissionState } from "../domain/registration.js";
 import { getVenueById } from "../domain/venue.js";
 import { getCatalog, type BotLang } from "../i18n/catalog.js";
 import { getFlowUserByTgId } from "../domain/user.js";
@@ -69,6 +69,7 @@ export function makeRegisterCallbackHandler(db: DbClient["db"]) {
     // committed; never part of the atomicity boundary.
     let eventTitle = "";
     let dateTimeText = "";
+    let waitlistPosition: number | null = null;
     if (
       outcome.kind === "admitted" ||
       outcome.kind === "waitlisted" ||
@@ -94,9 +95,15 @@ export function makeRegisterCallbackHandler(db: DbClient["db"]) {
           await getVenueById(db, event.venueId);
         }
       }
+      // docs/agents/design/REQ-021.md §3.1 — one additional read call, only
+      // for the waitlisted outcome, whose registrationId is unconditionally
+      // populated by registerForEvent's write path.
+      if (outcome.kind === "waitlisted" && outcome.registrationId !== undefined) {
+        waitlistPosition = await getWaitlistPosition(db, eventId, outcome.registrationId);
+      }
     }
 
-    await ctx.reply(composeRegistrationReply(outcome, catalog, eventTitle, dateTimeText));
+    await ctx.reply(composeRegistrationReply(outcome, catalog, eventTitle, dateTimeText, waitlistPosition));
   };
 }
 
@@ -106,14 +113,24 @@ function composeRegistrationReply(
   catalog: ReturnType<typeof getCatalog>,
   eventTitle: string,
   dateTimeText: string,
+  waitlistPosition: number | null = null,
 ): string {
   switch (outcome.kind) {
     case "admitted":
       return [catalog.registration.confirmedPrefix, eventTitle, dateTimeText, catalog.registration.whatNext].join(
         "\n",
       );
-    case "waitlisted":
-      return [catalog.registration.waitlistedPrefix, eventTitle, dateTimeText].join("\n");
+    case "waitlisted": {
+      // §3.2 — when a position is known, insert the position line and the
+      // waitlisted-specific "what next" line; when null (§2.2's defensive
+      // cases), the position line is omitted entirely (§6 open question 3).
+      const lines = [catalog.registration.waitlistedPrefix, eventTitle, dateTimeText];
+      if (waitlistPosition !== null) {
+        lines.push(`${catalog.registration.waitlistedPositionPrefix} ${waitlistPosition}`);
+      }
+      lines.push(catalog.registration.waitlistedWhatNext);
+      return lines.join("\n");
+    }
     case "already-registered": {
       const statusKey = STATUS_CATALOG_KEY[outcome.admission];
       return [

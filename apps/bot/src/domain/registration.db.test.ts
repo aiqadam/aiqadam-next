@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, it, expect } from "vitest";
 import * as schema from "../db/schema.js";
 import { auditLog, chapters, registrations, users, venues } from "../db/schema.js";
 import { createEvent, publishEvent, setPendingSource } from "./event.js";
-import { registerForEvent } from "./registration.js";
+import { getWaitlistPosition, registerForEvent } from "./registration.js";
 
 // docs/agents/design/REQ-020.md — AC1 (atomic capacity, real concurrency),
 // AC2 (double registration), AC4 (closed/cancelled/finished refusal +
@@ -402,5 +402,131 @@ describe("registerForEvent — qr_token issuance", () => {
       .from(registrations)
       .where(eq(registrations.userId, userB));
     expect(rowB[0]?.qrToken).toBeNull();
+  });
+});
+
+describe("getWaitlistPosition — REQ-021 AC2: position recomputed live, no write to other rows", () => {
+  it(
+    "flipping the first of three waitlisted rows' admission (direct SQL, no withdraw feature) " +
+      "shifts the second row's position 2 -> 1 on the next read, with zero write to the second row",
+    async (t) => {
+      if (!dbAvailable) {
+        t.skip();
+        return;
+      }
+
+      const chapterId = await seedChapter();
+      // capacity 0 -> every registration lands directly in the waitlisted
+      // branch (decideRegistrationOutcome row 8).
+      const eventId = await seedPublishedEvent(chapterId, { capacity: 0 });
+      const userA = await seedUser();
+      const userB = await seedUser();
+      const userC = await seedUser();
+
+      // §0's concrete test recipe: three waitlisted rows, strictly
+      // increasing created_at, inserted directly (not through
+      // registerForEvent, so created_at ordering is exact and explicit
+      // rather than relying on real-clock ordering between calls).
+      const rowsInserted = await db
+        .insert(registrations)
+        .values([
+          { eventId, userId: userA, admission: "waitlisted", source: "direct", createdAt: new Date("2026-09-01T00:00:00.000Z") },
+          { eventId, userId: userB, admission: "waitlisted", source: "direct", createdAt: new Date("2026-09-01T00:00:01.000Z") },
+          { eventId, userId: userC, admission: "waitlisted", source: "direct", createdAt: new Date("2026-09-01T00:00:02.000Z") },
+        ])
+        .returning({ id: registrations.id, userId: registrations.userId });
+
+      const registrationA = rowsInserted.find((r) => r.userId === userA);
+      const registrationB = rowsInserted.find((r) => r.userId === userB);
+      if (registrationA === undefined || registrationB === undefined) {
+        throw new Error("fixture insert did not return expected rows");
+      }
+
+      // Position for B, before: A and (nobody else) ahead -> position 2.
+      const positionBefore = await getWaitlistPosition(db, eventId, registrationB.id);
+      expect(positionBefore).toBe(2);
+
+      const beforeRow = await db.select().from(registrations).where(eq(registrations.id, registrationB.id));
+      const updatedAtBefore = beforeRow[0]?.updatedAt;
+      expect(updatedAtBefore).toBeDefined();
+
+      // Direct SQL state flip of the FIRST row only -- per REQ-021 design §0,
+      // deliberately not through any application-level function, since no
+      // withdraw feature exists yet (REQ-022 depends_on this requirement).
+      await pool.query("UPDATE registrations SET admission = 'withdrawn' WHERE id = $1", [registrationA.id]);
+
+      // B's own row was never touched by that statement.
+      const afterRow = await db.select().from(registrations).where(eq(registrations.id, registrationB.id));
+      const updatedAtAfter = afterRow[0]?.updatedAt;
+      expect(updatedAtAfter).toEqual(updatedAtBefore);
+
+      // B's position, recomputed fresh: with A no longer waitlisted, nobody
+      // is ahead of B any more -> position 1.
+      const positionAfter = await getWaitlistPosition(db, eventId, registrationB.id);
+      expect(positionAfter).toBe(1);
+    },
+  );
+
+  it("returns null for a row that is not (or no longer) waitlisted", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5 });
+    const userId = await seedUser();
+    const rows = await db
+      .insert(registrations)
+      .values({ eventId, userId, admission: "admitted", source: "direct" })
+      .returning({ id: registrations.id });
+    const row = rows[0];
+    if (row === undefined) throw new Error("fixture insert returned no row");
+
+    const position = await getWaitlistPosition(db, eventId, row.id);
+    expect(position).toBeNull();
+  });
+
+  it("returns null for an unknown registrationId", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5 });
+    const position = await getWaitlistPosition(db, eventId, "00000000-0000-0000-0000-000000000000");
+    expect(position).toBeNull();
+  });
+});
+
+describe("registerForEvent — REQ-021 AC4: waitlist accepts unbounded registrations past capacity", () => {
+  it("admits 5+ registrations to the waitlist past a fully booked capacity, with zero refusal", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 1 });
+
+    const first = await seedUser();
+    const firstOutcome = await registerForEvent(db, first, eventId, new Date("2026-09-01T00:00:00Z"));
+    expect(firstOutcome.kind).toBe("admitted");
+
+    const WAITLIST_COUNT = 6;
+    for (let i = 0; i < WAITLIST_COUNT; i++) {
+      const userId = await seedUser();
+      const outcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+      expect(outcome.kind).toBe("waitlisted");
+    }
+
+    const waitlistedRows = await db.query.registrations.findMany({
+      where: (reg, { eq: eqOp, and: andOp }) => andOp(eqOp(reg.eventId, eventId), eqOp(reg.admission, "waitlisted")),
+    });
+    expect(waitlistedRows).toHaveLength(WAITLIST_COUNT);
+
+    // Position for the last-inserted row equals the full count -- confirming
+    // the ranking keeps working correctly at this size too.
+    const lastRow = waitlistedRows.reduce((latest, r) => (r.createdAt > latest.createdAt ? r : latest));
+    const lastPosition = await getWaitlistPosition(db, eventId, lastRow.id);
+    expect(lastPosition).toBe(WAITLIST_COUNT);
   });
 });
