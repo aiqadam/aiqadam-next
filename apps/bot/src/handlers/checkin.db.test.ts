@@ -493,7 +493,7 @@ describe("REQ-028 AC5 -- only admission='admitted' rows appear", () => {
     const { eventId, title } = await seedPublishedEvent(chapterId, organizer.id, { capacity: 1 });
     const staff = await seedStaff(eventId, title);
 
-    const admitted = await seedAdmittedRegistrant(eventId, { firstName: "Gulnaz", lastName: "Waitlist-Never" });
+    await seedAdmittedRegistrant(eventId, { firstName: "Gulnaz", lastName: "Waitlist-Never" });
 
     const waitlistedTgId = nextTgId++;
     const waitlistedUser = await resolveOrCreateUser(db, {
