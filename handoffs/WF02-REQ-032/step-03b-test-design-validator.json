@@ -1,0 +1,42 @@
+{
+  "handoff_id": "step-03b-test-design-validator",
+  "run_id": "WF02-REQ-032",
+  "workflow_id": "WF-02",
+  "step": "03b",
+  "from_agent": "TEST-DESIGNER",
+  "to_agent": "TEST-DESIGN-VALIDATOR",
+  "file": "handoffs/WF02-REQ-032/step-03b-test-design-validator.json",
+  "created_at": "2026-09-07T21:37:43Z",
+  "started_at": "2026-09-07T21:37:43Z",
+  "completed_at": "2026-09-07T21:37:43Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-032"],
+    "artifacts_in": [
+      "docs/agents/test-specs/REQ-032.md",
+      "docs/agents/design/REQ-032.md",
+      "docs/agents/design/REQ-032-schema.md",
+      "docs/agents/requirements.yaml",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/scheduler/noShowJobs.ts",
+      "apps/bot/src/handlers/noShow.ts",
+      "apps/bot/src/domain/notification.ts",
+      "docs/agents/test-specs/REQ-014.md",
+      "docs/agents/test-specs/REQ-031.md",
+      "handoffs/WF02-REQ-032/step-02-backend-dev.json"
+    ]
+  },
+  "task": {
+    "description": "WF-02 Step 3b test design gate for REQ-032 (no-show reason capture, final Release 1 requirement) on branch feature/WF02-REQ-032. Verify docs/agents/test-specs/REQ-032.md against all 7 acceptance criteria plus the S3 exploit, independently re-deriving against the actual implementation rather than trusting TEST-DESIGNER's self-report."
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Independently read docs/agents/test-specs/REQ-032.md in full (all 9 sections) and cross-checked every claim against the actual implementation, not TEST-DESIGNER's summary. Findings: (1) All 7 ACs + the S3 exploit each have >=1 precise verification case naming exact file/function/fixture/evaluationTime/expected result -- no case relies on judgment, no 'check it looks right' language, no TODO/TBD anywhere in the file. (2) AC3's 'zero reminders across 4 runs' arithmetic was traced against the real CATCH_UP_WINDOW_MS=2*60*60*1000 constant and gt(events.endsAt, windowStart) clause in apps/bot/src/scheduler/noShowJobs.ts: Run2's ledger-dedup (same evaluationTime, UNIQUE(registration_id,kind) collision -> skipped-already-sent, confirmed in domain/notification.ts) and Runs 3/4's window-exclusion (endsAt=2026-09-01T00:00:00Z fails endsAt>windowStart at both T+24h windowStart=2026-09-01T22:10:00Z and T+48h windowStart=2026-09-02T22:10:00Z) are genuinely two distinct mechanisms, both correctly exercised and both numerically correct -- not a naive copy of REQ-031's 'exactly one reminder' pattern; the spec's own total-count framing ('zero additional sends after Run 1') is the correct, meaningfully different claim. (3) AC7's departure to a handoff-file read (no it()) was checked against docs/agents/test-specs/REQ-014.md's own AC4 section, which really does use the identical read-committed-file-directly method for the same class of process-only AC -- genuine precedent, not fabricated. Also independently reread handoffs/WF02-REQ-032/step-02-backend-dev.json's result.issues[0]: a real MAJOR-severity entry whose description begins with the exact text the spec quotes verbatim ('AC7 disclosure, required and explicit: the noShow.* wording ... is PROVISIONAL PENDING THE PRODUCT OWNER...') -- accurately quoted, not paraphrased or invented. (4) AC5's verification calls apps/bot/src/domain/registration.ts's real isNoShow directly (a pure function, confirmed by reading its implementation: admission!=='admitted'->false, checkedInAt!==null->false, endsAt===null->false, else isFinished(endsAt,evaluationTime)) -- the spec's 3 constructed cases (checked-in, admitted-not-checked-in, withdrawn) map exactly onto this real branch structure; this is a direct unit test of the pure function, not a DB round-trip that could pass for the wrong reason. (5) The S3 exploit's 3 sub-attacks were checked against the actual apps/bot/src/handlers/noShow.ts: Attack 1 targets makeNoShowReasonCallbackHandler's ownership check (line ~99), Attack 2 targets makeNoShowOtherCallbackHandler's ownership check (line ~146), Attack 3 targets makeNoShowTextReplyHandler's silent ownership check (line ~201) -- three genuinely distinct entry points/functions in the real file, each with its own refusal shape (show_alert vs silent return), not three variations of one path. (6) AC2's two sub-cases were checked against the real write call sites: sub-case A exercises writeNoShowReason(db, registrationId, codeStr, ...) at noShow.ts's fixed-reason handler (line 109); sub-case B exercises writeNoShowReason(db, parsed.registrationId, value, ...) at the free-text reply handler (line 216) where value=text.trim() -- genuinely distinct write call sites with different input shapes (closed-set code vs trimmed free text), not the same path tested twice. (7) tg_id ranges: ran a fresh grep -rn \"nextTgId = \" apps/bot/src myself; confirmed the 18 existing declarations the spec lists are accurate and the highest non-notification.test.ts value is feedback.db.test.ts's 994_000_000 -- the claimed 995_000_000/996_000_000 ranges are genuinely unclaimed, with notification.test.ts's 1_000_000_900 well clear above. (8) AC4's static grep was re-run independently from the repo root: git grep -in \"no_show\" -- apps/bot/drizzle/*.sql returns exactly one line, 0001_tired_annihilus.sql:58: \"no_show_reason\" text, -- matches the spec's claimed output exactly; the companion source grep against noShowJobs.ts/noShow.ts returns zero matches (both files use noShowReason/NoShowReasonCode identifiers only, confirmed by reading both files in full), consistent with the spec's pass condition. No check failed.",
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": "Route to TEST-RUNNER (Step 4)"
+  },
+  "rework_count": 0,
+  "max_rework": 3
+}
