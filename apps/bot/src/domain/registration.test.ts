@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   decideRegistrationOutcome,
   generateQrToken,
+  isNoShow,
   resolveRegistrationSource,
   type RegistrationDecisionInput,
 } from "./registration.js";
@@ -127,6 +128,36 @@ describe("generateQrToken", () => {
       tokens.add(token);
     }
     expect(tokens.size).toBe(1000);
+  });
+});
+
+// docs/agents/design/REQ-032.md §1 — isNoShow: REQ-032.md §1's
+// first-match-wins table, the constructed admitted-checked-in /
+// admitted-not-checked-in / withdrawn triple.
+describe("isNoShow — REQ-032.md §1's first-match-wins table, the constructed admitted-checked-in / admitted-not-checked-in / withdrawn triple", () => {
+  const endsAt = new Date("2026-09-01T00:00:00Z");
+  const evaluationTime = new Date("2026-09-01T02:00:00Z");
+
+  it("Registration 1 — admitted, checked in: returns false (checked in wins regardless of endsAt)", () => {
+    const reg1 = isNoShow("admitted", new Date("2026-09-01T00:05:00Z"), endsAt, evaluationTime);
+    expect(reg1).toBe(false);
+  });
+
+  it("Registration 2 — admitted, never checked in: returns true (the exact no-show condition)", () => {
+    const reg2 = isNoShow("admitted", null, endsAt, evaluationTime);
+    expect(reg2).toBe(true);
+  });
+
+  it("Registration 3 — withdrawn: returns false (admission !== 'admitted' short-circuits before checkedInAt/endsAt are even consulted)", () => {
+    const reg3 = isNoShow("withdrawn", null, endsAt, evaluationTime);
+    expect(reg3).toBe(false);
+  });
+
+  it("across the three constructed registrations, exactly one (Registration 2) evaluates to true", () => {
+    const reg1 = isNoShow("admitted", new Date("2026-09-01T00:05:00Z"), endsAt, evaluationTime);
+    const reg2 = isNoShow("admitted", null, endsAt, evaluationTime);
+    const reg3 = isNoShow("withdrawn", null, endsAt, evaluationTime);
+    expect([reg1, reg2, reg3]).toEqual([false, true, false]);
   });
 });
 

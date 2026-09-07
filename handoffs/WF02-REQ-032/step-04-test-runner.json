@@ -1,0 +1,42 @@
+{
+  "handoff_id": "step-04-test-runner",
+  "run_id": "WF02-REQ-032",
+  "workflow_id": "WF-02",
+  "step": "04",
+  "from_agent": "TEST-RUNNER",
+  "to_agent": "RELEASE-VALIDATOR",
+  "file": "handoffs/WF02-REQ-032/step-04-test-runner.json",
+  "created_at": "2026-09-07T21:42:29Z",
+  "started_at": "2026-09-07T21:30:00Z",
+  "completed_at": "2026-09-07T21:42:29Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-032"],
+    "artifacts_in": [
+      "docs/agents/test-specs/REQ-032.md",
+      "docs/agents/design/REQ-032.md",
+      "docs/agents/design/REQ-032-schema.md",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/handlers/noShow.ts",
+      "apps/bot/src/scheduler/noShowJobs.ts",
+      "handoffs/WF02-REQ-032/step-02-backend-dev.json",
+      "handoffs/WF02-REQ-032/step-03b-test-design-validator.json"
+    ]
+  },
+  "task": {
+    "description": "WF-02 Step 4 for REQ-032 (no-show reason capture, FINAL requirement of Release 1) on branch feature/WF02-REQ-032. Write and run the vitest files docs/agents/test-specs/REQ-032.md specifies (TEST-DESIGNER wrote the design-only markdown per this project's established convention; TEST-RUNNER writes and commits the actual test code at this step), run lint/build, and run the full suite twice consecutively per ISS-0014/ISS-0027's flakiness history."
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Wrote apps/bot/src/scheduler/noShowJobs.db.test.ts (tg_id 995_000_000+, AC1/AC3/AC6), apps/bot/src/handlers/noShow.db.test.ts (tg_id 996_000_000+, AC2 + S3 exploit's 3 sub-attacks), and added a new isNoShow describe block to apps/bot/src/domain/registration.test.ts (AC5, 4 assertions). AC4 verified by direct git grep (not a vitest case, per spec). AC7 verified by directly reading handoffs/WF02-REQ-032/step-02-backend-dev.json's result.issues[0] -- confirmed present, severity MAJOR, description begins verbatim 'AC7 disclosure, required and explicit: the noShow.* wording written in this step (apps/bot/src/i18n/ru.ts and en.ts -- prompt, reasonWorkRanOver, reasonIllness, reasonForgot, reasonTransport, reasonLostInterest, otherLabel, otherPrompt, thanksMessage, alreadyAnswered, staleMessage, notYours) is PROVISIONAL PENDING THE PRODUCT OWNER...' -- matches the spec's quoted text exactly.\n\nLint: `npm run lint -w apps/bot` -> exit clean, zero output beyond the npm script banner ('> bot@0.1.0 lint\\n> eslint .'), zero warnings/errors.\n\nBuild: `npm run build -w apps/bot` -> exit clean, zero output beyond the npm script banner ('> bot@0.1.0 build\\n> tsc -p tsconfig.json'), zero type errors.\n\nAC4 static grep (run directly, not vitest):\n`git grep -in \"no_show\" -- apps/bot/drizzle/*.sql` -> exactly one line: `apps/bot/drizzle/0001_tired_annihilus.sql:58:\\t\"no_show_reason\" text,` -- zero boolean no_show column/enum matches.\n`git grep -n \"no_show\" -- apps/bot/src/scheduler/noShowJobs.ts apps/bot/src/handlers/noShow.ts` -> `handlers/noShow.ts:18` (a code comment referencing no_show_reason) and `scheduler/noShowJobs.ts:148` (the string literal kind: \"no_show_reason_request\") -- no `.set({ noShow: ... })`/boolean-write pattern anywhere. AC4 PASS.\n\nFull suite, repo root, mandated flag, run TWICE consecutively (DATABASE_URL=postgres://bot:bot@localhost:55432/bot, docker compose postgres confirmed pg_isready before each run):\n`npx vitest run --no-file-parallelism`\nRun 1: Test Files 35 passed (35), Tests 325 passed (325), Duration 32.34s.\nRun 2: Test Files 35 passed (35), Tests 325 passed (325), Duration 30.44s.\nIdentical pass counts both runs -- no flakiness observed (relevant to ISS-0027's history). No skipped/pending tests; the dbAvailable-skip guard never triggered since the scratch Postgres was up and migrated for both runs.\n\nAll 7 ACs + S3 exploit verified PASS: AC1 (exactly 1 send, B excluded, 6-button keyboard in NO_SHOW_REASON_CODES order), AC2 (fixed-reason write + re-tap no-op; free-text trimmed write), AC3 (4 runs, sent.length stays 1 throughout -- ledger-dedup on runs 1-2, window-exclusion on runs 3-4), AC4 (static grep), AC5 (3 isNoShow direct calls, exactly one true), AC6 (broadcastOptIn=false piggyback on AC1 fixture), AC7 (handoff-file read), S3 exploit (3 attacks across all 3 entry points, each independently refused with no write; Alice's own legitimate reply confirmed unaffected).\n\nNo failures encountered at any step -- nothing to attribute structurally, nothing filed to ISSUE_QUEUE.md.",
+    "artifacts_out": [
+      "apps/bot/src/scheduler/noShowJobs.db.test.ts",
+      "apps/bot/src/handlers/noShow.db.test.ts",
+      "apps/bot/src/domain/registration.test.ts",
+      "handoffs/WF02-REQ-032/step-04-test-runner.json"
+    ],
+    "issues": [],
+    "next_action": "Route to RELEASE-VALIDATOR (Step 5)"
+  }
+}
