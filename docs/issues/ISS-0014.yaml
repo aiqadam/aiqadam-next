@@ -1,0 +1,34 @@
+id: ISS-0014
+title: DB-backed Vitest files race on the shared scratch Postgres under default per-file parallelism
+discovered_by: SECURITY-REVIEWER
+discovered_in_run: WF02-REQ-019
+discovered_at: "2026-09-07T09:15:00Z"
+severity: MINOR
+description: >
+  While running the full `npx vitest run` suite for WF02-REQ-019's Step 2c
+  security gate, SECURITY-REVIEWER found that running the suite without
+  `--no-file-parallelism` produces 1 flaky failure out of 288 tests
+  (reproduced twice), while running with `--no-file-parallelism` produces a
+  clean 288/288 pass every time. The cause is that multiple DB-backed test
+  files (apps/bot/src/handlers/start.test.ts and any future ones following
+  the same pattern) share ONE scratch Postgres instance
+  (apps/bot/docker-compose.yml) and each truncates/reseeds its own tables
+  without coordinating with other files running concurrently under Vitest's
+  default per-file parallelism -- a cross-file race on shared table state,
+  not a defect in any single test's logic or in the WF02-REQ-019 diff itself.
+  This is a test-infrastructure gap distinct from ISS-0013 (CI has no
+  Postgres service at all, so these tests do not run in CI yet) -- this
+  issue is about correctness ONCE Postgres is available (locally today, and
+  in CI after ISS-0013 is fixed), not about availability.
+  Recommended fix: either run DB-backed test files with
+  `--no-file-parallelism` (or an equivalent Vitest config scoping, e.g. a
+  separate `vitest.config.ts` project/pool for DB-backed suites), or give
+  each DB-backed test file its own isolated schema/database within the same
+  Postgres instance so concurrent files stop sharing table state. Whichever
+  fix ships should be applied consistently so this doesn't need
+  rediscovering per new DB-backed test file.
+affected_files:
+  - apps/bot/src/handlers/start.test.ts
+  - vitest.config.ts
+  - apps/bot/docker-compose.yml
+status: open
