@@ -1,0 +1,28 @@
+{
+  "handoff_id": "step-01b-design-validator-regate",
+  "run_id": "WF02-REQ-026",
+  "workflow_id": "WF-02",
+  "step": "01b",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "started_at": "2026-09-07T00:00:00Z",
+  "completed_at": "2026-09-07T00:00:00Z",
+  "result": {
+    "status": "PASS",
+    "summary": "Re-gate of docs/agents/design/REQ-026.md after CODE-DESIGNER's rework commit 65704b4, scoped exactly to the single prior FAIL reason -- Sec5.1 point 4 and Sec5.2 point 4 were literal executable TypeScript (.join() over an array literal, template-literal interpolation for caption lines and button callback_data) rather than this pipeline's required prose/table style. Everything else (agenda-shape claim, reconfirmed_at claim, index.ts sequencing bug, NotificationSender extension's safety relative to REQ-025) was already confirmed correct in the first pass and was not re-derived here, per this task's explicit scope.\n\n1. READ THE DIFF DIRECTLY (`git show 65704b4 -- docs/agents/design/REQ-026.md`), not CODE-DESIGNER's summary. Sec5.1 point 4's old fenced TypeScript block (text = [...].join(\"\\n\"); buttons = [ {label, callbackData: `reminder24h:confirm:${registrationId}`}, ... ]) is replaced by prose (\"Compose the message text and buttons:\") plus two markdown tables -- one for the three text lines (Order/Line/Source), one for the two buttons (Order/label source/callbackData, callbackData stated as 'the literal prefix `reminder24h:confirm:` immediately followed by `registrationId`', no interpolation syntax). Sec5.2 point 4's old fenced bullet-list-with-inline-template-literals is replaced by prose plus a four-column table (Order/Line/Source/Included when) covering all seven caption lines including the conditional doors line and the venue-fallback lines.\n\n2. FULL RE-SCAN FOR COMPLETENESS, not just the two flagged spots. Enumerated every fenced code block in the document (awk paired-fence scan): blocks at lines 35-41, 73-115, 163-174, 190-205, 231-233, 255-277, 312-325, 432-439, 448-464, 479-491. Only one of these -- 432-439 -- falls inside Sec5 (specifically Sec5.2, after point 6, in the 'amended' RegistrationAdmissionAndEvent interface note). It is a bare TypeScript `interface` declaration (field names + types only, no method bodies, no branching, no computation) -- a type/props specification, which this role's own instructions require to be fully specified, not forbidden implementation code. Manually re-read all of Sec5.1 (lines 353-390) and Sec5.2 (391-442) line by line: zero `.join()`, zero array-literal composition, zero template-literal interpolation (`${...}` or backtick strings used as computed values) anywhere in either subsection. Both previously-flagged spots and the whole surrounding section are now prose/table only.\n\n3. CONTENT/FIELD-SOURCING UNCHANGED -- diffed old vs new line-by-line. Sec5.1: text lines are still, in the same order, catalog.reminder24h.prompt / event.title / formatDateTimeInTimezone(event.startsAt, event.chapterTimezone, lang); buttons are still, in the same order, {confirmButton label, `reminder24h:confirm:` + registrationId} then {declineButton label, `reminder24h:decline:` + registrationId} -- same literal prefixes, same field, same concatenation semantics as the old template literals, merely stated in prose instead of backticks. Sec5.2: caption lines are still, in the same order and same conditions, header / event.title / doors line (only when doorsItem !== null, same exact formatDateTimeInTimezone call with the same three arguments cited against the same buildEventCardContent identity argument) / start line (always) / venue.address-or-empty / venue.yandexUrl-or-empty / venue.googleUrl-or-empty (the table's 'X when venue non-null; empty line when null' phrasing is the same semantics as the old `venue?.field ?? \"\"`). No line was added, removed, reordered, or had its condition changed -- this is a pure syntax rewrite (code notation to prose/table notation), not a content change.\n\nVerdict: PASS. The prior FAIL's sole blocking issue is resolved; no new issue introduced by the rework.",
+    "issues": [],
+    "next_action": "Route to BACKEND-DEV (Step 2)"
+  },
+  "context": {
+    "requirement_id": "REQ-026",
+    "depends_on": ["REQ-025"],
+    "branch_name": "feature/WF02-REQ-026",
+    "artifacts_validated": [
+      "docs/agents/design/REQ-026.md"
+    ],
+    "prior_gate": "handoffs/WF02-REQ-026/step-01b-design-validator.json",
+    "rework_commit": "65704b4",
+    "re_gate_scope": "Sec5.1 point 4 and Sec5.2 point 4 code-vs-prose syntax fix only; all other checks from the first pass stand and were not re-verified."
+  }
+}
