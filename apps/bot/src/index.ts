@@ -31,6 +31,7 @@ import {
   makeCheckinPageCallbackHandler,
   makeCheckinToggleCallbackHandler,
 } from "./handlers/checkin.js";
+import { CHECKIN_OVERRIDE_PATTERN, makeCheckinOverrideCallbackHandler } from "./handlers/checkinQr.js";
 import {
   makeProfileChapterCallbackHandler,
   makeProfileChapterHandler,
@@ -157,6 +158,11 @@ bot.command("staff_remove", makeStaffRemoveHandler(db));
 bot.command("checkin", makeCheckInHandler(db));
 bot.callbackQuery(CHECKIN_TOGGLE_PATTERN, makeCheckinToggleCallbackHandler(db));
 bot.callbackQuery(CHECKIN_PAGE_PATTERN, makeCheckinPageCallbackHandler(db));
+
+// REQ-029: `/start ci_<qr_token>` QR check-in deep link (dispatched from
+// handlers/start.ts's makeStartHandler -- no new command registered here,
+// AC7), plus the organizer-only checkin:override:<registrationId> callback.
+bot.callbackQuery(CHECKIN_OVERRIDE_PATTERN, makeCheckinOverrideCallbackHandler(db));
 
 // REQ-022: /withdraw <event_id> -- withdraw from a registration and free the
 // seat, gated by a two-step confirm/cancel callback prompt. Registered here,

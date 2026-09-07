@@ -122,6 +122,23 @@ export const en = {
     refusedNotAdmitted: "Can't check in: this attendee's status has changed.",
     noNameFallback: "No name on file",
   },
+  // Placeholder/provisional wording (REQ-029 design §7) — CONTENT-BA owns
+  // final copy per decisions/0002.
+  checkinQr: {
+    unknownToken: "This check-in code is not recognized.",
+    eventEnded: "This event has already ended.",
+    notStaff: "You are not authorized to check people in for this event.",
+    alreadyCheckedIn: "Already checked in at {at} by {by}.",
+    refusedWaitlisted: "Can't check in: this attendee is on the waitlist, not admitted.",
+    refusedRequested: "Can't check in: this attendee's registration is still pending approval.",
+    refusedWithdrawn: "Can't check in: this attendee withdrew their registration.",
+    refusedRejected: "Can't check in: this attendee's registration was rejected.",
+    overrideButtonLabel: "Override: admit and check in",
+    overrideNotAuthorized: "Only an organizer can override this.",
+    overrideNotApplicable: "This registration no longer needs an override.",
+    overrideSuccess: "Admitted and checked in: {name}{company}. Checked in so far: {checkedIn}.",
+    successHeader: "Checked in: {name}{company}. Checked in so far: {checkedIn}.",
+  },
   // Placeholder/provisional wording (REQ-019 design §5) — CONTENT-BA owns
   // final copy per decisions/0002.
   profile: {

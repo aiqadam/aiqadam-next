@@ -166,6 +166,48 @@ export interface Catalog {
     // tg_username on file (design §2.1's displayName table, last row).
     noNameFallback: string;
   };
+  // NEW, REQ-029 (docs/agents/design/REQ-029.md §7): the ci_<qr_token>
+  // check-in deep link -- scan-side refusals/success and the organizer
+  // override. Kept as its own top-level key, parallel to (not merged with)
+  // `checkin` above -- a different flow with different reasons, on a
+  // different entry point (a QR scan via /start, not the /checkin command).
+  checkinQr: {
+    // AC4 -- no registration matches the scanned token (also reused for the
+    // token-currency recheck's own "unknown-token" outcome).
+    unknownToken: string;
+    // AC4 -- the event's ends_at is already in the past.
+    eventEnded: string;
+    // AC1 -- the scanner is not EventStaff for this event (also covers the
+    // defensive "no-user" authorization reason).
+    notStaff: string;
+    // AC2 -- interpolated with {at} (the existing checked_in_at, formatted
+    // in the event's chapter timezone) and {by} (the checking staff
+    // member's display name).
+    alreadyCheckedIn: string;
+    // AC3 -- per-admission refusal reasons, each shown with the override
+    // offer attached.
+    refusedWaitlisted: string;
+    refusedRequested: string;
+    refusedWithdrawn: string;
+    refusedRejected: string;
+    // The inline button label offered alongside every refused* reply above.
+    overrideButtonLabel: string;
+    // The override tap's own organizer-only refusal.
+    overrideNotAuthorized: string;
+    // Defensive: tapped override on an already-admitted or since-vanished
+    // registration.
+    overrideNotApplicable: string;
+    // AC6 -- the override's own success screen. Interpolated with {name},
+    // {company} (may be empty, see successHeader), and {checkedIn} -- the
+    // live countCheckedIn counter (design §11), reused as-is, not a
+    // checked-in/total ratio.
+    overrideSuccess: string;
+    // AC1/AC5 -- the QR scan's own success screen. Interpolated with {name},
+    // {company} (omitted with its separator when null, same rule REQ-028's
+    // row label already uses), and {checkedIn} (the live counter). Never
+    // phone/email.
+    successHeader: string;
+  };
   // NEW, REQ-019: profile capture as a resumable step-by-step form, the
   // consent gate, and the optional-field rule (design §5). Placeholder/
   // minimal functional copy per decisions/0002 (CONTENT-BA owns final

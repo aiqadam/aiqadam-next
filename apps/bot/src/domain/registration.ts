@@ -834,7 +834,10 @@ export interface CheckinListItem {
 // firstName absent, lastName present   -> lastName alone
 // both absent, tgUsername present      -> "@<tgUsername>"
 // all three absent                     -> the fixed noNameFallback string
-function deriveCheckinDisplayName(
+// docs/agents/design/REQ-029.md §2.1's own note -- exported (was file-private
+// since REQ-028) so §2.1/§2.2's QR-checkin reads can reuse this exact
+// derivation rule rather than re-deriving it a second time.
+export function deriveCheckinDisplayName(
   firstName: string | null,
   lastName: string | null,
   tgUsername: string | null,
@@ -1031,4 +1034,376 @@ export async function getRegistrationForEventAndUser(
     admission: row.admission as AdmissionState,
     checkedInAt: row.checkedInAt,
   };
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-029.md §2.1 -- getRegistrationByQrTokenForCheckin:
+// resolves a scanned qr_token to the registration + everything the QR
+// check-in flow needs (including what §5's authorization gate needs --
+// eventId/eventEndsAt/eventChapterId). Deliberately unlocked (a plain
+// SELECT, no FOR UPDATE): it exists only to decide "unknown token"
+// immediately and to obtain the fields authorization needs BEFORE any
+// transaction opens. The authoritative, write-time-safe read happens again,
+// locked, inside performQrCheckIn (§3.3) -- the same two-phase shape
+// REQ-028's toggleCheckIn call site already establishes.
+//
+// Never selects profiles.phone/profiles.email (S3/S11, AC5) -- those two
+// columns are structurally absent from this query's select clause, not
+// merely unused afterward.
+// ---------------------------------------------------------------------------
+export interface QrCheckinLookup {
+  registrationId: string;
+  eventId: string;
+  eventTitle: string;
+  eventEndsAt: Date;
+  eventChapterId: string;
+  // Additive beyond design §2.1's own listed fields: needed to render
+  // checked-in timestamps (AC2) in the event's own chapter-local timezone,
+  // the same formatDateTimeInTimezone mechanism every other bot surface
+  // already uses (REQ-017 §2.1) -- not a new business rule, purely a
+  // formatting plumbing need this design's open question 3 leaves to
+  // BACKEND-DEV.
+  eventChapterTimezone: string;
+  attendeeUserId: string;
+  admission: AdmissionState;
+  checkedInAt: Date | null;
+  checkedInBy: string | null;
+  qrToken: string;
+  displayName: string;
+  company: string | null;
+}
+
+export async function getRegistrationByQrTokenForCheckin(
+  db: DbClient["db"],
+  qrToken: string,
+  lang: BotLang,
+): Promise<QrCheckinLookup | null> {
+  const noNameFallback = getCatalog(lang).checkin.noNameFallback;
+
+  const rows = await db
+    .select({
+      registrationId: registrations.id,
+      eventId: registrations.eventId,
+      eventTitle: events.title,
+      eventEndsAt: events.endsAt,
+      eventChapterId: events.chapterId,
+      eventChapterTimezone: chapters.timezone,
+      attendeeUserId: registrations.userId,
+      admission: registrations.admission,
+      checkedInAt: registrations.checkedInAt,
+      checkedInBy: registrations.checkedInBy,
+      qrToken: registrations.qrToken,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      company: profiles.company,
+      tgUsername: users.tgUsername,
+    })
+    .from(registrations)
+    .innerJoin(events, eq(events.id, registrations.eventId))
+    .innerJoin(chapters, eq(chapters.id, events.chapterId))
+    .leftJoin(profiles, eq(profiles.userId, registrations.userId))
+    .innerJoin(users, eq(users.id, registrations.userId))
+    .where(eq(registrations.qrToken, qrToken))
+    .limit(1);
+
+  const row = rows[0];
+  if (row === undefined || row.eventEndsAt === null || row.qrToken === null) {
+    // eventEndsAt/qrToken null are defensive/unreachable (createEvent
+    // enforces endsAt NOT NULL; a matched row's qr_token equals the
+    // non-null `qrToken` parameter by construction of the WHERE clause) --
+    // treated identically to "no row" (AC4's unknown-token refusal).
+    return null;
+  }
+
+  return {
+    registrationId: row.registrationId,
+    eventId: row.eventId,
+    eventTitle: row.eventTitle,
+    eventEndsAt: row.eventEndsAt,
+    eventChapterId: row.eventChapterId,
+    eventChapterTimezone: row.eventChapterTimezone,
+    attendeeUserId: row.attendeeUserId,
+    admission: row.admission as AdmissionState,
+    checkedInAt: row.checkedInAt,
+    checkedInBy: row.checkedInBy,
+    qrToken: row.qrToken,
+    displayName: deriveCheckinDisplayName(row.firstName, row.lastName, row.tgUsername, noNameFallback),
+    company: row.company,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-029.md §2.2 -- getCheckinActorDisplayName: "who
+// checked this attendee in" (AC2's already-checked-in report). Reuses the
+// same deriveCheckinDisplayName table -- the checker is a users/profiles row
+// exactly like any other person in this schema. Called only on the
+// "already-checked-in" branch, never on the hot path of a fresh check-in.
+// ---------------------------------------------------------------------------
+export async function getCheckinActorDisplayName(
+  db: DbClient["db"],
+  checkedInByUserId: string,
+  lang: BotLang,
+): Promise<string> {
+  const noNameFallback = getCatalog(lang).checkin.noNameFallback;
+
+  const rows = await db
+    .select({
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      tgUsername: users.tgUsername,
+    })
+    .from(users)
+    .leftJoin(profiles, eq(profiles.userId, users.id))
+    .where(eq(users.id, checkedInByUserId))
+    .limit(1);
+
+  const row = rows[0];
+  if (row === undefined) {
+    return noNameFallback;
+  }
+  return deriveCheckinDisplayName(row.firstName, row.lastName, row.tgUsername, noNameFallback);
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-029.md §6.2 step 7 / Open Question 4 -- a small,
+// one-off plumbing read the override callback handler needs to compose its
+// own success screen (name/company), keyed by registrationId rather than
+// qrToken (unlike §2.1's getRegistrationByQrTokenForCheckin, which the
+// override flow never has a token for). Same displayName derivation table,
+// no new business rule; never selects phone/email (S3/S11).
+// ---------------------------------------------------------------------------
+export interface RegistrationDisplayInfo {
+  displayName: string;
+  company: string | null;
+}
+
+export async function getRegistrationDisplayInfo(
+  db: DbClient["db"],
+  registrationId: string,
+  lang: BotLang,
+): Promise<RegistrationDisplayInfo | null> {
+  const noNameFallback = getCatalog(lang).checkin.noNameFallback;
+
+  const rows = await db
+    .select({
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      company: profiles.company,
+      tgUsername: users.tgUsername,
+    })
+    .from(registrations)
+    .innerJoin(users, eq(users.id, registrations.userId))
+    .leftJoin(profiles, eq(profiles.userId, registrations.userId))
+    .where(eq(registrations.id, registrationId))
+    .limit(1);
+
+  const row = rows[0];
+  if (row === undefined) {
+    return null;
+  }
+  return {
+    displayName: deriveCheckinDisplayName(row.firstName, row.lastName, row.tgUsername, noNameFallback),
+    company: row.company,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-029.md §3.2 -- decideQrCheckinOutcome: pure,
+// first-match-wins table, no I/O. A NEW, parallel decision table --
+// deliberately NOT a reuse of decideCheckinToggleOutcome (design §3.1: QR
+// must never undo a check-in; the refusal must carry the specific admission
+// state so the handler can offer the override).
+// ---------------------------------------------------------------------------
+export interface QrCheckinDecisionInput {
+  registrationExists: boolean;
+  admission: AdmissionState | null;
+  checkedInAt: Date | null;
+}
+
+export type QrCheckinOutcome =
+  | { kind: "unknown-token" }
+  | { kind: "already-checked-in" }
+  | { kind: "refused-not-admitted"; admission: AdmissionState }
+  | { kind: "check-in" };
+
+export function decideQrCheckinOutcome(input: QrCheckinDecisionInput): QrCheckinOutcome {
+  if (!input.registrationExists) {
+    return { kind: "unknown-token" };
+  }
+  if (input.admission !== "admitted") {
+    return { kind: "refused-not-admitted", admission: input.admission as AdmissionState };
+  }
+  if (input.checkedInAt !== null) {
+    return { kind: "already-checked-in" };
+  }
+  return { kind: "check-in" };
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-029.md §3.3 -- performQrCheckIn: the transactional
+// write, including the token-currency recheck (S4). Mirrors toggleCheckIn's
+// shape (row lock, fresh read, pure decide, conditional write, one audit
+// row) but with a load-bearing extra step: the locked row's OWN qr_token
+// must still equal the token this call was invoked with, or the
+// registration is treated exactly as "unknown-token" even though a row with
+// this id still exists (a stale, superseded token must not keep working).
+// ---------------------------------------------------------------------------
+export async function performQrCheckIn(
+  db: DbClient["db"],
+  registrationId: string,
+  qrToken: string,
+  staffUserId: string,
+  at: Date,
+): Promise<
+  QrCheckinOutcome & { eventId?: string; checkedInAt?: Date; checkedInBy?: string }
+> {
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .select({
+        id: registrations.id,
+        eventId: registrations.eventId,
+        admission: registrations.admission,
+        checkedInAt: registrations.checkedInAt,
+        checkedInBy: registrations.checkedInBy,
+        qrToken: registrations.qrToken,
+      })
+      .from(registrations)
+      .where(eq(registrations.id, registrationId))
+      .for("update");
+
+    const row = rows[0];
+
+    // S4's token-currency check: the locked row's qr_token must still match
+    // the token this scan supplied. A mismatch (or no row at all) is treated
+    // identically to "unknown-token".
+    if (row === undefined || row.qrToken !== qrToken) {
+      return { kind: "unknown-token" };
+    }
+
+    const outcome = decideQrCheckinOutcome({
+      registrationExists: true,
+      admission: row.admission as AdmissionState,
+      checkedInAt: row.checkedInAt,
+    });
+
+    if (outcome.kind === "refused-not-admitted") {
+      // No write, no audit row (mirrors REQ-028's identical discipline).
+      return { ...outcome, eventId: row.eventId };
+    }
+
+    if (outcome.kind === "already-checked-in") {
+      // NEVER a duplicate write (AC2) -- no UPDATE at all on this branch, no
+      // audit row (reporting an existing state is not itself a status
+      // change, S8).
+      return {
+        ...outcome,
+        eventId: row.eventId,
+        checkedInAt: row.checkedInAt ?? undefined,
+        checkedInBy: row.checkedInBy ?? undefined,
+      };
+    }
+
+    // "check-in"
+    await tx
+      .update(registrations)
+      .set({ checkedInAt: at, checkedInBy: staffUserId, checkInMethod: "qr" })
+      .where(eq(registrations.id, row.id));
+
+    await writeAuditLog(tx, {
+      actorUserId: staffUserId,
+      action: "registration.checkin",
+      entity: "registration",
+      entityId: row.id,
+      payload: { eventId: row.eventId, method: "qr" },
+      at,
+    });
+
+    return { ...outcome, eventId: row.eventId, checkedInAt: at, checkedInBy: staffUserId };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-029.md §4.1 -- decideOverrideOutcome: pure,
+// first-match-wins table, no I/O. Deliberately no capacity/seatsLeft check
+// (S7's own logged-override principle -- this transition IS the explicit
+// override, so re-running the capacity gate here would contradict the very
+// invariant it exists to satisfy).
+// ---------------------------------------------------------------------------
+export interface OverrideDecisionInput {
+  registrationExists: boolean;
+  admission: AdmissionState | null;
+}
+
+export type OverrideOutcome =
+  | { kind: "not-found" }
+  | { kind: "already-admitted"; admission: AdmissionState }
+  | { kind: "override-admit" };
+
+export function decideOverrideOutcome(input: OverrideDecisionInput): OverrideOutcome {
+  if (!input.registrationExists) {
+    return { kind: "not-found" };
+  }
+  if (input.admission === "admitted") {
+    return { kind: "already-admitted", admission: input.admission };
+  }
+  return { kind: "override-admit" };
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-029.md §4.2 -- overrideAdmitAndCheckIn: one UPDATE
+// (admission -> admitted + check-in fields) + one AuditLog row, one
+// transaction (AC6's "exactly one audit_log row" by construction).
+// check_in_method is 'manual' here (an organizer's administrative act, not a
+// camera scan) -- never 'qr'.
+// ---------------------------------------------------------------------------
+export async function overrideAdmitAndCheckIn(
+  db: DbClient["db"],
+  registrationId: string,
+  organizerUserId: string,
+  at: Date,
+): Promise<OverrideOutcome & { eventId?: string }> {
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .select({
+        id: registrations.id,
+        eventId: registrations.eventId,
+        admission: registrations.admission,
+      })
+      .from(registrations)
+      .where(eq(registrations.id, registrationId))
+      .for("update");
+
+    const row = rows[0];
+    const outcome = decideOverrideOutcome({
+      registrationExists: row !== undefined,
+      admission: (row?.admission as AdmissionState | undefined) ?? null,
+    });
+
+    if (outcome.kind !== "override-admit" || row === undefined) {
+      return outcome;
+    }
+
+    const previousAdmission = row.admission;
+
+    await tx
+      .update(registrations)
+      .set({
+        admission: "admitted",
+        checkedInAt: at,
+        checkedInBy: organizerUserId,
+        checkInMethod: "manual",
+      })
+      .where(eq(registrations.id, row.id));
+
+    await writeAuditLog(tx, {
+      actorUserId: organizerUserId,
+      action: "registration.override_admit_checkin",
+      entity: "registration",
+      entityId: row.id,
+      payload: { eventId: row.eventId, previousAdmission },
+      at,
+    });
+
+    return { ...outcome, eventId: row.eventId };
+  });
 }

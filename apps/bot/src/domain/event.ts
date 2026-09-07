@@ -481,12 +481,22 @@ export async function countAdmittedRegistrations(
 // ---------------------------------------------------------------------------
 export type StartPayload =
   | { kind: "none" }
-  | { kind: "event"; eventId: string; channel: string | null };
+  | { kind: "event"; eventId: string; channel: string | null }
+  | { kind: "checkin"; qrToken: string };
 
 export function parseStartPayload(raw: string): StartPayload {
   const trimmed = raw.trim();
   if (trimmed.length === 0) {
     return { kind: "none" };
+  }
+  // docs/agents/design/REQ-029.md §1.1 -- checked before the "e_" branch:
+  // "ci_" and "e_" share no overlap, but both are checked against the same
+  // raw trimmed string, so ordering only matters for readability here, not
+  // correctness. No shape validation of the token happens here -- an empty
+  // or malformed qrToken simply fails to resolve to a registration later
+  // (§2.1's lookup), falling into the existing "unknown token" refusal.
+  if (trimmed.startsWith("ci_")) {
+    return { kind: "checkin", qrToken: trimmed.slice(3) };
   }
   if (!trimmed.startsWith("e_")) {
     return { kind: "none" };
