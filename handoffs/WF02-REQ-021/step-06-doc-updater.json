@@ -1,0 +1,19 @@
+{
+  "handoff_id": "step-06-doc-updater",
+  "run_id": "WF02-REQ-021",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "ORCH",
+  "to_agent": "DOC-UPDATER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "REQ-021 (waitlist placement with computed position display, GitHub issue #24, third requirement of Phase 4) had RELEASE-VALIDATOR PASS at Step 5 (commit 1b9410a, 'chore(handoff): PASS WF02-REQ-021 Step 5 release validation'). Verified the factual claims directly against the real code before writing the status-history note, rather than trusting the task prompt's summary: read apps/bot/src/domain/registration.ts directly and confirmed getWaitlistPosition(db, eventId, registrationId) is pure and read-only -- exactly two SELECTs (target row's created_at/admission, then a count of rows strictly ahead: same event_id, admission='waitlisted', created_at earlier OR (created_at equal AND id lower) as the tie-break), using only plain Drizzle eq/lt/and/or filters, no raw SQL, no window function, no write anywhere in the function. Confirmed apps/bot/src/handlers/registration.ts wires getWaitlistPosition() into the existing waitlisted branch of makeRegisterCallbackHandler, composing the position + 'what happens next' line via composeRegistrationReply(), omitting the position line when null. Confirmed no schema change (git diff master...HEAD shows no new drizzle migration file). Confirmed docs/agents/requirements.yaml's REQ-021 entry (description + 4 acceptance criteria) already matched the shipped mechanism exactly -- no content correction needed. Confirmed ISS-0018 (docs/issues/ISS-0018.yaml) is a test-spec wording gap only, non-blocking, already filed.\n\nActions taken:\n1. Flipped docs/agents/requirements.yaml's REQ-021 entry status: pending -> done (matches REQ-020's exact convention -- no other field changed).\n2. Appended one 'done' event to docs/status/requirement_status.yaml (append-only; read the full file first; `git diff --numstat` confirmed 5 insertions / 0 deletions on this file before committing).\n3. Checked README.md (grep for waitlist/position/registration/apps-bot terms) -- still contains no bot-flow-specific content beyond the one generic apps/bot description line from REQ-009's doc-update step, so no README update was made -- same checked-then-skipped pattern as every prior bot requirement (REQ-010 through REQ-020).\n4. Checked docs/ for an existing bot-command-reference doc (Glob for '**/*command*') -- none exists anywhere in the repo, consistent with the established pattern noted at REQ-018/REQ-019/REQ-020's doc-update steps, so none was created here.\n5. Did NOT add a 'Phase 4 complete' marker -- REQ-021 is the THIRD requirement of Phase 4 (REQ-022..REQ-024 remain), not the last.",
+    "issues": [],
+    "artifacts_out": [
+      "docs/agents/requirements.yaml",
+      "docs/status/requirement_status.yaml"
+    ],
+    "next_action": "Route to Step Final (git merge)"
+  }
+}

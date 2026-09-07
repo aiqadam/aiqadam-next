@@ -1114,7 +1114,7 @@ requirements:
   - id: REQ-021
     title: Waitlist placement with computed position display
     owner: BACKEND-DEV
-    status: pending
+    status: done
     description: >
       Third slice of PRD 14 build-order step 3. Implements USER-STORIES B3 /
       STORY-DETAILS B3 (Join the waitlist when it's full), PRD FR-6's waitlist half and
