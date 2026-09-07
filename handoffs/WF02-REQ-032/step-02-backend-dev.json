@@ -69,9 +69,9 @@
     ],
     "git_evidence": {
       "branch_name": "feature/WF02-REQ-032",
-      "commit_sha_list": [],
+      "commit_sha_list": ["be151fbc64c80927ba970e23f16e93ef5b46bcba"],
       "remote_branch": "origin/feature/WF02-REQ-032",
-      "push_status": "pending",
+      "push_status": "ok",
       "pr_url": null,
       "pr_create_error": null
     },
