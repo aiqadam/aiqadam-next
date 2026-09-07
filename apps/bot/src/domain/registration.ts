@@ -1400,6 +1400,118 @@ export async function getRegistrationFeedbackContext(
   };
 }
 
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-032.md §1 — isNoShow: the computed, never-stored
+// no-show derivation. Pure, no I/O. First-match-wins table, implemented in
+// the exact stated order (decisions/0006 — evaluationTime is an explicit
+// parameter, never SQL now()/current_timestamp).
+// ---------------------------------------------------------------------------
+export function isNoShow(
+  admission: AdmissionState,
+  checkedInAt: Date | null,
+  endsAt: Date | null,
+  evaluationTime: Date,
+): boolean {
+  if (admission !== "admitted") {
+    return false;
+  }
+  if (checkedInAt !== null) {
+    return false;
+  }
+  if (endsAt === null) {
+    return false;
+  }
+  return isFinished(endsAt, evaluationTime);
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-032.md §1.1 — NoShowReasonCode: the five fixed
+// reasons, a closed union. Order matches the requirement text's own listed
+// order (STORY-DETAILS D3), same convention FEEDBACK_FIELD_ORDER already
+// establishes for its own fixed field order.
+// ---------------------------------------------------------------------------
+export type NoShowReasonCode =
+  | "work_ran_over"
+  | "illness"
+  | "forgot"
+  | "transport"
+  | "lost_interest";
+
+export const NO_SHOW_REASON_CODES: readonly NoShowReasonCode[] = [
+  "work_ran_over",
+  "illness",
+  "forgot",
+  "transport",
+  "lost_interest",
+];
+
+export function isNoShowReasonCode(value: string): value is NoShowReasonCode {
+  return (NO_SHOW_REASON_CODES as readonly string[]).includes(value);
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-032.md §1.2 — getRegistrationNoShowContext: the
+// at-send-time/at-write-time context the no-show flow needs. A new function
+// rather than extending getRegistrationFeedbackContext (REQ-031 §2.5) — that
+// function's own callers (feedbackJobs.ts) have no reason to read
+// no_show_reason.
+// ---------------------------------------------------------------------------
+export interface RegistrationNoShowContext {
+  userId: string;
+  eventId: string;
+  admission: AdmissionState;
+  checkedInAt: Date | null;
+  noShowReason: string | null;
+}
+
+export async function getRegistrationNoShowContext(
+  db: DbClient["db"],
+  registrationId: string,
+): Promise<RegistrationNoShowContext | null> {
+  const rows = await db
+    .select({
+      userId: registrations.userId,
+      eventId: registrations.eventId,
+      admission: registrations.admission,
+      checkedInAt: registrations.checkedInAt,
+      noShowReason: registrations.noShowReason,
+    })
+    .from(registrations)
+    .where(eq(registrations.id, registrationId))
+    .limit(1);
+
+  const row = rows[0];
+  if (row === undefined) {
+    return null;
+  }
+  return {
+    userId: row.userId,
+    eventId: row.eventId,
+    admission: row.admission as AdmissionState,
+    checkedInAt: row.checkedInAt,
+    noShowReason: row.noShowReason,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-032.md §1.3 — writeNoShowReason: the one and only
+// write path anywhere in this design for registrations.no_show_reason.
+// `reason` is either one of the five NoShowReasonCode literals (§1.1, fixed-
+// reason button path) or the respondent's raw trimmed free text (the "other"
+// path) — both plain strings by the time they reach this function.
+// ---------------------------------------------------------------------------
+export async function writeNoShowReason(
+  db: DbClient["db"],
+  registrationId: string,
+  reason: string,
+  at: Date,
+): Promise<void> {
+  await db
+    .update(registrations)
+    .set({ noShowReason: reason, updatedAt: at })
+    .where(eq(registrations.id, registrationId));
+}
+
 export async function overrideAdmitAndCheckIn(
   db: DbClient["db"],
   registrationId: string,

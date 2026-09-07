@@ -1,0 +1,82 @@
+{
+  "handoff_id": "step-02-backend-dev",
+  "run_id": "WF02-REQ-032",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "BACKEND-DEV",
+  "to_agent": "REVIEWER",
+  "file": "handoffs/WF02-REQ-032/step-02-backend-dev.json",
+  "created_at": "2026-09-07T21:24:21Z",
+  "started_at": "2026-09-07T21:24:21Z",
+  "completed_at": "2026-09-07T21:25:28Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-032"],
+    "requirement_text": {
+      "REQ-032": "FINAL REQUIREMENT OF RELEASE 1. Closes PRD 14 build-order step 6. Implements USER-STORIES D3 / STORY-DETAILS D3 (Say what got in the way) and PRD 13 acceptance criterion 8's no_show half. Scope of work: after the event ends, a registration that is admission='admitted' with checked_in_at NULL -- i.e. a computed no_show -- receives ONE short, blame-free message asking what got in the way. Fixed reasons plus optional free text (STORY-DETAILS D3): work ran over, illness, forgot, transport, lost interest. The answer is stored in Registration.no_show_reason. ASKED ONCE, no reminder. WORDING: the implementing agent writes plain factual wording and records in its handoff result that the exact copy is provisional pending the product owner. no_show itself is never stored; it is derived as (admission='admitted' AND checked_in_at IS NULL AND now > ends_at). Transactional, through REQ-025's ledger. Acceptance criteria (verbatim, docs/agents/requirements.yaml): AC1 'After ends_at, a registration that is admitted with checked_in_at NULL receives exactly one message offering the five fixed reasons plus a free-text option; a registration that WAS checked in receives nothing.' AC2 'Selecting a reason writes it to registrations.no_show_reason, verified by reading the row back.' AC3 'The job is re-run at T+24h and T+48h and delivers NO further message to the same registration.' AC4 'No boolean no_show column exists in any migration and no job writes one.' AC5 'The no_show derivation returns the correct set for a constructed event with one admitted-and-checked-in, one admitted-and-not-checked-in, and one withdrawn registration: exactly one row is a no-show.' AC6 'The message reaches a user with broadcast_opt_in=false.' AC7 'The handoff result records that the no-show wording is provisional pending the product owner.'"
+    },
+    "related_handoff_ids": [
+      "step-01-code-designer",
+      "step-01-data-designer",
+      "step-01b-code-design-validator"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/REQ-032.md",
+      "docs/agents/design/REQ-032-schema.md",
+      "docs/agents/instructions/core-directives.md",
+      "docs/agents/instructions/security-invariants.md",
+      ".claude/agents/backend-dev.md"
+    ]
+  },
+  "task": {
+    "description": "Implement REQ-032 (no-show reason capture) in apps/bot/** exactly per the approved design artefacts docs/agents/design/REQ-032.md and docs/agents/design/REQ-032-schema.md: add the computed (never stored) isNoShow derivation and the NoShowReasonCode closed union plus getRegistrationNoShowContext/writeNoShowReason to domain/registration.ts; add the 'no_show_reason_request' NotificationKind to domain/notification.ts; add the single T-relative-time scheduled job in scheduler/noShowJobs.ts; add the five-fixed-reason-button + 'other' free-text handlers plus the generic reply-to-message text listener in handlers/noShow.ts; add the noShow.* i18n catalog keys to types.ts/ru.ts/en.ts, writing the plain, factual, blame-free wording; wire the job and handlers into index.ts. No schema/migration change (DATA-DESIGNER's explicit decision -- registrations.no_show_reason already exists, unused, from REQ-011). Do not touch apps/bot/src/handlers/staff.ts (ISS-0020). Run npm run lint -w apps/bot and npm run build -w apps/bot synchronously and report real output.",
+    "acceptance_criteria": [
+      "AC1: after ends_at, an admitted+never-checked-in registration receives exactly one message offering the five fixed reasons plus a free-text option; a checked-in registration receives nothing.",
+      "AC2: selecting a reason writes it to registrations.no_show_reason, verified by reading the row back.",
+      "AC3: re-running the job at T+24h and T+48h delivers no further message to the same registration.",
+      "AC4: no boolean no_show column exists in any migration and no job writes one.",
+      "AC5: the no_show derivation returns exactly one no-show for a constructed admitted-checked-in / admitted-not-checked-in / withdrawn triple, evaluated after ends_at.",
+      "AC6: the message reaches a user with broadcast_opt_in=false (transactional).",
+      "AC7: the handoff result (this file) records that the no-show wording is provisional pending the product owner."
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Implemented REQ-032 exactly per docs/agents/design/REQ-032.md and docs/agents/design/REQ-032-schema.md. domain/registration.ts: added isNoShow (pure, 4-parameter, first-match-wins table per design SS1, never stored -- delegates its 'strictly after ends_at' branch to the existing isFinished), NoShowReasonCode/NO_SHOW_REASON_CODES/isNoShowReasonCode (design SS1.1's closed 5-literal union, order matches STORY-DETAILS D3), getRegistrationNoShowContext (design SS1.2, a new read, not a reuse of getRegistrationFeedbackContext, per the design's own reasoning), writeNoShowReason (design SS1.3, the one and only write path to registrations.no_show_reason -- confirmed by grep, no other write site exists anywhere in apps/bot/src). domain/notification.ts: added 'no_show_reason_request' to NotificationKind (one-line addition, notification_ledger.kind is already text, no migration). scheduler/noShowJobs.ts (new): selectRegistrationsForNoShowReasonRequest (design SS3.2's exact selection clauses: checked_in_at IS NULL, admission='admitted', events.status='published', ends_at<=evaluationTime, bounded catch-up window), composeNoShowReasonRequest (design SS3.4's at-send-time recheck: re-verifies isNoShow directly, re-checks noShowReason is still null), makeNoShowReasonRequestJob (classification:'transactional', satisfying AC6 the same structural way REQ-025/031 already do -- sendLedgeredNotification never reads broadcastOptIn for a transactional send). No second/reminder job exists anywhere in this file -- the structural mechanism behind AC3, together with sendLedgeredNotification's own UNIQUE(registration_id,kind) ledger constraint (reused unchanged, no new asked-at column, per design SS2's reasoning). handlers/noShow.ts (new): makeNoShowReasonCallbackHandler (five fixed-reason buttons, S3 ownership check before any write, already-answered gate before writeNoShowReason), makeNoShowOtherCallbackHandler (the 'other' free-text option, force_reply prompt via formatNoShowTextPrompt), makeNoShowTextReplyHandler (the generic reply-to-message listener, parseNoShowReplyContext resolving the registrationId from the fixed 'No-show ref: ' prefix -- no field-disambiguation needed since there is only one free-text slot per registration, per design SS4.3's own reasoning). Every handler resolves identity via getFlowUserByTgId (never trusts tg_id/callback_data as authorization) and re-derives no_show_reason fresh from the DB before writing (S3, S6-analogous discipline). i18n: added the noShow.* Catalog block (types.ts) and matching ru.ts/en.ts entries; catalogs.test.ts's key-parity/non-empty-string checks pass (npm test -- apps/bot/src/i18n/catalogs.test.ts: 3 passed). index.ts: registered makeNoShowReasonRequestJob at the same 300000ms interval as every other Release-1 job, and the two callback handlers plus the message:text listener, after every bot.command(...) registration per this file's own ordering discipline. isNoShow/NoShowReasonCode/no_show_reason itself are never materialized as a stored boolean anywhere -- verified by re-reading my own diff; only registrations.no_show_reason (an existing text column, unchanged) is ever written, by writeNoShowReason alone. No drizzle-kit generate was run (no schema change, per REQ-032-schema.md's explicit decision). apps/bot/src/handlers/staff.ts was not touched. npm run lint -w apps/bot: clean (eslint ., zero warnings/errors). npm run build -w apps/bot: clean (tsc -p tsconfig.json, zero errors). Full-suite npm test shows 14 test files / 80 tests failing with 'deadlock detected' and foreign-key violations against apps/bot/src/domain/registration.db.test.ts, notification.test.ts, checkin*.test.ts, event.db/dispatch.test.ts, feedback.db.test.ts, my.test.ts, registration.test.ts, reminder24h*.test.ts, walkin*.test.ts, withdraw.test.ts, scheduler/*.db.test.ts -- NONE of these files are in this diff (git status confirms only domain/notification.ts, domain/registration.ts, i18n/{types,ru,en}.ts, index.ts modified, plus two new files handlers/noShow.ts and scheduler/noShowJobs.ts). Structurally attributed as pre-existing per core-directives.md's Failure Attribution rule, route 2: reproduced the identical failure set (same file count, same deadlock-detected/foreign-key-violation signature) by running npm test at this branch's own pre-change state (git stash, re-ran full suite: 14 files / 80 tests failed identically; git stash pop restored my changes) -- a parallel-test-worker DB-contention/shared-fixture issue that exists independent of this diff, not caused by it. The one DB-independent test relevant to this change (i18n/catalogs.test.ts) passes. No REQ-032-specific automated test exists yet -- TEST-DESIGNER has not yet run for this requirement (Step 3 is next after REVIEWER).",
+    "artifacts_out": [
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/domain/notification.ts",
+      "apps/bot/src/scheduler/noShowJobs.ts",
+      "apps/bot/src/handlers/noShow.ts",
+      "apps/bot/src/i18n/types.ts",
+      "apps/bot/src/i18n/ru.ts",
+      "apps/bot/src/i18n/en.ts",
+      "apps/bot/src/index.ts",
+      "handoffs/WF02-REQ-032/step-02-backend-dev.json"
+    ],
+    "issues": [
+      {
+        "severity": "MAJOR",
+        "description": "AC7 disclosure, required and explicit: the noShow.* wording written in this step (apps/bot/src/i18n/ru.ts and en.ts -- prompt, reasonWorkRanOver, reasonIllness, reasonForgot, reasonTransport, reasonLostInterest, otherLabel, otherPrompt, thanksMessage, alreadyAnswered, staleMessage, notYours) is PROVISIONAL PENDING THE PRODUCT OWNER, per USER-STORIES D3's 'Viktor should write it' and the identical treatment REQ-014 already established for its own consent wording (docs/agents/design/REQ-032.md SS5.1). This is placeholder/minimal functional copy, not final legal/product copy -- CONTENT-BA/the product owner should review and replace it per decisions/0002. English wording used for review: prompt='We noticed there's no check-in recorded for this event. Would you like to share what got in the way?'; reasons='Work ran over'/'Got sick'/'Forgot about it'/'Transport issues'/'Lost interest in the topic'; otherLabel='Other'; otherPrompt='Tell us in your own words what got in the way.'; thanksMessage='Thanks, we've recorded your answer.'; alreadyAnswered='An answer for this event is already recorded.' Every string was checked against STORY-DETAILS D3's explicit refusal of blame-implying wording -- no 'you missed it'/'you failed to attend' framing anywhere.",
+        "affected_requirement": "REQ-032"
+      },
+      {
+        "severity": "MINOR",
+        "description": "Full-suite npm test currently shows 14 db-dependent test files / 80 tests failing with 'deadlock detected'/foreign-key-violation errors (registration.db.test.ts, notification.test.ts, checkin*.test.ts, event.db/dispatch.test.ts, feedback.db.test.ts, my.test.ts, registration.test.ts, reminder24h*.test.ts, walkin*.test.ts, withdraw.test.ts, scheduler/*.db.test.ts) -- confirmed pre-existing (identical failure set reproduces with this diff's changes stashed out, at the branch's own pre-REQ-032 state) and unrelated to this diff's files. This is a parallel-test-worker shared-DB-fixture contention issue in the test environment, not a code defect introduced here, but it means these suites currently give no real coverage signal in this environment and should be looked at (likely needs serialized/isolated DB fixtures per test file, or a single-threaded vitest pool for db.test.ts files) independent of this requirement.",
+        "affected_requirement": null
+      }
+    ],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-032",
+      "commit_sha_list": ["be151fbc64c80927ba970e23f16e93ef5b46bcba", "d700df2"],
+      "remote_branch": "origin/feature/WF02-REQ-032",
+      "push_status": "ok",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Route to REVIEWER (Step 2b), then SECURITY-REVIEWER given this diff touches apps/bot/** notification/registration domain logic and personal-data-adjacent flows (S3 ownership checks, S9 idempotent notification, S10 transactional classification)."
+  },
+  "rework_count": 0,
+  "max_rework": 3
+}

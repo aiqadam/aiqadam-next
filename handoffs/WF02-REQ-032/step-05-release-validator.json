@@ -1,0 +1,52 @@
+{
+  "handoff_id": "step-05-release-validator",
+  "run_id": "WF02-REQ-032",
+  "workflow_id": "WF-02",
+  "step": "05",
+  "from_agent": "RELEASE-VALIDATOR",
+  "to_agent": "DOC-UPDATER",
+  "file": "handoffs/WF02-REQ-032/step-05-release-validator.json",
+  "created_at": "2026-09-08T02:50:00Z",
+  "started_at": "2026-09-08T02:40:00Z",
+  "completed_at": "2026-09-08T02:50:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-032"],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml (REQ-032)",
+      "docs/agents/design/REQ-032.md",
+      "docs/agents/design/REQ-032-schema.md",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/handlers/noShow.ts",
+      "apps/bot/src/scheduler/noShowJobs.ts",
+      "apps/bot/src/domain/registration.test.ts",
+      "apps/bot/src/handlers/noShow.db.test.ts",
+      "apps/bot/src/scheduler/noShowJobs.db.test.ts",
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/drizzle/0001_tired_annihilus.sql",
+      "handoffs/WF02-REQ-032/step-00-git-setup.json .. step-04-test-runner.json"
+    ]
+  },
+  "task": {
+    "description": "WF-02 Step 5 for REQ-032, FINAL requirement of Release 1, branch feature/WF02-REQ-032 @ 024ca07. Independently re-verify all 7 acceptance criteria against the actual code/tests -- not by trusting TEST-RUNNER's report -- and state whether Release 1 (REQ-007..REQ-032) is ready to merge.",
+    "acceptance_criteria": [
+      "AC1: exactly one message with 5 fixed reasons + free text to an admitted/not-checked-in registration after ends_at; a checked-in registration receives nothing; both counted.",
+      "AC2: selecting a reason writes it to registrations.no_show_reason, read back.",
+      "AC3: re-run at T+24h/T+48h delivers NO further message, counted across all runs (differs from REQ-031's one reminder).",
+      "AC4: no boolean no_show column in any migration; grep confirms only no_show_reason.",
+      "AC5: constructed admitted+checked-in / admitted+not-checked-in / withdrawn triple derives exactly one no-show.",
+      "AC6: message reaches a user with broadcast_opt_in=false (transactional).",
+      "AC7: handoff result.issues records the no-show wording as provisional pending the product owner."
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Independently re-ran every check myself; did not rely on TEST-RUNNER's or any prior agent's narrative.\n\nLINT (re-run by me): `npm run lint -w apps/bot` -> clean, zero errors/warnings beyond the npm banner.\n\nBUILD (re-run by me): `npm run build -w apps/bot` -> `tsc -p tsconfig.json` exit 0, zero type errors.\n\nFULL SUITE (re-run by me, twice, root, mandated flag): `npx vitest run --no-file-parallelism` -> Run 1: 35 files / 325 tests passed. Run 2: 35 files / 325 tests passed. Identical both times, no flakiness.\n\nAC-by-AC, verified against the actual current files (not history/status narration):\n\nAC1/AC6 -- read apps/bot/src/scheduler/noShowJobs.ts end to end: selectRegistrationsForNoShowReasonRequest's WHERE clause requires checkedInAt IS NULL, admission='admitted', event published, endsAt<=evaluationTime within the catch-up window; composeNoShowReasonRequest re-derives isNoShow at send time and skips otherwise. sendLedgeredNotification is called with classification:'transactional', which structurally bypasses broadcastOptIn gating (confirmed by reading domain/notification.ts's sendLedgeredNotification, which only consults broadcastOptIn for non-transactional classifications). Independently read noShowJobs.db.test.ts lines 165-228: registration A (broadcastOptIn explicitly set false at line 175) receives exactly one sendMessage with a 6-button keyboard; registration B (checked in) receives none; assertion at line 226 confirms broadcastOptIn===false on the user that WAS sent to. AC1 and AC6 both PASS on direct inspection, not report-trust.\n\nAC2 -- read domain/registration.ts's writeNoShowReason (single UPDATE ... SET no_show_reason, updated_at) and its two call sites in handlers/noShow.ts (fixed-reason handler line 109, free-text reply handler line 216), each gated on `context.noShowReason === null` first (asked-once gate). Spot-checked noShow.db.test.ts's write-and-read-back assertions. PASS.\n\nAC3 ('no reminder, ever' -- the AC explicitly flagged for extra scrutiny in my task) -- read noShowJobs.db.test.ts lines 230-290 myself in full: a single describe block runs the SAME job function 4 times (run1 at evaluationTime, run2 same evaluationTime -- ledger UNIQUE dedups, run3 at T+24h, run4 at T+48h -- both excluded by the CATCH_UP_WINDOW_MS/endsAt<=evaluationTime AND gt(endsAt, windowStart) window, since endsAt is now far outside the lookback window). Total sends across all 4 runs stays at 1. This is structurally different from REQ-031, which schedules a SECOND job for its one reminder -- REQ-032 has only ONE ScheduledJobDefinition in noShowJobs.ts (confirmed: exactly one `makeNoShowReasonRequestJob` export, no second job function anywhere in the file or in index.ts's registration of it). There is no reminder mechanism to trigger, by construction, not just by a passing counter. AC3 PASS, independently confirmed to test what it claims (4 runs, zero further messages after the first), not REQ-031's 'exactly one additional reminder' shape.\n\nAC4 ('never stored as boolean' -- the second AC flagged for extra scrutiny) -- ran my own greps, not the ones quoted in prior handoffs: `grep -n \"no_show\" apps/bot/drizzle/*.sql apps/bot/src/db/schema.ts` returned exactly: drizzle/0001_tired_annihilus.sql:58 `\"no_show_reason\" text,` and schema.ts:281-282 a comment plus `noShowReason: text(\"no_show_reason\")`. No boolean/enum no_show column anywhere, in any migration file (only one migration file exists in apps/bot/drizzle/ referencing no_show at all). AC4 PASS on direct grep, not copied.\n\nAC5 -- read the isNoShow function (registration.ts lines 1409-1425) directly: exact first-match-wins table matching the design doc's stated rule, calling the existing isFinished helper for the terminal case. Read the registration.test.ts isNoShow describe block (lines 137-160) directly: three constructed registrations (admitted+checked-in, admitted+not-checked-in, withdrawn) against one evaluationTime after endsAt; asserts reg1=false, reg2=true, reg3=false, i.e. exactly one no-show among the three. PASS.\n\nAC7 (provisional-wording disclosure -- the third AC flagged for extra scrutiny) -- I did NOT accept TEST-RUNNER's paraphrase. I opened handoffs/WF02-REQ-032/step-02-backend-dev.json myself and read result.issues[0] verbatim: severity MAJOR, description begins 'AC7 disclosure, required and explicit: the noShow.* wording written in this step ... is PROVISIONAL PENDING THE PRODUCT OWNER, per USER-STORIES D3's ...Viktor should write it... and the identical treatment REQ-014 already established...', goes on to quote every actual English string used for review and confirms each was checked against the no-blame-wording refusal. This is a real, substantive disclosure, not a token line. AC7 PASS.\n\nS3 OWNERSHIP CHECK across all three noShow.ts entry points -- read the code (not a summary) in all three handler functions: makeNoShowReasonCallbackHandler (line 99: `if (context.userId !== flowUser.id)` before any write), makeNoShowOtherCallbackHandler (line 146: identical check before issuing the force-reply prompt), makeNoShowTextReplyHandler (line 201: `context === null || context.userId !== flowUser.id` short-circuits before any write). All three independently re-derive context fresh from the DB before checking ownership -- no cached/trusted client-side identity anywhere. Cross-checked against noShow.db.test.ts's S3 exploit test (lines 280-353), read in full: Bob (a real distinct seeded user) attempts all three attack vectors against Alice's real registration ID; each is refused (notYours alert, or silent no-op for the text-reply path) with registrations.no_show_reason confirmed still NULL after each attempt; Alice's own legitimate reply to her own prompt is then shown to succeed immediately after, proving the refusal is identity-specific, not a broken handler. This is genuine, not merely claimed.\n\nSCOPE DISCIPLINE -- ran `git diff origin/master...HEAD --stat -- apps/bot/src/handlers/staff.ts apps/bot/src/db/schema.ts` myself: zero output, i.e. zero diff on both files versus origin/master. staff.ts (ISS-0020) is untouched. schema.ts has zero diff, confirming DATA-DESIGNER's 'no migration needed' call in REQ-032.md SS0 is actually true in the committed diff, not merely asserted in the design doc -- registrations.noShowReason was already present pre-REQ-032 (added by REQ-011's migration) and REQ-032 adds no new column, no new migration file, and no schema.ts edit.\n\nCONCLUSION: All 7 acceptance criteria hold under direct, independent re-verification of the current code and tests at commit 024ca07 on feature/WF02-REQ-032. Lint, build, and the full suite (twice, no flakiness) all re-run and pass by my own hand. Scope is clean (staff.ts and schema.ts both zero-diff). This is the final requirement of Release 1 (REQ-007..REQ-032); with this PASS, Release 1 is code-complete and ready to merge pending DOC-UPDATER's status-history/doc updates.",
+    "artifacts_out": [
+      "handoffs/WF02-REQ-032/step-05-release-validator.json"
+    ],
+    "issues": [],
+    "next_action": "Route to DOC-UPDATER (Step 6)"
+  }
+}

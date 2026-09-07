@@ -284,4 +284,23 @@ export const en = {
     refLinePrefix: "Feedback ref: ",
     fieldLinePrefix: "Feedback field: ",
   },
+  // Placeholder/provisional wording (REQ-032 design §5.1, AC7) — plain,
+  // factual, blame-free copy, no framing that assigns fault. Provisional
+  // pending the product owner; see this requirement's handoff result.issues.
+  noShow: {
+    prompt:
+      "We noticed there's no check-in recorded for this event. Would you like to share what got in the way?",
+    reasonWorkRanOver: "Work ran over",
+    reasonIllness: "Got sick",
+    reasonForgot: "Forgot about it",
+    reasonTransport: "Transport issues",
+    reasonLostInterest: "Lost interest in the topic",
+    otherLabel: "Other",
+    otherPrompt: "Tell us in your own words what got in the way.",
+    thanksMessage: "Thanks, we've recorded your answer.",
+    alreadyAnswered: "An answer for this event is already recorded.",
+    staleMessage: "This message is stale.",
+    notYours: "This message isn't addressed to you.",
+    refLinePrefix: "No-show ref: ",
+  },
 } satisfies Catalog;

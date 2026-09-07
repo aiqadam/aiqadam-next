@@ -77,6 +77,14 @@ import {
   makeFeedbackNpsCallbackHandler,
   makeFeedbackTextReplyHandler,
 } from "./handlers/feedback.js";
+import { makeNoShowReasonRequestJob } from "./scheduler/noShowJobs.js";
+import {
+  NO_SHOW_OTHER_PATTERN,
+  NO_SHOW_REASON_PATTERN,
+  makeNoShowOtherCallbackHandler,
+  makeNoShowReasonCallbackHandler,
+  makeNoShowTextReplyHandler,
+} from "./handlers/noShow.js";
 
 let config: BotConfig;
 
@@ -122,6 +130,9 @@ startScheduledJobs([
   makeReminder3hJob(db, notificationSender, botUsername, 300000),
   makeFeedbackRequestJob(db, notificationSender, 300000),
   makeFeedbackReminderJob(db, notificationSender, 300000),
+  // REQ-032 §3.5 — the single no-show reason-request job, the fourth and
+  // final Release-1 consumer of scheduler/runner.ts, same 5-minute interval.
+  makeNoShowReasonRequestJob(db, notificationSender, 300000),
 ]);
 
 bot.command("health", (ctx) => ctx.reply("ok"));
@@ -254,5 +265,17 @@ bot.callbackQuery("walkin:cancel", makeWalkinCancelCallbackHandler());
 bot.callbackQuery(FEEDBACK_NPS_PATTERN, makeFeedbackNpsCallbackHandler(db));
 bot.callbackQuery(FEEDBACK_BROADCAST_PATTERN, makeFeedbackBroadcastCallbackHandler(db));
 bot.on("message:text", makeFeedbackTextReplyHandler(db));
+
+// REQ-032: no-show reason capture (the T-relative-time job registered
+// above) -- the five fixed-reason buttons, the "other" free-text option, and
+// its own generic reply-to-message text listener (design §4), registered
+// after every bot.command(...) registration, alongside the other generic
+// message:text listeners (handlers/profile.ts, handlers/feedback.ts above),
+// same ordering discipline those files' own header notes establish. This
+// listener reacts to text messages and independently no-ops on a message it
+// does not recognize -- no explicit next() is ever called.
+bot.callbackQuery(NO_SHOW_REASON_PATTERN, makeNoShowReasonCallbackHandler(db));
+bot.callbackQuery(NO_SHOW_OTHER_PATTERN, makeNoShowOtherCallbackHandler(db));
+bot.on("message:text", makeNoShowTextReplyHandler(db));
 
 bot.start();
