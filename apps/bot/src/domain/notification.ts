@@ -18,6 +18,7 @@ export type NotificationKind =
   | "reminder_24h"
   | "reminder_3h"
   | "feedback_request"
+  | "feedback_reminder"
   | "event_cancelled";
 
 // AC5: exactly two members, and every call site must choose one explicitly —

@@ -69,6 +69,14 @@ import {
 import { createRateLimitedSender, DEFAULT_RATE_LIMITER_CONFIG } from "./scheduler/rateLimiter.js";
 import { startScheduledJobs } from "./scheduler/runner.js";
 import { makeReminder24hJob, makeReminder3hJob } from "./scheduler/reminderJobs.js";
+import { makeFeedbackReminderJob, makeFeedbackRequestJob } from "./scheduler/feedbackJobs.js";
+import {
+  FEEDBACK_BROADCAST_PATTERN,
+  FEEDBACK_NPS_PATTERN,
+  makeFeedbackBroadcastCallbackHandler,
+  makeFeedbackNpsCallbackHandler,
+  makeFeedbackTextReplyHandler,
+} from "./handlers/feedback.js";
 
 let config: BotConfig;
 
@@ -107,9 +115,13 @@ const botUsername = bot.botInfo.username;
 
 // REQ-026 §5 — the two reminder jobs, 5-minute tick interval (§5's own
 // "technical scheduling parameter, not a product ambiguity" reasoning).
+// REQ-031 §5.7 — the two feedback jobs, same 5-minute tick interval as
+// every other scheduled job in this codebase.
 startScheduledJobs([
   makeReminder24hJob(db, notificationSender, 300000),
   makeReminder3hJob(db, notificationSender, botUsername, 300000),
+  makeFeedbackRequestJob(db, notificationSender, 300000),
+  makeFeedbackReminderJob(db, notificationSender, 300000),
 ]);
 
 bot.command("health", (ctx) => ctx.reply("ok"));
@@ -230,5 +242,17 @@ bot.command("walkin", makeWalkinCommandHandler(db));
 bot.callbackQuery(WALKIN_CONFIRM_PATTERN, makeWalkinConfirmCallbackHandler(db));
 bot.callbackQuery(WALKIN_OVERRIDE_PATTERN, makeWalkinOverrideCallbackHandler(db));
 bot.callbackQuery("walkin:cancel", makeWalkinCancelCallbackHandler());
+
+// REQ-031: post-event feedback (T+2h request / T+24h reminder, both
+// scheduled above), the NPS/broadcast-ask callbacks, and the generic
+// reply-to-message text listener (design §6.3) -- registered after every
+// bot.command(...) registration, alongside the other generic message:text
+// listener (handlers/profile.ts's makeProfileTextAnswerHandler above), same
+// ordering discipline that file's own header note establishes. Both
+// listeners react to text messages and independently no-op on a message
+// they do not recognize -- no explicit next() is ever called by either.
+bot.callbackQuery(FEEDBACK_NPS_PATTERN, makeFeedbackNpsCallbackHandler(db));
+bot.callbackQuery(FEEDBACK_BROADCAST_PATTERN, makeFeedbackBroadcastCallbackHandler(db));
+bot.on("message:text", makeFeedbackTextReplyHandler(db));
 
 bot.start();

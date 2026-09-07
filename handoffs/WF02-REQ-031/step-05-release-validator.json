@@ -1,0 +1,46 @@
+{
+  "handoff_id": "step-05-release-validator",
+  "run_id": "WF02-REQ-031",
+  "workflow_id": "WF-02",
+  "step": "05",
+  "from_agent": "TEST-RUNNER",
+  "to_agent": "DOC-UPDATER",
+  "status": "COMPLETED",
+  "started_at": "2026-09-08T01:45:00Z",
+  "completed_at": "2026-09-08T02:20:00Z",
+  "context": {
+    "requirement_id": "REQ-031",
+    "branch_name": "feature/WF02-REQ-031",
+    "commit_evaluated": "2dd1c46",
+    "related_handoff_ids": [
+      "step-01b-code-design-validator",
+      "step-01b-code-design-validator-regate",
+      "step-02b-reviewer",
+      "step-02c-security-reviewer",
+      "step-03b-test-design-validator",
+      "step-04-test-runner"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Independent re-verification, not report-copying. Re-ran every check myself from a clean invocation rather than trusting TEST-RUNNER's step-04 report.\n\nRe-run commands and results (all foreground, blocking):\n1. `npm run lint -w apps/bot` -- zero output, pass.\n2. `npm run build -w apps/bot` (tsc -p tsconfig.json) -- zero errors, pass.\n3. `docker compose up -d` (apps/bot) -- bot-postgres-1 already running.\n4. `DATABASE_URL=... npx drizzle-kit migrate` -- 0006_smiling_leader.sql applies cleanly against the running scratch Postgres (already applied from a prior run; drizzle-kit reported success).\n5. `npx vitest run --no-file-parallelism` from repo root -- 33/33 test files, 316/316 tests, 0 failures, 0 skipped, single run, no retries needed. Matches TEST-RUNNER's reported final count exactly, obtained independently.\n\nAC-by-AC independent re-verification (read the actual code and actual test assertions myself, not TEST-RUNNER's summary):\n\nAC1 (checked-in-only send) -- confirmed in scheduler/feedbackJobs.ts's selectRegistrationsForFeedbackRequest: `isNotNull(registrations.checkedInAt)` is the sole eligibility clause; feedbackJobs.db.test.ts's first describe block seeds registration A (checked-in) and B (admitted, skipCheckIn:true) and asserts `sent` has length exactly 1 (A only) and B's ledger has zero rows. Read directly, not summarized.\n\nAC2 (DB-constraint dedup) -- spot-checked in full. REQ-031-schema.md places a genuine UNIQUE index (`uq_feedback_registration_id`) on `feedback.registration_id`, confirmed present verbatim in the committed migration apps/bot/drizzle/0006_smiling_leader.sql line 18 (`CREATE UNIQUE INDEX \"uq_feedback_registration_id\" ON \"feedback\" USING btree (\"registration_id\")`). feedback.db.test.ts's AC2 test drives the full flow to one row, then performs a RAW `db.insert(schema.feedback).values({registrationId: A, nps: 5, ...})` bypassing writeFeedbackNps's upsert entirely, and asserts `.rejects.toMatchObject({ cause: { code: \"23505\" } })` -- genuinely exercises the DB constraint, not application logic. This is exactly what AC2's own wording demands (\"verified by attempting the duplicate insert directly\"). Verified the `.cause.code` shape is correct by cross-reading domain/notification.ts's pgErrorCode() helper, which unwraps DrizzleQueryError the same way.\n\nAC4 (exactly one reminder) -- feedbackJobs.db.test.ts's second describe block runs the reminder job three times against one registration: T+24h (send #1, ledger row #1), an immediate re-run at the same evaluationTime (ledger UNIQUE(registration_id,kind) dedups, sent stays length 1), and a T+48h run (excluded by the window itself before the ledger is even consulted again, sent stays length 1). All three assertions read directly -- genuinely covers both the ledger-dedup path and the window-exclusion path, not just one.\n\nAC5 (asked-once gate) -- spot-checked in full. domain/feedback.ts's determineFeedbackFlowStep gates on `broadcastOptInAskedAt === null`, never on the answer value -- confirmed by reading the function body directly (lines 157-169). feedback.db.test.ts's AC5 describe block has two sub-cases (decline and accept), each constructing exactly the two-registration/two-event sequence AC5's own wording specifies: drives regOne to broadcast-ask, answers it, then drives regTwo's flow to completion and asserts the broadcast-ask prompt text never appears among regTwo's sent messages, and that a stale forged accept-tap on regTwo's registration id does not flip broadcastOptIn. Both sub-cases read directly; the decline case is the literal AC5 wording (\"broadcast_opt_in remains false\"), the accept case is the necessary complementary check per REQ-031.md Sec0.3's stated resolution (\"asked\" gates re-asking regardless of the answer given), correctly present, not merely assumed.\n\nAC3 (skip-all and stale-reply field-match) -- read handlers/feedback.ts's makeFeedbackTextReplyHandler directly: the three-clause gate at line 267 (`step.kind !== \"feedback-field\" || step.field === \"nps\" || step.field !== parsed.field`) is the fix from the one rework iteration. Confirmed present in the actual shipped code, not just in the design doc's prose. feedback.db.test.ts's AC3 sub-case B directly reproduces the exact scenario CODE-DESIGN-VALIDATOR's original FAIL described (reply to an old, already-answered `liked` prompt while `improve` is the currently-expected field) and asserts no write occurred and no new message was sent -- this is a genuine regression test for the fixed defect, not a restatement of the fix.\n\nAC7 (transactional reaches broadcast_opt_in=false) -- confirmed scheduler/feedbackJobs.ts's makeFeedbackRequestJob passes `classification: \"transactional\"` to sendLedgeredNotification; feedbackJobs.db.test.ts's AC1 test explicitly sets registration A's user to broadcastOptIn:false and asserts the send still occurs (piggybacked assertion, correctly labeled as such).\n\nAC6 (no talk/speaker feature) -- re-ran the git grep myself, scoped to every file REQ-031 actually touches (domain/feedback.ts, handlers/feedback.ts, scheduler/feedbackJobs.ts, i18n/types.ts, i18n/ru.ts, i18n/en.ts, the new migration): zero matches, confirmed directly, not taken from the TEST-RUNNER report.\n\nScope discipline: `git diff master...feature/WF02-REQ-031 -- apps/bot/src/handlers/staff.ts` returns empty -- zero diff, confirmed directly. ISS-0020's concern (this branch should not touch staff.ts) holds.\n\nIssue classification re-checked: ISS-0027 (test-parallelism flakiness) is confirmed pre-existing at merge-base per its own description and independently plausible -- my own single vitest run was clean (no flakiness observed this pass), consistent with it being an intermittent, environment-level Postgres-contention issue under file-level parallelism rather than a defect this requirement introduced; the mandated `--no-file-parallelism` invocation is unaffected. ISS-0028 (AC6 grep false-positive on schema.ts's pre-existing 'non-talk' comment) re-confirmed directly: git blame on schema.ts:240 attributes the comment to a commit predating this branch, and the substance check (grep scoped to REQ-031's own files) returns zero matches -- the AC genuinely holds despite the spec's imprecise literal command. Neither issue masks a real gap in REQ-031 itself; both are correctly MINOR and non-blocking.\n\nDesign-to-code fidelity: read domain/feedback.ts, handlers/feedback.ts, scheduler/feedbackJobs.ts, and drizzle/0006_smiling_leader.sql in full and cross-checked against REQ-031.md/REQ-031-schema.md section by section -- field order, row-creation-on-NPS-only semantics, skip-marker columns, the UNIQUE/CHECK constraints, the ref/field-line prompt format, and both scheduled jobs' selection/compose logic all match the approved design with no undocumented deviation.\n\nConclusion: all 7 acceptance criteria hold under independent re-verification against actual code and actual test assertions (not the requirement_status.yaml history, not TEST-RUNNER's summary). Lint/build/tests re-run fresh and green. The one rework iteration's fix is present and has its own regression test. Scope is clean. Both filed issues are correctly non-blocking. READY TO MERGE.",
+    "evidence": {
+      "commands": [
+        "npm run lint -w apps/bot -- zero output, pass",
+        "npm run build -w apps/bot (tsc -p tsconfig.json) -- zero errors, pass",
+        "cd apps/bot && docker compose up -d -- bot-postgres-1 already running",
+        "DATABASE_URL=postgres://bot:bot@localhost:55432/bot npx drizzle-kit migrate -- migrations applied successfully",
+        "npx vitest run --no-file-parallelism (repo root) -- 33 test files passed (33), 316 tests passed (316), single clean run",
+        "git grep -in 'talk|speaker|want to speak' -- <REQ-031's own touched files only> -- zero matches",
+        "git diff master...feature/WF02-REQ-031 -- apps/bot/src/handlers/staff.ts -- empty (zero diff)",
+        "Read apps/bot/src/domain/feedback.ts, apps/bot/src/handlers/feedback.ts, apps/bot/src/scheduler/feedbackJobs.ts, apps/bot/drizzle/0006_smiling_leader.sql in full and cross-checked against docs/agents/design/REQ-031.md and REQ-031-schema.md",
+        "Read apps/bot/src/scheduler/feedbackJobs.db.test.ts and apps/bot/src/handlers/feedback.db.test.ts in full, spot-checking AC2/AC4/AC5 assertions against actual expect() calls rather than test names"
+      ]
+    },
+    "artifacts_out": [
+      "handoffs/WF02-REQ-031/step-05-release-validator.json"
+    ],
+    "issues": [],
+    "next_action": "Route to DOC-UPDATER (Step 6)"
+  }
+}

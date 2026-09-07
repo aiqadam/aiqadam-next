@@ -1,0 +1,26 @@
+id: ISS-0028
+title: "docs/agents/test-specs/REQ-031.md's AC6 static-grep command has a false-positive match on unrelated pre-existing text"
+discovered_by: TEST-RUNNER
+discovered_in_run: WF02-REQ-031
+discovered_at: "2026-09-08T02:05:00Z"
+severity: MINOR
+description: >
+  REQ-031's AC6 ("no talk/speaker question, no talks entity") was specified
+  as a static `git grep` for talk/speaker vocabulary across touched files.
+  As literally written, the grep also matches `apps/bot/src/db/schema.ts:240`,
+  a pre-existing comment ("non-talk agenda items") that predates this branch
+  (confirmed via `git blame`/`git log -S`, commit 584707f9) and has nothing
+  to do with REQ-031's actual scope boundary.
+  Not a real AC6 violation: the substantive check, scoped to REQ-031's own
+  touched files (apps/bot/src/domain/feedback.ts, handlers/feedback.ts,
+  scheduler/feedbackJobs.ts, the new migration), returns zero matches, so
+  AC6 genuinely holds. This issue exists only to record that the spec's
+  literal grep command needs a path scope (or a smarter pattern) so it
+  doesn't need a human/agent to manually distinguish a real hit from noise
+  next time this spec (or a similar future one) is run.
+  Recommended fix: a future pass to docs/agents/test-specs/REQ-031.md (or a
+  new automated test replacing the manual grep step) scopes the search to
+  files actually touched by REQ-031's diff, or excludes comments.
+affected_files:
+  - docs/agents/test-specs/REQ-031.md
+status: open
