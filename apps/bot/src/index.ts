@@ -130,7 +130,11 @@ bot.command("event_new", makeEventNewHandler(db));
 bot.command("event_edit", makeEventEditHandler(db));
 bot.command("event_agenda", makeEventAgendaHandler(db));
 bot.command("event_publish", makeEventPublishHandler(db));
-bot.command("event_cancel", makeEventCancelHandler(db));
+// REQ-027 — cancellation notifies every non-withdrawn registrant, so
+// makeEventCancelHandler now needs the process-wide notificationSender too
+// (same single instance already passed to the reminder jobs and withdraw's
+// confirm handler above).
+bot.command("event_cancel", makeEventCancelHandler(db, notificationSender));
 
 // REQ-017: /events — public, chapter-scoped upcoming-events list. Any
 // member may run it (not organizer-gated, same precedent as /venues).

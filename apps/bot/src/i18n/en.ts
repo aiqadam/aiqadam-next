@@ -66,6 +66,7 @@ export const en = {
     cancelUsageNoId: "Provide the event id: /event_cancel <id>",
     cancelSuccessPrefix: "Event cancelled:",
     cancelRefusedNotPublished: "Only a published event can be cancelled.",
+    cancelledNotificationHeader: "This event has been cancelled:",
     agendaRefusedDoorsAfterStart: "The doors item cannot be later than the event start:",
     agendaRefusedItemAfterEnd: "An agenda item cannot be later than the event end:",
     agendaRefusedMultipleDoors: "Only one doors item is allowed in the agenda.",

@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, asc, desc, eq, lt, or } from "drizzle-orm";
+import { and, asc, desc, eq, lt, ne, or } from "drizzle-orm";
 import type { DbClient } from "../db/client.js";
 import { chapters, events, registrations, users } from "../db/schema.js";
 import { writeAuditLog } from "./auditLog.js";
@@ -778,6 +778,35 @@ export async function reconfirmRegistration(
 
     return { kind: "reconfirmed" };
   });
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-027.md §2 — selectNonWithdrawnRegistrantsForEvent:
+// a plain, unfiltered-by-time SELECT of every registration for the given
+// event whose admission is NOT 'withdrawn'. No join to events, no
+// startsAt/endsAt window (unlike selectRegistrationsForReminder24h/3h,
+// domain/reminders.ts) — a cancellation notice is due to every non-withdrawn
+// registrant regardless of how far away the event was, so this read has no
+// time predicate and takes no evaluationTime parameter (decisions/0006's
+// "explicit evaluation time" discipline applies only to functions that
+// compare against the current instant — this one does not). Plain SELECT,
+// not SELECT ... FOR UPDATE: read-only, not part of any write transaction.
+// ---------------------------------------------------------------------------
+export interface NonWithdrawnRegistrant {
+  registrationId: string;
+  userId: string;
+}
+
+export async function selectNonWithdrawnRegistrantsForEvent(
+  db: DbClient["db"],
+  eventId: string,
+): Promise<NonWithdrawnRegistrant[]> {
+  const rows = await db
+    .select({ registrationId: registrations.id, userId: registrations.userId })
+    .from(registrations)
+    .where(and(eq(registrations.eventId, eventId), ne(registrations.admission, "withdrawn")));
+
+  return rows.map((row) => ({ registrationId: row.registrationId, userId: row.userId }));
 }
 
 export async function getRegistrationForEventAndUser(

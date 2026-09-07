@@ -71,6 +71,7 @@ export const ru = {
     cancelUsageNoId: "Укажите id мероприятия: /event_cancel <id>",
     cancelSuccessPrefix: "Мероприятие отменено:",
     cancelRefusedNotPublished: "Отменить можно только опубликованное мероприятие.",
+    cancelledNotificationHeader: "Это мероприятие отменено:",
     agendaRefusedDoorsAfterStart:
       "Пункт открытия дверей не может быть позже начала мероприятия:",
     agendaRefusedItemAfterEnd: "Пункт программы не может быть позже окончания мероприятия:",

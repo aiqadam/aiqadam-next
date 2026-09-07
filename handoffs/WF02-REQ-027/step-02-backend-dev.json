@@ -1,0 +1,50 @@
+{
+  "handoff_id": "step-02-backend-dev",
+  "run_id": "WF02-REQ-027",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "ORCH",
+  "to_agent": "REVIEWER",
+  "status": "COMPLETED",
+  "started_at": "2026-09-07T13:00:00Z",
+  "completed_at": "2026-09-07T17:35:00Z",
+  "context": {
+    "related_handoff_ids": ["step-01b-design-validator-regate"]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Implemented docs/agents/design/REQ-027.md exactly as designed -- event cancellation now synchronously notifies every non-withdrawn registrant, once, right after cancelEvent's transaction commits. No schema change (confirmed by design: notification_ledger's uq_notification_ledger_registration_kind, NotificationKind's 'event_cancelled', registrations.admission's 'withdrawn', events.status's 'cancelled' all already existed).\n\n1. apps/bot/src/domain/registration.ts: added NonWithdrawnRegistrant interface and selectNonWithdrawnRegistrantsForEvent(db, eventId) per design §2 -- a plain SELECT of registrations.id/userId for the event where admission != 'withdrawn', no join to events, no time predicate, no evaluationTime parameter (deliberate: nothing here compares against the current instant). Added ne() to the drizzle-orm import.\n\n2. apps/bot/src/handlers/event.ts: added composeCancellationMessage(db, registrationId, eventTitle, lang) per design §3 -- re-fetches the registration's CURRENT admission via getRegistrationAdmissionAndEvent (REQ-026), returns {kind:'skip'} when the row is missing or admission==='withdrawn' (at-send-time freshness recheck, same discipline as composeReminder24h/3h), else {kind:'text', text: [catalog.event.cancelledNotificationHeader, eventTitle, catalog.event.deepLinkSeeUpcoming].join('\\n')} (design §4's exact 3-line shape, reusing the existing deepLinkSeeUpcoming string unchanged -- no new onward-path copy). Added notifyNonWithdrawnRegistrants(db, sender, eventId, eventTitle) per design §3 -- selects the fixed candidate list once, then a plain sequential for...of loop (no Promise.all) calling sendLedgeredNotification per candidate with kind:'event_cancelled', classification:'transactional', composeMessage: (lang) => composeCancellationMessage(db, candidate.registrationId, eventTitle, lang) -- fields match the design's Field/Source table exactly. makeEventCancelHandler's signature gained a `sender: NotificationSender` second parameter (mirrors makeWithdrawConfirmCallbackHandler(db, sender)); the handler now calls `await notifyNonWithdrawnRegistrants(db, sender, eventId, event.title)` immediately after cancelEvent returns, BEFORE the organizer's own ctx.reply confirmation (design §5's exact ordering). cancelEvent (domain/event.ts, REQ-016) itself is UNCHANGED -- no read of registrations, no notification call added inside it; the new call lives entirely in the handler, after cancelEvent's transaction has already committed.\n\n3. apps/bot/src/i18n/{types.ts,en.ts,ru.ts}: added one new catalog key, event.cancelledNotificationHeader, placeholder/minimal copy per decisions/0002 (CONTENT-BA owns final wording) -- English 'This event has been cancelled:', Russian 'Это мероприятие отменено:'. deepLinkSeeUpcoming (the onward-path line) is REUSED unchanged, not duplicated, per design §4.\n\n4. apps/bot/src/index.ts: bot.command('event_cancel', makeEventCancelHandler(db)) updated to makeEventCancelHandler(db, notificationSender) -- the one-line change design §5 specifies, reusing the same process-wide notificationSender instance already passed to the reminder jobs and withdraw's confirm handler. No new sender instance, no new configuration.\n\nAll 5 ACs verified with real output against a live scratch Postgres (apps/bot/docker-compose.yml, port 55432, freshly migrated -- no new migration file generated, confirming the design's own 'no schema change' claim). New test file apps/bot/src/handlers/event.db.test.ts (5 describe blocks, one per AC), following the exact seed/fake-sender pattern scheduler/reminderJobs.db.test.ts already established.\n\nCommands run from the REPO ROOT: `npm run build` -> exit 0 (apps/web Next.js build + apps/bot tsc, both clean). `npm run lint` -> exit 0, apps/bot 0 problems, apps/web 2 pre-existing unrelated <img> warnings only. `TEST_DATABASE_URL=postgres://bot:bot@localhost:55432/bot npx vitest run --no-file-parallelism` (repo root, no path filter) -> 24 files / 260 tests passed, 0 failed, 0 skipped -- `git status --porcelain` before writing this handoff confirms only the 6 files listed in artifacts_out were touched plus the 1 new test file, i.e. the 11-test/2-file delta over REQ-026's own recorded 22-file/249-test baseline is not attributable to any change made in this run (pre-existing files/tests -- e.g. handlers/reminder24h.forgery.test.ts -- already existed in the tree before this run started and are outside this run's diff).",
+    "evidence": {
+      "commands": [
+        "cd apps/bot && docker compose up -d -> bot-postgres-1 started fresh; DATABASE_URL=postgres://bot:bot@localhost:55432/bot npx drizzle-kit migrate -> migrations applied successfully, no new migration file generated (confirms design's 'no schema change' claim)",
+        "npm run build (repo root) -> exit 0, apps/web Next.js build clean, apps/bot tsc clean",
+        "npm run lint (repo root) -> exit 0, apps/bot 0 problems, apps/web 2 pre-existing unrelated <img>-element warnings only",
+        "TEST_DATABASE_URL=postgres://bot:bot@localhost:55432/bot npx vitest run apps/bot/src/handlers/event.db.test.ts --no-file-parallelism -> 1 file / 5 tests passed",
+        "TEST_DATABASE_URL=postgres://bot:bot@localhost:55432/bot npx vitest run --no-file-parallelism (repo root, full suite) -> 24 files / 260 tests passed, 0 failed, 0 skipped",
+        "AC1 (apps/bot/src/handlers/event.db.test.ts, 'AC1'): capacity-3 event, 3 registrants admitted, 2 waitlisted, 1 more registrant registered then explicitly withdrawn via withdrawRegistration -> cancelEvent, then notifyNonWithdrawnRegistrants -> exactly 5 sends, exactly 5 notification_ledger rows (kind='event_cancelled'), each one's registrationId in the admitted+waitlisted set, zero ledger rows for the withdrawn registrant's own registrationId",
+        "AC2 (apps/bot/src/handlers/event.db.test.ts, 'AC2'): 2 registrants, cancelEvent, notifyNonWithdrawnRegistrants run once (2 sends) then run a SECOND time with a fresh sender/fresh call (0 sends) -- counted across both runs, exactly 1 ledger row per registrant, exactly 2 sends total (both from run 1)",
+        "AC3 (apps/bot/src/handlers/event.db.test.ts, 'AC3'): 1 registrant with broadcast_opt_in=false explicitly set on the users row -> still receives exactly 1 send and gets exactly 1 notification_ledger row (classification:'transactional' passed by notifyNonWithdrawnRegistrants never reads broadcastOptIn at all, per sendLedgeredNotification's own step 3 gate)",
+        "AC4 (apps/bot/src/handlers/event.db.test.ts, 'AC4'): 1 admitted + 1 waitlisted + 1 withdrawn registration seeded, full registrations row set for the event captured BEFORE cancelEvent+notifyNonWithdrawnRegistrants, re-read AFTER -- same length (3), deep-equal row-by-row (id-sorted, includes every column) via `toEqual`, plus explicit per-registrant admission spot checks (admitted/waitlisted/withdrawn all unchanged from their pre-cancellation values)",
+        "AC5 (apps/bot/src/handlers/event.db.test.ts, 'AC5'): composed message text contains catalog.event.cancelledNotificationHeader, the event's own title, AND the existing catalog.event.deepLinkSeeUpcoming string (the onward path), all three checked by literal substring containment against the real sent text"
+      ],
+      "ac_results": {
+        "AC1": "PASS -- 3 admitted + 2 waitlisted + 1 withdrawn -> exactly 5 sends/5 ledger rows, none to the withdrawn registrant",
+        "AC2": "PASS -- a second run of the batch over the same event adds zero sends/ledger rows, counted across both runs",
+        "AC3": "PASS -- broadcast_opt_in=false registrant still receives the cancellation (transactional classification bypasses the flag)",
+        "AC4": "PASS -- full registrations row set (deep-equal, id-sorted) is byte-identical before/after cancellation+notification, admission unchanged per row",
+        "AC5": "PASS -- composed text contains the cancellation header, the event title, and the existing deepLinkSeeUpcoming onward-path string"
+      }
+    },
+    "artifacts_out": [
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/handlers/event.ts",
+      "apps/bot/src/handlers/event.db.test.ts",
+      "apps/bot/src/i18n/types.ts",
+      "apps/bot/src/i18n/en.ts",
+      "apps/bot/src/i18n/ru.ts",
+      "apps/bot/src/index.ts"
+    ],
+    "issues": [],
+    "next_action": "Route to REVIEWER (Step 2b)"
+  }
+}

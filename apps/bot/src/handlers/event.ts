@@ -23,6 +23,15 @@ import {
   validateEventUpdateInput,
   type EventRecord,
 } from "../domain/event.js";
+import {
+  getRegistrationAdmissionAndEvent,
+  selectNonWithdrawnRegistrantsForEvent,
+} from "../domain/registration.js";
+import {
+  sendLedgeredNotification,
+  type ComposedMessage,
+  type NotificationSender,
+} from "../domain/notification.js";
 import { formatDateTimeInTimezone } from "../i18n/formatTimeInTimezone.js";
 import { getUserWithChapterByTgId } from "../domain/user.js";
 import { getCatalog, type BotLang } from "../i18n/catalog.js";
@@ -345,9 +354,71 @@ export function makeEventPublishHandler(db: DbClient["db"]) {
 }
 
 // ---------------------------------------------------------------------------
+// docs/agents/design/REQ-027.md §3 — composeCancellationMessage: re-fetches
+// the registration's CURRENT admission at send time (the same
+// composeReminder24h/composeReminder3h freshness recheck), since
+// sendLedgeredNotification only calls composeMessage AFTER its ledger INSERT
+// has already committed — the registration can, in principle, have been
+// withdrawn between the batch's own selection read and this individual
+// send. No re-check of events.status is needed: this batch runs exactly once,
+// synchronously, immediately after cancelEvent has already committed
+// 'cancelled', and there is no un-cancel transition in the state machine.
+// ---------------------------------------------------------------------------
+async function composeCancellationMessage(
+  db: DbClient["db"],
+  registrationId: string,
+  eventTitle: string,
+  lang: BotLang,
+): Promise<ComposedMessage> {
+  const registration = await getRegistrationAdmissionAndEvent(db, registrationId);
+  if (registration === null || registration.admission === "withdrawn") {
+    return { kind: "skip" };
+  }
+
+  const catalog = getCatalog(lang);
+  const text = [catalog.event.cancelledNotificationHeader, eventTitle, catalog.event.deepLinkSeeUpcoming].join(
+    "\n",
+  );
+
+  return { kind: "text", text };
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-027.md §3 — notifyNonWithdrawnRegistrants: a fixed
+// snapshot list selected once (selectNonWithdrawnRegistrantsForEvent), then a
+// plain sequential for...of loop (no Promise.all fan-out, same shape as
+// reminderJobs.ts's job run() bodies) calling sendLedgeredNotification once
+// per candidate. classification is always "transactional" so a
+// broadcast_opt_in=false registrant still receives it (AC3). Per-call
+// SendOutcome is not inspected/aggregated (same "fire the whole batch"
+// contract sendPromotionNotification already establishes). No evaluationTime
+// parameter — nothing here compares against the current instant
+// (decisions/0006's note in the design §3 applies).
+// ---------------------------------------------------------------------------
+export async function notifyNonWithdrawnRegistrants(
+  db: DbClient["db"],
+  sender: NotificationSender,
+  eventId: string,
+  eventTitle: string,
+): Promise<void> {
+  const candidates = await selectNonWithdrawnRegistrantsForEvent(db, eventId);
+  for (const candidate of candidates) {
+    await sendLedgeredNotification({
+      db,
+      sender,
+      registrationId: candidate.registrationId,
+      kind: "event_cancelled",
+      classification: "transactional",
+      userId: candidate.userId,
+      composeMessage: (lang) => composeCancellationMessage(db, candidate.registrationId, eventTitle, lang),
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // /event_cancel <id> (§5)
 // ---------------------------------------------------------------------------
-export function makeEventCancelHandler(db: DbClient["db"]) {
+export function makeEventCancelHandler(db: DbClient["db"], sender: NotificationSender) {
   return async (ctx: Context): Promise<void> => {
     const tgId = ctx.from?.id;
     if (tgId === undefined) {
@@ -380,8 +451,14 @@ export function makeEventCancelHandler(db: DbClient["db"]) {
 
     // Explicit scope boundary (design §5's closing note): state transition +
     // audit row ONLY. No registrations read, no notification of any kind
-    // (REQ-027's scope).
+    // inside cancelEvent itself.
     await cancelEvent(db, authResult.user.id, eventId, event.chapterId, event.title, new Date());
+
+    // docs/agents/design/REQ-027.md §5 — called synchronously right after
+    // cancelEvent's transaction has committed, BEFORE the organizer's own
+    // confirmation reply below (same ordering makeWithdrawConfirmCallbackHandler
+    // already uses for its own post-commit sendPromotionNotification call).
+    await notifyNonWithdrawnRegistrants(db, sender, eventId, event.title);
 
     await ctx.reply(`${getCatalog(lang).event.cancelSuccessPrefix} ${event.title}`);
   };

@@ -84,6 +84,9 @@ export interface Catalog {
     agendaRefusedDoorsAfterStart: string;
     agendaRefusedItemAfterEnd: string;
     agendaRefusedMultipleDoors: string;
+    // NEW, REQ-027: registrant-facing cancellation notification header line.
+    // Onward path reuses deepLinkSeeUpcoming below unchanged (no new key).
+    cancelledNotificationHeader: string;
     deepLinkNotAvailable: string;
     deepLinkSeeUpcoming: string;
     deepLinkPublishedPlaceholder: string;
