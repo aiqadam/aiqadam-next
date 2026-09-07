@@ -1,0 +1,15 @@
+{
+  "handoff_id": "step-01-code-designer-rework1",
+  "run_id": "WF02-REQ-020",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "CODE-DESIGNER",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "REWORK_COMPLETE",
+    "summary": "Rework iteration 1 of 3 on docs/agents/design/REQ-020.md, addressing the single MAJOR finding in handoffs/WF02-REQ-020/step-01b-design-validator.json (S1-S6, S8-S11 all already passed and were not touched).\n\nThe FAIL identified two real executable code fragments in an otherwise disciplined document: line 388 (`export const REGISTER_CALLBACK_PATTERN = /^register:(.+)$/;`, a concrete regex literal assigned to an exported const -- a value, not a signature) and line 437 (`new InlineKeyboard().text(catalog.registration.registerButton, \\`register:${event.id}\\`)`, a real, copy-pasteable object-construction expression with template-literal interpolation).\n\nS7.1 (`apps/bot/src/handlers/registration.ts`): removed the fenced code block containing the regex const entirely. Replaced with prose stating the rule the constant would have encoded: `REGISTER_CALLBACK_PATTERN` recognizes callback_data of the shape `register:<eventId>` (the literal prefix `register:` followed by the event's id, captured as a group), following the exact convention `CHAPTER_CALLBACK_PATTERN` already establishes for the same purpose in `handlers/start.ts`. The surrounding sentence about `bot.callbackQuery(REGISTER_CALLBACK_PATTERN, ...)` registration, re-matching against `ctx.callbackQuery?.data ?? \"\"`, and calling `answerCallbackQuery()` on every path is unchanged (it was already prose, not code).\n\nS7.3 (the card's `reply_markup`): removed the fenced code block containing the `new InlineKeyboard()...` expression entirely. Replaced with prose: the `reply_markup` is an `InlineKeyboard` with exactly one button, whose label is sourced from `catalog.registration.registerButton` and whose callback_data is composed as the literal prefix `register:` followed by the event's id -- the same `register:<eventId>` shape S7.1's pattern recognizes. No construction syntax, no template literal, no method-chain expression remains.\n\nNo other line in the document was changed. Both edits are surgical: they replace a value/expression with a description of the same rule, matching the discipline S2.2's table and S3.2/S7.1's own ordered prose steps already use elsewhere in this document.",
+    "issues": [],
+    "next_action": "Route to CODE-DESIGN-VALIDATOR (Step 1b re-gate)"
+  }
+}
