@@ -1,0 +1,25 @@
+id: ISS-0022
+title: REQ-025 test-spec's AC-schema wording ("no ALTER TABLE whatsoever") doesn't account for standard FK-constraint migration statements
+discovered_by: TEST-RUNNER
+discovered_in_run: WF02-REQ-025
+discovered_at: "2026-09-07T15:58:00Z"
+severity: MINOR
+description: >
+  Found during Step 4 execution of docs/agents/test-specs/REQ-025.md's
+  AC-schema case. The spec states the migration should contain "no ALTER
+  TABLE statements whatsoever," but apps/bot/drizzle/0005_violet_venom.sql
+  contains drizzle-kit's standard ALTER TABLE ... ADD CONSTRAINT pattern for
+  the new notification_ledger table's foreign key to registrations. This is
+  not schema drift or evidence of an existing table being altered --
+  TEST-RUNNER verified every prior migration (0000-0004) that introduces a
+  new FK-bearing table follows the identical pattern. The real property the
+  AC cares about (no EXISTING table is altered) holds; only the literal
+  wording overclaims.
+  Recommended fix: TEST-DESIGNER rewords AC-schema in a future pass to state
+  the property precisely -- e.g. "no ALTER TABLE targeting an existing
+  table" or "the only ALTER TABLE statements are ADD CONSTRAINT clauses for
+  the new table's own foreign keys" -- rather than a blanket "no ALTER TABLE
+  whatsoever" that a correct, idiomatic Drizzle migration will always trip.
+affected_files:
+  - docs/agents/test-specs/REQ-025.md
+status: open
