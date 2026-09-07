@@ -1310,7 +1310,7 @@ requirements:
   - id: REQ-026
     title: T-24h "Still coming?" reconfirmation and T-3h route + QR reminder jobs
     owner: BACKEND-DEV
-    status: pending
+    status: done
     description: >
       Second slice of PRD 14 build-order step 4, and the show-rate feature the whole
       product's primary metric depends on (PRD 2: raise show-rate from 70% to >=80%;
