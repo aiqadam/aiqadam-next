@@ -409,11 +409,26 @@ export function makeStartHandler(db: DbClient["db"]) {
     // Consent is already recorded (a returning, partially-onboarded user
     // who has no chapter yet) — only now is it safe to run chapter
     // assignment.
-    if (flowUser.chapterId === null) {
-      const outcome = await assignChapterOrPrompt(ctx, db, flowUser.id, lang);
-      if (outcome === "stopped") {
+    let hasChapter = flowUser.chapterId !== null;
+    if (!hasChapter) {
+      const chapterOutcome = await assignChapterOrPrompt(ctx, db, flowUser.id, lang);
+      if (chapterOutcome === "stopped") {
         return;
       }
+      // WF02-REQ-019 REWORK (Step 2b regate FAIL,
+      // handoffs/WF02-REQ-019/step-02b-reviewer.json) — assignChapterOrPrompt
+      // returning "continue" satisfies the chapter step for the rest of this
+      // pass, EVEN in the zero-active-chapters case where `chapterId`
+      // legitimately stays null forever (REQ-014's own `noActiveChapters`
+      // branch above). Re-deriving `hasChapter` from `chapterId !== null`
+      // below (as this file did before this rework) makes
+      // `advanceOnboarding` report "chapter-needed" forever for that case —
+      // an outcome this handler has no branch for, so the flow silently
+      // stopped replying right after `noActiveChapters` and never sent the
+      // greeting the pre-REQ-019 handler always sent here. Mirrors the exact
+      // same "continue" treatment `handlers/profile.ts`'s
+      // `reachReadyOrPrompt` helper already applies for its own call sites.
+      hasChapter = true;
     }
 
     // Re-resolve via the same read-only shape the rest of the flow uses, so
@@ -425,17 +440,11 @@ export function makeStartHandler(db: DbClient["db"]) {
     );
 
     // REQ-019 §3.3 — run the shared onboarding progression before falling
-    // back to the plain greeting. Consent and chapter are both already
-    // resolved by this point (the gates above already ran), so this call
+    // back to the plain greeting. Consent is already resolved and the
+    // chapter step is resolved per `hasChapter` above (either an actual
+    // chapter id, or the zero-active-chapters "continue" case), so this call
     // only ever asks a profile question or reports "ready" in practice.
-    const outcome = await advanceOnboarding(
-      ctx,
-      db,
-      flowUser.id,
-      true,
-      (finalUser?.chapterId ?? flowUser.chapterId) !== null,
-      finalLang,
-    );
+    const outcome = await advanceOnboarding(ctx, db, flowUser.id, true, hasChapter, finalLang);
     if (outcome !== "ready") {
       return; // "prompted" already sent the next question
     }
@@ -548,9 +557,18 @@ export function makeConsentCallbackHandler(db: DbClient["db"]) {
     // ordering fix: chapter writes never precede consent_pd_at). Chapter
     // assignment always runs first per REQ-014's existing order, whether or
     // not a deep-link payload is also being carried through this tap.
+    let hasChapter = flowUser.chapterId !== null;
     let chapterOutcome: "stopped" | "continue" = "continue";
-    if (flowUser.chapterId === null) {
+    if (!hasChapter) {
       chapterOutcome = await assignChapterOrPrompt(ctx, db, flowUser.id, lang);
+      if (chapterOutcome === "continue") {
+        // WF02-REQ-019 REWORK (Step 2b regate FAIL) — see makeStartHandler's
+        // identical comment above: "continue" (including the
+        // zero-active-chapters `noActiveChapters` branch, where `chapterId`
+        // stays null forever) satisfies the chapter step for this pass, so
+        // `advanceOnboarding` below is never asked to re-derive it as false.
+        hasChapter = true;
+      }
     }
 
     // REQ-016 rework — complete the deferred deep-link resolution now that
@@ -589,18 +607,12 @@ export function makeConsentCallbackHandler(db: DbClient["db"]) {
     );
 
     // REQ-019 §3.3 — run the shared onboarding progression before falling
-    // back to the plain greeting. Consent was just recorded above and
-    // chapter is resolved by this point (chapterOutcome !== "stopped"), so
-    // this call only ever asks a profile question or reports "ready" in
-    // practice.
-    const outcome = await advanceOnboarding(
-      ctx,
-      db,
-      flowUser.id,
-      true,
-      (finalUser?.chapterId ?? flowUser.chapterId) !== null,
-      finalLang,
-    );
+    // back to the plain greeting. Consent was just recorded above and the
+    // chapter step is resolved per `hasChapter` above (chapterOutcome !==
+    // "stopped" — either an actual chapter id, or the zero-active-chapters
+    // "continue" case), so this call only ever asks a profile question or
+    // reports "ready" in practice.
+    const outcome = await advanceOnboarding(ctx, db, flowUser.id, true, hasChapter, finalLang);
     if (outcome !== "ready") {
       return; // "prompted" already sent the next question
     }
