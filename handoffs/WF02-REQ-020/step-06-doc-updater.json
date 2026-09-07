@@ -1,0 +1,19 @@
+{
+  "handoff_id": "step-06-doc-updater",
+  "run_id": "WF02-REQ-020",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "ORCH",
+  "to_agent": "DOC-UPDATER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "REQ-020 (registration for an open event with atomic capacity enforcement and qr_token issuance, GitHub issue #23, second requirement of Phase 4) had RELEASE-VALIDATOR PASS at Step 5 (commit 2066d8f, 'chore(WF02-REQ-020): Step 5 release validation -- PASS'). Verified the factual claims directly against the real code before writing the status-history note, rather than trusting the task prompt's summary: read apps/bot/src/domain/registration.ts directly and confirmed decideRegistrationOutcome() is the pure first-match-wins outcome table, generateQrToken() is exactly randomBytes(32).toString('hex') with zero parameters (never derived from the user id, never Math.random), and registerForEvent() opens its db.transaction with a real `tx.select(...).from(events)...for(\"update\")` row lock held for the transaction's lifetime before reading/counting/deciding/writing -- a genuine SELECT ... FOR UPDATE atomic sequence, not read-then-write. Confirmed writeAuditLog() runs exactly once per admitted/waitlisted outcome inside the same tx, and every non-writing outcome returns before that section. Confirmed apps/bot/src/handlers/registration.ts implements the register:<eventId> callback per the requirement's scope. Confirmed no schema change was needed (registrations.qr_token/source already existed from REQ-011, per `git log` on this branch showing no new drizzle migration file). Confirmed docs/agents/requirements.yaml's REQ-020 entry (description + 6 acceptance criteria) already matched the shipped mechanism exactly -- no content correction needed.\n\nActions taken:\n1. Flipped docs/agents/requirements.yaml's REQ-020 entry status: pending -> done (matches REQ-019's exact convention -- no other field changed).\n2. Appended one 'done' event to docs/status/requirement_status.yaml (append-only; read the full file first; `git diff --numstat` confirmed 5 insertions / 0 deletions on this file before committing).\n3. Checked README.md (grep for registration/qr_token/capacity/apps-bot terms) -- still contains no bot-flow-specific content beyond the one generic apps/bot description line from REQ-009's doc-update step, so no README update was made -- same checked-then-skipped pattern as every prior bot requirement (REQ-010 through REQ-019).\n4. Checked docs/ for an existing bot-command-reference doc (Glob for '**/*command*') -- none exists anywhere in the repo (only unrelated node_modules matches), consistent with the established pattern noted at REQ-018/REQ-019's doc-update steps, so none was created here.\n5. Did NOT add a 'Phase 4 complete' marker -- REQ-020 is the SECOND requirement of Phase 4 (REQ-021..REQ-024 remain), not the last.",
+    "issues": [],
+    "artifacts_out": [
+      "docs/agents/requirements.yaml",
+      "docs/status/requirement_status.yaml"
+    ],
+    "next_action": "Route to Step Final (git merge)"
+  }
+}
