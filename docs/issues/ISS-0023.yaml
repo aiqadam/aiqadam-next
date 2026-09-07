@@ -1,0 +1,30 @@
+id: ISS-0023
+title: REQ-026 test-spec's AC4 case was unreachable as originally written (withdrew before run() just excludes the candidate)
+discovered_by: TEST-RUNNER
+discovered_in_run: WF02-REQ-026
+discovered_at: "2026-09-07T17:10:00Z"
+severity: MINOR
+description: >
+  Found while authoring committed tests for docs/agents/test-specs/REQ-026.md's
+  AC4 ("withdrawn before either job runs receives nothing"). The spec's
+  original construction withdrew the sole candidate registration BEFORE
+  calling the reminder job's run(), but selectRegistrationsForReminder24h is
+  a live query -- withdrawing before run() simply excludes the registration
+  from candidate selection entirely (0 ledger rows), which trivially passes
+  without ever exercising the at-send-time admission recheck the AC is
+  actually meant to test (a mid-flight race between candidate selection and
+  the send).
+  TEST-RUNNER reconstructed the case correctly: two registrations are
+  selected as candidates, and the second is withdrawn as a side effect
+  triggered by the first candidate's sender.send() resolving (a real
+  race against the job's own in-flight iteration), which genuinely
+  exercises the recheck. The corrected version is what actually shipped
+  as the committed test and it passes.
+  Recommended fix: TEST-DESIGNER corrects docs/agents/test-specs/REQ-026.md's
+  AC4 section in a future pass to describe the two-registration,
+  withdraw-during-iteration construction instead of the unreachable
+  withdraw-before-run() one, so a future reader implementing this spec from
+  scratch doesn't reproduce the same dead-end construction.
+affected_files:
+  - docs/agents/test-specs/REQ-026.md
+status: open
