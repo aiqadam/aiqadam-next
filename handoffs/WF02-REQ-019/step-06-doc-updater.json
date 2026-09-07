@@ -1,0 +1,19 @@
+{
+  "handoff_id": "step-06-doc-updater",
+  "run_id": "WF02-REQ-019",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "ORCH",
+  "to_agent": "DOC-UPDATER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "REQ-019 (profile capture as a resumable step-by-step form with the consent gate and optional-field rule, GitHub issue #22, first requirement of Phase 4) had RELEASE-VALIDATOR PASS at Step 5 (handoffs/WF02-REQ-019/step-05-release-validator.json). Verified the factual claims directly against the real code before writing the status-history note, rather than trusting the task prompt's summary: read apps/bot/drizzle/0004_fancy_zombie.sql directly (11 statements -- 6 DROP NOT NULL on profiles columns, 5 new *_skipped boolean columns, matches claim exactly); confirmed apps/bot/src/domain/profile.ts exports determineNextProfileField()/isProfileComplete() plus REQUIRED_PROFILE_FIELDS/OPTIONAL_PROFILE_FIELDS and validators; confirmed apps/bot/src/domain/onboarding.ts exports determineOnboardingStep()/advanceOnboarding(); confirmed apps/bot/src/handlers/profile.ts (617 lines) and the modified apps/bot/src/handlers/start.ts (621 lines) exist; confirmed via `git log --oneline` on this branch that commit 2dadd9f ('fix(design): REQ-019 §4.6 derive-then-gate discipline for callback handlers') is a real Step 1b design-gate rework commit and commit 244c9e1 ('fix(bot): handle chapter-needed with zero active chapters in /start onboarding (WF02-REQ-019 rework)') is a real Step 2b review-gate rework commit, both preceding the eventual PASS commits. Also confirmed ISS-0013/ISS-0014/ISS-0015/ISS-0016 are named correctly in Step 5's handoff.\n\nActions taken:\n1. Flipped docs/agents/requirements.yaml's REQ-019 entry status: pending -> done (matches REQ-018's exact convention -- no other field changed; RELEASE-VALIDATOR's Step 5 note confirmed the entry's description/acceptance_criteria needed no content correction).\n2. Appended one 'done' event to docs/status/requirement_status.yaml (append-only; read the full file first; `git diff --numstat` confirmed 5 insertions / 0 deletions on this file before committing).\n3. Checked README.md (grep for profile/start/help/staff/bot-command terms) -- still contains only the one generic apps/bot description line from REQ-009's doc-update step, no profile/onboarding-specific content exists to correct, so no README update was made -- same checked-then-skipped pattern as every prior bot requirement (REQ-010 through REQ-018).\n4. Checked docs/ for an existing bot-command-reference doc (Glob for '**/*command*') -- none exists anywhere in the repo, consistent with the established pattern noted at REQ-018's doc-update step, so none was created here.\n5. Did NOT add a 'Phase 4 complete' marker -- REQ-019 is the FIRST requirement of Phase 4 (REQ-020..REQ-024 remain), not the last.",
+    "issues": [],
+    "artifacts_out": [
+      "docs/agents/requirements.yaml",
+      "docs/status/requirement_status.yaml"
+    ],
+    "next_action": "Route to Step Final (git merge)"
+  }
+}

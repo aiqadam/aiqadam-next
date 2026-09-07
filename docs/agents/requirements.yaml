@@ -1021,7 +1021,7 @@ requirements:
   - id: REQ-019
     title: Profile capture as a resumable step-by-step form with the consent gate and optional-field rule
     owner: BACKEND-DEV
-    status: pending
+    status: done
     description: >
       First slice of PRD 14 build-order step 3 ("Profile + registration + capacity +
       waitlist + promotion + withdraw"). That build-order step is five distinct
