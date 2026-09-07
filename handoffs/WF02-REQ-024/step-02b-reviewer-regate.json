@@ -1,0 +1,45 @@
+{
+  "handoff_id": "step-02b-reviewer-regate",
+  "run_id": "WF02-REQ-024",
+  "workflow_id": "WF-02",
+  "step": "02b",
+  "from_agent": "ORCH",
+  "to_agent": "REVIEWER",
+  "status": "COMPLETED",
+  "started_at": "2026-09-07T09:00:00Z",
+  "completed_at": "2026-09-07T09:20:00Z",
+  "context": {
+    "related_handoff_ids": [
+      "step-02b-reviewer",
+      "step-02c-security-reviewer",
+      "step-03-test-designer",
+      "step-03b-test-design-validator",
+      "step-04-test-runner",
+      "step-05-release-validator"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Re-gate of Step 2b for a lockfile-only fix (commit 5a56bad) applied after RELEASE-VALIDATOR's PASS, once opening PR #55 revealed CI failing with 'Cannot find module @rolldown/binding-wasm32-wasi' -- npm/cli#4828, a plain Windows `npm install` had pruned nearly all platform-variant optional-dependency entries from package-lock.json (esbuild/rolldown/lightningcss native bindings) when the new qrcode/jsqr/pngjs deps were added, leaving the Linux CI runner's package-lock.json blind to the bindings it needs.\n\nScope check (git show --stat 5a56bad): exactly 2 files changed -- package-lock.json (+1044/-24 in the raw diff stat over the parent commit be5944c; against master the requirement's own cumulative lockfile diff is +311 net) and handoffs/WF02-REQ-024/step-02-backend-dev-rework1.json (the bookkeeping record of the fix). Read the full diff (`git diff 5a56bad~1..5a56bad -- package-lock.json`): every changed block is either (a) a platform-specific optional-dependency entry for @esbuild/*, @rolldown/binding-*, or lightningcss.* being restored, or (b) housekeeping dedup noise from the fresh install. No application code touched by this commit -- confirmed apps/bot/src/** and apps/web/src/** are absent from `git show 5a56bad --stat` entirely, and separately confirmed via `git diff master...HEAD -- apps/bot/src apps/web/src` (the whole requirement's cumulative diff) that the only files under those trees are the ones already reviewed and PASSed at the original Step 2b/2c: domain/qr.ts(+test), domain/registration.ts, handlers/my.ts(+test), handlers/registration.ts, i18n/{en,ru,types}.ts, index.ts -- none of which changed again in 5a56bad.\n\nPlatform-entry-count restoration verified independently, not trusted from the commit message: counted `@esbuild/` occurrences (26), `@rolldown/binding-` occurrences (15), and `lightningcss` occurrences (12) in the current branch's package-lock.json, then checked out master's package-lock.json via `git show master:package-lock.json` and counted the same three patterns there: 26/15/12 -- identical across all three counts. The claimed restoration is real, not an approximation.\n\nRan the full verification chain myself from a clean state: `npm ci` (the exact command CI runs) -- succeeded cleanly, 590 packages added, 0 vulnerabilities, no missing-binding errors. `npm run lint` -- exit 0, 0 errors (2 pre-existing apps/web <img> LCP warnings only, unrelated and unchanged). `npm run build` -- exit 0, both workspaces clean (Next.js Turbopack build succeeded; apps/bot's tsc -p tsconfig.json clean). `npx vitest run --no-file-parallelism` -- 19 files, 171 passed, 46 skipped, 0 failed -- matches BACKEND-DEV's reported figures exactly.\n\nNo new npm workspace, no apps/* rename, no build-output directory moved by this commit -- it only restores lockfile entries and adds the already-reviewed qrcode/jsqr/pngjs transitive deps. Per my role file's trigger condition, no scratch `docker build -t <scratch-tag> .` is required for this re-gate.\n\nSECURITY-REVIEWER, TEST-DESIGNER, TEST-DESIGN-VALIDATOR, TEST-RUNNER, and RELEASE-VALIDATOR's prior PASSes were all against the application code, which this commit does not touch at all -- their findings stand unweakened. This re-gate exists solely to confirm the lockfile fix is genuinely infrastructure-only and that the test suite still runs green end to end from a clean install, matching what CI now reports.",
+    "evidence": {
+      "commands": [
+        "git show 5a56bad --stat -> 2 files changed: package-lock.json, handoffs/WF02-REQ-024/step-02-backend-dev-rework1.json -- no application code",
+        "git diff 5a56bad~1..5a56bad -- package-lock.json -> read in full, every hunk is a platform-optional-dependency restoration or install dedup noise",
+        "git diff master...HEAD -- apps/bot/src apps/web/src -> confirms the cumulative requirement diff under src trees is unchanged by 5a56bad, identical to what was reviewed at the original Step 2b/2c PASS",
+        "grep -c '\"@esbuild/' package-lock.json -> 26 (branch), 26 (master, via git show master:package-lock.json)",
+        "grep -c '\"@rolldown/binding-' package-lock.json -> 15 (branch), 15 (master)",
+        "grep -c 'lightningcss' package-lock.json -> 12 (branch), 12 (master)",
+        "npm ci (repo root, clean) -> exit 0, 590 packages added, 0 vulnerabilities, no missing-binding errors",
+        "npm run lint (repo root) -> exit 0, 0 errors, 2 pre-existing unrelated apps/web warnings",
+        "npm run build (repo root) -> exit 0, both workspaces clean",
+        "npx vitest run --no-file-parallelism (repo root) -> 19 files / 171 passed, 46 skipped, 0 failed"
+      ],
+      "lockfile_only_confirmed": "CONFIRMED -- commit 5a56bad touches only package-lock.json and its own handoff bookkeeping file; zero application code (apps/bot/src/**, apps/web/src/**) changed",
+      "platform_entry_counts_match_master": "CONFIRMED -- 26 @esbuild/*, 15 @rolldown/binding-*, 12 lightningcss entries on both the branch and master, counted independently rather than trusted from the commit message",
+      "clean_install_and_suite_green": "CONFIRMED -- npm ci succeeds from a clean node_modules; lint/build/vitest all pass locally, matching CI's reported green state exactly (171 passed, 46 skipped, 0 failed)"
+    },
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": "Route directly to RELEASE-VALIDATOR for a final confirmation pass, since SECURITY-REVIEWER/TEST-DESIGNER/TEST-DESIGN-VALIDATOR/TEST-RUNNER's prior PASSes were all against application code that is unchanged by this lockfile-only fix -- only re-confirm the test suite still runs green end to end."
+  }
+}
