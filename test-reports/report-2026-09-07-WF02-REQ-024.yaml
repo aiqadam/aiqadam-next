@@ -1,0 +1,198 @@
+run_id: WF02-REQ-024
+workflow_id: WF-02
+step: "04"
+agent: TEST-RUNNER
+requirement_id: REQ-024
+branch: feature/WF02-REQ-024
+commit: ad6a003c126035347dab1c4c3b8ff1998c127fd1
+executed_at: "2026-09-07T08:58:59Z"
+verdict: PASS
+
+static_checks:
+  lint:
+    command: npm run lint
+    result: PASS
+    detail: >
+      0 errors. 2 pre-existing warnings (apps/web/src/components/landing/Footer.tsx:11,
+      apps/web/src/components/landing/Nav.tsx:10 -- @next/next/no-img-element),
+      unrelated to this diff.
+  build:
+    command: npm run build
+    result: PASS
+    detail: >
+      apps/web (next build): compiled successfully, static pages generated.
+      apps/bot (tsc -p tsconfig.json): clean, no errors.
+  environment_note: >
+    Repo-root `npm install` (to pull the new qrcode/jsqr/pngjs deps into
+    apps/bot/node_modules) exposed a pre-existing local npm optional-dependency
+    bug: `npx vitest run` failed at startup with "Cannot find module
+    '@rolldown/binding-wasm32-wasi'" (npm/cli#4828 -- Windows host missing the
+    correct native rolldown binding). Fixed locally with
+    `npm i --no-save rolldown`, which resolved the win32-x64-msvc binding.
+    git status was clean before and after (no package.json/package-lock.json
+    change) -- this was a local-environment fix, not a dependency change, and
+    does not affect Linux CI.
+
+vitest_repo_root:
+  command: npx vitest run --no-file-parallelism
+  run_from: repo root (c:\Users\tvolo\dev\aiqadam-next)
+  runs: 2
+  result: PASS
+  test_files: 19
+  tests_passed: 217
+  tests_failed: 0
+  note: >
+    Run twice (before and after the live-dispatch harness, each preceded by a
+    fixture-table cleanup DELETE) -- identical 19/217/0 both times. This is the
+    authoritative repo-root count for this run, not carried over from any
+    earlier step's report.
+
+targeted_reruns:
+  - command: npx vitest run --no-file-parallelism src/domain/qr.test.ts
+    run_from: apps/bot
+    result: PASS
+    tests: "2 passed"
+  - command: npx vitest run --no-file-parallelism src/handlers/my.test.ts -t "AC1"
+    run_from: apps/bot
+    result: PASS
+    tests: "1 passed | 2 skipped"
+  - command: npx vitest run --no-file-parallelism src/handlers/my.test.ts -t "AC2"
+    run_from: apps/bot
+    result: PASS
+    tests: "1 passed | 2 skipped"
+  - command: npx vitest run --no-file-parallelism src/handlers/my.test.ts -t "AC3"
+    run_from: apps/bot
+    result: PASS
+    tests: "1 passed | 2 skipped"
+  - command: npx vitest run --no-file-parallelism src/handlers/my.test.ts -t "AC4"
+    run_from: apps/bot
+    result: PASS
+    tests: "1 passed | 2 skipped"
+
+live_dispatch_harness:
+  file: apps/bot/scratch-verify-req024.ts (written, executed via npx tsx, deleted at end of run -- not committed)
+  scratch_postgres: apps/bot/docker-compose.yml (host port 55432), migrated via npx drizzle-kit migrate
+
+  AC1:
+    title: "3-user privacy scan, 14 needles across full profiles column breadth"
+    result: PASS
+    detail: >
+      Fixture: capacity-1 event X (SECRET admitted via real register: callback,
+      fills the seat), capacity-0 event Y (SECRET waitlisted), VIEWER waitlisted
+      on event X, BYSTANDER with zero registrations. SECRET's full profile
+      (firstName/lastName/company/phone/email plus position/isStudent/
+      experienceLevel/linksGithub/linksLinkedin/linksSite/publicBio) populated.
+      Scanned VIEWER's full captured payload set (photo key stripped) for all
+      14 needles (10 identifying values, tgId, 2 registrationIds) plus SECRET's
+      qr_token as a 15th corroborating check -- zero found. BYSTANDER's single
+      reply was exactly catalog.my.emptyState via sendMessage, no photo key.
+
+  AC2:
+    title: "Live waitlist position recompute via REQ-023 auto-promotion (not a direct waitlist withdrawal)"
+    result: PASS
+    detail: >
+      Capacity-1 event: SEATHOLDER admitted, AHEAD waitlisted position 1,
+      VIEWER waitlisted position 2 (all via real register: callbacks). VIEWER's
+      /my row read "Ваша позиция: 2" before. Real /withdraw <eventId> command
+      dispatched for SEATHOLDER, confirm button parsed from the real reply,
+      withdraw:confirm:<id> callback dispatched. Precondition check confirmed
+      AHEAD auto-promoted to admitted (REQ-023's promoteFromWaitlistIfEligible
+      path, not AHEAD withdrawing themselves). VIEWER's /my row then read
+      "Ваша позиция: 1". VIEWER's own registration row's updated_at was
+      byte-identical (2026-09-07T08:58:12.688Z, ISO-string compared) before and
+      after; admission remained exactly 'waitlisted'.
+
+  AC3:
+    title: "Two admitted rows in one reply, each photo decodes to its own token (real jsqr+pngjs)"
+    result: PASS
+    detail: >
+      MEMBER registered for two distinct capacity-1 events via real register:
+      callbacks, producing two distinct 64-hex-char qr_tokens (confirmed
+      non-equal). /my produced exactly 3 sends (header + 2 sendPhoto, 0
+      sendMessage). Decoded each photo's raw PNG buffer with real jsqr+pngjs:
+      first photo (event TWO, most recently created, returned first per
+      created_at DESC ordering) decoded to exactly
+      "https://t.me/test_bot?start=ci_<tokenTwo>"; second photo (event ONE)
+      decoded to exactly "https://t.me/test_bot?start=ci_<tokenOne>" -- no
+      cross-row token mix-up.
+
+  AC4:
+    title: "All 4 non-admitted AdmissionState values including 'requested'"
+    result: PASS
+    detail: >
+      4 direct-insert registrations (requested/waitlisted/withdrawn/rejected)
+      across 4 events for one user. /my produced exactly 5 sends (header + 4
+      rows), 0 sendPhoto calls among them. Each of the 4 status labels
+      (statusRequested/statusWaitlisted/statusWithdrawn/statusRejected)
+      appeared in its own row's text.
+
+  AC5:
+    title: "Single shared QR renderer, no inline duplication (structural)"
+    result: PASS
+    detail: >
+      grep of apps/bot/src/handlers/my.ts: exactly one
+      `import { renderCheckInQrPng } ... from "../domain/qr.js"` line, exactly
+      one call site (`renderCheckInQrPng({ botUsername: ..., qrToken: row.qrToken })`),
+      zero occurrences of QRCode / the string literal "qrcode" / "?start=ci_"
+      elsewhere in my.ts. Codebase-wide grep of "?start=ci_" in apps/bot/src
+      (excluding *.test.ts) returned 2 lines, both inside
+      apps/bot/src/domain/qr.ts (the real template-literal construction plus a
+      header comment describing the same format) -- zero occurrences outside
+      qr.ts.
+    note: >
+      MINOR wording deviation from the spec's literal "exactly one line"
+      pass condition (2 lines returned, not 1) -- both lines are within the
+      single allowed file, so the drift-prevention intent (no duplicated
+      encoding site) is fully satisfied; the comment line is not code
+      duplication. Filed as a MINOR issue in the step-04 handoff recommending
+      TEST-DESIGNER tighten the wording on a future revision. Not treated as a
+      FAIL.
+
+  AC_empty:
+    title: "Zero-registration user gets a graceful empty-state reply"
+    result: PASS
+    detail: >
+      FRESH user (no registrations rows at all) dispatched /my. Exactly 1
+      send, method sendMessage, text exactly catalog.my.emptyState ("У вас
+      пока нет регистраций. Посмотрите /events, чтобы найти мероприятие." --
+      ru, matching the harness's seeded lang), not catalog.my.header, no
+      reply_markup, no photo key. bot.handleUpdate resolved without throwing.
+
+structural_checks:
+  AC_schema:
+    command: git diff master...HEAD --stat -- apps/bot/drizzle
+    result: PASS
+    detail: "Zero output -- no migration files introduced."
+  AC_deps:
+    command: grep -n '"qrcode"\|"jsqr"\|"pngjs"\|"@types/qrcode"\|"@types/pngjs"' apps/bot/package.json
+    result: PASS
+    detail: >
+      qrcode:1.5.4 under dependencies; jsqr:1.4.0, pngjs:7.0.0,
+      @types/pngjs:6.0.5, @types/qrcode:1.5.6 under devDependencies. Second
+      check (grep -rn "jsqr\|pngjs" apps/bot/src --include=*.ts | grep -v
+      '.test.ts') returned no output -- no decode tooling leaked into
+      production code.
+  AC_catalog:
+    command: grep -n "header:\|emptyState:\|withdrawButton:" apps/bot/src/i18n/types.ts apps/bot/src/i18n/ru.ts apps/bot/src/i18n/en.ts
+    result: PASS
+    detail: >
+      my.* section present with exactly the 3 keys (header, emptyState,
+      withdrawButton) in all three files; en.ts's values verbatim-matched this
+      run's own live-dispatch output ("Your registrations:" /
+      "You have no registrations yet. Check /events to find one." /
+      "Withdraw").
+
+issues:
+  - severity: MINOR
+    description: >
+      AC5's codebase-wide grep for "?start=ci_" returns 2 lines rather than
+      the spec's literally-stated "exactly one line" -- both are inside
+      domain/qr.ts (one code, one comment). No functional gap; recommend
+      TEST-DESIGNER tighten the wording on a future spec revision.
+
+teardown:
+  scratch_harness_deleted: true
+  docker_compose_down_v: true
+  git_status_porcelain_clean: true
+
+routing_decision: "PASS -> RELEASE-VALIDATOR (Step 5)"
