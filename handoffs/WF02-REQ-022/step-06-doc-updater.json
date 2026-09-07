@@ -1,0 +1,19 @@
+{
+  "handoff_id": "step-06-doc-updater",
+  "run_id": "WF02-REQ-022",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "ORCH",
+  "to_agent": "DOC-UPDATER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "REQ-022 (withdraw from a registration and free the seat, GitHub issue #25, fourth requirement of Phase 4) had RELEASE-VALIDATOR PASS at Step 5 (commit 7abf0d1, 'chore(handoff): WF02-REQ-022 release validation -- PASS'). Verified the factual claims directly against the real code before writing the status-history note, rather than trusting the task prompt's summary: read apps/bot/src/domain/registration.ts directly and confirmed decideWithdrawOutcome() is a pure first-match-wins table (not-found -> not-owner -> checked-in -> not-eligible -> withdrawn) and withdrawRegistration() performs a SELECT ... FOR UPDATE fresh re-read, decides, and on 'withdrawn' does exactly one UPDATE (admission column only) plus exactly one writeAuditLog call in the same transaction, with every non-withdrawn outcome returning before either write. Read apps/bot/src/handlers/withdraw.ts directly and confirmed the standalone /withdraw <event_id> entry point (interim, since /my/REQ-024 doesn't exist yet), the two-step confirm/cancel inline-keyboard UX, and that makeWithdrawCancelCallbackHandler makes zero domain calls (dismissal-leaves-admission-unchanged true by construction). Read registerForEvent() in the same file (lines 109-248) directly and confirmed the row-reuse-via-UPDATE mechanism precisely: the existing-registration SELECT now also selects `id`; a withdrawn row's admission is normalized to null before decideRegistrationOutcome() (unchanged function) while its id is captured separately and used to branch to an UPDATE (admission/source/qr_token only, id/created_at untouched) instead of INSERT -- confirmed this stays inside the same FOR UPDATE-locked transaction span REQ-020 established (no new lock, no new transaction boundary). Confirmed no schema change (git diff master...HEAD shows no new drizzle migration file). Confirmed docs/agents/requirements.yaml's REQ-022 entry (description + 5 acceptance criteria) already matched the shipped mechanism exactly -- no content correction needed. Confirmed ISS-0019 (docs/issues/ISS-0019.yaml) is two test-spec fixture/count issues only, non-blocking, already filed.\n\nActions taken:\n1. Flipped docs/agents/requirements.yaml's REQ-022 entry status: pending -> done (matches REQ-021's exact convention -- no other field changed).\n2. Appended one 'done' event to docs/status/requirement_status.yaml (append-only; read the full file first; `git diff --numstat` confirmed 5 insertions / 0 deletions on this file before committing, and 1 insertion / 1 deletion on requirements.yaml from the single-line status flip).\n3. Checked README.md (grep for withdraw/registration/apps-bot terms) -- still contains no bot-flow-specific content beyond the one generic apps/bot description line from REQ-009's doc-update step, so no README update was made -- same checked-then-skipped pattern as every prior bot requirement (REQ-010 through REQ-021).\n4. Checked docs/ for an existing bot-command-reference doc (Glob for '**/*command*') -- none exists anywhere in the repo outside node_modules, consistent with the established pattern noted at REQ-018 through REQ-021's doc-update steps, so none was created here.\n5. Did NOT add a 'Phase 4 complete' marker -- REQ-022 is the FOURTH requirement of Phase 4 (REQ-023 auto-promotion and REQ-024 /my remain), not the last.",
+    "issues": [],
+    "artifacts_out": [
+      "docs/agents/requirements.yaml",
+      "docs/status/requirement_status.yaml"
+    ],
+    "next_action": "Route to Step Final (git merge)"
+  }
+}

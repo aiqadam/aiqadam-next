@@ -1148,7 +1148,7 @@ requirements:
   - id: REQ-022
     title: Withdraw from a registration and free the seat
     owner: BACKEND-DEV
-    status: pending
+    status: done
     description: >
       Fourth slice of PRD 14 build-order step 3. Implements USER-STORIES B5 /
       STORY-DETAILS B5 (Change my mind). Sequenced before REQ-023's auto-promotion
