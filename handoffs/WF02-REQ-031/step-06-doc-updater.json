@@ -1,0 +1,30 @@
+{
+  "handoff_id": "step-06-doc-updater",
+  "run_id": "WF02-REQ-031",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "RELEASE-VALIDATOR",
+  "to_agent": "FRONTEND-DEV",
+  "status": "COMPLETED",
+  "started_at": "2026-09-07T21:01:37Z",
+  "completed_at": "2026-09-07T21:01:37Z",
+  "context": {
+    "requirement_id": "REQ-031",
+    "branch_name": "feature/WF02-REQ-031",
+    "commit_evaluated": "5d152da",
+    "related_handoff_ids": [
+      "step-05-release-validator"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "RELEASE-VALIDATOR PASSed REQ-031 (post-event feedback request with NPS, what-worked/what-to-improve comments, topic votes, one T+24h reminder, and the once-only broadcast opt-in ask -- PRD FR-8, USER-STORIES/STORY-DETAILS D1, PRD 13 acceptance criterion 9) with all 7 acceptance criteria independently re-verified against actual code and actual test assertions (not TEST-RUNNER's report), lint/build/tests re-run fresh and green (33/33 test files, 316/316 tests), scope clean (zero diff on staff.ts), and both filed issues (ISS-0027, ISS-0028) confirmed non-blocking. Flipped docs/agents/requirements.yaml's REQ-031 entry from status: pending to status: done. Appended one 'done' event to docs/status/requirement_status.yaml (append-only; git diff --numstat confirmed 0 deletions on both edited files before this handoff). README.md rechecked (grep for feedback/nps/broadcast_opt_in/apps-bot terms): still contains no bot-flow-specific content beyond the one generic apps/bot description line from REQ-009's doc-update step -- no update warranted, matching the established pattern for every prior bot requirement (REQ-010 through REQ-030). No standalone bot-command-reference doc exists in docs/ (checked via Glob for '**/*command*', matches only inside node_modules) -- none created. Release 1 is NOT yet complete: REQ-032 (no-show reason capture, depends_on REQ-031) remains pending -- no 'Phase/Release complete' marker added, per explicit task instruction to treat this as REQ-031 only.",
+    "artifacts_out": [
+      "docs/agents/requirements.yaml",
+      "docs/status/requirement_status.yaml",
+      "handoffs/WF02-REQ-031/step-06-doc-updater.json"
+    ],
+    "issues": [],
+    "next_action": "Route to ORCH for merge (Step Final)"
+  }
+}

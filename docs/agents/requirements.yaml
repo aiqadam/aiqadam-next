@@ -1566,7 +1566,7 @@ requirements:
   - id: REQ-031
     title: Post-event feedback request with NPS, comments and topic votes
     owner: BACKEND-DEV
-    status: pending
+    status: done
     description: >
       First slice of PRD 14 build-order step 6 ("Feedback / NPS + no-show reasons"),
       the final step of Release 1. Implements PRD FR-8, USER-STORIES D1 /
