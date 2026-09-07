@@ -1,0 +1,52 @@
+{
+  "handoff_id": "step-04-test-designer",
+  "run_id": "ISS-0020",
+  "workflow_id": "WF-03",
+  "step": "04",
+  "from_agent": "TEST-DESIGNER",
+  "to_agent": "TEST-DESIGN-VALIDATOR",
+  "file": "handoffs/ISS-0020/step-04-test-designer.json",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "issue_id": "ISS-0020",
+    "related_handoff_ids": [
+      "step-01-issue-fixer",
+      "step-02-code-designer",
+      "step-02b-code-design-validator",
+      "step-03-backend-dev",
+      "step-03b-reviewer",
+      "step-03c-security-reviewer-rework1"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/ISS-0020-fix.md",
+      "apps/bot/src/handlers/staff.ts",
+      "apps/bot/src/domain/user.ts",
+      "apps/bot/src/domain/eventStaff.ts"
+    ]
+  },
+  "task": {
+    "description": "Write a WF-03 Step 4 regression test spec + real vitest test code for ISS-0020's fix (blocked-user notification skip in staff.ts's add/remove handlers, reworked to close SEC-1's timing side-channel). Must include the fail-then-pass proof (checked out pre-fix commit 09377bd, ran the case, confirmed FAIL; ran again post-fix at 850726d, confirmed PASS) since this is a fix to existing, specified behavior (S10), not new surface.",
+    "acceptance_criteria": [
+      "A blocked target added as EventStaff never receives a Telegram sendMessage, but the staff row is still created and the organizer is told delivery failed.",
+      "Same for the remove handler (blocked target removed as EventStaff).",
+      "A non-blocked target added/removed as EventStaff still receives the real notification exactly as before, in both handlers (non-regression).",
+      "A meaningful, non-flaky verification of the SEC-1 timing-cover mechanism (ctx.api.getMe() actually invoked on the blocked path), with an explicit justification for why a wall-clock timing assertion was NOT used.",
+      "The regression cases are shown to FAIL against pre-fix code (09377bd) and PASS against post-fix code (850726d) -- actual command output quoted, not asserted from memory.",
+      "A genuinely fresh tg_id range, verified against every existing test file's nextTgId value in apps/bot/src/**."
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Wrote apps/bot/src/handlers/staff.test.ts (new file -- no prior test file existed for staff.ts) with 4 test cases across 4 describe blocks, following the same real-grammY-dispatch (bot.handleUpdate() + bot.api.config.use capturing transformer) infrastructure as apps/bot/src/handlers/withdraw.test.ts and event.dispatch.test.ts. Wrote docs/agents/test-specs/ISS-0020.md documenting all 4 cases with exact route/setup/expected, the tg_id range decision, the timing-cover decision, and a 'what wrong implementation each case would catch' table.\n\ntg_id range: grepped `nextTgId`/`let nextTgId =` across every *.test.ts in apps/bot/src/**. Highest existing range found: apps/bot/src/domain/notification.test.ts at 1_000_000_900 (higher than noShow.db.test.ts's 996_000_000, which is the ceiling REQ-032 itself claimed -- that claim was already stale). Claimed 1_010_000_000+ in staff.test.ts, clear of every range found including notification.test.ts's.\n\nFail-then-pass proof, actually executed (not deferred): (1) `git worktree add ../aiqadam-prefix-check 09377bd` (pre-fix commit, before this branch's first ISS-0020 implementation at 7585829). (2) Diffed apps/bot/package.json and root package.json between 09377bd and current tip -- byte-identical dependency sets, so symlinked the worktree's root node_modules to the main repo's rather than reinstalling. (3) Copied staff.test.ts unchanged into the worktree and ran `TEST_DATABASE_URL=postgres://bot:bot@localhost:55432/bot npx vitest run apps/bot/src/handlers/staff.test.ts --no-file-parallelism` against the local scratch Postgres (apps/bot/docker-compose.yml, already running). Result: 2 failed, 2 passed. Both regression cases FAILED with the blocked target's own tgId literally appearing in the sendMessage chat_ids list (e.g. `AssertionError: expected [ 1010000001, 1010000000 ] to not include 1010000001`) -- direct, literal proof that a blocked user WOULD have received a real Telegram message under pre-fix code, exactly ISS-0020's reported defect. The two non-regression cases passed pre-fix too, as expected (that code path was never broken). (4) Removed the worktree (`git worktree remove ../aiqadam-prefix-check --force`) -- no pre-fix artifact committed. (5) Ran the identical file against the post-fix branch tip (850726d, current fix/ISS-0020 HEAD): 4 passed, 0 failed -- all 4 cases, including the 2 regression cases, now pass.\n\nTiming-cover decision: chose a STRUCTURAL assertion (captured.map(c => c.method) contains \"getMe\" on the blocked path) over a wall-clock timing assertion. Justification (full version in the test-spec doc): the test harness's bot.api.config.use transformer resolves every method on the same immediately-resolved-Promise tick -- there is no real network round-trip in this environment, so any measured wall-clock delta would be pure test-harness/event-loop noise, not a signal correlated with the real Telegram-API-latency property SECURITY-REVIEWER's finding was about. It would also be unable to actually discriminate the FAILed pre-rework shape reliably, since both the zero-await and one-await paths complete in a negligible, similarly-noisy number of milliseconds under the fake transformer. What IS reliably, deterministically checkable here is whether the code took the branch that performs the equalizing Bot API call at all -- which is exactly what the FAILed guard-clause shape (return before entering the try block, no getMe() call) would have failed to do. Stated this as a falsifiable claim in the test-spec: if the guard-clause shape were reintroduced, the getMe-presence assertion fails immediately, independent of timing.\n\nAll 4 verification commands re-run by me (not asserted from memory) as part of writing this spec: `npx vitest run apps/bot/src/handlers/staff.test.ts --no-file-parallelism` at both 09377bd (2 failed/2 passed) and 850726d (4 passed/0 failed), plus the debug run isolating the chat_id payload shape (numeric, not string -- corrected the test's comparisons from `.toString()` to plain numbers after discovering this via a one-off debug run, since grammY's actual outgoing payload uses a numeric chat_id, not the withdraw.test.ts precedent's string comparison, which happened to also work there only because that file also compares against `.toString()` -- re-verified `payload[\"chat_id\"]` is numeric by inspecting captured output directly, not assumed from another file's convention).",
+    "artifacts_out": [
+      "apps/bot/src/handlers/staff.test.ts",
+      "docs/agents/test-specs/ISS-0020.md",
+      "handoffs/ISS-0020/step-04-test-designer.json"
+    ],
+    "issues": [],
+    "next_action": "Route to TEST-DESIGN-VALIDATOR to check docs/agents/test-specs/ISS-0020.md and apps/bot/src/handlers/staff.test.ts for coverage gaps before TEST-RUNNER executes the full suite (which must independently confirm dbAvailable was true, not silently skipped, and must run with --no-file-parallelism per ISS-0014)."
+  },
+  "rework_count": 0,
+  "max_rework": 3
+}
