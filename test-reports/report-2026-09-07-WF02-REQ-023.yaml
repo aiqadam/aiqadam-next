@@ -1,0 +1,186 @@
+run_id: WF02-REQ-023
+requirement: REQ-023
+title: "Waitlist auto-promotion on a freed seat, halting at T-24h"
+branch: feature/WF02-REQ-023
+commit: aa15676
+test_spec: docs/agents/test-specs/REQ-023.md
+executed_by: TEST-RUNNER
+executed_at: "2026-09-07T07:51:43Z"
+overall_status: PASS
+
+static_checks:
+  lint:
+    status: PASS
+    summary: "0 errors. 2 pre-existing, unrelated warnings in apps/web (Footer.tsx:11, Nav.tsx:10 -- no-img-element LCP warnings), untouched by this diff."
+  build:
+    status: PASS
+    summary: "apps/web (next build, Turbopack): compiled successfully, TypeScript clean, static pages generated. apps/bot (tsc -p tsconfig.json): clean, zero errors."
+  vitest_full_repo_root:
+    status: PASS
+    command: "npx vitest run --no-file-parallelism (run from repo root)"
+    result: "17 test files passed (17), 212 tests passed (212), 0 failed. Duration 12.48s."
+    note: "This is the authoritative, freshly-run repo-root count for this run -- not carried over from any earlier step, per ISS-0014/TEST-RUNNER instructions."
+
+domain_level_reruns:
+  req023_registration_db_test:
+    command: 'cd apps/bot && npx vitest run --no-file-parallelism src/domain/registration.db.test.ts -t "REQ-023"'
+    result: "14 passed | 31 skipped (45), exit 0"
+    covers: "AC1, AC2, AC3, AC4 (20-iter single race), AC5 (x2), AC7 (x2), decidePromotionEligibility unit table"
+  req023_withdraw_ac6:
+    command: 'cd apps/bot && npx vitest run --no-file-parallelism src/handlers/withdraw.test.ts -t "REQ-023 AC6"'
+    result: "1 passed | 5 skipped (6), exit 0"
+  req023_withdraw_s10:
+    command: 'cd apps/bot && npx vitest run --no-file-parallelism src/handlers/withdraw.test.ts -t "S10 rework"'
+    result: "1 passed | 5 skipped (6), exit 0"
+
+acceptance_criteria:
+  AC1:
+    status: PASS
+    description: "Earliest-created waitlisted registration promoted; other two provably untouched."
+    evidence: |
+      Domain-level re-run: exit 0.
+      Live-dispatch case (scratch-verify-req023.ts): 4 users registered via real register: callbacks
+      (capacity=1, event 48h out) -- 1 admitted (tg 1000000610), 3 waitlisted (A=1000000611,
+      B=1000000612, C=1000000613). created_at forced to A < B < C. Admitted user withdrew via a
+      real /withdraw + withdraw:confirm dispatch.
+      Result: exactly 2 sendMessage calls after confirm -- one to chat_id "1000000611" (A, the
+      promotion notification, text starting "A seat opened up -- you're in!") and one to the
+      withdrawer's own chat (confirmedReply). No third send to B's or C's chat.
+      Read-back: A admission='admitted' with fresh 64-hex qr_token
+      (337cbf71...a220f82). B and C: admission='waitlisted', qr_token=null, updated_at
+      byte-identical to their pre-withdrawal captured values (2026-09-07 07:50:51.577083+00 and
+      .588225+00 respectively) -- both provably untouched.
+
+  AC2_and_boundary:
+    status: PASS
+    description: "T-24h halt (12h-out re-run) plus the exact T-24h boundary instant, both pure-function and live-dispatch."
+    evidence: |
+      Domain-level 12h-out re-run: exit 0 (covered by the req023_registration_db_test run above).
+      AC2-boundary pure-function test (scratch-verify-req023-boundary.ts, npx tsx, no DB):
+        isAutoPromotionHalted(exactly T-24h, eval) -> true (expected true)
+        isAutoPromotionHalted(T-24h+1s remaining, eval) -> false (expected false)
+        isAutoPromotionHalted(23h59m59s remaining, eval) -> true (expected true)
+      All three match the design's `<=` boundary rule exactly -- no off-by-one.
+      Live-dispatch corroboration: event's starts_at set to exactly capturedNow + 24h; withdrawal
+      dispatched a few ms later (still <= 24h before starts_at, i.e. still halted). Result: exactly
+      1 sendMessage after confirm (the withdrawer's own confirmedReply only -- no promotion
+      notification). Waitlisted candidate's admission still 'waitlisted'; admitted count for the
+      event = 0 (freed seat stayed free).
+
+  AC3:
+    status: PASS
+    description: "Empty waitlist -> withdrawal completes with no error, no promotion."
+    evidence: |
+      Domain-level re-run: exit 0.
+      Live-dispatch case: register then /withdraw + confirm for a lone admitted user, no waitlist.
+      bot.handleUpdate resolved without throwing. Exactly 1 sendMessage (confirmedReply, exact
+      text "You've withdrawn. Your seat has been freed."). audit_log: exactly 1
+      registration.withdraw row for the registration, 0 registration.promote rows globally.
+
+  AC4:
+    status: PASS
+    description: "Promotion racing a fresh registration for the same freed seat never over-admits (this spec's own 5-iteration, capacity=3, dual-withdrawal/dual-registration, full-dispatch configuration)."
+    evidence: |
+      Domain-level 20-iteration single-race re-run: exit 0 (covered above).
+      This spec's own concurrency case (scratch-verify-req023-ac4.ts): 5 iterations, each with a
+      fresh chapter/event (capacity=3), 3 admitted seat-holders (seatA/B/C), 2 waitlisted
+      candidates (W1 < W2 by created_at), then 4 concurrent bot.handleUpdate dispatches via
+      Promise.all: withdraw:confirm for seatA, withdraw:confirm for seatB, and register: for two
+      brand-new users -- 4 contenders for 2 freed seats.
+      Result, every one of the 5 iterations: admitted count for the event = exactly 3 (never 4,
+      never <3). Full per-iteration tgId results:
+        iter 0: admitted=[...703,704,705] (seatC + W1 + W2)
+        iter 1: admitted=[...713,714,715] (seatC + W1 + W2)
+        iter 2: admitted=[...723,724,725] (seatC + W1 + W2)
+        iter 3: admitted=[...733,734,735] (seatC + W1 + W2)
+        iter 4: admitted=[...743,744,745] (seatC + W1 + W2)
+      SECONDARY OBSERVATION (per spec's own instruction to report this): in all 5 iterations the
+      waitlisted candidates (W1, W2) won both freed seats and neither of the two fresh registrants
+      ever won a seat -- an identical winner pattern every time. Per the spec's own text this is
+      "a possible sign the race isn't being genuinely exercised" but "not automatic grounds for a
+      FAIL if the admitted-count invariant itself holds every time," which it does, all 5/5. Likely
+      cause: in this in-process mock-Telegram harness (no real network latency), the withdraw
+      handler's promotion path and the register handler's capacity check both execute fast
+      in-process, but Promise.all's array order (withdraws listed before registers) combined with
+      Postgres's FOR UPDATE row-lock ordering on the events row appears to consistently let the two
+      withdraw-triggered promotion transactions acquire the lock first every time. The admitted-count
+      invariant (the actual acceptance criterion) is not weakened by this -- flagging per spec's own
+      instruction, not as a FAIL.
+
+  AC5:
+    status: PASS
+    description: "Promotion into a cancelled event refused; withdrawer's own reply unaffected."
+    evidence: |
+      Domain-level re-run: exit 0.
+      Live-dispatch case: event cancelled via direct SQL (simulating /event_cancel) after a seat
+      was filled and a candidate waitlisted, before the withdrawal. Withdrawal dispatched via real
+      /withdraw + confirm. Result: exactly 1 sendMessage (confirmedReply, unaffected/unchanged
+      text) -- no promotion notification. Waitlisted candidate's admission still 'waitlisted'; 0
+      registration.promote audit rows.
+
+  AC6:
+    status: PASS
+    description: "Promoted person notified regardless of broadcast_opt_in=false."
+    evidence: "Existing dispatch-level test re-run: 1 passed, exit 0. No additional case needed per spec (already dispatch-level); independently corroborated by AC1/AC4/AC7/AC8's own sendMessage-to-promoted-chat evidence above."
+
+  AC7:
+    status: PASS
+    description: "Exactly one audit row per promotion; running the promotion path twice for a genuinely-freed-then-refilled seat sends exactly one notification."
+    evidence: |
+      Domain-level re-run (genuine-promotion audit-count case + never-freed capacity-full case):
+      exit 0.
+      This spec's own case: seat genuinely freed via real /withdraw + confirm dispatch.
+      beforeAuditCount=2 (the 2 original registration.admit rows) -> afterAuditCount=4 (+2:
+      withdraw + promote). Exactly 1 sendMessage to the promoted candidate's chat
+      (chat_id "1000000671") plus 1 to the withdrawer. Promoted candidate's admission='admitted'.
+      Second run: promoteFromWaitlistIfEligible(db, eventId, new Date()) called directly a second
+      time against the SAME now-refilled event -> returned { kind: "capacity-full" }. audit_log
+      count unchanged at 4 (zero new rows). Structural argument (per design's single
+      sendPromotionNotification call site gated on outcome.promotion.kind === "promoted") confirmed
+      against the actual source at apps/bot/src/handlers/withdraw.ts line 140-148: the second run's
+      capacity-full outcome cannot reach that call site even if routed through the full handler.
+
+  AC8:
+    status: PASS
+    description: "Blocked promoted user: promotion completes at the DB level (admitted, audit row, fresh qr_token), but sends no notification; does not misroute to a substitute candidate."
+    evidence: |
+      Existing dispatch-level S10 test re-run: 1 passed, exit 0.
+      This spec's own multi-candidate case (capacity=2, blocked candidate earliest-created,
+      non-blocked candidate later): withdrew one of two admitted seats. Result: exactly 1
+      sendMessage after confirm (the withdrawer's own confirmedReply only) -- zero sends to the
+      blocked candidate's chat (1000000682) and zero to the non-blocked candidate's chat (1000000683).
+      Read-back: blocked candidate admission='admitted' with fresh 64-hex qr_token
+      (62f24eaf...e56f2), exactly 1 registration.promote audit row for their own registration.
+      Non-blocked candidate still admission='waitlisted' (correctly not promoted -- only one seat
+      freed, blocked candidate legitimately won the created_at ordering).
+
+  AC_schema:
+    status: PASS
+    description: "No migration introduced."
+    evidence: "git diff master...HEAD --stat -- apps/bot/drizzle produced zero output."
+
+  AC_catalog:
+    status: PASS
+    description: "New Catalog.promotion section present and in parity across types.ts/ru.ts/en.ts."
+    evidence: |
+      grep of admittedPrefix/whatNext/qrLabel across all 3 files:
+        types.ts: whatNext (line 191, registration section), admittedPrefix/whatNext/qrLabel
+          (lines 227-229, promotion section)
+        ru.ts: whatNext (line 173, registration), admittedPrefix/whatNext/qrLabel (lines 205-207,
+          promotion) -- values: "Освободилось место — вы участвуете!" / "Что дальше: ближе к
+          мероприятию вы получите код для входа." / "Ваш код для входа:"
+        en.ts: whatNext (line 166, registration), admittedPrefix/whatNext/qrLabel (lines 198-200,
+          promotion) -- values: "A seat opened up — you're in!" / "What happens next: you'll get a
+          check-in code closer to the event." / "Your check-in code:"
+      admittedPrefix and qrLabel each appear exactly once per file (in the promotion section);
+      whatNext appears exactly twice per file (registration + promotion), matching the spec's
+      expected distinction. en.ts's values match this spec's AC1/AC7/AC8 live-dispatch output
+      verbatim.
+
+teardown:
+  status: PASS
+  detail: "All apps/bot/scratch-verify-req023*.ts files deleted after the run. docker compose down -v torn down the scratch Postgres container/volume/network. git status --porcelain confirmed a clean tree before this report was written."
+
+issues: []
+
+routing_decision: "PASS -- route to RELEASE-VALIDATOR (WF-02 Step 5)"

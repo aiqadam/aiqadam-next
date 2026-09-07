@@ -1184,7 +1184,7 @@ requirements:
   - id: REQ-023
     title: Waitlist auto-promotion on a freed seat, halting at T-24h
     owner: BACKEND-DEV
-    status: pending
+    status: done
     description: >
       Fifth slice of PRD 14 build-order step 3, and PRD 13 acceptance criterion 4.
       Implements USER-STORIES B4 / STORY-DETAILS B4 (Get in when a seat frees up) and
@@ -1212,9 +1212,15 @@ requirements:
       - The promotion notification is transactional (PRD 9) and therefore ignores
         broadcast_opt_in (security-invariants.md S10). It must not double-send if the
         promotion path runs twice — the idempotency ledger is REQ-025; until it lands,
-        this requirement guarantees at-most-once by making the promotion write and the
-        send-marker part of the same transaction, and the design artefact states this
-        so REQ-025 can later replace it rather than duplicate it.
+        this requirement guarantees at-most-once WITHOUT a new "send-marker" column: the
+        promoted row's own admission='admitted' transition is the guard (a promoted row
+        can never again match the waitlisted-row selection filter, so a re-run against an
+        already-refilled event structurally finds no capacity and no eligible candidate,
+        takes no action, and sends nothing). The design artefact states this mechanism
+        explicitly, plus its scope boundary (a crash between commit and the Telegram send
+        itself is a separate, still-open at-least-once-delivery gap left for REQ-025's
+        persistent ledger to close), so REQ-025 can later replace it rather than
+        duplicate it.
       - Each promotion writes exactly one AuditLog row (PRD 12.7, S8).
     acceptance_criteria:
       - "With an event 48h out, capacity full, and three waitlisted registrations created at distinct times, an admitted person withdrawing promotes exactly the EARLIEST-created waitlisted registration to admitted and notifies them — verified by reading all three rows afterwards and confirming the other two are untouched (PRD 6, STORY-DETAILS B4)."

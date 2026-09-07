@@ -199,4 +199,11 @@ export const ru = {
     refusedNotEligible: "Эта регистрация уже отменена или отклонена.",
     refusedNotFound: "Регистрация не найдена.",
   },
+  // NEW, REQ-023: waitlist auto-promotion notification. Placeholder/minimal
+  // functional copy per decisions/0002 (CONTENT-BA owns final wording).
+  promotion: {
+    admittedPrefix: "Освободилось место — вы участвуете!",
+    whatNext: "Что дальше: ближе к мероприятию вы получите код для входа.",
+    qrLabel: "Ваш код для входа:",
+  },
 } satisfies Catalog;

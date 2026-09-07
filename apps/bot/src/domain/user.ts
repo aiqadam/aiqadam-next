@@ -140,6 +140,44 @@ export async function getUserByTgUsername(
   return rows[0] ?? null;
 }
 
+// docs/agents/design/REQ-023.md §6.1 — resolve the fields the promotion
+// notification (handlers/withdraw.ts) needs, starting FROM an internal
+// users.id rather than a caller's own ctx.from.id: the promoted person is a
+// different Telegram user than the one who triggered the withdrawal. Same
+// join shape as getFlowUserByTgId (users left-joined to chapters for the
+// default-lang fallback), filtered by users.id instead. Plain read, no lock
+// (the authoritative write already committed inside
+// promoteFromWaitlistIfEligible's transaction before this is ever called).
+// security-invariants.md S10: "blocked users are skipped in both
+// [transactional and marketing] cases" -- projecting the flag here is what
+// lets the one call site that sends to this user (sendPromotionNotification)
+// honor that clause; it previously had no way to.
+export interface UserForNotification {
+  tgId: bigint | null;
+  lang: string | null;
+  chapterDefaultLang: string | null;
+  blocked: boolean;
+}
+
+export async function getUserForNotificationById(
+  db: DbClient["db"],
+  userId: string,
+): Promise<UserForNotification | null> {
+  const rows = await db
+    .select({
+      tgId: users.tgId,
+      lang: users.lang,
+      chapterDefaultLang: chapters.defaultLang,
+      blocked: users.blocked,
+    })
+    .from(users)
+    .leftJoin(chapters, eq(users.chapterId, chapters.id))
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
 export async function getUserWithChapterByTgId(
   db: DbClient["db"],
   tgId: bigint,

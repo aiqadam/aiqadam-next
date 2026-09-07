@@ -219,4 +219,13 @@ export interface Catalog {
     refusedNotEligible: string;
     refusedNotFound: string;
   };
+  // NEW, REQ-023: waitlist auto-promotion notification, sent to the promoted
+  // person when a withdrawal frees their seat (design §6.3). Placeholder/
+  // minimal functional copy per decisions/0002 (CONTENT-BA owns final
+  // wording). Ignores broadcast_opt_in entirely (S10: transactional).
+  promotion: {
+    admittedPrefix: string;
+    whatNext: string;
+    qrLabel: string;
+  };
 }

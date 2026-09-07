@@ -1,0 +1,33 @@
+id: ISS-0020
+title: REQ-018's EventStaff assignment notification has the same S10 blocked-user gap REQ-023 just fixed
+discovered_by: REVIEWER
+discovered_in_run: WF02-REQ-023
+discovered_at: "2026-09-07T12:55:00Z"
+severity: MAJOR
+description: >
+  While re-gating WF02-REQ-023's S10 fix (blocked users must be skipped for
+  transactional sends, per security-invariants.md S10), REVIEWER noticed
+  that apps/bot/src/handlers/staff.ts (built in REQ-018, merged well before
+  this run) has the identical gap: its assignment-notification send to a
+  newly-added EventStaff member's chat_id never checks users.blocked, and
+  the lookup function it uses (getUserByTgUsername in
+  apps/bot/src/domain/user.ts) doesn't even project the blocked column --
+  the same missing-projection shape REQ-023's sendPromotionNotification had
+  before this run's fix.
+  This means a blocked user assigned as EventStaff would still receive a
+  Telegram message today, in production, violating S10's "blocked users are
+  skipped" clause -- independently of and predating REQ-023 entirely.
+  docs/agents/design/REQ-023.md section 6.2's claim that its own
+  sendPromotionNotification is "the one" proactive-messaging call site with
+  this gap is factually inaccurate; staff.ts's assignment notification
+  predates it and has the same defect.
+  Recommended fix: apply the identical pattern REQ-023 just established --
+  add blocked: users.blocked to whichever lookup function staff.ts's
+  notification path uses (getUserByTgUsername or a similar accessor), and
+  skip the send silently when the resolved user is blocked, mirroring
+  apps/bot/src/handlers/withdraw.ts's sendPromotionNotification guard.
+affected_files:
+  - apps/bot/src/handlers/staff.ts
+  - apps/bot/src/domain/user.ts
+  - docs/agents/design/REQ-023.md
+status: open
