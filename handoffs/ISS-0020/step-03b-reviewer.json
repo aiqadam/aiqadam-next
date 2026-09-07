@@ -1,0 +1,49 @@
+{
+  "handoff_id": "step-03b-reviewer",
+  "run_id": "ISS-0020",
+  "workflow_id": "WF-03",
+  "step": "03b",
+  "from_agent": "REVIEWER",
+  "to_agent": "TEST-DESIGNER",
+  "file": "handoffs/ISS-0020/step-03b-reviewer.json",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "issue_id": "ISS-0020",
+    "related_handoff_ids": [
+      "step-01-issue-fixer",
+      "step-02-code-designer",
+      "step-02b-code-design-validator",
+      "step-03-backend-dev"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/ISS-0020-fix.md",
+      "apps/bot/src/domain/user.ts",
+      "apps/bot/src/handlers/staff.ts",
+      "docs/agents/instructions/security-invariants.md"
+    ]
+  },
+  "task": {
+    "description": "Review BACKEND-DEV's implementation of ISS-0020's fix (blocked-user notification gap in staff.ts) against docs/agents/design/ISS-0020-fix.md and the REVIEWER checklist, same procedure as WF-02 Step 2b.",
+    "acceptance_criteria": [
+      "Diff matches the approved design exactly -- minimal, surgical, no scope creep.",
+      "Both ctx.api.sendMessage sites in staff.ts are gated on targetUser.blocked, and only those two.",
+      "addEventStaff/removeEventStaff (the mutation) run before the guard, unaffected by blocked status.",
+      "Non-blocked path (else branch) is behaviorally identical to pre-fix code.",
+      "UserWithTelegram widening does not affect any caller other than staff.ts's two call sites.",
+      "npm run lint -w apps/bot, npm run build -w apps/bot, and the full vitest suite all pass cleanly."
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Reviewed git diff master...HEAD for apps/bot/src/domain/user.ts and apps/bot/src/handlers/staff.ts against docs/agents/design/ISS-0020-fix.md line by line. Findings: (1) Matches design exactly -- domain/user.ts's UserWithTelegram gained exactly `blocked: boolean`, getUserByTgUsername's select projects `blocked: users.blocked` alongside the existing three columns, no signature change; staff.ts's two notification sites each gained the identical `if (targetUser.blocked) { notificationFailed = true; } else { try {...} catch { notificationFailed = true; } }` guard, sitting immediately before the pre-existing try block, no new flag/variable/i18n key. No refactor of surrounding code, no touch to domain/notification.ts, sendLedgeredNotification, or the ledger, exactly as scoped. (2) S10 closed for real: grepped `ctx.api.sendMessage` in staff.ts -- exactly 2 occurrences (lines 101, 175), both now gated by the blocked check, no ungated third site. (3) addEventStaff (line 84) and removeEventStaff (line 160) both execute before the new guard block in each handler -- read the code order directly to confirm this, not just trusted the design doc's claim -- so a blocked target is still successfully assigned/removed as staff, only the notification is skipped. (4) Non-blocked path: the `else` branch's try/catch body is byte-identical to the pre-fix try/catch (same resolveLangForTg call, same catalog lookup, same sendMessage call, same catch setting notificationFailed=true) -- confirmed via diff, this is a pure wrap, not a rewrite. (5) Re-verified UserWithTelegram/getUserByTgUsername caller surface myself via Grep rather than trusting BACKEND-DEV's report: getUserByTgUsername has exactly 2 call sites, both in staff.ts (line 66, 144), both already destructuring targetUser.blocked as the only new consumer; no other file imports or calls this function, so the widened interface is purely additive and safe. (6) Re-ran all three verification commands myself: `npm run lint -w apps/bot` -- clean, zero errors/warnings. `npm run build -w apps/bot` (tsc -p tsconfig.json) -- clean, zero type errors. `npx vitest run --no-file-parallelism` from repo root -- 35 test files, 325 tests, all passed, matching the documented pre-fix baseline exactly; no new tests expected at this step (TEST-DESIGNER's job next). No design-system concerns apply (bot text, no UI tokens). No anti-patterns.md violations found (checked notification/guard-shaped entries, none apply). No `apps/bot`-specific REVIEWER checklist violations: no domain logic added inside the handler body (the guard is a single boolean-producing conditional reusing an existing flag, not a state-machine/capacity/promotion/idempotency rule -- S9 idempotency is unaffected, this is a synchronous single-request send as the design itself notes); no `now()`/current_timestamp introduced; no migration in this diff. Scope: exactly the two files and one lookup function named in the design, no more, no less.",
+    "security_review_recommendation": "This is an S10 security-invariant fix directly touching a personal-data-adjacent field (`users.blocked`) and a proactive-messaging code path in apps/bot/**. WF-03's own step list does not mandate SECURITY-REVIEWER the way WF-02 does for security-relevant changes, but per reviewer.md's own scope (REVIEWER gates design-system/code-quality/scope, NOT security-invariants.md -- that file's own \"Relationship to REVIEWER\" section states 'A change can pass REVIEWER and fail here; both gates must be green before the change proceeds') a SECURITY-REVIEWER pass is warranted here and I recommend ORCH route to one before this fix is considered fully gated, even though WF-03 doesn't list it as a mandatory step for this issue class. Reasoning: (a) the fix directly implements S10 ('blocked users are skipped'), the same invariant category that generated this issue in the first place (REVIEWER caught the analogous gap during WF02-REQ-023's SECURITY-REVIEWER-adjacent audit); (b) the negative case worth an independent re-check is exactly the one I verified structurally but did not runtime-test: does a blocked user assigned/removed as staff actually receive zero Telegram sends end-to-end, and does the mutation still commit -- TEST-DESIGNER's regression test (next step) will cover this at the test level, but a SECURITY-REVIEWER pass would independently verify no other S10-adjacent gap exists in this file (e.g. resolveLangForTg's own lookup path) and that the fix doesn't leak the blocked-status distinction anywhere (S11-adjacent copy check on notificationFailedNote reuse, already argued for in the design's §3 but not independently re-verified by a security-focused reader). This is a recommendation, not a hard block from REVIEWER's own gate -- I am passing this step per REVIEWER's actual mandate (design-system/code-quality/scope), which is satisfied.",
+    "artifacts_out": [
+      "handoffs/ISS-0020/step-03b-reviewer.json"
+    ],
+    "issues": [],
+    "next_action": "Route to TEST-DESIGNER (Step 4 regression check). ORCH should additionally consider routing to SECURITY-REVIEWER given the S10 nature of this fix (see security_review_recommendation) -- WF-03's procedure does not mandate this step but the security-invariants.md file's own scope statement supports it."
+  },
+  "rework_count": 0,
+  "max_rework": 3
+}
