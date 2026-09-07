@@ -1,6 +1,6 @@
 import type { Bot } from "grammy";
-import { GrammyError } from "grammy";
-import type { NotificationSender } from "../domain/notification.js";
+import { GrammyError, InlineKeyboard, InputFile } from "grammy";
+import type { NotificationButton, NotificationSender } from "../domain/notification.js";
 
 // docs/agents/design/REQ-025.md §5 — the one file where NotificationSender's
 // interface (declared framework-free in domain/notification.ts) is actually
@@ -56,6 +56,32 @@ class RollingWindowPacer {
   }
 }
 
+// docs/agents/design/REQ-026.md §1.3 — the one call this table's `attempt`
+// makes each try. Extended from REQ-025's single sendMessage call: "text" ->
+// bot.api.sendMessage (with a single-row inline keyboard when buttons are
+// present, same shape withdraw.ts's own InlineKeyboard already builds);
+// "photo" -> bot.api.sendPhoto in its place. Both obey the identical pacing/
+// 429/backoff table below — this is not a second, independently-paced
+// channel (design §1.3's own note).
+type SendAction =
+  | { kind: "text"; text: string; buttons?: NotificationButton[] }
+  | { kind: "photo"; photo: Buffer; caption: string };
+
+async function performSendAction(bot: Bot, chatId: string, action: SendAction): Promise<void> {
+  if (action.kind === "text") {
+    const replyMarkup =
+      action.buttons !== undefined && action.buttons.length > 0
+        ? action.buttons.reduce(
+            (kb, button) => kb.text(button.label, button.callbackData),
+            new InlineKeyboard(),
+          )
+        : undefined;
+    await bot.api.sendMessage(chatId, action.text, replyMarkup !== undefined ? { reply_markup: replyMarkup } : undefined);
+    return;
+  }
+  await bot.api.sendPhoto(chatId, new InputFile(action.photo), { caption: action.caption });
+}
+
 // §5's exact 429/backoff rule table: on a GrammyError with error_code 429,
 // wait retry_after seconds (or initialBackoffMs if absent), retry the SAME
 // logical send; each successive 429 doubles the previous wait, capped at
@@ -69,13 +95,13 @@ async function sendWithRetry(
   config: RateLimiterConfig,
   pacer: RollingWindowPacer,
   chatId: string,
-  text: string,
+  action: SendAction,
 ): Promise<void> {
   let backoffMs = config.initialBackoffMs;
   for (let attempt = 1; attempt <= config.maxRetries; attempt++) {
     await pacer.waitForSlot();
     try {
-      await bot.api.sendMessage(chatId, text);
+      await performSendAction(bot, chatId, action);
       return;
     } catch (err) {
       const is429 = err instanceof GrammyError && err.error_code === 429;
@@ -107,8 +133,11 @@ export function createRateLimitedSender(
 ): NotificationSender {
   const pacer = new RollingWindowPacer(config.maxMessagesPerSecond);
   return {
-    async send(tgId: bigint, text: string): Promise<void> {
-      await sendWithRetry(bot, config, pacer, tgId.toString(), text);
+    async send(tgId: bigint, text: string, buttons?: NotificationButton[]): Promise<void> {
+      await sendWithRetry(bot, config, pacer, tgId.toString(), { kind: "text", text, buttons });
+    },
+    async sendPhoto(tgId: bigint, photo: Buffer, caption: string): Promise<void> {
+      await sendWithRetry(bot, config, pacer, tgId.toString(), { kind: "photo", photo, caption });
     },
   };
 }

@@ -7,10 +7,13 @@ import { auditLog, chapters, registrations, users, venues } from "../db/schema.j
 import { createEvent, publishEvent, setPendingSource } from "./event.js";
 import {
   decidePromotionEligibility,
+  decideReconfirmOutcome,
   decideWithdrawOutcome,
+  getRegistrationAdmissionAndEvent,
   getRegistrationForEventAndUser,
   getWaitlistPosition,
   promoteFromWaitlistIfEligible,
+  reconfirmRegistration,
   registerForEvent,
   withdrawRegistration,
 } from "./registration.js";
@@ -1205,5 +1208,134 @@ describe("decidePromotionEligibility — REQ-023 §2.2: first-match-wins table",
 
   it("allows an eligible, non-halted, non-full event", () => {
     expect(decidePromotionEligibility(base, evaluationTime)).toEqual({ ok: true });
+  });
+});
+
+// docs/agents/design/REQ-026.md §4 — decideReconfirmOutcome's first-match-wins
+// table. Pure, no I/O.
+describe("decideReconfirmOutcome — REQ-026 §4: first-match-wins table", () => {
+  it("returns not-found when the registration does not exist", () => {
+    expect(
+      decideReconfirmOutcome({
+        registrationExists: false,
+        ownerUserId: null,
+        actingUserId: "user-1",
+        admission: null,
+      }),
+    ).toEqual({ kind: "not-found" });
+  });
+
+  it("returns not-owner when the acting user does not own the row", () => {
+    expect(
+      decideReconfirmOutcome({
+        registrationExists: true,
+        ownerUserId: "someone-else",
+        actingUserId: "user-1",
+        admission: "admitted",
+      }),
+    ).toEqual({ kind: "not-owner" });
+  });
+
+  it("returns not-eligible for a non-admitted row (e.g. withdrawn)", () => {
+    expect(
+      decideReconfirmOutcome({
+        registrationExists: true,
+        ownerUserId: "user-1",
+        actingUserId: "user-1",
+        admission: "withdrawn",
+      }),
+    ).toEqual({ kind: "not-eligible", admission: "withdrawn" });
+  });
+
+  it("returns reconfirmed for an eligible, owned, admitted row", () => {
+    expect(
+      decideReconfirmOutcome({
+        registrationExists: true,
+        ownerUserId: "user-1",
+        actingUserId: "user-1",
+        admission: "admitted",
+      }),
+    ).toEqual({ kind: "reconfirmed" });
+  });
+});
+
+describe("reconfirmRegistration — REQ-026 AC2 first half: reconfirmed_at set, admission unchanged", () => {
+  it("sets reconfirmed_at and writes exactly one audit_log row, admission untouched", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5 });
+    const userId = await seedUser();
+    const registerOutcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    const registrationId = (registerOutcome as { registrationId: string }).registrationId;
+
+    const beforeCount = (await db.select().from(auditLog)).length;
+    const outcome = await reconfirmRegistration(db, registrationId, userId, new Date("2026-09-01T12:00:00Z"));
+    expect(outcome).toEqual({ kind: "reconfirmed" });
+    const afterCount = (await db.select().from(auditLog)).length;
+    expect(afterCount).toBe(beforeCount + 1);
+
+    const rows = await db.select().from(registrations).where(eq(registrations.id, registrationId));
+    expect(rows[0]?.admission).toBe("admitted");
+    expect(rows[0]?.reconfirmedAt).not.toBeNull();
+
+    const auditRows = await db.select().from(auditLog).where(eq(auditLog.entityId, registrationId));
+    const reconfirmRows = auditRows.filter((r) => r.action === "registration.reconfirm");
+    expect(reconfirmRows).toHaveLength(1);
+  });
+
+  it("refuses (not-eligible) and writes no audit row for a withdrawn registration", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5 });
+    const userId = await seedUser();
+    const registerOutcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    const registrationId = (registerOutcome as { registrationId: string }).registrationId;
+    await withdrawRegistration(db, registrationId, userId, new Date("2026-09-01T06:00:00Z"));
+
+    const beforeCount = (await db.select().from(auditLog)).length;
+    const outcome = await reconfirmRegistration(db, registrationId, userId, new Date("2026-09-01T12:00:00Z"));
+    expect(outcome).toEqual({ kind: "not-eligible", admission: "withdrawn" });
+    const afterCount = (await db.select().from(auditLog)).length;
+    expect(afterCount).toBe(beforeCount);
+
+    const rows = await db.select().from(registrations).where(eq(registrations.id, registrationId));
+    expect(rows[0]?.reconfirmedAt).toBeNull();
+  });
+});
+
+describe("getRegistrationAdmissionAndEvent — REQ-026 §2: at-send-time recheck read", () => {
+  it("returns admission/eventId/userId/qrToken for an existing registration", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5 });
+    const userId = await seedUser();
+    const registerOutcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    const registrationId = (registerOutcome as { registrationId: string }).registrationId;
+
+    const found = await getRegistrationAdmissionAndEvent(db, registrationId);
+    expect(found).toEqual({
+      admission: "admitted",
+      eventId,
+      userId,
+      qrToken: (registerOutcome as { qrToken: string }).qrToken,
+    });
+  });
+
+  it("returns null for an unknown registrationId", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const found = await getRegistrationAdmissionAndEvent(db, "00000000-0000-0000-0000-000000000000");
+    expect(found).toBeNull();
   });
 });

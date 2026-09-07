@@ -206,4 +206,18 @@ export const en = {
     whatNext: "What happens next: you'll get a check-in code closer to the event.",
     qrLabel: "Your check-in code:",
   },
+  // NEW, REQ-026: T-24h "Still coming?" reconfirmation and T-3h route/QR
+  // reminders. Placeholder/minimal functional copy per decisions/0002
+  // (CONTENT-BA owns final wording).
+  reminder24h: {
+    prompt: "Still coming to this event?",
+    confirmButton: "I'll be there",
+    declineButton: "Can't make it",
+    reconfirmedReply: "Great, see you there!",
+  },
+  reminder3h: {
+    header: "Getting close! Here's how to get there:",
+    doorsLabel: "Doors open:",
+    startLabel: "Starts:",
+  },
 } satisfies Catalog;

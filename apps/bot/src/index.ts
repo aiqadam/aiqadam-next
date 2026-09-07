@@ -45,8 +45,15 @@ import {
   WITHDRAW_CONFIRM_PATTERN,
 } from "./handlers/withdraw.js";
 import { makeMyCommandHandler } from "./handlers/my.js";
+import {
+  makeReminder24hConfirmCallbackHandler,
+  makeReminder24hDeclineCallbackHandler,
+  REMINDER24H_CONFIRM_PATTERN,
+  REMINDER24H_DECLINE_PATTERN,
+} from "./handlers/reminder24h.js";
 import { createRateLimitedSender, DEFAULT_RATE_LIMITER_CONFIG } from "./scheduler/rateLimiter.js";
 import { startScheduledJobs } from "./scheduler/runner.js";
+import { makeReminder24hJob, makeReminder3hJob } from "./scheduler/reminderJobs.js";
 
 let config: BotConfig;
 
@@ -69,12 +76,26 @@ const bot = new Bot(config.botToken);
 
 // REQ-025 §5/§7 — the one process-wide NotificationSender (rate-limited,
 // 429-backoff) and the scheduled-job runner. Passed to every present and
-// future call site that sends a ledgered notification (withdraw.ts today;
-// REQ-026's reminder jobs, REQ-027's cancellation notice later). No concrete
-// reminder job ships in this requirement — an empty job list, per §7's own
-// scope note.
+// future call site that sends a ledgered notification.
 const notificationSender = createRateLimitedSender(bot, DEFAULT_RATE_LIMITER_CONFIG);
-startScheduledJobs([]);
+
+// docs/agents/design/REQ-026.md §8 — a real sequencing fix: the T-3h job's
+// QR image needs botUsername, which only exists once grammY has fetched the
+// bot's own identity. `bot.init()` is awaited HERE, before
+// startScheduledJobs (whose "immediate first run" rule, REQ-025 §7, could
+// otherwise fire a job before bot.botInfo is populated), and before
+// bot.start(). bot.init() resolves quickly (one getMe call), unlike
+// bot.start() itself, which does not resolve during normal long-polling
+// operation.
+await bot.init();
+const botUsername = bot.botInfo.username;
+
+// REQ-026 §5 — the two reminder jobs, 5-minute tick interval (§5's own
+// "technical scheduling parameter, not a product ambiguity" reasoning).
+startScheduledJobs([
+  makeReminder24hJob(db, notificationSender, 300000),
+  makeReminder3hJob(db, notificationSender, botUsername, 300000),
+]);
 
 bot.command("health", (ctx) => ctx.reply("ok"));
 
@@ -131,6 +152,10 @@ bot.command("checkin", makeCheckInHandler(db));
 bot.command("withdraw", makeWithdrawCommandHandler(db));
 bot.callbackQuery(WITHDRAW_CONFIRM_PATTERN, makeWithdrawConfirmCallbackHandler(db, notificationSender));
 bot.callbackQuery(WITHDRAW_CANCEL_PATTERN, makeWithdrawCancelCallbackHandler(db));
+
+// REQ-026: T-24h "Still coming?" reconfirmation callbacks.
+bot.callbackQuery(REMINDER24H_CONFIRM_PATTERN, makeReminder24hConfirmCallbackHandler(db));
+bot.callbackQuery(REMINDER24H_DECLINE_PATTERN, makeReminder24hDeclineCallbackHandler(db, notificationSender));
 
 // REQ-019: profile capture as a resumable step-by-step form, the consent
 // gate, and the optional-field rule (design §4). The two generic listeners

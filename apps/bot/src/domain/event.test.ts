@@ -3,6 +3,7 @@ import {
   buildEventCardContent,
   buildSeatsLine,
   computeSeatsLeft,
+  findDoorsAgendaItem,
   findMissingPublishFields,
   isFinished,
   isRegistrationOpen,
@@ -201,6 +202,37 @@ describe("parseStartPayload", () => {
       eventId: "abc-123",
       channel: "lin__kedin",
     });
+  });
+});
+
+// docs/agents/design/REQ-026.md §3.2 — findDoorsAgendaItem's table, AC8's
+// negative case in particular.
+describe("findDoorsAgendaItem", () => {
+  it("returns null for a null agenda", () => {
+    expect(findDoorsAgendaItem(null)).toBeNull();
+  });
+
+  it("returns null when no element's kind equals 'doors' (AC8)", () => {
+    expect(
+      findDoorsAgendaItem([
+        { kind: "networking", at: "2026-09-01T01:00:00Z", label: "Networking" },
+        { kind: "close", at: "2026-09-01T03:00:00Z", label: "Closing" },
+      ]),
+    ).toBeNull();
+  });
+
+  it("returns null for an empty agenda array", () => {
+    expect(findDoorsAgendaItem([])).toBeNull();
+  });
+
+  it("returns the one doors item when exactly one exists", () => {
+    const doors = { kind: "doors", at: "2026-09-01T01:00:00Z", label: "Doors open" };
+    expect(
+      findDoorsAgendaItem([
+        doors,
+        { kind: "networking", at: "2026-09-01T02:00:00Z", label: "Networking" },
+      ]),
+    ).toEqual(doors);
   });
 });
 

@@ -25,8 +25,26 @@ export type NotificationKind =
 // having no `?` and no default value anywhere.
 export type SendClassification = "transactional" | "marketing";
 
+// docs/agents/design/REQ-026.md §1.1 — a single button, a single-row
+// inline keyboard built from an ordered array of these (rateLimiter.ts §1.3).
+export interface NotificationButton {
+  label: string;
+  callbackData: string;
+}
+
+// docs/agents/design/REQ-026.md §1.1 — composeMessage's new return shape.
+// "text" carries REQ-025's original plain-text send, now with optional
+// buttons; "photo" is REQ-026's new QR-with-caption send; "skip" is the
+// at-send-time recheck's "don't send, but the ledger row stays consumed"
+// outcome (§1.2 step 5).
+export type ComposedMessage =
+  | { kind: "text"; text: string; buttons?: NotificationButton[] }
+  | { kind: "photo"; photo: Buffer; caption: string }
+  | { kind: "skip" };
+
 export interface NotificationSender {
-  send(tgId: bigint, text: string): Promise<void>;
+  send(tgId: bigint, text: string, buttons?: NotificationButton[]): Promise<void>;
+  sendPhoto(tgId: bigint, photo: Buffer, caption: string): Promise<void>;
 }
 
 export interface SendNotificationInput {
@@ -36,7 +54,7 @@ export interface SendNotificationInput {
   kind: NotificationKind;
   classification: SendClassification;
   userId: string;
-  composeMessage: (resolvedLang: BotLang) => Promise<string> | string;
+  composeMessage: (resolvedLang: BotLang) => Promise<ComposedMessage> | ComposedMessage;
 }
 
 export type SendOutcome =
@@ -45,6 +63,7 @@ export type SendOutcome =
   | { kind: "skipped-blocked" }
   | { kind: "skipped-no-broadcast-opt-in" }
   | { kind: "skipped-no-telegram-id" }
+  | { kind: "skipped-stale" }
   | { kind: "failed"; error: unknown };
 
 // Postgres unique-violation error code (23505) — the exact mechanism §3.1
@@ -117,10 +136,20 @@ export async function sendLedgeredNotification(
   // Step 5 — only reached once step 4's insert has committed. The
   // already-committed ledger row is never rolled back or deleted here, even
   // if the send below fails (§3.2 — an accepted, named under-sending risk).
+  // docs/agents/design/REQ-026.md §1.2's extended rule table: "skip" ->
+  // skipped-stale with no sender call; "text"/"photo" -> the matching
+  // sender method.
   try {
     const resolvedLang = resolveLang(user.lang, user.chapterDefaultLang);
-    const text = await input.composeMessage(resolvedLang);
-    await input.sender.send(user.tgId, text);
+    const composed = await input.composeMessage(resolvedLang);
+    if (composed.kind === "skip") {
+      return { kind: "skipped-stale" };
+    }
+    if (composed.kind === "text") {
+      await input.sender.send(user.tgId, composed.text, composed.buttons);
+    } else {
+      await input.sender.sendPhoto(user.tgId, composed.photo, composed.caption);
+    }
     return { kind: "sent" };
   } catch (err) {
     return { kind: "failed", error: err };

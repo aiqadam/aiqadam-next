@@ -89,6 +89,22 @@ export function validateAgenda(
 }
 
 // ---------------------------------------------------------------------------
+// docs/agents/design/REQ-026.md §3.2 — findDoorsAgendaItem: the doors item
+// is the element whose `kind` equals the literal string "doors", the same
+// check validateAgenda (above) already uses. Lives here, not
+// domain/reminders.ts, since it operates purely on the AgendaItem[] shape
+// this file already owns. `validateAgenda` guarantees at most one such
+// element for any event this ever reads, so "more than one" needs no
+// handling here.
+// ---------------------------------------------------------------------------
+export function findDoorsAgendaItem(agenda: AgendaItem[] | null): AgendaItem | null {
+  if (agenda === null) {
+    return null;
+  }
+  return agenda.find((item) => item.kind === "doors") ?? null;
+}
+
+// ---------------------------------------------------------------------------
 // §2.2 — validateEventCreateInput: the DB-NOT-NULL floor, not the publish
 // gate. Collects every missing/invalid field into `missing`.
 // ---------------------------------------------------------------------------
