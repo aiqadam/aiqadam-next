@@ -1,0 +1,22 @@
+id: ISS-0018
+title: REQ-021 test-spec's AC3 git-grep instructions don't pre-account for a pre-existing REQ-011 comment match
+discovered_by: TEST-RUNNER
+discovered_in_run: WF02-REQ-021
+discovered_at: "2026-09-07T11:15:00Z"
+severity: MINOR
+description: >
+  Found during Step 4 execution of docs/agents/test-specs/REQ-021.md's AC3
+  ("no stored/cached position/rank field"). The spec's git grep produced 8
+  matches; 7 were already anticipated by the spec's own categorization, but
+  the 8th (apps/bot/src/db/schema.ts:158) was not pre-listed. That match is
+  itself a pre-existing REQ-011 comment affirming that NO such column
+  exists -- so it's a false-positive grep hit, not evidence of a violation,
+  and TEST-RUNNER correctly recognized this and did not fail AC3 over it
+  (schema.ts's diff vs master is empty, confirming no new column was added).
+  Recommended fix: TEST-DESIGNER updates AC3's expected-match list in
+  docs/agents/test-specs/REQ-021.md to explicitly account for this known
+  comment hit, so a future reader of the spec doesn't need to re-derive
+  that it's a false positive from scratch.
+affected_files:
+  - docs/agents/test-specs/REQ-021.md
+status: open
