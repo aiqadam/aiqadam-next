@@ -44,6 +44,7 @@ import {
   WITHDRAW_CANCEL_PATTERN,
   WITHDRAW_CONFIRM_PATTERN,
 } from "./handlers/withdraw.js";
+import { makeMyCommandHandler } from "./handlers/my.js";
 
 let config: BotConfig;
 
@@ -148,5 +149,11 @@ bot.on("message:text", makeProfileTextAnswerHandler(db));
 // qr_token issuance. The Register button lives on the event card the
 // existing /start deep-link resolution already sends (handlers/start.ts).
 bot.callbackQuery(REGISTER_CALLBACK_PATTERN, makeRegisterCallbackHandler(db));
+
+// REQ-024: /my -- the caller's own registrations, live status, computed
+// waitlist position, the QR pass. An id-less, non-organizer-gated read
+// command, same precedent as /events (REQ-017) and /withdraw (REQ-022)
+// above.
+bot.command("my", makeMyCommandHandler(db));
 
 bot.start();

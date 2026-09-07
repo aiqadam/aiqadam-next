@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
-import { and, asc, eq, lt, or } from "drizzle-orm";
+import { and, asc, desc, eq, lt, or } from "drizzle-orm";
 import type { DbClient } from "../db/client.js";
-import { events, registrations, users } from "../db/schema.js";
+import { chapters, events, registrations, users } from "../db/schema.js";
 import { writeAuditLog } from "./auditLog.js";
 import {
   computeSeatsLeft,
@@ -588,6 +588,65 @@ export async function getEventIdForRegistration(
     .where(eq(registrations.id, registrationId))
     .limit(1);
   return rows[0]?.eventId ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-024.md §1 — getMyRegistrations: the caller's own
+// registrations, every admission state, no filter beyond ownership (§0.3).
+// One SELECT, two joins (registrations -> events -> chapters), the same
+// two-join shape getEventByIdWithChapterTimezone already uses (REQ-017 §2.2),
+// applied per-registration here. `userId` is the ONLY parameter -- no
+// eventId/registrationId or any other caller-suppliable identifier appears
+// anywhere in this signature, making the privacy scoping structural (§0.3
+// point 2). Ordered by registrations.created_at DESC (most recent first) —
+// no acceptance criterion specifies an ordering; this is the simplest one
+// that needs no extra join or derived value (design §1).
+// ---------------------------------------------------------------------------
+export interface MyRegistrationListItem {
+  registrationId: string;
+  eventId: string;
+  eventTitle: string;
+  admission: AdmissionState;
+  checkedInAt: Date | null;
+  qrToken: string | null;
+  startsAt: Date;
+  endsAt: Date;
+  chapterTimezone: string;
+}
+
+export async function getMyRegistrations(
+  db: DbClient["db"],
+  userId: string,
+): Promise<MyRegistrationListItem[]> {
+  const rows = await db
+    .select({
+      registrationId: registrations.id,
+      eventId: events.id,
+      eventTitle: events.title,
+      admission: registrations.admission,
+      checkedInAt: registrations.checkedInAt,
+      qrToken: registrations.qrToken,
+      startsAt: events.startsAt,
+      endsAt: events.endsAt,
+      chapterTimezone: chapters.timezone,
+    })
+    .from(registrations)
+    .innerJoin(events, eq(events.id, registrations.eventId))
+    .innerJoin(chapters, eq(chapters.id, events.chapterId))
+    .where(eq(registrations.userId, userId))
+    .orderBy(desc(registrations.createdAt));
+
+  return rows.map((row) => ({
+    registrationId: row.registrationId,
+    eventId: row.eventId,
+    eventTitle: row.eventTitle,
+    admission: row.admission as AdmissionState,
+    checkedInAt: row.checkedInAt,
+    qrToken: row.qrToken,
+    startsAt: row.startsAt as Date,
+    endsAt: row.endsAt as Date,
+    chapterTimezone: row.chapterTimezone,
+  }));
 }
 
 export async function getRegistrationForEventAndUser(
