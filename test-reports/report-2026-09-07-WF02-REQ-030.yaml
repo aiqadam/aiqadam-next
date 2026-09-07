@@ -1,0 +1,140 @@
+run_id: WF02-REQ-030
+date: 2026-09-07T18:39:39Z
+branch: feature/WF02-REQ-030
+commit_at_start: 8f630bf
+lint: pass
+build: pass
+notes: >
+  Wrote the new committed test file apps/bot/src/handlers/walkin.forgery.test.ts,
+  per docs/agents/test-specs/REQ-030.md, this project's established
+  TEST-DESIGNER-designs/TEST-RUNNER-writes convention (mirrors REQ-029's
+  checkinQr.forgery.test.ts). tg_id range chosen: 943_000_000+, confirmed
+  distinct from every existing range (grep -rn "nextTgId = " apps/bot/src),
+  including the pre-existing ISS-0026 collision between checkinQr.forgery.test.ts
+  and walkin.db.test.ts (both 942_000_000+), which this file does not touch or
+  worsen.
+
+commands:
+  - command: "npm run lint (repo root)"
+    result: pass
+    output: >
+      apps/web: 2 pre-existing warnings (Footer.tsx:11, Nav.tsx:10,
+      @next/next/no-img-element) -- unrelated to this change, no lines in this
+      run's diff. apps/bot: 0 errors, 0 warnings. Overall: 0 errors.
+  - command: "npm run build (repo root)"
+    result: pass
+    output: >
+      apps/web (Next.js 16.3.2, Turbopack): compiled successfully, TypeScript
+      finished in 3.7s, static pages generated, no errors.
+      apps/bot (tsc -p tsconfig.json): exited clean, no output (success).
+  - command: "npx vitest run --no-file-parallelism (repo root, fresh run)"
+    result: pass
+    output: >
+      Test Files 31 passed (31); Tests 308 passed (308); Duration ~51-62s.
+      Up from the 300-test baseline by exactly the 8 new cases this run added
+      (walkin.forgery.test.ts). Re-ran the new file alone to confirm:
+      1 file / 8 tests passed (first standalone invocation showed a transient
+      DB-pool-warmup skip of all 8, immediately reproducible as a pass on
+      retry with the container confirmed still running -- attributed to
+      connection-pool cold-start timing, not a code defect; the authoritative
+      count is the full-suite run, run twice, both showing 308/308).
+  - command: >
+      git grep -n "log\.\(debug\|info\|warn\|error\)\|console\.\(log\|warn\|error\)"
+      apps/bot/src/domain/walkin.ts apps/bot/src/handlers/walkin.ts
+    result: pass
+    output: "zero matches (exit 1) -- confirms AC5's static no-log-call-site property."
+
+cases:
+  - acceptance_criterion: AC1 (abandon at consent, organizer profile byte-identical)
+    result: pass
+    notes: >
+      Own fixture (Yerlan Toktarov / Silk Road Ventures / +996555112233).
+      Reply echoes all three fields verbatim; confirm button offered
+      (callback_data starts "walkin:confirm:"), never tapped. users/profiles/
+      registrations row counts byte-identical before/after. Organizer's own
+      profiles row, re-read after the command, deep-equal to the pre-command
+      snapshot (column-level, not just row-count).
+  - acceptance_criterion: AC3 override-confirm
+    result: pass
+    notes: >
+      Own fixture (Bota Suleimenova / Ruslan Abenov, capacity-1 event).
+      Override-offer message contains "1"/"1" (admitted/capacity), exactly one
+      override button with callback_data === "walkin:override:"+eventId.
+      Before override tap: 0 registrations for Ruslan, but users/profiles
+      row already exists. After tap: exactly 1 registration
+      (admission=admitted, checkedInAt not null, checkInMethod=manual);
+      exactly 1 audit_log row action=registration.walkin_override_admit;
+      payload.previousAdmission === null.
+  - acceptance_criterion: AC3 dismiss
+    result: pass
+    notes: >
+      Separate own fixture (Damir Zhaksybekov / Aliya Mamedova, capacity-1
+      event). Dismiss tap (walkin:cancel on the override-offer message): 0
+      registrations for Aliya; direct audit_log query finds zero rows of
+      either registration.walkin_admit or registration.walkin_override_admit
+      referencing Aliya's userId (actor or payload); final reply text ===
+      getCatalog("ru").walkin.cancelled.
+  - acceptance_criterion: AC4 (differently-formatted-phone match)
+    result: pass
+    notes: >
+      Own fixture: "+77074445566" then "7 707 444-55-66" (same digit string,
+      independent of BACKEND-DEV's own pair). users/profiles row counts
+      unchanged after the second walk-in; stored company still
+      "Jibek Joly Trading" (first walk-in's value, second walk-in's
+      "Wrong Co Name" discarded); exactly 2 registrations for the one
+      resolved userId, both admitted.
+  - acceptance_criterion: AC5 (no phone in audit payload, admit + override-admit; static log check)
+    result: pass
+    notes: >
+      Own fixture, plain-admit path (+996700998877): all audit_log rows for
+      the registration -- JSON.stringify(payload) excludes the phone,
+      Object.keys(payload) excludes "phone". Override-admit path (own third
+      walk-in, +996700111222, forced via a capacity-1-equivalent fill):
+      same two assertions against the registration.walkin_override_admit
+      rows specifically. Static git grep (see commands above): zero
+      log/console call sites in domain/walkin.ts or handlers/walkin.ts.
+  - acceptance_criterion: AC6 (genuine EventStaff-for-this-event, not organizer)
+    result: pass
+    notes: >
+      Own fixture: a member seeded via a real addEventStaff(db, organizerId,
+      eventId, memberId, title, now) row for this exact event (not a plain
+      member with no staff role anywhere). Dispatching /walkin as this
+      EventStaff member: reply === getCatalog("ru").walkin.notAuthorized;
+      users/profiles/registrations row counts unchanged. The refusal fires
+      despite the real event_staff row's presence, proving EventStaff
+      membership is not treated as sufficient authorization for a walk-in add.
+  - acceptance_criterion: Cross-context forgery (organizer A taps a confirm message rendered for chapter B's event)
+    result: pass
+    notes: >
+      Two chapters seeded, organizer A (chapter A only) and organizer B
+      (chapter B). Legitimate flow run as organizer B against chapter B's
+      event, capturing the real callback_data and confirm-message text. A
+      forged dispatch using organizer A's own tgId with that SAME
+      callback_data and message text: answerCallbackQuery payload
+      show_alert=true, text === getCatalog("ru").walkin.notAuthorized;
+      zero registrations for Zarina's userId; users/profiles counts
+      unchanged by the forged tap; zero audit_log rows of any
+      registration.walkin_* action referencing Zarina's userId. Confirms
+      authorization is re-derived fresh from the TAPPING user's own chapter
+      against the event's real chapterId (read from callback_data), never
+      from the message's content or the button's mere existence.
+  - acceptance_criterion: Malformed/corrupted message text (parseWalkinMessageFields clean refusal)
+    result: pass
+    notes: >
+      Own fixture. Sub-case A (missing "Phone: " line entirely): dispatch
+      does not throw; answerCallbackQuery show_alert=true, text ===
+      getCatalog("ru").walkin.staleMessage; registrations/users/profiles
+      counts unchanged. Sub-case B (missing "Name: " line entirely, same
+      test): identical clean refusal and zero-write result. Confirms the
+      { ok: false } branch fires on any of the three missing fixed
+      prefixes and never reaches commitWalkin.
+  - acceptance_criterion: AC2 (not re-covered, per spec's own closing note)
+    result: not_applicable
+    notes: >
+      docs/agents/test-specs/REQ-030.md explicitly does not re-cover AC2 --
+      BACKEND-DEV's own committed walkin.db.test.ts case already covers it
+      with no found gap (mirrors REQ-029's precedent). Confirmed still
+      passing as part of the 308-test full-suite run above.
+
+issues: []
+routing: PASS -> RELEASE-VALIDATOR (Step 5)
