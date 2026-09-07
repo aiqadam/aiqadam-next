@@ -165,15 +165,29 @@ async function resolveEventDeepLink(
   const content = buildEventCardContent(event, venue, admittedCount, lang);
   const catalog = getCatalog(lang);
   const text = composeEventCardText(content, catalog);
+  // REQ-020 §7.3 — replaces REQ-017's inert text CTA with a real button.
+  const reply_markup = new InlineKeyboard().text(
+    catalog.registration.registerButton,
+    buildRegisterCallbackData(event.id),
+  );
 
   // §3.5 — a stored cover_file_id is sent as a Telegram photo with the
   // card's full text as the caption; otherwise a plain text reply with the
   // same text. No re-upload, no fetch of the file content by this bot.
   if (content.coverFileId !== null) {
-    await ctx.replyWithPhoto(content.coverFileId, { caption: text });
+    await ctx.replyWithPhoto(content.coverFileId, { caption: text, reply_markup });
   } else {
-    await ctx.reply(text);
+    await ctx.reply(text, { reply_markup });
   }
+}
+
+// REQ-020 §7.1/§7.3 — the register:<eventId> callback_data shape, shared
+// between the button-building site above and handlers/registration.ts's own
+// pattern match, so both sides agree on the exact prefix.
+export const REGISTER_CALLBACK_PREFIX = "register:";
+
+export function buildRegisterCallbackData(eventId: string): string {
+  return `${REGISTER_CALLBACK_PREFIX}${eventId}`;
 }
 
 // REQ-017 §3.6 — text composition, section order matching FR-2's own listed
@@ -217,8 +231,6 @@ function composeEventCardText(
       ? `${catalog.events.cardSeatsLeft} ${content.seatsLine.count}`
       : catalog.events.cardWaitlistOpen,
   );
-
-  lines.push(catalog.events.cardCta);
 
   return lines.join("\n");
 }

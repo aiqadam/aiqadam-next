@@ -1064,7 +1064,7 @@ requirements:
   - id: REQ-020
     title: Registration for an open event with atomic capacity enforcement and qr_token issuance
     owner: BACKEND-DEV
-    status: pending
+    status: done
     description: >
       Second slice of PRD 14 build-order step 3, and PRD 11a critical-path story B2
       (Take a seat at an open event). Implements PRD FR-4's open-event row

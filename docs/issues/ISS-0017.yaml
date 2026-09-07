@@ -1,0 +1,27 @@
+id: ISS-0017
+title: REQ-020 test-spec has two minor fixture defects (missing deep-link prefix, invalid UUID)
+discovered_by: TEST-RUNNER
+discovered_in_run: WF02-REQ-020
+discovered_at: "2026-09-07T10:30:00Z"
+severity: MINOR
+description: >
+  Found during Step 4 execution of docs/agents/test-specs/REQ-020.md. Neither
+  defect affects the correctness of the shipped implementation -- TEST-RUNNER
+  worked around both in its own harness, re-verified, and reported PASS; the
+  spec file itself was left unmodified per core-directives (fix-at-source is
+  TEST-DESIGNER's job, not TEST-RUNNER's).
+  1. AC5/AC-card's `/start` dispatch text omits the mandatory `e_` deep-link
+     prefix required by apps/bot/src/domain/event.ts's `parseStartPayload`
+     (e.g. uses a bare event id instead of `e_<id>` or `e_<id>__<channel>`).
+     Every prior spec that constructs a deep-link dispatch (REQ-016.md,
+     REQ-017.md) always includes the prefix; this one omitted it.
+  2. AC-card's venue fixture UUID contains a non-hex character (`v`), which
+     Postgres rejects outright as an invalid UUID literal.
+  Recommended fix: TEST-DESIGNER corrects both spots in
+  docs/agents/test-specs/REQ-020.md in a future pass -- add the `e_` prefix
+  to the AC5/AC-card dispatch payloads, and replace the invalid venue UUID
+  with a valid hex one (matching the pattern already used correctly
+  elsewhere in the same spec file).
+affected_files:
+  - docs/agents/test-specs/REQ-020.md
+status: open

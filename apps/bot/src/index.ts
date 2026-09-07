@@ -36,6 +36,7 @@ import {
   makeProfileStudentCallbackHandler,
   makeProfileTextAnswerHandler,
 } from "./handlers/profile.js";
+import { makeRegisterCallbackHandler, REGISTER_CALLBACK_PATTERN } from "./handlers/registration.js";
 
 let config: BotConfig;
 
@@ -126,5 +127,10 @@ bot.callbackQuery(
 );
 bot.on("message:contact", makeProfileContactHandler(db));
 bot.on("message:text", makeProfileTextAnswerHandler(db));
+
+// REQ-020: registration for an open event, atomic capacity enforcement,
+// qr_token issuance. The Register button lives on the event card the
+// existing /start deep-link resolution already sends (handlers/start.ts).
+bot.callbackQuery(REGISTER_CALLBACK_PATTERN, makeRegisterCallbackHandler(db));
 
 bot.start();
