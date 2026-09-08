@@ -309,6 +309,12 @@ describe("AC2 -- rejecting sets admission=rejected, notifies with BOTH the reaso
     const { sender, sent } = makeFakeSender();
     const { bot, captured } = makeTestBot(sender);
 
+    // Baseline captured right before the action under test (reject), not
+    // before creation -- seedPendingRequest's own registerForEvent call
+    // already wrote this registrationId's 'registration.request' row.
+    const auditBefore = await countAuditRows(req.registrationId);
+    expect(auditBefore).toBe(1);
+
     await bot.handleUpdate(callbackUpdate(organizerTgId, `req:reject:${req.registrationId}`, "detail view") as never);
 
     const promptEntry = captured.find((c) => c.method === "sendMessage");
@@ -328,10 +334,11 @@ describe("AC2 -- rejecting sets admission=rejected, notifies with BOTH the reaso
     expect(sent[0]!.text).toContain(REASON);
     expect(sent[0]!.text).toContain(catalog.event.deepLinkSeeUpcoming);
 
-    expect(await countAuditRows(req.registrationId)).toBe(1);
+    expect(await countAuditRows(req.registrationId)).toBe(auditBefore + 1);
     const auditRows = await db.select().from(auditLog).where(eq(auditLog.entityId, req.registrationId));
-    expect(auditRows[0]!.action).toBe("registration.reject");
-    expect((auditRows[0]!.payload as { reason?: string } | null)?.reason).toBe(REASON);
+    const rejectRow = auditRows.find((r) => r.action === "registration.reject");
+    expect(rejectRow).toBeDefined();
+    expect((rejectRow!.payload as { reason?: string } | null)?.reason).toBe(REASON);
   });
 });
 
@@ -351,6 +358,13 @@ describe("AC4 -- at-capacity approve requires explicit confirmation; dismiss lea
     const { sender, sent } = makeFakeSender();
     const { bot, captured } = makeTestBot(sender);
 
+    // Baseline captured right before the actions under test on reqB (the
+    // blocked attempt, the dismiss, and the override), not before creation --
+    // reqB's own seedPendingRequest call already wrote its own
+    // 'registration.request' row, independent of reqA's.
+    const reqBAuditBefore = await countAuditRows(reqB.registrationId);
+    expect(reqBAuditBefore).toBe(1);
+
     // Fill the only seat with reqA.
     await bot.handleUpdate(callbackUpdate(organizerTgId, `req:approve:${reqA.registrationId}`, "detail A") as never);
     expect((await getRegistrationRow(reqA.registrationId)).admission).toBe("admitted");
@@ -360,14 +374,14 @@ describe("AC4 -- at-capacity approve requires explicit confirmation; dismiss lea
     await bot.handleUpdate(callbackUpdate(organizerTgId, `req:approve:${reqB.registrationId}`, "detail B") as never);
     const rowAfterFirstTap = await getRegistrationRow(reqB.registrationId);
     expect(rowAfterFirstTap.admission).toBe("requested"); // unchanged -- only offered a prompt
-    expect(await countAuditRows(reqB.registrationId)).toBe(0);
+    expect(await countAuditRows(reqB.registrationId)).toBe(reqBAuditBefore);
     expect(sent).toHaveLength(1); // no second notification yet
 
     // Dismiss.
     await bot.handleUpdate(callbackUpdate(organizerTgId, `req:approve_cancel:${reqB.registrationId}`, "override prompt") as never);
     const rowAfterDismiss = await getRegistrationRow(reqB.registrationId);
     expect(rowAfterDismiss.admission).toBe("requested"); // still unchanged
-    expect(await countAuditRows(reqB.registrationId)).toBe(0); // no audit row from the dismiss
+    expect(await countAuditRows(reqB.registrationId)).toBe(reqBAuditBefore); // no audit row from the dismiss
     expect(sent).toHaveLength(1); // still no notification for reqB
     const cancelReply = captured.filter((c) => c.method === "sendMessage").at(-1);
     expect(textOf(cancelReply)).toBe(catalog.organizerRequests.overrideCancelledNote);
@@ -379,9 +393,10 @@ describe("AC4 -- at-capacity approve requires explicit confirmation; dismiss lea
     const rowAfterConfirm = await getRegistrationRow(reqB.registrationId);
     expect(rowAfterConfirm.admission).toBe("admitted");
     expect(rowAfterConfirm.qrToken).not.toBeNull();
-    expect(await countAuditRows(reqB.registrationId)).toBe(1);
+    expect(await countAuditRows(reqB.registrationId)).toBe(reqBAuditBefore + 1);
     const auditRows = await db.select().from(auditLog).where(eq(auditLog.entityId, reqB.registrationId));
-    expect(auditRows[0]!.action).toBe("registration.approve_override");
+    const overrideRow = auditRows.find((r) => r.action === "registration.approve_override");
+    expect(overrideRow).toBeDefined();
     expect(sent).toHaveLength(2); // reqA's + reqB's, and no more
   });
 });
@@ -401,12 +416,18 @@ describe("AC6 -- a member, and separately an EventStaff member, invoking approve
     const { sender, sent } = makeFakeSender();
     const { bot, captured } = makeTestBot(sender);
 
+    // Baseline captured right before the action under test -- seedPendingRequest's
+    // own registerForEvent call already wrote this registrationId's
+    // 'registration.request' row.
+    const auditBefore = await countAuditRows(req.registrationId);
+    expect(auditBefore).toBe(1);
+
     await bot.handleUpdate(callbackUpdate(memberTgId, `req:approve:${req.registrationId}`, "detail view") as never);
 
     const row = await getRegistrationRow(req.registrationId);
     expect(row.admission).toBe("requested");
     expect(row.qrToken).toBeNull();
-    expect(await countAuditRows(req.registrationId)).toBe(0);
+    expect(await countAuditRows(req.registrationId)).toBe(auditBefore);
     expect(sent).toHaveLength(0);
     const answer = captured.find((c) => c.method === "answerCallbackQuery");
     expect((answer?.payload["text"] as string | undefined)).toBe(catalog.organizerRequests.notAuthorized);
@@ -427,12 +448,18 @@ describe("AC6 -- a member, and separately an EventStaff member, invoking approve
     const { sender, sent } = makeFakeSender();
     const { bot, captured } = makeTestBot(sender);
 
+    // Baseline captured right before the action under test -- seedPendingRequest's
+    // own registerForEvent call already wrote this registrationId's
+    // 'registration.request' row.
+    const auditBefore = await countAuditRows(req.registrationId);
+    expect(auditBefore).toBe(1);
+
     await bot.handleUpdate(callbackUpdate(staffTgId, `req:approve:${req.registrationId}`, "detail view") as never);
 
     const row = await getRegistrationRow(req.registrationId);
     expect(row.admission).toBe("requested");
     expect(row.qrToken).toBeNull();
-    expect(await countAuditRows(req.registrationId)).toBe(0);
+    expect(await countAuditRows(req.registrationId)).toBe(auditBefore);
     expect(sent).toHaveLength(0);
     const answer = captured.find((c) => c.method === "answerCallbackQuery");
     expect((answer?.payload["text"] as string | undefined)).toBe(catalog.organizerRequests.notAuthorized);
@@ -455,12 +482,18 @@ describe("AC7 -- a chapter-A organizer invoking approve on a chapter-B event is 
     const { sender, sent } = makeFakeSender();
     const { bot, captured } = makeTestBot(sender);
 
+    // Baseline captured right before the action under test -- seedPendingRequest's
+    // own registerForEvent call already wrote this registrationId's
+    // 'registration.request' row.
+    const auditBefore = await countAuditRows(req.registrationId);
+    expect(auditBefore).toBe(1);
+
     await bot.handleUpdate(callbackUpdate(organizerATgId, `req:approve:${req.registrationId}`, "detail view") as never);
 
     const row = await getRegistrationRow(req.registrationId);
     expect(row.admission).toBe("requested");
     expect(row.qrToken).toBeNull();
-    expect(await countAuditRows(req.registrationId)).toBe(0);
+    expect(await countAuditRows(req.registrationId)).toBe(auditBefore);
     expect(sent).toHaveLength(0);
     const answer = captured.find((c) => c.method === "answerCallbackQuery");
     expect((answer?.payload["text"] as string | undefined)).toBe(catalog.organizerRequests.notAuthorized);

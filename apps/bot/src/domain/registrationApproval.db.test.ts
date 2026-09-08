@@ -335,23 +335,32 @@ describe("AC10 -- exactly one audit_log row per write", () => {
     const req = await seedPendingRequest(event.id);
     const organizer = await seedUser();
 
+    // Baseline captured right before the action under test (approve), NOT
+    // before the registration was even created -- seedPendingRequest's own
+    // registerForEvent call already wrote one 'registration.request' audit
+    // row for this registrationId (registration.ts:242-254, unconditional
+    // for every outcome including 'requested'), so the true baseline is 1,
+    // not 0. Asserting deltas off this baseline (matching
+    // registration.db.test.ts's REQ-034 AC6 pattern) keeps the assertion
+    // correct regardless of how many rows precede the action.
     const before = await countAuditRows(req.registrationId);
-    expect(before).toBe(0);
+    expect(before).toBe(1);
 
     const outcome = await approveRequest(db, req.registrationId, organizer.id, false, new Date());
     expect(outcome.kind).toBe("approve");
 
     const after = await countAuditRows(req.registrationId);
-    expect(after).toBe(1);
+    expect(after).toBe(before + 1);
 
     const rows = await db.select().from(auditLog).where(eq(auditLog.entityId, req.registrationId));
-    expect(rows[0]!.action).toBe("registration.approve");
+    const approveRow = rows.find((r) => r.action === "registration.approve");
+    expect(approveRow).toBeDefined();
 
     // Re-approving an already-decided row must add zero further rows -- part
     // of "exactly one," not a separate AC.
     const secondOutcome = await approveRequest(db, req.registrationId, organizer.id, false, new Date());
     expect(secondOutcome.kind).toBe("not-requested");
-    expect(await countAuditRows(req.registrationId)).toBe(1);
+    expect(await countAuditRows(req.registrationId)).toBe(after);
   });
 
   it("approveRequest (override) writes exactly one audit_log row, action registration.approve_override", async (t) => {
@@ -369,21 +378,25 @@ describe("AC10 -- exactly one audit_log row per write", () => {
     const fillerOutcome = await approveRequest(db, reqFiller.registrationId, organizer.id, false, new Date());
     expect(fillerOutcome.kind).toBe("approve");
 
+    // Baseline captured right before the action under test (the blocked-then
+    // -overridden approve), not before creation -- reqOverride's own
+    // seedPendingRequest call already wrote its 'registration.request' row.
     const before = await countAuditRows(reqOverride.registrationId);
-    expect(before).toBe(0);
+    expect(before).toBe(1);
 
     // Without override -- must NOT write.
     const blockedOutcome = await approveRequest(db, reqOverride.registrationId, organizer.id, false, new Date());
     expect(blockedOutcome.kind).toBe("needs-override-confirmation");
-    expect(await countAuditRows(reqOverride.registrationId)).toBe(0);
+    expect(await countAuditRows(reqOverride.registrationId)).toBe(before);
 
     // With override -- exactly one row, distinct action string.
     const overrideOutcome = await approveRequest(db, reqOverride.registrationId, organizer.id, true, new Date());
     expect(overrideOutcome.kind).toBe("approve-override");
     const after = await countAuditRows(reqOverride.registrationId);
-    expect(after).toBe(1);
+    expect(after).toBe(before + 1);
     const rows = await db.select().from(auditLog).where(eq(auditLog.entityId, reqOverride.registrationId));
-    expect(rows[0]!.action).toBe("registration.approve_override");
+    const overrideRow = rows.find((r) => r.action === "registration.approve_override");
+    expect(overrideRow).toBeDefined();
   });
 
   it("rejectRequest writes exactly one audit_log row, action registration.reject, payload carries the reason", async (t) => {
@@ -396,22 +409,26 @@ describe("AC10 -- exactly one audit_log row per write", () => {
     const req = await seedPendingRequest(event.id);
     const organizer = await seedUser();
 
+    // Baseline captured right before the action under test (reject), not
+    // before creation -- seedPendingRequest's own registerForEvent call
+    // already wrote this registrationId's 'registration.request' row.
     const before = await countAuditRows(req.registrationId);
-    expect(before).toBe(0);
+    expect(before).toBe(1);
 
     const outcome = await rejectRequest(db, req.registrationId, organizer.id, "Room is full for this cohort.", new Date());
     expect(outcome.kind).toBe("reject");
 
     const after = await countAuditRows(req.registrationId);
-    expect(after).toBe(1);
+    expect(after).toBe(before + 1);
 
     const rows = await db.select().from(auditLog).where(eq(auditLog.entityId, req.registrationId));
-    expect(rows[0]!.action).toBe("registration.reject");
-    expect((rows[0]!.payload as { reason?: string } | null)?.reason).toBe("Room is full for this cohort.");
+    const rejectRow = rows.find((r) => r.action === "registration.reject");
+    expect(rejectRow).toBeDefined();
+    expect((rejectRow!.payload as { reason?: string } | null)?.reason).toBe("Room is full for this cohort.");
 
     // Re-rejecting an already-decided row adds zero further rows.
     const secondOutcome = await rejectRequest(db, req.registrationId, organizer.id, "second attempt", new Date());
     expect(secondOutcome.kind).toBe("not-requested");
-    expect(await countAuditRows(req.registrationId)).toBe(1);
+    expect(await countAuditRows(req.registrationId)).toBe(after);
   });
 });
