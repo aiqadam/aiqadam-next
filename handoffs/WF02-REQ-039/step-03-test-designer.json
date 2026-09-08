@@ -1,0 +1,56 @@
+{
+  "handoff_id": "step-03-test-designer",
+  "run_id": "WF02-REQ-039",
+  "workflow_id": "WF-02",
+  "step": "03",
+  "from_agent": "TEST-DESIGNER",
+  "to_agent": "TEST-DESIGN-VALIDATOR",
+  "file": "handoffs/WF02-REQ-039/step-03-test-designer.json",
+  "created_at": "2026-09-08T14:16:20Z",
+  "started_at": "2026-09-08T14:16:20Z",
+  "completed_at": "2026-09-08T14:16:20Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-039"],
+    "related_handoff_ids": [
+      "handoffs/WF02-REQ-039/step-02-backend-dev.json",
+      "handoffs/WF02-REQ-039/step-02b-reviewer.json",
+      "handoffs/WF02-REQ-039/step-02c-security-reviewer.json"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/REQ-039.md",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/profile.ts",
+      "apps/bot/src/domain/notification.ts",
+      "apps/bot/src/handlers/start.ts",
+      "apps/bot/src/handlers/companion.ts",
+      "apps/bot/src/handlers/redeem.db.test.ts",
+      "apps/bot/src/db/schema.ts"
+    ],
+    "branch_name": "feature/WF02-REQ-039"
+  },
+  "task": {
+    "description": "WF-02 Step 3 (Test design) for REQ-039 on branch feature/WF02-REQ-039. Scope test: YES, real behavioral surface (real Telegram commands/deep-links/replies/callback taps writing real registrations/profiles/audit_log/notification_ledger rows and sending real messages) -- full Steps 3b/4 apply, decisions/0006 (vitest, TEST-DESIGNER writes runnable test code). Read the requirement's full 9 ACs (GitHub issue #71 / requirements.yaml), docs/agents/design/REQ-039.md in full (post-rework), all three step-02* handoffs, the actual implementation (apps/bot/src/domain/inviteCode.ts's companion extension, apps/bot/src/handlers/companion.ts, the extended resolveInviteDeepLink in apps/bot/src/handlers/start.ts, profile.ts's onConflictDoNothing option), REQ-038's own handlers/redeem.db.test.ts as the closest precedent, and grepped every existing test file's nextTgId band for range discipline (highest pre-existing: 1_051_000_000+, handlers/redeem.db.test.ts).",
+    "acceptance_criteria": [
+      "A guest redeeming a companion code whose grants_companion_of is host H gets a registration with invited_by_user_id = H's user id and invite_code_id set to that code -- verified by reading the row.",
+      "git grep over apps/bot finds no companion-specific column, no referral table and no second attribution field: invited_by_user_id is the only mechanism, and no migration adds another.",
+      "Abandoning the companion flow AT OR BEFORE the consent step leaves ZERO new users rows, ZERO new profiles rows and ZERO new registrations rows for that guest.",
+      "Completing the flow collects name, phone and company and nothing further.",
+      "A companion redeeming against a FULL event is waitlisted, not admitted, and not given a seat outside capacity.",
+      "A second person attempting to redeem a single-use companion code is refused and no registration is created.",
+      "Both the guest and the host receive exactly one message on a successful companion registration; the host's message contains the guest's name and company and contains NEITHER the guest's phone NOR their email.",
+      "The guest's phone appears in NO log line and in NO audit_log payload.",
+      "Each companion registration writes exactly one audit_log row."
+    ]
+  },
+  "result": {
+    "status": "SUCCESS",
+    "summary": "Wrote docs/agents/test-specs/REQ-039.md: two new, fully-specified vitest files (full source, precise enough to commit verbatim, per decisions/0006 and REQ-038's own established precedent). File 1 (apps/bot/src/domain/companionRedeem.db.test.ts, tg_id band 1_061_000_000+) covers AC1, AC2 (static: schema.ts column-definition-line grep restricted to actual column defs -- not prose comments -- plus a per-migration-file grep confirming only the pre-existing REQ-037 migration 0007_sturdy_network.sql mentions 'companion' and none mentions 'referral'), AC4 (Profile row's field set, part), AC5 (capacity-1 event filled by a plain registration, companion redemption waitlists), AC6 (domain-level spent-code shape: guestA admits, guestB's attempt on the same code returns invite-code-spent with zero registration/profile), AC9 (audit row count before/after, success vs refusal). File 2 (apps/bot/src/handlers/companion.db.test.ts, tg_id band 1_062_000_000+, real grammY Bot/handleUpdate dispatch mirroring handlers/redeem.db.test.ts's and handlers/feedback.db.test.ts's reply-to-message convention) covers AC3 (two cases: abandon before consent:agree at all; abandon after consent but before replying with fields -- both assert zero profiles/zero registrations), AC4 (full conversation: consent tap, field reply, confirm tap -- registration + Profile row content, plus a grep over every message sent during the flow confirming no experience/student/links question ever appears), AC6 (both guests' FULL conversations, proving the handler-level UX -- guestB is still shown the field-collection prompt since spent-ness is only discovered at the confirm tap -- and that the host is notified exactly once total across both), AC7 (built on the RETURNING-GUEST branch specifically, since a brand-new guest's Profile row never has an email at all -- AC7's own issue text asks for a guest with BOTH phone and email stored, which only a returning guest can genuinely have; asserts exactly one message to guest, exactly one to host, host's message contains name+company and neither phone nor email), AC8 (a DB case grepping every audit_log row's action/entity/payload for the exact phone string used, plus a static case asserting zero console./logger. calls anywhere in inviteCode.ts/companion.ts/start.ts -- structurally, no log line can ever carry the phone), and the returning-guest fix explicitly (existing Profile row -> field-collection skipped entirely, exactly one message sent total, attribution and Profile-row-untouched both verified). AC3's corrected scope (SECURITY-REVIEWER's note in step-02c) is stated explicitly in the spec's own header: verified against profiles/registrations row counts and the users row's consent_pd_at/chapter_id/PII-capacity (schema.ts's users table has no name/phone/company column at all, confirmed by reading it), not a literal 'zero users rows' assertion that would false-fail against REQ-014's pre-existing, unrelated bare-row /start behavior -- this is not a weakened check, it verifies the exact property AC3 protects (S1) scoped to the tables the property is actually about. Every acceptance criterion has at least one verification case that would fail if violated; no case checks something trivial just to have a case (each is built against a real invariant this implementation must uphold, most reusing the exact adversarial construction SECURITY-REVIEWER already traced by hand in step-02c). No TODOs left in the spec.",
+    "artifacts_out": [
+      "docs/agents/test-specs/REQ-039.md"
+    ],
+    "issues": []
+  },
+  "next_action": "Route to TEST-DESIGN-VALIDATOR (Step 3b)."
+}
