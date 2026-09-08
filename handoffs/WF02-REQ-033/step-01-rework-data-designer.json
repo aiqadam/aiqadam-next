@@ -1,0 +1,44 @@
+{
+  "handoff_id": "4d5e6f70-8192-4ab3-c234-6e7f809ab3c4",
+  "run_id": "WF02-REQ-033",
+  "workflow_id": "WF-02",
+  "step": "01-rework-1",
+  "from_agent": "ORCH",
+  "to_agent": "DATA-DESIGNER",
+  "file": "handoffs/WF02-REQ-033/step-01-rework-data-designer.json",
+  "created_at": "2026-09-08T05:23:38Z",
+  "started_at": "2026-09-08T05:23:38Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": [
+      "REQ-033"
+    ],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": [
+      "2b3c4d5e-6f70-4891-b012-4c5d6e7f8091",
+      "3c4d5e6f-7081-49a2-b123-5d6e7f809ab2"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/REQ-033.md",
+      "handoffs/WF02-REQ-033/step-01b-code-design-validator.json"
+    ],
+    "branch_name": "feature/WF02-REQ-033"
+  },
+  "task": {
+    "description": "REWORK 1 of 3 (max_rework: 3, per ORCHESTRATOR.md §6). CODE-DESIGN-VALIDATOR FAILed docs/agents/design/REQ-033.md at Step 1b on a single MAJOR issue, AC7. Fix ONLY this issue and resubmit -- do not otherwise rewrite the artefact. Read handoffs/WF02-REQ-033/step-01b-code-design-validator.json's result.issues[0] for the full evidence.",
+    "acceptance_criteria": [
+      "ISSUE (MAJOR, AC7): Self-contradiction in the alphabet definition. Section 4 (line ~231) defines and uses the 32-symbol alphabet '23456789ABCDEFGHJKLMNPQRSTUVWXYZ', which contains both L and Q -- this is the alphabet the section 4 entropy arithmetic (26x5=130 bits) and section 7 Drizzle-shape pseudocode are built on. But section 6 open question 5 (line ~358) and section 10's summary (line ~458) both assert the alphabet excludes '0/O/1/I/L' -- claiming L is already excluded, contradicting section 4's own literal alphabet string. FIX: make section 6 and section 10 match section 4 exactly -- drop the false L-exclusion claim, leave only Q named as the flagged optional exclusion (matching what section 4 actually says: 32 symbols already reached, no further exclusion needed, Q could optionally be dropped by BACKEND-DEV at the cost of moving off a clean power of two). Do NOT change section 4's alphabet itself (excluding L from the current 32 would give 31, not a power of two, breaking the exact log2 arithmetic without a compensating swap) -- the validator confirmed section 4's arithmetic is correct as written; only sections 6 and 10's prose is wrong.",
+      "After the fix, grep the artefact for the string '1/I/L' or similar false-exclusion claims and confirm zero remaining instances outside a clearly-labeled 'this was the pre-rework error' note if you choose to leave one for the record.",
+      "Every other acceptance criterion CODE-DESIGN-VALIDATOR already confirmed PASSing (AC1-6, AC8-9, no-implementation-code, FR-4 open question left open, FK closure precision) must remain unchanged and still true after your edit -- this is a targeted fix, not a rewrite."
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": []
+  }
+}
