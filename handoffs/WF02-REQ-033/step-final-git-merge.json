@@ -1,0 +1,43 @@
+{
+  "handoff_id": "e7f80912-1134-4453-7234-8769132425f3",
+  "run_id": "WF02-REQ-033",
+  "workflow_id": "WF-02",
+  "step": "final",
+  "from_agent": "ORCH",
+  "to_agent": "FRONTEND-DEV",
+  "file": "handoffs/WF02-REQ-033/step-final-git-merge.json",
+  "created_at": "2026-09-08T05:57:37Z",
+  "started_at": "2026-09-08T05:57:37Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": [
+      "REQ-033"
+    ],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": [
+      "d6e7f809-1023-4342-6123-7658021314f2"
+    ],
+    "artifacts_in": [],
+    "branch_name": "feature/WF02-REQ-033"
+  },
+  "task": {
+    "description": "WF-02 Step Final (Git merge) for REQ-033 on branch feature/WF02-REQ-033. Follow docs/agents/protocols/GIT_MERGE.md exactly. All gates PASSed: CODE-DESIGN-VALIDATOR (after 1 rework cycle), REVIEWER, SECURITY-REVIEWER, TEST-DESIGN-VALIDATOR, TEST-RUNNER, RELEASE-VALIDATOR -- all green. This closes GitHub issue #65 (tracker #74). Use DOC-UPDATER's result.summary as the commit/PR summary basis. Requirements in scope for this PR: REQ-033 only.",
+    "acceptance_criteria": [
+      "git rebase origin/master succeeds (or conflicts resolved per protocol, <=5 files)",
+      "PR opened against master, title references issue #65, body follows the protocol's template",
+      "CI green on the PR before merge -- gh pr checks --watch, never assumed",
+      "gh pr merge --squash --delete-branch exits 0",
+      "Local cleanup: back on master, ff-only pull, feature branch deleted locally, clean working tree",
+      "Close GitHub issue #65 with a summary comment; check off its box on tracker #74"
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": []
+  }
+}
