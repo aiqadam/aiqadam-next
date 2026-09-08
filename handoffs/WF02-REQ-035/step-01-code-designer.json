@@ -1,0 +1,68 @@
+{
+  "handoff_id": "step-01-code-designer",
+  "run_id": "WF02-REQ-035",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGNER",
+  "file": "handoffs/WF02-REQ-035/step-01-code-designer.json",
+  "created_at": "2026-09-08T08:25:40Z",
+  "started_at": "2026-09-08T08:25:40Z",
+  "completed_at": "2026-09-08T08:25:40Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-035"],
+    "requirement_text": {
+      "REQ-035": "GitHub issue #67. Organizer approve/reject surface for pending requests (admission='requested'), with reason, notification and logged capacity override. Implements USER-STORIES F3 / STORY-DETAILS F3 (Decide who comes in) plus PRD FR-13's approve/reject-with-reason. depends_on: REQ-034 (merged). An organizer lists PENDING requests for an event in their own chapter: company, position, student flag, source per row -- S3 forbids phone/email in this list, same constraint REQ-028's check-in list already carries. Filter/search for larger rooms. APPROVE: requested -> admitted, notify, issue qr_token via the EXISTING generateQrToken() in domain/registration.ts -- not a second generator. REJECT WITH REASON: requested -> rejected, notify respectfully with the reason AND an onward path -- this requirement's own WISHLIST OFFRAMP decision: Release 2 reuses REQ-017's upcoming-events list, exactly as REQ-027's cancellation message already does; NO Wishlist entity/table/migration/row is created (that is Release 3's G4, out of scope here). CAPACITY AT APPROVAL: approving when admitted count already equals capacity requires an EXPLICIT CONFIRMED override writing an AuditLog row -- the same override shape REQ-029 (check-in) and REQ-030 (walk-in) already implement; the design states whether the existing mechanism is reused or why not. The approval write is ATOMIC against the capacity check (S7) -- two organizers approving the last seat concurrently must not both succeed without an override; AC5 requires an automated concurrency test (20+ repeats, real Postgres, TEST-DESIGNER's scope later) but the design must name the exact locking/transaction mechanism. AUTHORIZATION (S2): requireOrganizerForChapter() (existing, domain/eventAuthorization.ts) checked ON THE HANDLER, not just the menu; EventStaff must be refused. PRIVACY (S3): the request list shows company/position/student/source and MUST NOT show phone or email, same as REQ-028's list. NOTIFICATIONS: both transactional (S10, sent regardless of broadcast_opt_in), through REQ-025's ledger, using the EXISTING 'admission_result' NotificationKind (domain/notification.ts) with a distinct kind per outcome so approve and a later state change cannot collide on one ledger key -- the design traces precisely what this requires. AUDIT: exactly one AuditLog row per approve/reject (S8)."
+    },
+    "source_text": { "github_issue": "#67" },
+    "related_handoff_ids": ["handoffs/WF02-REQ-035/step-00-git-setup.json"],
+    "artifacts_in": [
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/domain/walkin.ts",
+      "apps/bot/src/domain/eventAuthorization.ts",
+      "apps/bot/src/domain/eventStaffAuthorization.ts",
+      "apps/bot/src/domain/notification.ts",
+      "apps/bot/src/domain/auditLog.ts",
+      "apps/bot/src/domain/event.ts",
+      "apps/bot/src/handlers/checkin.ts",
+      "apps/bot/src/handlers/checkinQr.ts",
+      "apps/bot/src/db/schema.ts",
+      "docs/agents/design/REQ-020.md",
+      "docs/agents/design/REQ-029.md",
+      "docs/agents/design/REQ-030.md",
+      "docs/agents/design/REQ-034.md",
+      "docs/agents/design/REQ-027.md",
+      "docs/agents/instructions/security-invariants.md"
+    ],
+    "branch_name": "feature/WF02-REQ-035"
+  },
+  "task": {
+    "description": "WF-02 Step 1 (Design) for REQ-035, on branch feature/WF02-REQ-035 (verified branch matches). Produced docs/agents/design/REQ-035.md mapping all 10 acceptance criteria to concrete design elements: a new list read (listPendingRequestsForOrganizer, S3-safe by structural column exclusion, mirroring REQ-028's listAdmittedRegistrantsForCheckin), a new pure decision (decideApprovalOutcome) and transactional writer (approveRequest) that reuse REQ-030's overrideConfirmed-threading + SELECT...FOR UPDATE row-lock pattern (traced against REQ-020/023/030, NOT REQ-029's overrideAdmitAndCheckIn, with the distinction traced precisely: REQ-029 combines admit+checkin for a door-side QR refusal with no capacity gate at all, while REQ-035 needs a genuine capacity gate and must never touch checkedInAt/checkedInBy/checkInMethod), a parallel decideRejectionOutcome/rejectRequest pair, and both notification sends reusing the EXISTING 'admission_result' NotificationKind unchanged (traced why one kind suffices: a requested row transitions to admitted XOR rejected exactly once via this requirement's own two writers, so the (registration_id, kind) unique ledger index is never asked to hold two sends for the same row -- no new NotificationKind literal is added). Confirmed independently: no schema change (every write targets existing columns/types) -- DATA-DESIGNER is NOT needed for this run.",
+    "acceptance_criteria": [
+      "Approving sets admission='admitted', issues a non-null qr_token via the existing generateQrToken(), and notifies the person.",
+      "Rejecting sets admission='rejected', notifies, and the captured message contains BOTH the organizer's stated reason AND an onward path pointing at the upcoming-events list.",
+      "No wishlist table, migration or row is created by this requirement, verified by grepping every migration and the schema for 'wishlist'.",
+      "Approving when admitted count already equals capacity requires an explicit confirmation: dismissing leaves admission='requested' unchanged; confirming sets 'admitted' AND writes exactly one audit_log row recording the override.",
+      "Two organizers approving the last remaining seat concurrently never produce an admitted count above capacity without an override -- verified by an automated concurrency test, 20+ repeats, real Postgres.",
+      "A member, and separately an EventStaff member for that same event, each invoking the approve handler DIRECTLY are both refused and the registration is unchanged.",
+      "An organizer of chapter A invoking the approve handler for a chapter B event is refused.",
+      "The rendered request list contains no phone number and no email address.",
+      "The approval and the rejection notification each reach a user with broadcast_opt_in=false.",
+      "Each approve and each reject writes exactly one audit_log row."
+    ]
+  },
+  "result": {
+    "status": "SUCCESS",
+    "summary": "Produced docs/agents/design/REQ-035.md (10 sections, full AC map in section 9, open questions in section 8). Key resolutions, each traced against actual code (not the issue's assertions taken on faith): (1) Concurrency mechanism = the same SELECT ... FOR UPDATE row-lock-on-events + fresh in-transaction re-count pattern REQ-020/REQ-023/REQ-030 already use -- named exactly, testable with a real-Postgres 20+-repeat concurrency test since the serialization is a database primitive, not an in-process mutex. (2) Capacity override reuses REQ-030's commitWalkin shape (a threaded overrideConfirmed boolean feeding a pure decision function, with a distinct audit-action string per branch: registration.approve vs registration.approve_override) -- explicitly NOT REQ-029's overrideAdmitAndCheckIn, because that function combines admit+checkin for a door-side QR-refusal scenario with NO capacity check at all (by its own design comment), which does not fit REQ-035's away-from-the-door, capacity-gated, non-checkin approval. (3) Notification kind: both approve and reject reuse the EXISTING 'admission_result' NotificationKind literal unchanged -- no second literal added -- because the notification_ledger's UNIQUE(registration_id, kind) index is never asked to hold two admission_result sends for the same registration (a requested row transitions to admitted XOR rejected exactly once via this requirement's own two writers; no other code path in the codebase sends admission_result for an already-decided row, confirmed by reading both REQ-029's and REQ-030's override call sites, neither of which calls sendLedgeredNotification for the attendee at all). (4) List rendering mirrors REQ-028's listAdmittedRegistrantsForCheckin exactly: company/position/isStudent/source are selected; profiles.phone/profiles.email are structurally absent from the query's own select clause (S3). (5) Filter/search for 'larger rooms' reuses REQ-028's existing in-memory substring-filter + PAGE_SIZE/SEARCH_RESULT_LIMIT mechanism -- no new filtering approach invented. (6) Zero Wishlist confirmed: only the existing catalog.event.deepLinkSeeUpcoming string is reused for the onward path, same as REQ-027's cancellation-notice precedent; no new table/migration/row of any kind is proposed anywhere in the design. No schema change anywhere in this design -- DATA-DESIGNER is NOT needed for this run.",
+    "artifacts_out": ["docs/agents/design/REQ-035.md"],
+    "issues": [
+      "OPEN (named as Open Question 1 in the design, routed to whichever role owns it if a future requirement needs it): the organizer's rejection reason text is captured only in audit_log.payload and the notification text, not on a new registrations column -- no AC requires a stored, queryable rejection-reason field.",
+      "OPEN (Open Question 2): the exact plumbing location for reusing checkin.ts's PAGE_SIZE/SEARCH_RESULT_LIMIT constants (import as-is vs. hoist to a shared module) is left to BACKEND-DEV -- no behavioral consequence either way.",
+      "OPEN (Open Question 3): whether approve/reject on a since-cancelled or since-finished event needs a distinct refusal is NOT addressed by any AC in this requirement's list and is deliberately not silently added -- flagged for REQ-036 or a later requirement if it turns out to matter.",
+      "OPEN (Open Question 4): no AC requires an open list view in another organizer's session to auto-refresh after a decision elsewhere -- deliberately left unaddressed, same precedent REQ-028's own toggle handler already accepts for its stale-row case.",
+      "OPEN (Open Question 5): the exact mechanism for scoping 'the organizer's next text message' to one in-progress reject flow (grammY conversations plugin vs. an in-memory map vs. a stored pending-action row) is implementation, not design -- left to BACKEND-DEV."
+    ]
+  }
+}
