@@ -1937,7 +1937,7 @@ requirements:
   - id: REQ-036
     title: Pending-request urgency flag at T-48h and honest auto-decline at registration close
     owner: BACKEND-DEV
-    status: pending
+    status: in_progress
     description: >
       Closes JOURNEY-AUDIT's J3 ("An approval request can hang forever"), which the
       audit files as acceptance criteria on BOTH B6 and F3 rather than as its own
