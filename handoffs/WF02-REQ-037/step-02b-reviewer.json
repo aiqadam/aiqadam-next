@@ -1,0 +1,64 @@
+{
+  "handoff_id": "step-02b-reviewer",
+  "run_id": "WF02-REQ-037",
+  "workflow_id": "WF-02",
+  "step": "02b",
+  "from_agent": "REVIEWER",
+  "to_agent": "SECURITY-REVIEWER",
+  "file": "handoffs/WF02-REQ-037/step-02b-reviewer.json",
+  "created_at": "2026-09-08T11:35:16Z",
+  "started_at": "2026-09-08T11:10:00Z",
+  "completed_at": "2026-09-08T11:35:16Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-037"],
+    "related_handoff_ids": [
+      "handoffs/WF02-REQ-037/step-01-code-designer.json",
+      "handoffs/WF02-REQ-037/step-01b-code-design-validator.json",
+      "handoffs/WF02-REQ-037/step-02-backend-dev.json"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/REQ-037.md",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/user.ts",
+      "apps/bot/src/domain/event.ts",
+      "apps/bot/src/handlers/inviteCodes.ts",
+      "apps/bot/src/handlers/start.ts",
+      "apps/bot/src/i18n/types.ts",
+      "apps/bot/src/i18n/en.ts",
+      "apps/bot/src/i18n/ru.ts",
+      "apps/bot/src/index.ts"
+    ],
+    "branch_name": "feature/WF02-REQ-037"
+  },
+  "task": {
+    "description": "WF-02 Step 2b (REVIEWER hard gate) for REQ-037 on branch feature/WF02-REQ-037. Independently re-derive design-system/code-quality/scope compliance for BACKEND-DEV's implementation of docs/agents/design/REQ-037.md; re-run lint/build/tests rather than trusting the producer's self-report.",
+    "acceptance_criteria": [
+      "Diff read via git diff master...HEAD and checked against docs/agents/design/REQ-037.md's 10 design elements and the requirement's 10 ACs (GitHub #69).",
+      "Null-check deviation (EventForIssuing startsAt/endsAt) traced to EventRecord's real type and to handlers/start.ts's precedent.",
+      "Three issue-* functions' exact column compositions verified against the design's table.",
+      "userExistsById verified to check id-existence only, never tgId.",
+      "resolveEventForIssuing's refusal order verified against design §2's exact sequence.",
+      "S3-safe select clauses verified to structurally exclude phone/email.",
+      "AC9 verified by git grep: every reply targets the acting organizer's own ctx.",
+      "AC10 verified: INSERT + writeAuditLog in the same db.transaction, per issue function.",
+      "Expiry default (expiresAt = event.startsAt unless overridden) verified.",
+      "Zero schema/migration change verified via git diff.",
+      "npm run lint -w apps/bot, npm run build -w apps/bot, and npx vitest run --no-file-parallelism (run twice) re-run directly by REVIEWER."
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "PASS. Re-derived, not rubber-stamped -- checked the diff (git diff master...HEAD, 16 files, +1771/-1) directly against docs/agents/design/REQ-037.md and GitHub issue #69's 10 ACs, and re-ran every verification command myself.\n\nDesign-system / scope: this is a Telegram-bot-only change (apps/bot/**), no apps/web/src or public/ touched, no design-system token surface applies (design §8 correctly states N/A) -- nothing to check against the visual design system here.\n\nSpecific checks performed and their outcome:\n1. Null-check deviation: confirmed genuinely defensive, not scope creep. apps/bot/src/domain/event.ts:441-442 types EventRecord.startsAt/endsAt as `Date | null`. apps/bot/src/handlers/start.ts:130-131 groups `event.endsAt === null` with the 'finished' refusal for the identical reason (defensive, unreachable for a published event since findMissingPublishFields already guarantees non-null). resolveEventForIssuing (handlers/inviteCodes.ts:119) does the exact same thing for both startsAt and endsAt. This changes no observable behavior for any real event row and matches an existing precedent exactly -- not an unauthorized business-rule addition.\n2. Three issue-* functions (domain/inviteCode.ts:175-314): issuePersonalInviteCode writes issuedToUserId=<target>, grantsCompanionOf=null, maxUses=1; issueBulkInviteCode writes issuedToUserId=null, grantsCompanionOf=null, maxUses=<N>; issueCompanionInviteCode writes issuedToUserId=null, grantsCompanionOf=<host>, maxUses=1 -- each matches the design's §1.1/§1.2/§1.3 tables exactly, verified by reading the INSERT .values() calls directly.\n3. userExistsById (domain/user.ts:178-181): `select id from users where id = userId limit 1` -- existence check only, no tgId reference anywhere in the function. Satisfies AC3 by construction.\n4. resolveEventForIssuing (handlers/inviteCodes.ts:92-128): order is getEventById->null check (eventNotFound), requireOrganizerForChapter (notAuthorized), status==='cancelled' (eventCancelled), then startsAt/endsAt null or isFinished (eventFinished) -- exact match to design §2's stated not-found -> auth -> cancelled -> finished sequence, checked before any per-command argument validation as the design specifies.\n5. S3-safe queries: listInviteCodeRedeemers's select clause (domain/inviteCode.ts:434-441) selects only registrationId/firstName/lastName/tgUsername/company -- no profiles.phone, no profiles.email column anywhere in the select. Structural exclusion, not a runtime filter, matching the design's own stated guarantee.\n6. AC9: `git grep` over apps/bot/src/handlers/inviteCodes.ts and domain/inviteCode.ts for sendMessage-shaped calls found zero -- every ctx.reply/ctx.answerCallbackQuery call in the file targets ctx itself (the invoking organizer's own chat), confirmed by reading all 23 reply/answerCallbackQuery call sites individually. No second bot.api call to issuedToUserId/grantsCompanionOf/targetUserId/hostUserId exists anywhere in the diff.\n7. AC10: all three issue-* functions call writeAuditLog(tx, ...) inside the same db.transaction as the invite_codes INSERT (domain/inviteCode.ts:183-221, 232-268, 278-314) -- one row per issue, never on a refusal path (every refusal in resolveEventForIssuing/per-command validation returns before any issue-* function is called).\n8. Expiry default: all three handlers compute `expiresAt = input.expiresAt ?? resolved.event.startsAt` (handlers/inviteCodes.ts:163, 204, 251) -- matches design §1.4 exactly.\n9. Zero schema change: `git diff master...HEAD -- apps/bot/src/db/schema.ts` and a migrations-filename grep both returned empty -- no schema/migration files in this diff at all.\n10. Domain-logic-outside-handlers (decisions/0004): confirmed -- inviteCodes.ts contains no business rule bodies, only sequencing/auth/reply calls; every parse/validate/issue/query function lives in domain/inviteCode.ts or domain/user.ts.\n11. No now()/current_timestamp in a time-dependent predicate: grepped the diff, found none -- isFinished(event.endsAt, evaluationTime) takes evaluationTime as an explicit caller-supplied parameter (new Date() captured once per handler invocation), never a bare clock read inside the domain layer.\n12. No workspace/build-output change in this diff -- Docker build re-verification (reviewer.md item 7) not triggered.\n\nVerification commands re-run directly by REVIEWER (not trusted from BACKEND-DEV's report): `npm run lint -w apps/bot` -> clean. `npm run build -w apps/bot` -> clean (tsc -p tsconfig.json, no errors). `npx vitest run --no-file-parallelism` run TWICE per ISS-0031: both runs report Test Files 41 passed (41), Tests 367 passed (367), fully consistent both times.\n\nDISCREPANCY FLAGGED (MINOR, not blocking): BACKEND-DEV's handoff (step-02-backend-dev.json) reports '82/82 test files, 734/734 tests' for both of its two vitest runs. REVIEWER's own two runs, immediately after, both show 41/41 files and 367/367 tests -- exactly half BACKEND-DEV's reported figures. This looks like BACKEND-DEV's report summed or double-counted its two separate runs into one reported total rather than stating each run's own count, since 82=2x41 and 734=2x367 exactly. The actual current suite is 41 files / 367 tests, passing cleanly and consistently across REVIEWER's own two independent runs -- so this does not change the PASS verdict (the underlying property, 'full suite passes twice', holds either way), but the reported count itself was inaccurate and should not be propagated forward as fact. Filed here per core-directives.md's 'never resolve a conflict silently' -- recommend ORCH route to DOC-UPDATER/BACKEND-DEV to note in the run log, not a rework cycle.",
+    "artifacts_out": [
+      "handoffs/WF02-REQ-037/step-02b-reviewer.json"
+    ],
+    "issues": [
+      "MINOR: BACKEND-DEV's step-02 handoff reports 82 test files / 734 tests for its vitest runs; REVIEWER's own re-run (twice) shows 41 files / 367 tests, exactly half. Likely a reporting error (sum of two runs reported as one run's count) rather than a real regression -- both of REVIEWER's runs pass cleanly and consistently at the 41/367 count. Not a blocking finding; noted for the record per core-directives.md's fact-verification rule.",
+      "CARRIED FORWARD (not this step's to resolve): all inviteCodes i18n catalog strings (en.ts, ru.ts) are provisional pending CONTENT-BA/product-owner final wording -- same precedent as REQ-014/032/036, not a design-system violation since this is bot conversation text, not a apps/web surface.",
+      "CARRIED FORWARD (not this step's to resolve): REQ-033 §6's open questions on personal-code re-issuance coexistence and code-display chunking remain unresolved per the design's own explicit non-resolution -- no new constraint invented here, correctly."
+    ],
+    "next_action": "Route to SECURITY-REVIEWER (Step 2c) -- mandatory for apps/bot/** changes touching authorization, personal data (redeemer name/company), and an access-grant token (invite code), per .claude/agents/reviewer.md and security-invariants.md S2/S3/S8."
+  }
+}
