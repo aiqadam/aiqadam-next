@@ -1,0 +1,67 @@
+{
+  "handoff_id": "step-01-code-designer",
+  "run_id": "WF02-REQ-038",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "file": "handoffs/WF02-REQ-038/step-01-code-designer.json",
+  "created_at": "2026-09-08T12:22:16Z",
+  "started_at": "2026-09-08T12:22:16Z",
+  "completed_at": "2026-09-08T12:22:16Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-038"],
+    "requirement_text": {
+      "REQ-038": "GitHub issue #70. Invite code redemption via i_ deep link or typed code, with the full validation table and past-attendee eligibility. Implements USER-STORIES B7 / STORY-DETAILS B7 (Use my invitation) and PRD FR-4's two requires_invite rows: requires_invite=true, requires_approval=false (valid code -> admitted; no code -> onward path) and requires_invite=true, requires_approval=true (valid code -> requested -> organizer decides). Replaces REQ-020's placeholder { kind: 'requires-invite' } refusal in apps/bot/src/domain/registration.ts -- deliberately, exactly as REQ-034 replaced the requires-approval one. Scope: redemption by both routes (the ?start=i_<code> deep link, PRD 8, and by typing the code) resolving to one validation path; the validation table (code exists; not expired; uses remain; belongs to this event; if personal, issued to this redeemer); the two named refusals (different event, personal code redeemed by someone else -- security-invariants.md S4's negative case extended to identity); outcome reuses decideRegistrationOutcome's existing admitted/waitlisted/requested branches (a code buys past the invite gate, not past capacity, S7); used_count increments atomically with the registration write in the same transaction; past-attendee eligibility (checked_in_at on any past event satisfies requires_invite without a code) is a derived query, never a stored flag -- and this requirement must explicitly resolve REQ-033's routed-here open question (FR-4's 'configurable per event' vs PRD 5's Event entity having no such column) rather than silently deciding it; refusals offer the onward path (REQ-035's upcoming-events offramp, no Wishlist); consent precedes redemption (S1, REQ-019's gate is never bypassed); exactly one AuditLog row per successful redemption (S8)."
+    },
+    "source_text": { "github_issue": "#70" },
+    "related_handoff_ids": ["handoffs/WF02-REQ-038/step-00-git-setup.json"],
+    "artifacts_in": [
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/event.ts",
+      "apps/bot/src/domain/auditLog.ts",
+      "apps/bot/src/handlers/start.ts",
+      "apps/bot/src/handlers/registration.ts",
+      "apps/bot/src/handlers/organizerRequests.ts",
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/src/i18n/types.ts",
+      "apps/bot/src/i18n/en.ts",
+      "apps/bot/src/index.ts",
+      "docs/agents/design/REQ-033.md",
+      "docs/agents/design/REQ-035.md",
+      "docs/agents/design/REQ-034.md",
+      "docs/agents/instructions/security-invariants.md"
+    ],
+    "branch_name": "feature/WF02-REQ-038"
+  },
+  "task": {
+    "description": "WF-02 Step 1 (Design) for REQ-038, on branch feature/WF02-REQ-038 (verified branch matches, commit 4124c34 at run start). Produced docs/agents/design/REQ-038.md mapping all 11 acceptance criteria to concrete design elements. Re-verified directly against the current apps/bot/src/db/schema.ts that invite_codes.used_count and registrations.invite_code_id already exist unchanged (REQ-033) -- zero schema change anywhere in this design, DATA-DESIGNER NOT dispatched. Key resolutions, all stated explicitly rather than silently decided: (1) decideRegistrationOutcome gains exactly one new boolean input (inviteSatisfied) and one AND-term on its existing requiresInvite branch -- every other branch/outcome kind unchanged, reused verbatim for admitted/waitlisted/requested (design questions 3 and 5). (2) Past-attendee eligibility is a single new read, hasPastCheckIn(db, userId), over registrations.checked_in_at IS NOT NULL with no event-scoping parameter -- a property of the user, never the event, never cached (design question 3). (3) The atomic used_count increment mirrors registerForEvent's existing events-row-lock-then-decide shape and performQrCheckIn's two-phase unlocked-precheck/locked-recheck discipline: invite_codes is locked FOR UPDATE inside the same transaction as the registrations write, and the increment (locked value + 1) happens only on a writing outcome (admitted/waitlisted/requested), never on a refusal (design question 2). (4) THE ROUTED-HERE FR-4 QUESTION IS RESOLVED: this design takes option (a) -- past-attendee eligibility applies uniformly to every requires_invite event (hasPastCheckIn takes no per-event parameter at all), and 'configurable per event' is explicitly deferred until a real need appears, requiring its own future decisions/ record before any column is added. No column is added to events, users, or any other table by this design (design question 4, restated in full in section 8's AC8 row). (5) The typed-code entry point is resolved as a two-token command, /redeem <event_id> <code>, mirroring /invite_personal's exact parse shape -- a stateful 'reply to this message' alternative (mirroring organizerRequests.ts's force_reply + ref-line mechanism) was considered and explicitly rejected in section 5.1 as adding a second free-text listener for no benefit, since the two-token command needs no new storage or state at all (design question 1's entry-point half; design question 6 -- redemption is gated on consent exactly where resolveEventDeepLink/makeStartHandler already gate the e_ deep-link and ordinary /start flows, via the same buildConsentAgreeCallbackData/consent:agree resume mechanism, extended with a new i_ payload grammar reusing e_'s exact primary__optional shape). (6) The validation-table check order follows the requirement's own stated order (existence -> expiry -> uses-remain -> event-match -> identity-match) literally, with existence handled entirely outside the pure validator (an unlocked pre-check fails fast before any transaction opens). The info-leakage sub-question (personal-code-redeemed-by-someone-else vs unknown-code) is resolved explicitly in section 3.2: distinct messages for both, reasoned from the requirement's own text plus the 130-bit code entropy (S4) making the distinction non-exploitable, written down for SECURITY-REVIEWER to check rather than re-derive from nothing (design question 1's ordering/leakage half). (7) No second, separate invite_code.redeem audit row -- a deliberate resolution stated in section 3.1 step 10, since AC11 requires exactly one row and traceability is carried by the existing registration-write audit row's payload instead.",
+    "acceptance_criteria": [
+      "Redeeming a valid code for a requires_invite event with seats remaining, BOTH via ?start=i_<code> and by typing the code, each set admission='admitted' and registrations.invite_code_id to that code's id and increment invite_codes.used_count by exactly one -- both entry points run and the rows read back.",
+      "A PERSONAL code (issued_to_user_id set) redeemed by a DIFFERENT user is refused, no registration is created, and used_count is unchanged.",
+      "An expired code, a spent code, an unknown code string, and a code whose event_id is a DIFFERENT event are each refused with their own stated reason plus the upcoming-events list as an onward path, and none creates a registration or changes used_count.",
+      "Two concurrent redemptions of the LAST remaining use of a bulk code result in exactly one successful registration and used_count ending at max_uses, never above it.",
+      "Redeeming a valid code for an event that is BOTH requires_invite and requires_approval produces admission='requested' (not 'admitted') and the request appears in REQ-035's organizer list.",
+      "Redeeming a valid code for a requires_invite event that is at full capacity produces admission='waitlisted', not 'admitted'.",
+      "A user with checked_in_at on a past event registering for a requires_invite event WITHOUT any code is admitted, and a user with no past check-in is refused with the onward path -- the eligibility derivation is a query, no stored column/cache/flag.",
+      "The design artefact states which resolution it takes for FR-4's 'configurable per event' eligibility question and the reasoning, and no new column is added to the events table by this requirement.",
+      "A redeemer who has not yet given personal-data consent is taken through REQ-019's consent and profile flow, and declining consent leaves zero profiles rows and no registration for that user despite the valid code.",
+      "No wishlist table, migration or row is created by this requirement.",
+      "Each successful redemption writes exactly one audit_log row."
+    ]
+  },
+  "result": {
+    "status": "SUCCESS",
+    "summary": "Produced docs/agents/design/REQ-038.md (9 sections, full AC map in section 8). Confirmed directly against the live apps/bot/src/db/schema.ts that invite_codes.used_count and registrations.invite_code_id already exist unchanged from REQ-033 -- zero schema change anywhere in this design, no new events/users/any-table column. DATA-DESIGNER is NOT dispatched for this run. All six design questions from the dispatch prompt are resolved explicitly with stated reasoning (see task.description above for the summary of each); in particular design question 4 -- the FR-4 'configurable per event' question REQ-033 explicitly routed here -- is resolved as option (a) (uniform application, deferred configurability, no column added), stated in full in section 8's AC8 row, not silently decided. Design gate reviewers should check in particular: (a) section 1.2's updated decideRegistrationOutcome table -- confirm only row 5 changed and rows 1-4/6-8 are byte-for-byte the existing function; (b) section 3.1's transaction step sequence -- confirm the invite_codes row lock and the used_count increment are in the SAME transaction as the registrations write, and that steps 9/10's writing-outcome boundary matches registerForEvent's existing one exactly; (c) section 3.2's validation table order and its explicit info-leakage reasoning; (d) section 5.1's explicit rejection of a stateful reply-to-message mechanism in favor of a stateless two-token /redeem command, and section 4.1's i_<code>/i_<code>__<eventId> grammar reusing e_'s existing shape; (e) that no implementation code appears anywhere -- every new function is a bare type/interface/signature declaration plus a prose/table rule, matching REQ-033/034/035/036/037's own artefact style; (f) section 0's/top-of-document's explicit confirmation, re-derived from the live schema file, that DATA-DESIGNER is not needed.",
+    "artifacts_out": ["docs/agents/design/REQ-038.md"],
+    "issues": [
+      "OPEN (design section 7, point 1): companion codes (grants_companion_of non-null) get no special redemption behavior beyond the same validation table any non-personal code gets -- whether a companion's registration should be linked back to its host via registrations.invited_by_user_id (an existing, currently-unused column) is left unresolved, not invented, flagged for a future requirement.",
+      "OPEN (design section 7, point 2): /redeem's <event_id> argument takes the raw UUID only, following every other <event_id>-taking command's existing precedent (/invite_personal, /walkin, /requests) -- not a new friendlier lookup.",
+      "OPEN (design section 7, point 3): no rate limiting/lockout for repeated failed redemption attempts is added -- this codebase currently rate-limits no command, and the 130-bit code entropy (S4) is the existing defense; flagged as not silently assumed sufficient forever, not resolved further here.",
+      "NOTED (design section 6): all new i18n catalog strings are provisional placeholder/minimal-functional copy pending final wording, same precedent REQ-034/035/036/037's own artefacts already established -- BACKEND-DEV's own handoff must restate this."
+    ]
+  }
+}
