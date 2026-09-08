@@ -1,0 +1,31 @@
+{
+  "handoff_id": "step-04-test-runner",
+  "run_id": "WF02-REQ-036",
+  "workflow_id": "WF-02",
+  "step": "04",
+  "from_agent": "ORCH",
+  "to_agent": "RELEASE-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Executed WF-02 Step 4 for REQ-036, following docs/agents/test-specs/REQ-036.md (TEST-DESIGN-VALIDATOR-approved) exactly. Wrote both new test files verbatim from the spec's own source blocks -- apps/bot/src/scheduler/urgencyJobs.db.test.ts (tg_id 1_030_000_000+, AC1 + AC7 urgency-side) and apps/bot/src/scheduler/autoDeclineJobs.db.test.ts (tg_id 1_031_000_000+, AC2/AC3/AC4/AC5/AC6-inline/AC7-autodecline-side/AC8) -- with zero edits beyond transcription. `npm run lint -w apps/bot` (eslint .) ran clean, zero errors/warnings. `npm run build -w apps/bot` (tsc -p tsconfig.json) ran clean, zero type errors. Full-suite `npx vitest run --no-file-parallelism` was run from the repo root (never a subdirectory root, per the mandate) TWICE: attempt 1 was already clean -- 41/41 test files, 367/367 individual tests, 45.91s; attempt 2, run purely for extra confidence given ISS-0031's documented shared-Postgres cross-process contention pattern, reproduced the identical clean result -- 41/41 files, 367/367 tests, 41.46s. No retry was actually needed to reach a conclusive signal (attempt 1 alone was already conclusive and clean); a second run was made anyway as a consistency check, and it matched. A third, isolated run of just the two new REQ-036 files (`npx vitest run --no-file-parallelism apps/bot/src/scheduler/urgencyJobs.db.test.ts apps/bot/src/scheduler/autoDeclineJobs.db.test.ts`) also passed cleanly: 2/2 files, 9/9 tests (urgencyJobs.db.test.ts: 2 tests for AC1 and AC7-urgency-side; autoDeclineJobs.db.test.ts: 7 tests for AC2, AC3, AC4, AC5 x2, AC7-autodecline-side, AC8). REQ-036's own two new test files were therefore consistently clean across all 3 executions this session (both full-suite runs plus the isolated run) -- no flakiness, no ISS-0031 contention symptom (no FK-violation errors, no varying failing-file set) observed at any point. AC8's process half was verified by directly reading handoffs/WF02-REQ-036/step-02-backend-dev.json's result.issues[0], per the spec's own instruction that this AC is confirmed by reading the record, not by test code -- confirmed present verbatim as the spec restates it. No spec/implementation mismatch was encountered anywhere; every case ran exactly as written against the real scheduler code with no test-code alteration to force a pass.",
+    "test_counts": {
+      "full_suite_files": "41 passed (41)",
+      "full_suite_tests": "367 passed (367)",
+      "req036_new_files": "2 passed (2)",
+      "req036_new_tests": "9 passed (9)",
+      "urgencyJobs_db_test": "2 tests (AC1, AC7-urgency-side)",
+      "autoDeclineJobs_db_test": "7 tests (AC2, AC3, AC4, AC5 x2, AC7-autodecline-side, AC8)"
+    },
+    "full_suite_attempts": 2,
+    "full_suite_attempts_note": "Attempt 1 alone was already clean and conclusive (41/41 files, 367/367 tests) -- no ISS-0031 contention symptom encountered. A second attempt was run anyway purely for consistency confidence and matched exactly. Neither run showed the varying-failing-file-set / FK-violation pattern ISS-0031 describes.",
+    "issues": [],
+    "artifacts_out": [
+      "apps/bot/src/scheduler/urgencyJobs.db.test.ts",
+      "apps/bot/src/scheduler/autoDeclineJobs.db.test.ts",
+      "test-reports/report-2026-09-08-WF02-REQ-036.yaml",
+      "handoffs/WF02-REQ-036/step-04-test-runner.json"
+    ],
+    "next_action": "Route to RELEASE-VALIDATOR (Step 5)"
+  }
+}

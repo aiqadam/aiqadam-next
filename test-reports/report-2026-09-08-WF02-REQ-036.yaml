@@ -1,0 +1,87 @@
+run_id: WF02-REQ-036
+date: "2026-09-08T11:01:09Z"
+lint: pass
+build: pass
+lint_command: "npm run lint -w apps/bot"
+lint_output: |
+  > bot@0.1.0 lint
+  > eslint .
+  (zero errors, zero warnings)
+build_command: "npm run build -w apps/bot"
+build_output: |
+  > bot@0.1.0 build
+  > tsc -p tsconfig.json
+  (zero errors, clean tsc build)
+full_suite:
+  command: "npx vitest run --no-file-parallelism"
+  invocation_root: repo root (per mandate -- never apps/bot)
+  attempts: 2
+  attempts_note: >
+    Both attempts, run back-to-back, were clean: 41/41 test files, 367/367
+    individual tests, on the FIRST attempt already. A second run was made
+    anyway, given ISS-0031's documented shared-Postgres cross-process
+    contention pattern, purely for extra confidence -- it reproduced the
+    identical clean result (41/41 files, 367/367 tests). No retry was
+    actually needed to reach a conclusive signal; 1 attempt would have
+    sufficed, 2 were run.
+  attempt_1:
+    test_files: "41 passed (41)"
+    tests: "367 passed (367)"
+    duration: "45.91s"
+  attempt_2:
+    test_files: "41 passed (41)"
+    tests: "367 passed (367)"
+    duration: "41.46s"
+  conclusion: "PASS -- consistent clean full-suite result across both attempts, no ISS-0031 contention observed this run."
+req036_files_isolated_run:
+  command: "npx vitest run --no-file-parallelism apps/bot/src/scheduler/urgencyJobs.db.test.ts apps/bot/src/scheduler/autoDeclineJobs.db.test.ts"
+  result: "2 passed (2 files), 9 passed (9 tests)"
+  breakdown:
+    urgencyJobs.db.test.ts: "2 tests (AC1, AC7-urgency-side) -- both pass"
+    autoDeclineJobs.db.test.ts: "7 tests (AC2, AC3, AC4, AC5 x2, AC7-autodecline-side, AC8) -- all pass"
+  consistency: >
+    REQ-036's own two new test files were clean in both the two full-suite
+    runs above AND this dedicated isolated run -- consistently clean across
+    all 3 executions this session, not merely once.
+ac8_process_half:
+  method: "read handoffs/WF02-REQ-036/step-02-backend-dev.json directly, not test code, per REQ-014/031/032 precedent for process-shaped ACs"
+  finding: >
+    result.issues[0] of that handoff states verbatim: "PROVISIONAL WORDING
+    (per REQ-014/032 precedent): urgentMarker, urgentNotification, and
+    autoDecline.notification are all placeholder copy pending
+    product-owner review -- see summary for exact strings." Confirmed
+    present as written. AC8's disclosure requirement is satisfied.
+  result: pass
+cases:
+  - acceptance_criterion: AC1
+    result: pass
+    notes: "File 1 describe block -- event exactly 48h out: 2 requested regs both pushed to organizer and both isUrgent=true; event 49h out untouched by push or list marker. Verified via 2 full-suite runs + 1 isolated run, all clean."
+  - acceptance_criterion: AC2
+    result: pass
+    notes: "File 2 -- 3 pending + 1 admitted + 1 rejected at registration_closes_at: exactly 3 transitions, 3 sends, admitted/rejected rows untouched. Clean across all runs."
+  - acceptance_criterion: AC3
+    result: pass
+    notes: "File 2 -- captured message text matches honest/blame-free wording plus deepLinkSeeUpcoming onward path. Clean."
+  - acceptance_criterion: AC4
+    result: pass
+    notes: "File 2 -- run 1 transitions/sends for 3 pending; run 2 (same evaluationTime, restart-safety proof per spec's own design note) sends/transitions nothing further. Clean."
+  - acceptance_criterion: AC5
+    result: pass
+    notes: "File 2 -- registrationClosesAt IS NULL falls back to endsAt in both directions (fires after endsAt, does not fire before it). Clean."
+  - acceptance_criterion: AC6
+    result: pass
+    notes: "Verified inline in AC2/AC4/AC5 cases -- audit-row count before/after, actorUserId null. Clean, no separate describe block per spec."
+  - acceptance_criterion: AC7
+    result: pass
+    notes: "Urgency-side (File 1) + auto-decline-side (File 2): broadcastOptIn=false organizer/registrant still reached; blocked=true organizer/registrant never reached (registrant's row still transitions). Clean."
+  - acceptance_criterion: AC8
+    result: pass
+    notes: "Code half: File 2 AC8 describe block, grep-based, confirms both scheduler files route through getCatalog/catalog.autoDecline.notification and never hardcode the provisional English sentence. Process half: confirmed via direct read of step-02-backend-dev.json's result.issues[0] disclosure, per spec's own note that this is verified by reading the record, not test code."
+verdict: PASS
+next_action: "Route to RELEASE-VALIDATOR (Step 5)"
+notes: >
+  No spec/implementation mismatch encountered -- all cases ran exactly as
+  written in docs/agents/test-specs/REQ-036.md with zero test-code edits
+  beyond transcription. Both new test files, tg_id ranges 1_030_000_000+
+  and 1_031_000_000+ respectively, committed verbatim per the approved
+  spec.
