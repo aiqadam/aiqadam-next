@@ -1,0 +1,34 @@
+id: ISS-0030
+title: Multiple WF-02 roles complete their handoff result block but do not commit it, leaving ORCH to commit on their behalf
+severity: MINOR
+status: open
+discovered_by: ORCH
+discovered_during: WF02-REQ-033 (Release 2, first requirement)
+discovered_at: "2026-09-08"
+area: pipeline bookkeeping / handoff mechanics
+description: >
+  Across WF02-REQ-033's run, five separate agent dispatches wrote a completed
+  handoff result (status COMPLETED, result.status PASS/FAIL) but left the file
+  as an uncommitted working-tree change instead of committing it themselves:
+  CODE-DESIGN-VALIDATOR (both the first FAIL pass and the post-rework PASS
+  pass), REVIEWER, SECURITY-REVIEWER, and TEST-DESIGN-VALIDATOR. TEST-DESIGNER,
+  BACKEND-DEV, TEST-RUNNER, RELEASE-VALIDATOR and DOC-UPDATER in the same run
+  all committed correctly. ORCH caught each instance by running `git status`
+  before dispatching the next step, and committed the file on the agent's
+  behalf each time with a note in the commit message.
+
+  Consequence: no work was lost (ORCH's own git-status check before every
+  dispatch is what caught it), but this is exactly the kind of gap
+  core-directives.md's "Workflow artefacts are committed to git" rule exists
+  to prevent -- an artefact sitting in an uncommitted state between one agent's
+  turn ending and ORCH's next check is a window where a crash, a `git clean`,
+  or a sibling session could lose it silently.
+not_fixed_because: >
+  Five instances in one run against a roughly even mix of role files suggests
+  the gap is in how the handoff-completion instruction is worded (or where it
+  sits) in the shared protocol these roles read, not one role's individual
+  oversight -- worth checking whether HANDOFF_PROTOCOL.md's completion section
+  states "commit before finishing" as explicitly and prominently as it should,
+  or whether it's implied but not stated. That is a change to shared pipeline
+  documentation, which per this project's own process goes through REVIEWER
+  sign-off, not a direct ORCH edit.
