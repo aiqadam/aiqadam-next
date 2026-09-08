@@ -1,0 +1,48 @@
+{
+  "handoff_id": "step-03-test-designer",
+  "run_id": "WF02-REQ-035",
+  "workflow_id": "WF-02",
+  "step": "03",
+  "from_agent": "TEST-DESIGNER",
+  "to_agent": "TEST-DESIGN-VALIDATOR",
+  "file": "handoffs/WF02-REQ-035/step-03-test-designer.json",
+  "created_at": "2026-09-08T09:10:37Z",
+  "started_at": "2026-09-08T09:10:37Z",
+  "completed_at": "2026-09-08T09:10:37Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-035"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-035.md",
+      "handoffs/WF02-REQ-035/step-02-backend-dev.json",
+      "handoffs/WF02-REQ-035/step-02b-reviewer.json",
+      "handoffs/WF02-REQ-035/step-02c-security-reviewer.json",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/handlers/organizerRequests.ts",
+      "apps/bot/src/domain/registration.db.test.ts",
+      "apps/bot/src/handlers/walkin.db.test.ts",
+      "apps/bot/src/domain/notification.test.ts",
+      "GitHub issue #67"
+    ],
+    "branch_name": "feature/WF02-REQ-035"
+  },
+  "task": {
+    "description": "WF-02 Step 3 (test design) for REQ-035. Scope test: BACKEND-DEV's artifacts_out (apps/bot/src/domain/registration.ts's new exports, the new apps/bot/src/handlers/organizerRequests.ts, new i18n keys, index.ts wiring) are real behavioral surface -- real commands/callbacks writing real registrations/audit_log/notification_ledger rows and sending real messages, plus a real capacity race -- so the full Steps 3b/4 procedure applies, not the docs-only skip. BACKEND-DEV wrote zero automated tests for this requirement (its own step-02 handoff states this explicitly, corroborated by REVIEWER's and SECURITY-REVIEWER's handoffs, neither of which cites any new *.test.ts file in this diff) -- every case in this spec is new coverage for two test files that do not exist yet, following the established convention docs/agents/test-specs/REQ-030.md set (TEST-DESIGNER writes the full runnable source in the markdown; TEST-RUNNER creates and commits the actual files at Step 4). Mapped all 10 acceptance criteria from issue #67 / requirements.yaml's REQ-035 entry (read directly, not from a summary) to concrete cases: File 1 (apps/bot/src/domain/registrationApproval.db.test.ts, domain-layer) covers AC3 (static wishlist grep, no DB dependency), AC5 (two concurrency cases: the requirement's literal 20-iteration/2-concurrent-caller shape mirroring registration.db.test.ts's own established AC1 precedent for registerForEvent, plus a higher-fan-in 10-concurrent-caller/5-iteration variant using a dedicated, generously-sized connection pool with an explicit pool.totalCount assertion proving genuine separate physical connections rather than one connection serializing statements), AC8 (renders a request with a profile carrying both phone and email, asserts neither substring appears in the serialized list or detail view, with a positive control asserting the company field DID render, closing the vacuous-pass gap a purely negative assertion would leave open), and AC10 (exactly one audit_log row for each of approve/approve-override/reject, plus a re-decision-produces-zero-further-rows check on each, since 'exactly one' includes 'never a second one on replay'). File 2 (apps/bot/src/handlers/organizerRequests.db.test.ts, handler-layer, real grammY Bot/bot.handleUpdate dispatch mirroring handlers/walkin.db.test.ts's own infrastructure) covers AC1 (approve via a constructed callback, row read back plus the captured notification text), AC2 (reject via the force_reply reason-capture flow, captured notification containing both the verbatim reason and the onward-path string, plus the audit payload), AC4 (fill capacity, hit the override gate, dismiss -- unchanged, no audit row, no notification -- then confirm -- admitted, exactly one override-action audit row), AC6 (two sub-cases: a plain member and a genuine EventStaff-for-this-event member, both constructing req:approve:<id> callback data directly rather than tapping a rendered button, both refused with the row provably unchanged and zero notifications sent), AC7 (a chapter-A organizer against a chapter-B event's request, refused identically), and AC9 (two sub-cases: approve and reject, each against a registrant with broadcast_opt_in explicitly set false, asserting the notification still sends and the flag itself was never touched by the send path).",
+    "acceptance_criteria": [
+      "Every acceptance criterion has at least one verification case that would fail if violated.",
+      "Each case names the exact function/handler/route exercised and the exact expected result -- no case relies on judgment.",
+      "AC5's concurrency case is genuinely probative against real concurrent Postgres access, not a sequential or client-serialized approximation -- explained explicitly.",
+      "A claimed, collision-free tg_id range is stated for each new file."
+    ]
+  },
+  "result": {
+    "status": "SUCCESS",
+    "summary": "Wrote docs/agents/test-specs/REQ-035.md containing: (1) the AC-to-case map covering all 10 ACs; (2) a dedicated 'AC5 special design note' explaining the two concurrency-test failure modes considered and rejected -- client-side serialization masquerading as DB concurrency (avoided by firing every approveRequest call via Promise.all before awaiting any, and, in the higher-fan-in case, by using a dedicated pool sized well above the tested fan-in and asserting pool.totalCount directly increases before any transaction necessarily commits -- literal evidence of multiple physical connections, not an inference from timing), and a row-lock scope too narrow to be the actual thing under test (traced against approveRequest's own SELECT...FOR UPDATE on the events row plus the in-tx fresh recount, independently re-confirmed against SECURITY-REVIEWER's own step-02c trace of the identical mechanism); (3) the full runnable source of two new test files -- apps/bot/src/domain/registrationApproval.db.test.ts (tg_id range 1_020_000_000+) covering AC3/AC5/AC8/AC10, and apps/bot/src/handlers/organizerRequests.db.test.ts (tg_id range 1_021_000_000+) covering AC1/AC2/AC4/AC6/AC7/AC9 -- both confirmed collision-free against every existing nextTgId/tgSeq band in the repo via `grep -rn \"let nextTgId\\|let tgSeq\" apps/bot/src` (highest existing band is staff.test.ts's 1_010_000_000+). Every function/type name, signature, and i18n catalog key referenced in the test source was independently confirmed against the actual committed files, not the design doc's prose or BACKEND-DEV's/REVIEWER's/SECURITY-REVIEWER's summaries: read domain/registration.ts's actual approveRequest/rejectRequest/decideApprovalOutcome/decideRejectionOutcome/listPendingRequestsForOrganizer/getPendingRequestForOrganizer bodies in full (lines 1573-1907); read handlers/organizerRequests.ts in full (all 655 lines) to confirm every exported handler factory's exact parameter list (several take (db, sender), several take only (db)), every exported pattern constant, formatRejectReasonPrompt's signature, and renderRequestsListMessage/renderRequestDetailMessage's exact parameter order; read domain/notification.ts's NotificationSender interface and SendNotificationInput's non-optional classification field; read domain/eventAuthorization.ts's checkOrganizerForChapter to confirm EventStaff rows are structurally never consulted (role-only check), which is what makes AC6's EventStaff sub-case a genuine, not vacuous, negative case; read domain/eventStaff.ts's addEventStaff signature for the EventStaff fixture; read apps/bot/src/i18n/en.ts's actual organizerRequests catalog block (not the design's §7 draft, which differs slightly -- e.g. approvedReplyToOrganizer/rejectedReplyToOrganizer/searchNoMatches/searchHint/overrideCancelledNote/usageNoId all exist in the shipped catalog but not in the design doc's draft list) to use only real keys; read registration.db.test.ts's and walkin.db.test.ts's and notification.test.ts's actual seed-helper/makeTestBot/makeFakeSender/commandUpdate/callbackUpdate implementations to reuse their exact conventions rather than inventing new ones; confirmed generateQrToken() produces a 64-hex-char string (randomBytes(32).toString('hex')) so AC1's qr_token assertion checks a real format, not just non-null; confirmed decideRegistrationOutcome's requiresApproval branch always returns 'requested' regardless of seatsLeft, which is what makes registerForEvent (via requiresApproval:true events) a valid, production-real way to seed pending requests for every fixture in both files, rather than a raw synthetic INSERT that could drift from the real state machine's own preconditions. AC3's case is static (reads apps/bot/src/db/schema.ts and every apps/bot/drizzle/*.sql migration file directly via node:fs, grepping case-insensitively for 'wishlist') and runs unconditionally, independent of the scratch-Postgres dbAvailable flag every other case gates on. Verified no unused-import lint risk in the drafted source (removed an initially-included, unused 'events' schema import and a dead local variable found on self-review). Did not run any test myself -- TEST-RUNNER's Step 4 scope, per this role's 'design verification, don't execute it' boundary -- and did not modify any src/ or apps/bot/src/*.ts file.",
+    "artifacts_out": [
+      "docs/agents/test-specs/REQ-035.md"
+    ],
+    "issues": [],
+    "next_action": "Route to TEST-DESIGN-VALIDATOR (Step 3b)"
+  }
+}
