@@ -1,0 +1,57 @@
+{
+  "handoff_id": "step-02b-reviewer",
+  "run_id": "WF02-REQ-035",
+  "workflow_id": "WF-02",
+  "step": "02b",
+  "from_agent": "REVIEWER",
+  "to_agent": "SECURITY-REVIEWER",
+  "file": "handoffs/WF02-REQ-035/step-02b-reviewer.json",
+  "created_at": "2026-09-08T08:42:19Z",
+  "started_at": "2026-09-08T08:42:19Z",
+  "completed_at": "2026-09-08T08:42:19Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-035"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-035.md",
+      "handoffs/WF02-REQ-035/step-02-backend-dev.json",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/handlers/organizerRequests.ts",
+      "apps/bot/src/i18n/types.ts",
+      "apps/bot/src/i18n/en.ts",
+      "apps/bot/src/i18n/ru.ts",
+      "apps/bot/src/index.ts",
+      "apps/bot/src/handlers/checkinQr.ts",
+      "apps/bot/src/domain/walkin.ts",
+      "GitHub issue #67"
+    ],
+    "branch_name": "feature/WF02-REQ-035"
+  },
+  "task": {
+    "description": "WF-02 Step 2b (review) for REQ-035 on branch feature/WF02-REQ-035. Read git diff master...HEAD, check against the design system, anti-patterns.md, decisions/0004 and 0006, scope vs the 10 ACs, and re-run lint/build/tests independently. Specific scrutiny requested on: the BACKEND-DEV search-mechanism deviation (command-line query arg vs unspecified 'callback flow'); decideApprovalOutcome/approveRequest's row-lock shape vs commitWalkin; distinct audit actions for approve vs approve_override; decideRejectionOutcome/rejectRequest's reason-capture scope; S3 select-clause exclusion of phone/email; S2 requireOrganizerForChapter on every handler entry point; overrideAdmitAndCheckIn non-reuse; zero-Wishlist grep; no second QR generator; lint/build/test re-run.",
+    "acceptance_criteria": [
+      "Search-mechanism deviation assessed as either a no-behavioral-consequence plumbing choice or an unauthorized scope decision.",
+      "approveRequest's SELECT...FOR UPDATE + fresh in-tx re-read pattern confirmed to mirror commitWalkin's shape by reading both side by side.",
+      "generateQrToken() confirmed as the only QR-token call site touched, no second generator introduced.",
+      "Distinct audit actions confirmed for approve vs approve-override branches.",
+      "Rejection reason confirmed captured only in the audit payload, not written to registrations.noShowReason or any other column.",
+      "Reject notification message confirmed to contain both the reason and the onward-path string.",
+      "listPendingRequestsForOrganizer and getPendingRequestForOrganizer select clauses confirmed to structurally exclude phone/email by reading the actual query.",
+      "requireOrganizerForChapter confirmed called on every handler entry point (list, page, detail, approve, approve_confirm, reject, reject-text-reply).",
+      "overrideAdmitAndCheckIn (checkinQr.ts/REQ-029) confirmed to have zero diff.",
+      "Wishlist grep independently re-run, zero entity/table/row matches.",
+      "No second QR-token generator confirmed via grep.",
+      "npm run lint -w apps/bot, npm run build -w apps/bot, npx vitest run --no-file-parallelism re-run and their real output recorded."
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Read git diff master...HEAD in full (registration.ts new exports, the new organizerRequests.ts handler file, i18n additions, index.ts wiring) against docs/agents/design/REQ-035.md and issue #67's 10 ACs. SEARCH-MECHANISM DEVIATION: the design's own §6.1 prose says the search query 'arrives via a callback flow, not the initial command' but §1.1 and §8 Open Question 2 explicitly name the exact mechanism as BACKEND-DEV's plumbing choice with 'no behavioral consequence either way', citing PAGE_SIZE/SEARCH_RESULT_LIMIT reuse from handlers/checkin.ts. BACKEND-DEV implemented /requests <event_id> [query] as a second command-line token (parseRequestsCommandArgs, organizerRequests.ts lines 70-79), the identical shape /checkin already uses and already has test coverage for. This is a plumbing choice within an explicitly-delegated open question, not a business-rule invention or a UX change no AC anticipated (no AC pins a specific search UI) -- judged consistent with an authorized, precedent-following implementation choice. Not a finding. CONCURRENCY/OVERRIDE (§0.1/§0.2, AC4/AC5): read commitWalkin (domain/walkin.ts lines 218-387) and approveRequest (domain/registration.ts, new) side by side -- both lock the registration/events row via `.for(\"update\")` inside `db.transaction`, both take a fresh in-tx admitted count via countAdmittedRegistrations before the pure decision, both write conditionally. approveRequest additionally locks the registrations row itself first (registration.ts lines ~1610-1621) before locking events (~1631-1637), a superset of commitWalkin's shape, not a deviation from it. generateQrToken() grep (apps/bot/src) shows exactly one definition (registration.ts line 91) and all call sites -- including the new approveRequest call (line ~1810 per backend-dev's own citation, confirmed present) -- call the existing function; no second generator defined anywhere. Distinct audit actions confirmed: `outcome.kind === \"approve\" ? \"registration.approve\" : \"registration.approve_override\"` (registration.ts, approveRequest step 7), mirroring commitWalkin's own `seatsLeft > 0 ? \"registration.walkin_admit\" : \"registration.walkin_override_admit\"` naming convention exactly. REJECTION (§4.1/§4.2, AC2): decideRejectionOutcome/rejectRequest read in full -- the UPDATE touches only `admission: \"rejected\"`; `noShowReason` is never referenced anywhere in either function or the diff (grep confirms). The reason string is passed only into `writeAuditLog`'s `payload: { eventId, reason }` -- no other write path exists for it. sendRejectionNotification (organizerRequests.ts lines 511-543) composes the message as `[rejectedNotificationPrefix, rejectedNotificationReasonPrefix + reason, catalog.event.deepLinkSeeUpcoming].join(\"\\n\")` -- both the verbatim reason and the existing onward-path string are always present, unconditionally, in every reject send. S3 (AC8): read listPendingRequestsForOrganizer's and getPendingRequestForOrganizer's actual `.select({...})` object literals (registration.ts) -- both list exactly registrationId/userId/firstName/lastName/tgUsername/company/position/isStudent/source/createdAt(+admission for the detail read); `profiles.phone`/`profiles.email` do not appear as selected columns, keys, or joins anywhere in either query -- structural exclusion confirmed by reading the query, not trusting the summary. S2 (AC6/AC7): traced every handler in organizerRequests.ts -- makeRequestsListHandler (line 241), makeRequestsPageCallbackHandler (line 277), makeRequestDetailCallbackHandler (line 321), makeRequestApproveCallbackHandler (line 410), makeRequestApproveConfirmCallbackHandler (line 451), makeRequestRejectCallbackHandler (line 576), and makeRequestRejectTextReplyHandler (line 631, re-checked because the text reply itself is the write-triggering action) each call `requireOrganizerForChapter(db, BigInt(tgId), event.chapterId)` before any read/write beyond resolving the event, and each resolves `event.chapterId` from the registration's/command's OWN event, never a caller-supplied chapter (AC7). makeRequestApproveCancelCallbackHandler is the sole exception and correctly so -- it performs no domain call at all, only a reply, so no authorization gate is needed for a pure no-op (AC4's dismiss path). overrideAdmitAndCheckIn NON-REUSE: `git diff master...HEAD --stat -- apps/bot/src/handlers/checkinQr.ts` returns empty -- zero changes, confirmed independently. WISHLIST GREP: re-ran `grep -rin wishlist apps/bot/src apps/bot/migrations` myself -- one hit, a code comment in organizerRequests.ts citing the design's own 'zero Wishlist' decision (§0.4/§5); no entity/table/column/row named wishlist or a synonym anywhere (AC3). ANTI-PATTERNS/DECISIONS: checked docs/agents/anti-patterns.md (no entries yet applicable) and decisions/0004 (domain logic in framework-free modules, handlers only sequence) -- confirmed: all new decision/write functions (listPendingRequestsForOrganizer, getPendingRequestForOrganizer, decideApprovalOutcome, approveRequest, decideRejectionOutcome, rejectRequest) live in domain/registration.ts; organizerRequests.ts contains no domain rule, only authorization checks, calls into the domain layer, and reply/render composition. decisions/0006's now()/current_timestamp boundary: grepped registration.ts and organizerRequests.ts for now()/current_timestamp/new Date() -- no SQL now() anywhere; `new Date()` appears only at the three handler call sites (organizerRequests.ts lines 416, 457, 642) passed as an explicit `at` parameter into approveRequest/rejectRequest, matching every other transactional writer's existing convention in this file -- not a time-dependent predicate, and this feature has no time-gated query at all (approve/reject are not scheduled-job behavior; that is REQ-036's explicit scope, correctly excluded here). DESIGN SYSTEM: this is a bot-only (apps/bot/**) change with no src/ or public/ touched (confirmed via `git diff --name-only` filtered to src/|public/, zero results) -- no tokens/type-scale/spacing/component-class/icon rules apply; i18n additions are placeholder copy per decisions/0002 (CONTENT-BA owns final wording), consistent with every prior bot requirement's convention. SCOPE: diff matches the design's stated file list exactly (registration.ts, organizerRequests.ts new, i18n x3, index.ts) -- no schema/migration file touched, no unrelated files changed. CHECKS RE-RUN, real output: `npm run lint -w apps/bot` -> clean, no output, exit 0. `npm run build -w apps/bot` -> clean tsc, no output, exit 0. `npx vitest run --no-file-parallelism` -> 'Test Files 37 passed (37)', 'Tests 343 passed (343)', 58.28s -- matches BACKEND-DEV's reported count, zero regressions. No npm workspace added/renamed/removed and no build-output location changed by this diff, so the Dockerfile-build re-verification (ISS-0005) does not apply to this run.",
+    "artifacts_out": [
+      "handoffs/WF02-REQ-035/step-02b-reviewer.json"
+    ],
+    "issues": [],
+    "next_action": "Route to SECURITY-REVIEWER (Step 2c)"
+  }
+}
