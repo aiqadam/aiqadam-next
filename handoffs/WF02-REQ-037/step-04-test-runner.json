@@ -1,0 +1,32 @@
+{
+  "handoff_id": "step-04-test-runner",
+  "run_id": "WF02-REQ-037",
+  "workflow_id": "WF-02",
+  "step": "04",
+  "from_agent": "TEST-RUNNER",
+  "to_agent": "ORCH",
+  "status": "COMPLETED",
+  "started_at": "2026-09-08T11:40:00Z",
+  "completed_at": "2026-09-08T11:53:30Z",
+  "result": {
+    "status": "FAIL",
+    "summary": "Wrote apps/bot/src/handlers/inviteCodes.db.test.ts verbatim from docs/agents/test-specs/REQ-037.md (26 cases across 9 describe blocks + AC9's static check), zero edits. npm run lint -w apps/bot and npm run build -w apps/bot both clean (zero errors/warnings). Full suite (npx vitest run --no-file-parallelism, repo root): 384 total tests, 381 passed, 3 failed -- all 3 failures are inviteCodes.db.test.ts's AC10 describe block (personal/bulk/companion), and are 100% consistent across a full-suite run and an isolated single-file re-run (not an ISS-0031 contention pattern -- same 3 tests both times, in this file only).\n\nRoot cause: all 3 AC10 cases open with `expect(auditBefore).toBe(0); // beforeEach truncates audit_log`. beforeEach's TRUNCATE is real and correct, but each case calls seedEvent() AFTER that truncate, and seedEvent (the spec's own helper, transcribed verbatim) internally calls domain/event.ts's createEvent + publishEvent -- both of which call writeAuditLog (confirmed at event.ts lines 594 and 622). So auditBefore is genuinely 2 by the time the assertion runs, not 0. This is a spec defect (the auditBefore===0 precondition is structurally false given seedEvent's own real behavior), not an implementation defect -- AC10's actual substance (countAuditRows(row.id)===1, action==='invite_code.issue', scoped by the invite code's own entityId, unaffected by the 2 pre-existing event-scoped audit rows) was never reached because the test aborts on the preceding line. TEST-DESIGN-VALIDATOR's step-03b sign-off asserted 'auditBefore is also asserted 0 (beforeEach truncates audit_log), giving a genuine before/after count' without noticing seedEvent's own createEvent+publishEvent calls write audit rows first -- this gap escaped that gate too.\n\nPer this run's explicit instruction ('If any test fails because the spec described something that doesn't match actual code behavior, STOP and report precisely rather than silently altering the test to force a pass'), the test file is committed UNMODIFIED from the approved spec. AC1-AC9 all genuinely pass (AC9's two git grep commands re-run and recorded literally in the report, both conditions hold). Full detail, both attempts' output, and the AC9 grep output are in test-reports/report-2026-09-08-WF02-REQ-037.yaml.",
+    "issues": [
+      {
+        "title": "REQ-037 AC10 test cases assert an auditBefore===0 precondition that seedEvent's own createEvent+publishEvent calls make structurally false",
+        "description": "docs/agents/test-specs/REQ-037.md's AC10 describe block (3 `it`s: personal/bulk/companion) each assert `expect(auditBefore).toBe(0)` immediately after calling seedEvent(chapterId, ...). seedEvent internally calls domain/event.ts's createEvent and publishEvent, both of which write their own audit_log row via writeAuditLog (event.ts lines 594, 622) -- so 2 audit_log rows already exist for the event's own entityId by the time the assertion runs, not 0. All 3 cases fail deterministically and reproducibly (confirmed via both a full-suite run and an isolated single-file re-run) on this line, never reaching the actual AC10 substance below it. Fix: correct the 3 auditBefore assertions in docs/agents/test-specs/REQ-037.md (drop the precondition, or assert 2 with a comment explaining why) -- the substantive assertions (countAuditRows(row.id)===1, action==='invite_code.issue') are unaffected and should be expected to pass once the precondition is corrected.",
+        "severity": "MAJOR",
+        "affected_files": [
+          "docs/agents/test-specs/REQ-037.md",
+          "apps/bot/src/handlers/inviteCodes.db.test.ts"
+        ]
+      }
+    ],
+    "artifacts_out": [
+      "apps/bot/src/handlers/inviteCodes.db.test.ts",
+      "test-reports/report-2026-09-08-WF02-REQ-037.yaml",
+      "handoffs/WF02-REQ-037/step-04-test-runner.json"
+    ],
+    "next_action": "Do NOT route to RELEASE-VALIDATOR. Route back to TEST-DESIGNER to correct AC10's 3 auditBefore assertions in docs/agents/test-specs/REQ-037.md per the filed issue above, then back through TEST-DESIGN-VALIDATOR (Step 3b) and TEST-RUNNER (Step 4) again. AC1-AC9 (26-3=23 of the 26 dynamic/static cases) already pass and are not expected to need rework."
+  }
+}

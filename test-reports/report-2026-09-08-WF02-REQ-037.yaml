@@ -1,0 +1,166 @@
+run_id: WF02-REQ-037
+date: "2026-09-08T11:52:54Z"
+lint: pass
+build: pass
+lint_command: "npm run lint -w apps/bot"
+lint_output: |
+  > bot@0.1.0 lint
+  > eslint .
+  (zero errors, zero warnings)
+build_command: "npm run build -w apps/bot"
+build_output: |
+  > bot@0.1.0 build
+  > tsc -p tsconfig.json
+  (zero errors, clean tsc build)
+new_file: "apps/bot/src/handlers/inviteCodes.db.test.ts"
+new_file_note: >
+  Transcribed verbatim from docs/agents/test-specs/REQ-037.md's committed source, zero
+  edits, tg_id range 1_040_000_000+ (confirmed distinct from every band the spec lists).
+db_setup:
+  - "cd apps/bot && docker compose up -d -- bot-postgres-1 already Running"
+  - "docker compose exec -T postgres pg_isready -U bot -- accepting connections"
+  - "DATABASE_URL=postgres://bot:bot@localhost:55432/bot npx drizzle-kit migrate -- migrations applied successfully (no new migration for REQ-037, confirmed already by SECURITY-REVIEWER's step-02c handoff)"
+full_suite:
+  command: "npx vitest run --no-file-parallelism"
+  invocation_root: repo root (per mandate -- never apps/bot)
+  attempts: 2
+  attempt_1:
+    test_files: "1 failed | 41 passed (42)"
+    tests: "3 failed | 381 passed (384)"
+    duration: "56.65s"
+    failing_tests: "AC10 -- exactly one audit_log row per issue > personal / bulk / companion (all 3 cases in inviteCodes.db.test.ts)"
+  attempt_2:
+    scope: "isolated re-run of apps/bot/src/handlers/inviteCodes.db.test.ts alone (per ISS-0031's re-run-before-concluding discipline)"
+    result: "1 failed | ... (1 file) -- 3 failed | 14 passed (17)"
+    identical_failures: true
+  conclusion: >
+    NOT a contention-pattern failure (ISS-0031's pattern is a large, shifting subset of
+    UNRELATED files failing across runs). This is the exact same 3 tests, in this file
+    only, failing identically and deterministically both in the full-suite run and in an
+    isolated single-file re-run. Per the task's own instruction: "if
+    inviteCodes.db.test.ts itself fails consistently across isolated re-runs, treat that
+    as real." Treated as real -- root cause below.
+root_cause_analysis:
+  finding: >
+    All 3 AC10 cases open with `const auditBefore = ...; expect(auditBefore).toBe(0); //
+    beforeEach truncates audit_log`. beforeEach DOES truncate audit_log correctly (TRUNCATE
+    ... audit_log ... CASCADE) -- the comment is accurate about the truncate itself, but
+    wrong about what happens between the truncate and the assertion. Each of these 3 `it`
+    blocks calls `seedEvent(chapterId, ...)` AFTER beforeEach's truncate, and seedEvent
+    (this same spec's own helper, transcribed verbatim) internally calls
+    domain/event.ts's `createEvent` and `publishEvent` -- both of which call
+    `writeAuditLog` (confirmed: apps/bot/src/domain/event.ts lines 594 and 622 each
+    contain a writeAuditLog call reachable from createEvent/publishEvent respectively).
+    So by the time `auditBefore` is read, 2 audit_log rows already exist (one for the
+    event's own create, one for its publish), not 0. This is not a race or a leak from a
+    prior test -- it reproduces identically and immediately in an isolated single-file
+    run, and is fully explained by seedEvent's own two internal domain calls.
+  attribution: >
+    This is a defect in the test spec (docs/agents/test-specs/REQ-037.md), not in
+    apps/bot/src/domain/inviteCode.ts or handlers/inviteCodes.ts. The 3 failing
+    assertions check a precondition (`auditBefore === 0`) the spec's own seedEvent helper
+    cannot satisfy, given how event.ts's createEvent/publishEvent are actually
+    implemented. It also is not an implementation defect: the AC10 assertions that
+    matter for the actual acceptance criterion -- `countAuditRows(row.id)` (scoped by
+    entityId = the invite code's own id, never the event's) and the row's `action` field
+    -- are structurally unaffected by the 2 pre-existing event-scoped audit rows, and
+    would pass if the `auditBefore === 0` sanity line were removed or corrected to expect
+    2.
+  per_task_instruction: >
+    Per this run's own instructions ("If any test fails because the spec described
+    something that doesn't match actual code behavior, STOP and report precisely rather
+    than silently altering the test to force a pass"), the test file is committed
+    UNMODIFIED from the approved spec -- no edit was made to force these 3 cases green.
+ac9_static_check:
+  command_1: 'git grep -nE "ctx\.reply|ctx\.api\.sendMessage|bot\.api\.sendMessage|answerCallbackQuery" apps/bot/src/handlers/inviteCodes.ts'
+  command_1_output: |
+    apps/bot/src/handlers/inviteCodes.ts:142:      await ctx.reply(usageMessageFor("personal", validation, catalog));
+    apps/bot/src/handlers/inviteCodes.ts:153:      await ctx.reply(catalog.inviteCodes[resolved.reason]);
+    apps/bot/src/handlers/inviteCodes.ts:159:      await ctx.reply(catalog.inviteCodes.userNotFound);
+    apps/bot/src/handlers/inviteCodes.ts:173:    await ctx.reply(buildIssuedReply(catalog, issued.code, ctx.me.username));
+    apps/bot/src/handlers/inviteCodes.ts:189:      await ctx.reply(usageMessageFor("bulk", validation, catalog));
+    apps/bot/src/handlers/inviteCodes.ts:200:      await ctx.reply(catalog.inviteCodes[resolved.reason]);
+    apps/bot/src/handlers/inviteCodes.ts:214:    await ctx.reply(buildIssuedReply(catalog, issued.code, ctx.me.username));
+    apps/bot/src/handlers/inviteCodes.ts:230:      await ctx.reply(usageMessageFor("companion", validation, catalog));
+    apps/bot/src/handlers/inviteCodes.ts:241:      await ctx.reply(catalog.inviteCodes[resolved.reason]);
+    apps/bot/src/handlers/inviteCodes.ts:247:      await ctx.reply(catalog.inviteCodes.userNotFound);
+    apps/bot/src/handlers/inviteCodes.ts:261:    await ctx.reply(buildIssuedReply(catalog, issued.code, ctx.me.username));
+    apps/bot/src/handlers/inviteCodes.ts:301:      await ctx.reply(catalog.inviteCodes.usageNoIdPersonal);
+    apps/bot/src/handlers/inviteCodes.ts:307:      await ctx.reply(catalog.inviteCodes.eventNotFound);
+    apps/bot/src/handlers/inviteCodes.ts:314:      await ctx.reply(catalog.inviteCodes.notAuthorized);
+    apps/bot/src/handlers/inviteCodes.ts:320:    await ctx.reply(view.text, { reply_markup: view.keyboard });
+    apps/bot/src/handlers/inviteCodes.ts:358:      await ctx.answerCallbackQuery();
+    apps/bot/src/handlers/inviteCodes.ts:364:      await ctx.answerCallbackQuery();
+    apps/bot/src/handlers/inviteCodes.ts:372:      await ctx.answerCallbackQuery({ text: catalog.inviteCodes.eventNotFound, show_alert: true });
+    apps/bot/src/handlers/inviteCodes.ts:377:      await ctx.answerCallbackQuery({ text: catalog.inviteCodes.eventNotFound, show_alert: true });
+    apps/bot/src/handlers/inviteCodes.ts:384:      await ctx.answerCallbackQuery({ text: catalog.inviteCodes.notAuthorized, show_alert: true });
+    apps/bot/src/handlers/inviteCodes.ts:390:      await ctx.answerCallbackQuery({ text: catalog.inviteCodes.eventNotFound, show_alert: true });
+    apps/bot/src/handlers/inviteCodes.ts:394:    await ctx.answerCallbackQuery();
+    apps/bot/src/handlers/inviteCodes.ts:395:    await ctx.reply(renderInviteCodeDetailMessage(detail, lang));
+  command_1_verdict: >
+    Every match is a bare ctx.reply(...)/ctx.answerCallbackQuery(...) call. None passes
+    targetUserId/hostUserId/issuedToUserId/grantsCompanionOf or any tgId-derived variable
+    as an argument -- confirmed by reading each line. grammY's ctx.reply/
+    ctx.answerCallbackQuery take no recipient argument; they are bound to the incoming
+    update's own chat by construction.
+  command_2: 'git grep -n "grammy\|Context" apps/bot/src/domain/inviteCode.ts'
+  command_2_output: "(zero matches, exit code 1)"
+  command_2_verdict: "domain/inviteCode.ts imports no grammy symbol and references no Context type -- structurally cannot message anyone."
+  result: pass
+cases:
+  - acceptance_criterion: AC1
+    result: pass
+    notes: "personal/bulk/companion: issued_to_user_id/grants_companion_of/max_uses column composition each correct, verified by direct row read after real /invite_personal, /invite_bulk, /invite_companion dispatch."
+  - acceptance_criterion: AC2
+    result: pass
+    notes: "No explicit expiry -> expires_at equals event.startsAt exactly; explicit override wins and differs from startsAt."
+  - acceptance_criterion: AC3
+    result: pass
+    notes: "Target user constructed with tg_id NULL (never routed through resolveOrCreateUser); /invite_personal to that user id succeeds, replies 'Code issued:', not userNotFound."
+  - acceptance_criterion: AC4
+    result: pass
+    notes: "requires_invite=false, requires_approval=false event: /invite_bulk still succeeds, 1 row created, not refused."
+  - acceptance_criterion: AC5
+    result: pass
+    notes: "Cancelled event refused with catalog.inviteCodes.eventCancelled, table unchanged. Finished event (ends_at in the past) refused with catalog.inviteCodes.eventFinished, table unchanged."
+  - acceptance_criterion: AC6
+    result: pass
+    notes: "Detail view for a redeemer with phone+email in profiles shows '1/5' used_count/max_uses, 'Aigerim Bekova', 'Acme Robotics'; neither the exact phone/email string nor a partial-digit fragment of the phone appears anywhere in the reply text."
+  - acceptance_criterion: AC7
+    result: pass
+    notes: "First read (before any registration) shows detailEmpty; a registration inserted DIRECTLY (never through this requirement's domain layer) appears on the very next read via the JOIN, by @tg_username fallback; invite_codes.updated_at bit-for-bit unchanged across both reads (no write on read)."
+  - acceptance_criterion: AC8
+    result: pass
+    notes: "Plain member refused (notAuthorized, 0 rows). EventStaff member for the same event refused identically. Chapter-A organizer refused for a chapter-B event. All three via the shared resolveEventForIssuing/requireOrganizerForChapter call site, per the spec's own single-command-suffices discipline."
+  - acceptance_criterion: AC9
+    result: pass
+    notes: "Static git grep check, not a vitest case -- see ac9_static_check above. Both conditions hold from the literal command output."
+  - acceptance_criterion: AC10
+    result: fail
+    notes: >
+      3/3 sub-cases (personal, bulk, companion) fail on their own `auditBefore === 0`
+      sanity assertion, not on the actual acceptance criterion. Root cause: seedEvent
+      (this spec's own helper) internally calls createEvent + publishEvent, each of
+      which writes its own audit_log row via domain/event.ts's writeAuditLog (lines 594,
+      622) -- so 2 audit_log rows already exist by the time the sanity check runs, not
+      0. The criterion's actual substance -- exactly one invite_code.issue audit row per
+      issue, scoped by entityId -- was never reached because the test aborts on the
+      preceding assertion. See root_cause_analysis above for full detail. This is a
+      spec/implementation mismatch, not a fixable-by-TEST-RUNNER defect -- the test file
+      is committed unmodified per this run's explicit instruction not to force a pass by
+      editing.
+verdict: FAIL
+next_action: >
+  Do NOT route to RELEASE-VALIDATOR. Route back to TEST-DESIGNER (or ORCH's equivalent
+  rework path) to correct AC10's 3 `auditBefore` assertions in
+  docs/agents/test-specs/REQ-037.md -- either drop the `auditBefore === 0` precondition
+  (seedEvent's own createEvent+publishEvent calls make it structurally false) or change
+  it to assert `auditBefore === 2` with a comment naming why, then re-verify AC10's
+  actual substance (countAuditRows(row.id) === 1, action === "invite_code.issue") is
+  unaffected once the precondition is corrected. AC1-AC9 all pass and are not blocked by
+  this.
+counts_summary: >
+  384 total tests collected in the full suite this run (up from REQ-036's prior 367,
+  consistent with +17 new cases in inviteCodes.db.test.ts). 381 passed, 3 failed, both
+  attempts (full-suite and isolated single-file re-run) identical. Lint and build both
+  clean with zero errors/warnings.
