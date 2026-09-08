@@ -84,8 +84,14 @@ function buildRequestsHeaderLine(lang: BotLang, eventTitle: string, count: numbe
     .replace("{count}", String(count));
 }
 
-function buildRequestRowLabel(item: PendingRequestListItem): string {
-  return item.company !== null ? `${item.displayName} — ${item.company}` : item.displayName;
+// docs/agents/design/REQ-036.md §2.4 -- the urgency marker is a fixed,
+// catalog-sourced prefix, computed fresh from item.isUrgent (itself computed
+// fresh on every render by listPendingRequestsForOrganizer/
+// getPendingRequestForOrganizer via isRequestUrgent) -- never dependent on
+// whether the push notification (scheduler/urgencyJobs.ts) was ever sent.
+function buildRequestRowLabel(item: PendingRequestListItem, lang: BotLang): string {
+  const base = item.company !== null ? `${item.displayName} — ${item.company}` : item.displayName;
+  return item.isUrgent ? `${getCatalog(lang).organizerRequests.urgentMarker}${base}` : base;
 }
 
 export interface RequestsListView {
@@ -115,7 +121,7 @@ export function renderRequestsListMessage(
     lines.push(page !== null ? catalog.organizerRequests.listEmpty : catalog.organizerRequests.searchNoMatches);
   } else {
     for (const item of items) {
-      keyboard.text(buildRequestRowLabel(item), `req:open:${item.registrationId}`).row();
+      keyboard.text(buildRequestRowLabel(item, lang), `req:open:${item.registrationId}`).row();
     }
   }
 
@@ -158,7 +164,7 @@ export function renderRequestDetailMessage(
         : catalog.profile.studentNo;
 
   const lines = [
-    eventTitle,
+    item.isUrgent ? `${catalog.organizerRequests.urgentMarker}${eventTitle}` : eventTitle,
     item.displayName,
     `${catalog.profile.labelCompany} ${item.company ?? catalog.profile.fieldNotSet}`,
     `${catalog.profile.labelPosition} ${item.position ?? catalog.profile.fieldNotSet}`,
@@ -184,8 +190,9 @@ async function buildRequestsView(
   query: string | null,
   page: number,
   lang: BotLang,
+  evaluationTime: Date,
 ): Promise<RequestsListView> {
-  const all = await listPendingRequestsForOrganizer(db, eventId, lang);
+  const all = await listPendingRequestsForOrganizer(db, eventId, lang, evaluationTime);
 
   if (query !== null) {
     const lowerQuery = query.toLowerCase();
@@ -244,7 +251,7 @@ export function makeRequestsListHandler(db: DbClient["db"]) {
       return;
     }
 
-    const view = await buildRequestsView(db, event.id, event.title, query, 0, lang);
+    const view = await buildRequestsView(db, event.id, event.title, query, 0, lang, new Date());
     await ctx.reply(view.text, { reply_markup: view.keyboard });
   };
 }
@@ -281,7 +288,7 @@ export function makeRequestsPageCallbackHandler(db: DbClient["db"]) {
     }
 
     const pageNumber = Number(pageNumberRaw);
-    const view = await buildRequestsView(db, eventId, event.title, null, pageNumber, lang);
+    const view = await buildRequestsView(db, eventId, event.title, null, pageNumber, lang, new Date());
     await ctx.answerCallbackQuery();
     await ctx.editMessageText(view.text, { reply_markup: view.keyboard });
   };
@@ -324,7 +331,7 @@ export function makeRequestDetailCallbackHandler(db: DbClient["db"]) {
       return;
     }
 
-    const item = await getPendingRequestForOrganizer(db, registrationId, lang);
+    const item = await getPendingRequestForOrganizer(db, registrationId, lang, new Date());
     if (item === null) {
       await ctx.answerCallbackQuery({ text: catalog.organizerRequests.noLongerPending, show_alert: true });
       return;
@@ -579,7 +586,7 @@ export function makeRequestRejectCallbackHandler(db: DbClient["db"]) {
       return;
     }
 
-    const item = await getPendingRequestForOrganizer(db, registrationId, lang);
+    const item = await getPendingRequestForOrganizer(db, registrationId, lang, new Date());
     if (item === null) {
       await ctx.answerCallbackQuery({ text: catalog.organizerRequests.noLongerPending, show_alert: true });
       return;

@@ -295,14 +295,14 @@ describe("AC8 -- no phone/email in the rendered request list or detail view", ()
       isStudent: false,
     });
 
-    const listItems = await listPendingRequestsForOrganizer(db, event.id, "en");
+    const listItems = await listPendingRequestsForOrganizer(db, event.id, "en", new Date());
     expect(listItems).toHaveLength(1);
     const item = listItems[0]!;
 
     const listView = renderRequestsListMessage(event.title, event.id, listItems, listItems.length, { current: 0, total: 1 }, null, "en");
     const listSerialized = listView.text + JSON.stringify(listView.keyboard);
 
-    const detailItem = await getPendingRequestForOrganizer(db, req.registrationId, "en");
+    const detailItem = await getPendingRequestForOrganizer(db, req.registrationId, "en", new Date());
     expect(detailItem).not.toBeNull();
     const detailView = renderRequestDetailMessage(event.title, detailItem!, "en");
     const detailSerialized = detailView.text + JSON.stringify(detailView.keyboard);

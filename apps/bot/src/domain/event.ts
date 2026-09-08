@@ -772,6 +772,21 @@ export function isAutoPromotionHalted(startsAt: Date, evaluationTime: Date): boo
 }
 
 // ---------------------------------------------------------------------------
+// docs/agents/design/REQ-036.md §2.4 — isRequestUrgent: T-48h check for a
+// still-pending request, mirroring isAutoPromotionHalted's exact shape at a
+// 48-hour threshold instead of 24. evaluationTime is an explicit parameter
+// (decisions/0006); this function never reads the clock itself. When 48
+// hours or fewer remain before startsAt (including the exact T-48h instant),
+// the request is urgent (true). When strictly more than 48 hours remain, it
+// is not (false).
+// ---------------------------------------------------------------------------
+const REQUEST_URGENT_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+export function isRequestUrgent(startsAt: Date, evaluationTime: Date): boolean {
+  return startsAt.getTime() - evaluationTime.getTime() <= REQUEST_URGENT_WINDOW_MS;
+}
+
+// ---------------------------------------------------------------------------
 // REQ-017 §1's seats-left-or-waitlist-open composition, used identically by
 // both the card and the list row.
 // ---------------------------------------------------------------------------

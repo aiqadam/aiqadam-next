@@ -330,5 +330,19 @@ export const en = {
     rejectedNotificationPrefix: "Your request for {event} was not approved this time.",
     rejectedNotificationReasonPrefix: "Reason:",
     rejectedReplyToOrganizer: "Rejected.",
+    // Provisional/placeholder wording (REQ-036 design §5) -- product owner
+    // owns final copy; recorded as provisional in this requirement's own
+    // implementation handoff per REQ-014/REQ-032 precedent.
+    urgentMarker: "[Urgent] ",
+    urgentNotification:
+      "A request for {event} is still pending 48 hours before it starts. Review it with /requests.",
+  },
+  // Provisional/placeholder wording (REQ-036 design §5) -- product owner
+  // owns final copy. Plain, factual, blame-free: states that no decision
+  // was reached in time, never that the person was judged and found
+  // lacking.
+  autoDecline: {
+    notification:
+      "Your request for {event} was not decided before registration closed, so it could not be approved. Nobody reviewed and declined it -- the window simply closed before a decision was made.",
   },
 } satisfies Catalog;

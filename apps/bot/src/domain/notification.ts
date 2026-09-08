@@ -23,7 +23,13 @@ export type NotificationKind =
   // docs/agents/design/REQ-032.md §3.1 — the single no-show reason-request
   // send. One-line addition, not a migration: notification_ledger.kind is
   // already `text`.
-  | "no_show_reason_request";
+  | "no_show_reason_request"
+  // docs/agents/design/REQ-036.md §1 — sent to ONE organizer of the event's
+  // chapter (§2.2), never to the registrant.
+  | "pending_request_urgent"
+  // docs/agents/design/REQ-036.md §1 — sent to the registrant whose request
+  // was auto-declined.
+  | "registration_auto_declined";
 
 // AC5: exactly two members, and every call site must choose one explicitly —
 // enforced structurally by `SendNotificationInput.classification` below

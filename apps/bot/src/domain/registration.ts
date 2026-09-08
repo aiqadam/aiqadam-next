@@ -12,6 +12,7 @@ import {
   isAutoPromotionHalted,
   isFinished,
   isRegistrationOpen,
+  isRequestUrgent,
 } from "./event.js";
 
 // docs/agents/design/REQ-020.md — registration for an open event, atomic
@@ -1587,12 +1588,17 @@ export interface PendingRequestListItem {
   isStudent: boolean | null;
   source: string;
   createdAt: Date;
+  // docs/agents/design/REQ-036.md §2.4 — computed fresh on every render via
+  // isRequestUrgent(event.startsAt, evaluationTime); never reads whether the
+  // push notification (scheduler/urgencyJobs.ts) was ever sent or attempted.
+  isUrgent: boolean;
 }
 
 export async function listPendingRequestsForOrganizer(
   db: DbClient["db"],
   eventId: string,
   lang: BotLang,
+  evaluationTime: Date,
 ): Promise<PendingRequestListItem[]> {
   const noNameFallback = getCatalog(lang).checkin.noNameFallback;
 
@@ -1608,10 +1614,12 @@ export async function listPendingRequestsForOrganizer(
       isStudent: profiles.isStudent,
       source: registrations.source,
       createdAt: registrations.createdAt,
+      startsAt: events.startsAt,
     })
     .from(registrations)
     .leftJoin(profiles, eq(profiles.userId, registrations.userId))
     .innerJoin(users, eq(users.id, registrations.userId))
+    .innerJoin(events, eq(events.id, registrations.eventId))
     .where(and(eq(registrations.eventId, eventId), eq(registrations.admission, "requested")))
     .orderBy(asc(registrations.createdAt));
 
@@ -1624,6 +1632,7 @@ export async function listPendingRequestsForOrganizer(
     isStudent: row.isStudent,
     source: row.source,
     createdAt: row.createdAt,
+    isUrgent: isRequestUrgent(row.startsAt, evaluationTime),
   }));
 }
 
@@ -1639,6 +1648,7 @@ export async function getPendingRequestForOrganizer(
   db: DbClient["db"],
   registrationId: string,
   lang: BotLang,
+  evaluationTime: Date,
 ): Promise<PendingRequestListItem | null> {
   const noNameFallback = getCatalog(lang).checkin.noNameFallback;
 
@@ -1655,10 +1665,12 @@ export async function getPendingRequestForOrganizer(
       source: registrations.source,
       createdAt: registrations.createdAt,
       admission: registrations.admission,
+      startsAt: events.startsAt,
     })
     .from(registrations)
     .leftJoin(profiles, eq(profiles.userId, registrations.userId))
     .innerJoin(users, eq(users.id, registrations.userId))
+    .innerJoin(events, eq(events.id, registrations.eventId))
     .where(eq(registrations.id, registrationId))
     .limit(1);
 
@@ -1675,6 +1687,7 @@ export async function getPendingRequestForOrganizer(
     isStudent: row.isStudent,
     source: row.source,
     createdAt: row.createdAt,
+    isUrgent: isRequestUrgent(row.startsAt, evaluationTime),
   };
 }
 
@@ -1898,6 +1911,93 @@ export async function rejectRequest(
       entity: "registration",
       entityId: row.id,
       payload: { eventId: row.eventId, reason },
+      at,
+    });
+
+    return { kind: "reject", eventId: row.eventId, userId: row.userId };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-036.md §2.2 -- getPrimaryOrganizerIdForChapter: the
+// single, deterministic recipient for the T-48h urgency push (§2.2's own
+// trace of why exactly one organizer, not a fan-out, is pushed --
+// notification_ledger's UNIQUE(registration_id, kind) has no recipient
+// column). `ORDER BY id ASC LIMIT 1` is an arbitrary but stable tie-break,
+// the same "simplest deterministic order" convention getWaitlistPosition/
+// getMyRegistrations already establish for their own unpinned orderings.
+// Returns null when no organizer is currently assigned to that chapter
+// (design §7 open question 1 -- the caller skips the push entirely for that
+// candidate, no error, no retry loop, no ledger row).
+// ---------------------------------------------------------------------------
+export async function getPrimaryOrganizerIdForChapter(
+  db: DbClient["db"],
+  chapterId: string,
+): Promise<string | null> {
+  const rows = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.role, "organizer"), eq(users.chapterId, chapterId)))
+    .orderBy(asc(users.id))
+    .limit(1);
+  return rows[0]?.id ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-036.md §3.3 -- autoDeclineRequest: the transactional
+// write for the system-initiated auto-decline at registration_closes_at (or
+// the ends_at fallback, §3.1 -- resolved by the CALLER's selection query,
+// scheduler/autoDeclineJobs.ts's selectRegistrationsForAutoDecline; this
+// function itself does not read registration_closes_at/ends_at at all).
+// Reuses decideRejectionOutcome (§4.1, above) COMPLETELY UNCHANGED -- this is
+// a NEW writer, not a call to rejectRequest, because rejectRequest's
+// signature takes a non-nullable organizerUserId and unconditionally writes
+// actorUserId/a mandatory reason, neither of which exists for a
+// system-initiated decline (S8/AC6 require actorUserId = NULL, and there is
+// no organizer-authored reason to store -- the honest explanation lives only
+// in the notification text, §3.5/scheduler/autoDeclineJobs.ts).
+// ---------------------------------------------------------------------------
+export async function autoDeclineRequest(
+  db: DbClient["db"],
+  registrationId: string,
+  at: Date,
+): Promise<RejectionOutcome & { eventId?: string; userId?: string }> {
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .select({
+        id: registrations.id,
+        eventId: registrations.eventId,
+        userId: registrations.userId,
+        admission: registrations.admission,
+      })
+      .from(registrations)
+      .where(eq(registrations.id, registrationId))
+      .for("update");
+    const row = rows[0];
+
+    const outcome = decideRejectionOutcome({
+      registrationExists: row !== undefined,
+      admission: (row?.admission as AdmissionState | undefined) ?? null,
+    });
+
+    if (outcome.kind !== "reject" || row === undefined) {
+      // Mechanism 2 (§0.3) in action: a row already 'admitted', 'rejected',
+      // or 'withdrawn' -- by an organizer's own decision, or by a PRIOR run
+      // of this very job -- is refused here, with no write and no audit row.
+      return outcome;
+    }
+
+    await tx.update(registrations).set({ admission: "rejected" }).where(eq(registrations.id, row.id));
+
+    // actorUserId: null -- a genuinely system-initiated action (S8, AC6).
+    // No `reason` field in payload: there is no organizer-authored text to
+    // capture (unlike rejectRequest's payload) -- design §3.3 step 5.
+    await writeAuditLog(tx, {
+      actorUserId: null,
+      action: "registration.auto_decline",
+      entity: "registration",
+      entityId: row.id,
+      payload: { eventId: row.eventId },
       at,
     });
 
