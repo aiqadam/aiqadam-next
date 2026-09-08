@@ -1,0 +1,70 @@
+run_id: WF02-REQ-039
+date: "2026-09-08T14:25:33Z"
+lint: pass
+build: pass
+lint_command: "npm run lint -w apps/bot"
+lint_output: |
+  > bot@0.1.0 lint
+  > eslint .
+  (zero errors, zero warnings)
+build_command: "npm run build -w apps/bot"
+build_output: |
+  > bot@0.1.0 build
+  > tsc -p tsconfig.json
+  (zero errors, clean tsc build)
+new_files:
+  - "apps/bot/src/domain/companionRedeem.db.test.ts"
+  - "apps/bot/src/handlers/companion.db.test.ts"
+new_files_note: >
+  Transcribed verbatim from docs/agents/test-specs/REQ-039.md's committed fenced source,
+  zero edits. tg_id ranges: domain file 1_061_000_000+, handler file 1_062_000_000+ — both
+  confirmed 10,000,000+ above every existing band per the spec's own grep evidence, no
+  collision possible.
+db_setup:
+  - "cd apps/bot && docker compose up -d -- bot-postgres-1 already Running"
+  - "docker compose exec -T postgres pg_isready -U bot -- accepting connections"
+  - "DATABASE_URL=postgres://bot:bot@localhost:55432/bot npx drizzle-kit migrate -- migrations applied successfully (no new migration for REQ-039, confirmed independently by BACKEND-DEV/REVIEWER/SECURITY-REVIEWER per the spec's own notes: git diff master...HEAD -- apps/bot/src/db/schema.ts and -- apps/bot/drizzle both empty)"
+full_suite:
+  command: "npx vitest run --no-file-parallelism"
+  invocation_root: repo root (per mandate -- never apps/bot)
+  attempts: 2
+  attempt_1:
+    test_files: "46 passed (46)"
+    tests: "420 passed (420)"
+    duration: "68.84s"
+  attempt_2:
+    test_files: "46 passed (46)"
+    tests: "420 passed (420)"
+    duration: "70.82s"
+  conclusion: >
+    Both full-suite runs are clean and identical (46/46 files, 420/420 tests), no
+    contention-pattern failures observed (ISS-0031's pattern did not occur), so no
+    re-run beyond the mandated two was needed.
+new_files_isolated_verification:
+  command: "npx vitest run --no-file-parallelism --reporter=verbose apps/bot/src/domain/companionRedeem.db.test.ts apps/bot/src/handlers/companion.db.test.ts"
+  result: "2 test files passed (2), 15 tests passed (15), 9.76s"
+  db_availability_confirmed: >
+    All 15 cases ran as real assertions against the live scratch Postgres (dbAvailable
+    resolved true in both files' beforeAll -- none of the 15 cases called t.skip()),
+    verified via --reporter=verbose per-case listing.
+  ac_case_breakdown:
+    - "AC1 (File 1): 1 case, pass"
+    - "AC2 (File 1, static): 2 cases, pass"
+    - "AC3 (File 2): 2 cases, pass"
+    - "AC4 (File 1 field-set part + File 2 full flow): 2 cases total (1 in each file), pass"
+    - "AC5 (File 1): 1 case, pass"
+    - "AC6 (File 1 domain-level + File 2 full handler flow): 2 cases total (1 in each file), pass"
+    - "AC7 (File 2): 1 case, pass"
+    - "AC8 (File 2): 2 cases (audit-payload grep + static no-logging-call check), pass"
+    - "AC9 (File 1): 2 cases, pass"
+    - "Returning guest fix (File 2): 1 case, pass"
+    total: 15
+verdict: PASS
+verdict_reason: >
+  Lint clean, build clean, both mandated full-suite runs identical and green (420/420,
+  46/46 files), and both new REQ-039 test files verified in isolation to run 15/15 real
+  (non-skipped) cases covering every AC1-AC9 mapping plus the returning-guest fix, exactly
+  per docs/agents/test-specs/REQ-039.md's AC-to-case map. No test failed because the spec
+  described something that doesn't match actual code behavior -- nothing was altered from
+  the committed spec source.
+next_action: "Route to RELEASE-VALIDATOR (Step 5)"
