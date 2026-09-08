@@ -1,0 +1,55 @@
+id: ISS-0031
+title: "Full-suite vitest runs intermittently fail a large, non-deterministic subset of unrelated test files with FK-violation/deadlock errors under concurrent agent activity"
+discovered_by: BACKEND-DEV
+discovered_in_run: WF02-REQ-036
+discovered_at: "2026-09-08T15:40:00Z"
+severity: MINOR
+description: >
+  During WF02-REQ-036's implementation, `npx vitest run --no-file-parallelism`
+  failed a different, large, non-overlapping subset of otherwise-unrelated test
+  files across four consecutive attempts (16-23 of 39 files, 70-151 of 358
+  individual tests), with FK-violation errors (e.g. "Key (chapter_id)=(...) is
+  not present in table 'chapters'") and occasional deadlocks -- symptomatic of
+  one test file's shared-fixture TRUNCATE racing another file's still-in-flight
+  seed against the shared scratch Postgres container (bot-postgres-1, port
+  55432). This matches ISS-0014/ISS-0027's documented failure class but with
+  a much larger and more variable blast radius than previously observed.
+
+  ORCH independently reproduced this: three consecutive full-suite runs
+  produced 136, 88, then 54 failures respectively (a decreasing trend), and a
+  FOURTH immediate run passed 358/358 cleanly. `tasklist` at the time of the
+  failing runs showed roughly 15 concurrent node.exe processes, consistent
+  with multiple subagents/background dispatches in this same ORCH session (and
+  possibly sibling sessions) running their own vitest processes against the
+  SAME shared Postgres container at the same time. The decreasing-then-clean
+  pattern strongly supports transient cross-PROCESS contention (multiple
+  independent vitest invocations racing the same DB), not a code defect in
+  REQ-036 or any file it touches -- every individually-isolated failing file
+  passed cleanly in isolation every time it was tried.
+
+  `--no-file-parallelism` only serializes file scheduling WITHIN one vitest
+  process; it does nothing to prevent two SEPARATE vitest processes (e.g. two
+  concurrently-dispatched agents each running the full suite) from truncating
+  the same shared tables at the same time. This is a materially different
+  failure mode from ISS-0014/ISS-0027, which concerned intra-process file
+  parallelism only.
+not_fixed_because: >
+  This is infrastructure/environment contention specific to running many
+  concurrent agent dispatches against one shared, unauthenticated, single-
+  instance scratch Postgres container with no per-run schema/database
+  isolation. A real fix (e.g. a per-test-run ephemeral database/schema, or a
+  session-wide test-run mutex ORCH enforces before dispatching any agent that
+  runs the full suite) is pipeline/tooling machinery, not a code change to
+  this requirement's own files, and is out of scope for a single WF-02 run to
+  invent unilaterally.
+  Practical mitigation until a real fix lands: TEST-RUNNER/RELEASE-VALIDATOR
+  should treat a single failing full-suite run as inconclusive rather than a
+  genuine regression signal when (a) the specific failing file set differs
+  from a prior failing run, (b) failures span files the current diff never
+  touches, and (c) the individually-isolated file(s) pass cleanly -- and
+  should re-run before concluding FAIL, rather than blocking on what may be
+  transient contention.
+affected_files:
+  - apps/bot/src/domain (all *.db.test.ts files, as victims not causes)
+  - apps/bot/src/scheduler (all *.db.test.ts files, as victims not causes)
+status: open
