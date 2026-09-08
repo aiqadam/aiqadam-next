@@ -1,0 +1,65 @@
+{
+  "handoff_id": "step-02-backend-dev",
+  "run_id": "WF02-REQ-035",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "BACKEND-DEV",
+  "to_agent": "REVIEWER",
+  "file": "handoffs/WF02-REQ-035/step-02-backend-dev.json",
+  "created_at": "2026-09-08T00:00:00Z",
+  "started_at": "2026-09-08T00:00:00Z",
+  "completed_at": "2026-09-08T00:00:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-035"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-035.md",
+      "handoffs/WF02-REQ-035/step-01-code-designer.json",
+      "handoffs/WF02-REQ-035/step-01b-code-design-validator.json",
+      "apps/bot/src/domain/walkin.ts",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/domain/eventAuthorization.ts",
+      "apps/bot/src/domain/notification.ts",
+      "apps/bot/src/handlers/checkin.ts",
+      "apps/bot/src/handlers/checkinQr.ts",
+      "apps/bot/src/handlers/noShow.ts",
+      "apps/bot/src/i18n/types.ts",
+      "apps/bot/src/i18n/en.ts",
+      "apps/bot/src/i18n/ru.ts"
+    ],
+    "branch_name": "feature/WF02-REQ-035"
+  },
+  "task": {
+    "description": "WF-02 Step 2 (implementation) for REQ-035 on branch feature/WF02-REQ-035, implementing docs/agents/design/REQ-035.md exactly (design gate PASSED clean at step-01b, no issues). Implemented every design element: (1) domain/registration.ts -- PendingRequestListItem + listPendingRequestsForOrganizer (S3-safe: profiles.phone/email structurally absent from the select clause, mirrors listAdmittedRegistrantsForCheckin), getPendingRequestForOrganizer (single-row read for the detail view, same S3-safe shape, returns null when the row is not 'requested'), decideApprovalOutcome (pure, first-match-wins, structural copy of decideWalkinOutcome's override-threading table narrowed to approve/approve-override/needs-override-confirmation), approveRequest (SELECT...FOR UPDATE on the registration row THEN the events row, fresh in-tx countAdmittedRegistrations re-read, decide, conditional UPDATE admission='admitted'+qrToken via the EXISTING generateQrToken() -- never a second generator -- distinct audit actions registration.approve vs registration.approve_override), decideRejectionOutcome + rejectRequest (SELECT...FOR UPDATE, decide, conditional UPDATE admission='rejected', one audit_log row action registration.reject with the reason in payload -- registrations.noShowReason is never touched, per design Open Question 1). (2) i18n: added the organizerRequests catalog section to types.ts/en.ts/ru.ts (placeholder copy per decisions/0002) -- the reject notification's onward path reuses catalog.event.deepLinkSeeUpcoming UNCHANGED, no new key for it, per the design's zero-Wishlist decision. (3) handlers/organizerRequests.ts (new file): /requests <event_id> [query] list command (requireOrganizerForChapter checked on the handler before any list read, S2), req:page pagination reusing PAGE_SIZE/SEARCH_RESULT_LIMIT imported from handlers/checkin.ts (Open Question 2 resolved: import as-is), req:open detail view (re-runs S2, renders company/position/student/source, never phone/email), req:approve + req:approve_confirm + req:approve_cancel (the override-confirmation sub-flow -- Cancel performs NO domain call at all, so AC4's 'dismissing leaves admission=requested unchanged' holds by construction), req:reject prompting a reason via force_reply + a fixed 'Reject ref: <id>' line (mirrors handlers/noShow.ts's exact ref-line + generic reply-to-message-text-listener mechanism, Open Question 5 resolved), with the listener re-running requireOrganizerForChapter before writing (S2 -- the text reply is itself the write-triggering action, not only the preceding button tap). Both notifications sent via the EXISTING sendLedgeredNotification with kind:'admission_result', classification:'transactional' (S10) -- no new NotificationKind literal. (4) index.ts wiring for the new command/callbacks/listener, ordered after every bot.command(...) registration per this file's own established discipline. Every requireOrganizerForChapter call resolves against the REGISTRATION's OWN event's chapterId (AC7), never the caller's own chapter; EventStaff is never consulted (AC6, traced in the design and unchanged here). No schema/migration change anywhere -- confirmed by grep (see result.summary). Ran the real checks synchronously: npm run lint -w apps/bot (clean), npm run build -w apps/bot (clean tsc), and npx vitest run --no-file-parallelism (343/343 existing tests pass, no regressions). No new automated tests were written in this step -- REQ-035's own AC5 (20+-repeat real-Postgres concurrency test) and the rest of the AC-to-test mapping is TEST-DESIGNER's Step 3 scope, per this project's WF-02 pipeline; this step's own required checks (lint/build/existing-suite) all passed.",
+    "acceptance_criteria": [
+      "Approving sets admission='admitted', issues a non-null qr_token via the existing generateQrToken(), and notifies the person.",
+      "Rejecting sets admission='rejected', notifies, and the captured message contains BOTH the organizer's stated reason AND an onward path pointing at the upcoming-events list.",
+      "No wishlist table, migration or row is created by this requirement, verified by grepping every migration and the schema for 'wishlist'.",
+      "Approving when admitted count already equals capacity requires an explicit confirmation: dismissing leaves admission='requested' unchanged; confirming sets 'admitted' AND writes exactly one audit_log row recording the override.",
+      "Two organizers approving the last remaining seat concurrently never produce an admitted count above capacity without an override -- verified by an automated concurrency test, 20+ repeats, real Postgres.",
+      "A member, and separately an EventStaff member for that same event, each invoking the approve handler DIRECTLY are both refused and the registration is unchanged.",
+      "An organizer of chapter A invoking the approve handler for a chapter B event is refused.",
+      "The rendered request list contains no phone number and no email address.",
+      "The approval and the rejection notification each reach a user with broadcast_opt_in=false.",
+      "Each approve and each reject writes exactly one audit_log row."
+    ]
+  },
+  "result": {
+    "status": "SUCCESS",
+    "summary": "Implemented docs/agents/design/REQ-035.md exactly, with no invented business rules. Files changed: apps/bot/src/domain/registration.ts (added countAdmittedRegistrations import from event.js, plus PendingRequestListItem/listPendingRequestsForOrganizer/getPendingRequestForOrganizer/ApprovalDecisionInput/ApprovalOutcome/decideApprovalOutcome/ApproveRequestResult/approveRequest/RejectionDecisionInput/RejectionOutcome/decideRejectionOutcome/rejectRequest -- all new exports, no existing export modified), apps/bot/src/handlers/organizerRequests.ts (new file, ~470 lines: list/detail/pagination/approve/override-confirm/override-cancel/reject callbacks plus the reject text-reply listener), apps/bot/src/i18n/{types,en,ru}.ts (new organizerRequests catalog section, placeholder copy per decisions/0002), apps/bot/src/index.ts (command + 6 callback-pattern registrations + 1 message:text listener, wired after every existing bot.command(...) registration). No schema/migration file touched; grepped apps/bot/src and apps/bot for 'wishlist' (case-insensitive) -- the only hit is a code comment in organizerRequests.ts citing the design's own 'zero Wishlist' decision (§0.4/§5), not an entity/table/column/row (AC3 verified). No second QR-token generator introduced -- approveRequest calls the existing generateQrToken() (registration.ts line ~90), confirmed by reading the call site. overrideAdmitAndCheckIn (REQ-029) was NOT reused or modified, per the design's own traced distinction and the task's explicit constraint. Checks run synchronously, real output: `npm run lint -w apps/bot` -> clean (eslint ., no output, exit 0). `npm run build -w apps/bot` -> clean (tsc -p tsconfig.json, no output, exit 0). `npx vitest run --no-file-parallelism` -> 'Test Files 37 passed (37)', 'Tests 343 passed (343)', 53.60s -- full existing suite green, zero regressions. Working tree verified clean via `git status --short` after the commit (ISS-0030): no output after `git commit`, `git status --short` showed nothing.",
+    "artifacts_out": [
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/handlers/organizerRequests.ts",
+      "apps/bot/src/i18n/types.ts",
+      "apps/bot/src/i18n/en.ts",
+      "apps/bot/src/i18n/ru.ts",
+      "apps/bot/src/index.ts"
+    ],
+    "issues": [
+      "PLUMBING NOTE (design Open Question 2, resolved): /requests <event_id> [query] takes the search query as a second command-line argument, the identical first-token-plus-remainder shape handlers/checkin.ts's /checkin already uses -- the design's own §6.1 prose says the search query 'arrives via a callback flow, not the initial command', but names no concrete callback/button for triggering it and explicitly frames the exact mechanism as BACKEND-DEV's plumbing choice with 'no behavioral consequence either way'. Chose the already-built, already-tested command-argument shape over inventing an unspecified callback UI. Flagging this literal wording deviation transparently for REVIEWER's own judgment call, per backend-dev.md's 'do not invent business rules' discipline -- this is a plumbing/UI-mechanism choice, not a business rule, but is called out rather than silently resolved.",
+      "SCOPE NOTE: no automated tests were added in this step. TEST-DESIGNER (WF-02 Step 3) owns writing the verification suite against all 10 ACs, including AC5's mandated 20+-repeat real-Postgres concurrency test -- this step's own obligation (lint/build/existing-suite) is complete and green."
+    ],
+    "next_action": "Route to REVIEWER (Step 2b) for design-system/code-quality/scope review, then SECURITY-REVIEWER per core-directives (S2/S3/S7/S8/S10 all touched by this change)."
+  }
+}
