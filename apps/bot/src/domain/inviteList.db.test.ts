@@ -346,6 +346,37 @@ describe("AC5 -- static: no stored registered/attended field anywhere in invite_
     const fnBody = text.slice(fnStart, fnEnd === -1 ? undefined : fnEnd);
     expect(fnBody).not.toMatch(/\.update\(/);
   });
+
+  // Widened per TEST-DESIGN-VALIDATOR step-03b BLOCKER (rework 1): AC5's
+  // verification method in requirements.yaml is `git grep` over apps/bot as
+  // a whole, and this requirement's own diff adds resolvePersonalCodeIdentity
+  // and markInviteListEntryOpened calls to handlers/start.ts -- new code the
+  // two checks above never read. This check scopes to exactly the two new
+  // call sites REQ-040 added there (not the whole file, which also contains
+  // unrelated, pre-existing REQ-039 code) so a stray persisted
+  // registered/attended field slipped into either new call site would be
+  // caught, without false-flagging unrelated code.
+  it("handlers/start.ts's new resolvePersonalCodeIdentity/markInviteListEntryOpened call sites hold no registered/attended field", () => {
+    const repoRoot = join(import.meta.dirname, "..", "..", "..", "..");
+    const filePath = join(repoRoot, "apps", "bot", "src", "handlers", "start.ts");
+    const text = readFileSync(filePath, "utf8").replace(/\r\n/g, "\n");
+
+    const identityStart = text.indexOf("const identity = await resolvePersonalCodeIdentity(");
+    expect(identityStart, "resolvePersonalCodeIdentity call site not found in handlers/start.ts").toBeGreaterThan(-1);
+    const identityEnd = text.indexOf("if (identityResolvedUserId === null) {", identityStart);
+    expect(identityEnd).toBeGreaterThan(identityStart);
+    const identityBlock = text.slice(identityStart, identityEnd);
+    expect(identityBlock).not.toMatch(/\bregistered\b/i);
+    expect(identityBlock).not.toMatch(/\battended\b/i);
+
+    const openedStart = text.indexOf("REQ-040.md §3.2 -- the first-open-only write");
+    expect(openedStart, "markInviteListEntryOpened call site comment not found in handlers/start.ts").toBeGreaterThan(-1);
+    const openedEnd = text.indexOf("const isCompanionCode = codeRow !== null", openedStart);
+    expect(openedEnd).toBeGreaterThan(openedStart);
+    const openedBlock = text.slice(openedStart, openedEnd);
+    expect(openedBlock).not.toMatch(/\bregistered\b/i);
+    expect(openedBlock).not.toMatch(/\battended\b/i);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -673,6 +704,41 @@ describe("AC9 -- static: no code path sends a message to the list entry's own us
     expect(handlerText).not.toMatch(/NotificationSender/);
     expect(handlerText).not.toMatch(/sender\./);
   });
+
+  // Widened per TEST-DESIGN-VALIDATOR step-03b BLOCKER (rework 1): AC9's
+  // verification method is `git grep` over apps/bot, and handlers/start.ts
+  // is where this requirement's diff actually wires resolvePersonalCodeIdentity
+  // and markInviteListEntryOpened into the live redemption path -- unread by
+  // the check above. start.ts ALSO contains an unrelated, pre-existing
+  // REQ-039 host-notification `sender.send(...)` call further down in the
+  // same function (targeting the companion invite's host, who already has a
+  // non-null tg_id, not the entry being newly linked/opened) -- so this check
+  // scopes to exactly the two new call sites REQ-040 added, the same two
+  // blocks the AC5 check above isolates, rather than the whole file, to
+  // avoid flagging that unrelated legitimate send.
+  it("handlers/start.ts's new resolvePersonalCodeIdentity/markInviteListEntryOpened call sites send nothing", () => {
+    const repoRoot = join(import.meta.dirname, "..", "..", "..", "..");
+    const filePath = join(repoRoot, "apps", "bot", "src", "handlers", "start.ts");
+    const text = readFileSync(filePath, "utf8").replace(/\r\n/g, "\n");
+
+    const identityStart = text.indexOf("const identity = await resolvePersonalCodeIdentity(");
+    expect(identityStart, "resolvePersonalCodeIdentity call site not found in handlers/start.ts").toBeGreaterThan(-1);
+    const identityEnd = text.indexOf("if (identityResolvedUserId === null) {", identityStart);
+    expect(identityEnd).toBeGreaterThan(identityStart);
+    const identityBlock = text.slice(identityStart, identityEnd);
+    expect(identityBlock).not.toMatch(/NotificationSender/);
+    expect(identityBlock).not.toMatch(/sender\./);
+    expect(identityBlock).not.toMatch(/ctx\.reply/);
+
+    const openedStart = text.indexOf("REQ-040.md §3.2 -- the first-open-only write");
+    expect(openedStart, "markInviteListEntryOpened call site comment not found in handlers/start.ts").toBeGreaterThan(-1);
+    const openedEnd = text.indexOf("const isCompanionCode = codeRow !== null", openedStart);
+    expect(openedEnd).toBeGreaterThan(openedStart);
+    const openedBlock = text.slice(openedStart, openedEnd);
+    expect(openedBlock).not.toMatch(/NotificationSender/);
+    expect(openedBlock).not.toMatch(/sender\./);
+    expect(openedBlock).not.toMatch(/ctx\.reply/);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -690,6 +756,32 @@ describe("AC10 -- static: no engagement/activity-approximation field anywhere", 
 
     const domainText = readFileSync(join(repoRoot, "apps", "bot", "src", "domain", "inviteList.ts"), "utf8");
     expect(domainText).not.toMatch(/engagement|activity[_-]?score|group[_-]?activity/i);
+  });
+
+  // Widened per TEST-DESIGN-VALIDATOR step-03b BLOCKER (rework 1): AC10's
+  // verification method is `git grep` over apps/bot, and handlers/start.ts
+  // -- unread above -- is exactly where this requirement's diff added its
+  // new call sites. Scoped identically to the AC5/AC9 widenings above (the
+  // two new call-site blocks only) so unrelated pre-existing code in the
+  // same file cannot produce a false flag.
+  it("handlers/start.ts's new resolvePersonalCodeIdentity/markInviteListEntryOpened call sites hold no engagement/activity field", () => {
+    const repoRoot = join(import.meta.dirname, "..", "..", "..", "..");
+    const filePath = join(repoRoot, "apps", "bot", "src", "handlers", "start.ts");
+    const text = readFileSync(filePath, "utf8").replace(/\r\n/g, "\n");
+
+    const identityStart = text.indexOf("const identity = await resolvePersonalCodeIdentity(");
+    expect(identityStart, "resolvePersonalCodeIdentity call site not found in handlers/start.ts").toBeGreaterThan(-1);
+    const identityEnd = text.indexOf("if (identityResolvedUserId === null) {", identityStart);
+    expect(identityEnd).toBeGreaterThan(identityStart);
+    const identityBlock = text.slice(identityStart, identityEnd);
+    expect(identityBlock).not.toMatch(/engagement|activity[_-]?score|group[_-]?activity/i);
+
+    const openedStart = text.indexOf("REQ-040.md §3.2 -- the first-open-only write");
+    expect(openedStart, "markInviteListEntryOpened call site comment not found in handlers/start.ts").toBeGreaterThan(-1);
+    const openedEnd = text.indexOf("const isCompanionCode = codeRow !== null", openedStart);
+    expect(openedEnd).toBeGreaterThan(openedStart);
+    const openedBlock = text.slice(openedStart, openedEnd);
+    expect(openedBlock).not.toMatch(/engagement|activity[_-]?score|group[_-]?activity/i);
   });
 });
 
