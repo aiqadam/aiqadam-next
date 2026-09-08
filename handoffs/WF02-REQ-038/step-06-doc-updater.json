@@ -1,0 +1,41 @@
+{
+  "handoff_id": "step-06-doc-updater",
+  "run_id": "WF02-REQ-038",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "DOC-UPDATER",
+  "to_agent": "FRONTEND-DEV",
+  "file": "handoffs/WF02-REQ-038/step-06-doc-updater.json",
+  "created_at": "2026-09-08T13:21:08Z",
+  "started_at": "2026-09-08T13:21:08Z",
+  "completed_at": "2026-09-08T13:21:08Z",
+  "status": "COMPLETED",
+  "priority": "HIGH",
+  "context": {
+    "requirement_ids": ["REQ-038"],
+    "branch_name": "feature/WF02-REQ-038",
+    "commit": "79d53fc",
+    "artifacts_in": [
+      "handoffs/WF02-REQ-038/step-05-release-validator.json"
+    ]
+  },
+  "task": {
+    "description": "Flip REQ-038 to done in requirements.yaml, append a done status-history event, and check README.md/features-overview docs for staleness.",
+    "acceptance_criteria": [
+      "requirements.yaml REQ-038 status flipped in_progress -> done",
+      "docs/status/requirement_status.yaml gets one appended done event, no prior entries touched",
+      "README.md checked for staleness relative to what shipped"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "RELEASE-VALIDATOR PASSed REQ-038 (invite code redemption via i_ deep link or typed code, with the full validation table and past-attendee eligibility, GitHub issue #70) -- the SIXTH requirement of Release 2. Independently rechecked the requirement's description and all 11 acceptance criteria against RELEASE-VALIDATOR's shipped-code citations (apps/bot/src/domain/inviteCode.ts's validateInviteCodeForRedemption/redeemInviteCode, apps/bot/src/domain/registration.ts's hasPastCheckIn) and agree -- no content correction needed in requirements.yaml beyond the status flip. Appended a 'done' event to docs/status/requirement_status.yaml (verified via git diff --numstat: 5 insertions, 0 deletions -- pure append, no prior entry touched) noting RELEASE-VALIDATOR's self-caught 88/810-vs-44/405 test-count discrepancy: its own `npm run build -w apps/bot` had populated the gitignored apps/bot/dist/ with compiled *.test.js files that vitest's default include picked up alongside the src *.test.ts files; removing dist/ and re-running gave the correct 44/405 matching TEST-RUNNER's baseline. Harmless, self-resolved, not a code defect -- recorded for future readers, not as an issue. README.md rechecked (grep, case-insensitive, for 'invite', 'redeem', 'companion'): zero matches -- this requirement's surface is entirely inside the Telegram bot's redemption flow, not documented in README.md by any prior bot requirement either, so no update was warranted -- same checked-then-skipped pattern as every prior bot requirement (REQ-010 through REQ-037). No standalone bot-command-reference doc exists in docs/. This is the SIXTH requirement of Release 2, not a phase- or release-closer -- 3 more requirements (REQ-039 through REQ-041) remain pending before Release 2 completes, so no completion marker was added.",
+    "artifacts_out": [
+      "docs/agents/requirements.yaml",
+      "docs/status/requirement_status.yaml",
+      "handoffs/WF02-REQ-038/step-06-doc-updater.json"
+    ],
+    "issues": [],
+    "next_action": "Route to ORCH for merge (Step Final)"
+  }
+}
