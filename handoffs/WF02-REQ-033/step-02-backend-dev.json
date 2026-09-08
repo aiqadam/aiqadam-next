@@ -8,8 +8,8 @@
   "file": "handoffs/WF02-REQ-033/step-02-backend-dev.json",
   "created_at": "2026-09-08T05:26:48Z",
   "started_at": "2026-09-08T05:26:48Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-09-08T10:35:00Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": [
@@ -47,9 +47,20 @@
     ]
   },
   "result": {
-    "status": null,
-    "summary": null,
-    "artifacts_out": [],
-    "issues": []
+    "status": "SUCCESS",
+    "summary": "Implemented docs/agents/design/REQ-033.md exactly. Added invite_codes table to apps/bot/src/db/schema.ts (UUID PK, event_id FK->events, code UNIQUE, issued_to_user_id nullable FK->users, grants_companion_of nullable FK->users, max_uses, used_count NOT NULL DEFAULT 0, expires_at nullable, created_at/updated_at, all FKs ON DELETE RESTRICT, no CHECK constraint per design SS2). Closed registrations.invite_code_id to a real .references(() => inviteCodes.id, { onDelete: 'restrict' }) FK, nullability unchanged. Generated the Drizzle migration (apps/bot/drizzle/0007_sturdy_network.sql) via drizzle-kit generate -- CREATE TABLE invite_codes then ALTER TABLE registrations ADD CONSTRAINT, matching design SS8's stated order exactly; hand-verified as SQL, not hand-written. Implemented generateInviteCode() in a new apps/bot/src/domain/inviteCode.ts (framework-free, no grammY import, standalone module alongside registration.ts per design SS4's explicit instruction): crypto.randomBytes(26), alphabet '23456789ABCDEFGHJKLMNPQRSTUVWXYZ' (32 symbols, confirmed by direct count -- L and Q both included, only 0/O/1/I excluded), unbiased byte%32 mapping (32 divides 256 evenly), 26 chars = 130 bits >= S4's 128-bit floor. Wrote apps/bot/src/domain/inviteCode.test.ts covering length, alphabet exactness (including L/Q inclusion and 0/O/1/I exclusion), AC7 (1000 codes, every char in alphabet), AC6 (10000 codes, zero collisions), and a runtime Math.random-not-called check. No handler code, no issuing/redemption domain logic added -- scope held to schema + migration + generator only, per the handoff's explicit boundary. All 9 acceptance criteria verified against the real scratch Postgres at localhost:55432 (migration applied via `npm run migrate`, then direct psql assertions in transactions with ROLLBACK/SAVEPOINT, not just schema reading): AC1 confirmed via \\d invite_codes; AC2 duplicate code insert failed with unique-violation on invite_codes_code_unique; AC3 bulk insert (neither issued_to_user_id nor grants_companion_of) succeeded, issued_to_user_id naming a non-existent user failed FK; AC4 registration naming a non-existent invite_codes row failed FK (registrations_invite_code_id_invite_codes_id_fk); AC5 deleting a referenced invite_codes row was refused (same constraint, referenced-from error); AC6/AC7 via Vitest (see below); AC8 satisfied by the already-PASSed design artefact SS2/SS6; AC9 grep of the migration file for no_show/waitlist_position/seats_taken/registration_open/finished returned zero hits (exit 1).",
+    "artifacts_out": [
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/drizzle/0007_sturdy_network.sql",
+      "apps/bot/drizzle/meta/0007_snapshot.json",
+      "apps/bot/drizzle/meta/_journal.json",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/inviteCode.test.ts"
+    ],
+    "issues": [
+      "npm run lint: PASS (root, both workspaces) -- 0 errors, 2 pre-existing warnings in apps/web/src/components/landing/{Footer,Nav}.tsx (no-img-element), unrelated to this change.",
+      "npm run build: PASS (root, both workspaces) -- next build succeeded, `tsc -p tsconfig.json` for apps/bot succeeded with zero errors.",
+      "npm test (root, plain, no TEST_DATABASE_URL set): FAILS locally with widespread deadlocks/FK races (22 failed/15 passed files) -- reproduced as PRE-EXISTING on master/this branch's committed state BEFORE my change too (git stash + npm test showed the same 22-failed pattern), caused by Vitest's default file-parallelism running many DB-truncating suites concurrently against the single local scratch Postgres at localhost:55432 (auto-discovered as TEST_DATABASE_URL's fallback default) -- not something this change introduced. The project's own CI (.github/workflows/ci-cd.yml) runs plain `npm test` with no DATABASE_URL configured, so DB-backed suites self-skip there (dbAvailable=false) rather than racing. Deterministic verification: applied migration 0007 to the scratch DB (`DATABASE_URL=... npm run migrate` -- '[OK] migrations applied successfully'), then ran `npx vitest run --no-file-parallelism` (serial across files, same scratch DB): 37 test files passed, 334/334 tests passed, including the new inviteCode.test.ts's 5 tests (AC6 10000-collision, AC7 1000-alphabet-membership, alphabet-exactness, length, CSPRNG-only). Routing this discrepancy as a note, not a design gap -- flagging for RELEASE-VALIDATOR/TEST-RUNNER awareness in case the local dev-DB concurrency behavior should itself become a tracked issue, but it is out of REQ-033's own scope to fix (no code in this requirement's scope caused it)."
+    ]
   }
 }
