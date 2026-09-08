@@ -1,0 +1,58 @@
+{
+  "handoff_id": "step-01b-code-design-validator",
+  "run_id": "WF02-REQ-035",
+  "workflow_id": "WF-02",
+  "step": "01b",
+  "from_agent": "CODE-DESIGN-VALIDATOR",
+  "to_agent": "ORCH",
+  "file": "handoffs/WF02-REQ-035/step-01b-code-design-validator.json",
+  "created_at": "2026-09-08T08:28:57Z",
+  "started_at": "2026-09-08T08:28:57Z",
+  "completed_at": "2026-09-08T08:28:57Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-035"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-035.md",
+      "handoffs/WF02-REQ-035/step-01-code-designer.json",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/domain/walkin.ts",
+      "apps/bot/src/handlers/checkinQr.ts",
+      "apps/bot/src/handlers/checkin.ts",
+      "apps/bot/src/domain/eventAuthorization.ts",
+      "apps/bot/src/domain/notification.ts",
+      "apps/bot/src/db/schema.ts",
+      "docs/agents/instructions/security-invariants.md",
+      "docs/agents/instructions/core-directives.md",
+      "docs/agents/workflows/WF-02_requirement_implementation.md",
+      "docs/agents/design/REQ-020.md",
+      "docs/agents/design/REQ-029.md",
+      "docs/agents/design/REQ-030.md",
+      "GitHub issue #67"
+    ],
+    "branch_name": "feature/WF02-REQ-035"
+  },
+  "task": {
+    "description": "WF-02 Step 1b (design gate) for REQ-035 on branch feature/WF02-REQ-035. Independently re-derive the verdict on docs/agents/design/REQ-035.md against issue #67's full text/10 ACs -- not against CODE-DESIGNER's result.summary -- with particular scrutiny on the concurrency mechanism, the override-reuse decision (REQ-030's shape vs REQ-029's), the single admission_result NotificationKind collision analysis, S3 list-rendering, S2 authorization, the Zero Wishlist claim, and AC4's dismiss-leaves-unchanged clause.",
+    "acceptance_criteria": [
+      "Every AC in issue #67 maps to a concrete, traced design element -- no TBD language on structure.",
+      "Concurrency mechanism (AC5) traced against the actual current SELECT...FOR UPDATE + in-transaction re-count pattern in at least one of REQ-020/023/030's real implementations, confirmed to genuinely serialize concurrent approvals.",
+      "Override-reuse decision (REQ-030's commitWalkin shape, not REQ-029's overrideAdmitAndCheckIn) re-verified against the actual overrideAdmitAndCheckIn/decideOverrideOutcome code -- confirmed it genuinely has no capacity check and genuinely couples admit+check-in.",
+      "Single admission_result NotificationKind claim traced against notification_ledger's actual UNIQUE(registration_id, kind) constraint and every production call path, checking for any legitimate two-admission_result-sends-for-one-registration scenario.",
+      "S3 list rendering confirmed to exclude phone/email structurally at the SQL select-clause level, not merely by UI non-rendering.",
+      "S2 authorization confirmed checked on the handler (not just the menu), with explicit refusal of both a plain member and an EventStaff member.",
+      "Zero Wishlist claim confirmed: reject-message design reuses only the existing catalog.event.deepLinkSeeUpcoming string, no new table/column/row.",
+      "AC4's dismiss-leaves-unchanged clause confirmed: the override flow's dismiss path leaves admission='requested' completely unchanged, no partial audit row."
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Read docs/agents/design/REQ-035.md in full (all 10 sections) and re-derived every load-bearing claim against the live repo, not the design's own prose or CODE-DESIGNER's result.summary. CONCURRENCY (AC5, §0.1/§3): read apps/bot/src/domain/walkin.ts's actual commitWalkin (lines 218-387) end to end -- confirmed it genuinely does `tx.select(...).from(events).where(eq(events.id, eventId)).for(\"update\")` (line 238) BEFORE a fresh `countAdmittedRegistrations`/`computeSeatsLeft` re-read (lines 277-278) inside the SAME transaction, then a pure decision, then a conditional write -- exactly the shape the design claims REQ-035's approveRequest reuses. Also read registerForEvent (registration.ts lines 117-260): same events-row FOR UPDATE (line 137) + in-tx fresh admitted count (lines 165-169) shape. This is a genuine Postgres-level serialization primitive (a row lock via FOR UPDATE), not an in-process mutex -- the design's claim that it holds across 20+ real concurrent Postgres connections is architecturally sound and matches the two already-shipped precedents byte-for-byte in structure. OVERRIDE-REUSE (§0.2): read the actual overrideAdmitAndCheckIn (registration.ts lines 1520-1569) and decideOverrideOutcome (lines 1337-1355) in full. Confirmed independently: decideOverrideOutcome takes ONLY {registrationExists, admission} -- no seatsLeft/capacity field anywhere in OverrideDecisionInput -- and overrideAdmitAndCheckIn's UPDATE (lines 1549-1557) sets admission/checkedInAt/checkedInBy/checkInMethod together, one audit action 'registration.override_admit_checkin'. This is a real, structural distinction from what REQ-035 needs (a capacity-gated approve that must NOT touch check-in fields) -- not a convenient dismissal; the design's reuse of REQ-030's commitWalkin shape instead (overrideConfirmed boolean threaded into a pure decision with a needs-override-confirmation branch, distinct audit action string per branch) is the correct precedent and is traced accurately against commitWalkin's real code (lines 337, 376-383). NOTIFICATION KIND (§0.3/§5): read notification.ts's NotificationKind union (line 16, 'admission_result' present) and schema.ts's notificationLedger table (lines 408-429) -- confirmed uniqueIndex('uq_notification_ledger_registration_kind') is genuinely on (registrationId, kind) only, no outcome-value column. Grepped every production sendLedgeredNotification call site (event.ts, withdraw.ts, feedbackJobs.ts, noShowJobs.ts, reminderJobs.ts) plus a direct grep for 'admission_result' across apps/bot/src -- confirmed 'admission_result' has ZERO production call sites today (only the type-union declaration and notification.test.ts), matching the design's claim exactly. Checked the specific edge case the task called out (a rejected-then-somehow-re-requested collision): read decideRegistrationOutcome (registration.ts lines 56-82) -- row 1 is `existingAdmission !== null -> already-registered`, and registerForEvent's own existingAdmission normalization (lines 153-158) normalizes ONLY 'withdrawn' to null for re-registration purposes; 'rejected' is passed through as non-null, so a rejected row can never re-enter the 'requested' state via any registration path in this codebase. Combined with REQ-035's own two writers (approveRequest/rejectRequest) both gating on `admission === 'requested'` as their own precondition inside the same locked transaction that performs the transition, there is no reachable code path -- old or new -- that would attempt a second admission_result send for an already-decided registration_id. The design's collision analysis holds under actual inspection, not just by the design's own assertion. S3 (§1): read listAdmittedRegistrantsForCheckin's actual select clause (registration.ts lines 877-891) that REQ-035's listPendingRequestsForOrganizer is stated to mirror -- confirmed phone/email are structurally absent columns in that select, not merely unrendered fields; the design's PendingRequestListItem interface (§1) and its query-shape table likewise name only registrationId/userId/displayName/company/position/isStudent/source/createdAt, with an explicit note that profiles.phone/profiles.email never appear in the select clause. Grepped handlers/checkin.ts for phone/email -- zero matches, confirming the precedent list handler carries no phone/email reference anywhere, not just in the rendered output. S2 (§0.5/§6.3/§6.2): read eventAuthorization.ts's actual checkOrganizerForChapter (lines 60-78) -- confirmed it consults only user.role/user.chapterId, never event_staff, so a 'member' role (including any EventStaff-only grant, which per the design's own convention is a separate grant table not a role value) is refused with 'not-organizer' by construction. Confirmed requireOrganizerForChapter is named as called FIRST on the command handler (§6.1 step 4), re-run on the detail-view callback (§6.2), and re-run again on the approve callback against the registration's own event's chapterId (§6.3 step 1) and on the reject callback (§6.4 step 1) -- checked on every handler, not only the menu, matching checkinQr.ts's makeCheckinOverrideCallbackHandler precedent (lines 177-181) which the design cites and which was independently confirmed to check requireOrganizerForChapter before any write. WISHLIST (§0.4): grepped the design text -- the only reused string is catalog.event.deepLinkSeeUpcoming (i18n/en.ts line 74 per the design's own citation), no new table/column/migration/row named 'wishlist' or a synonym appears anywhere in the artefact; this matches REQ-027's already-established precedent the design cites. AC4 DISMISS (§6.3 step 4): the design states the Cancel button's callback 'performs no domain call at all' and only edits the message view -- this is a genuine no-op path (no approveRequest/rejectRequest invocation, no writeAuditLog call) distinct from the confirm path (req:approve:confirm:<id>, which re-invokes approveRequest with overrideConfirmed:true) -- the two callback data patterns are structurally distinct so a dismiss cannot accidentally route into a write branch. No 'TBD' or deferral language covers any AC-mapped design element (open questions in §8 are all genuinely out-of-AC-scope plumbing/future-requirement matters, correctly flagged rather than silently resolved, per the design-doc convention this project already uses in REQ-034/etc.). No color/spacing/typography/token references appear anywhere in the artefact -- correctly out of scope for a bot backend/domain-logic requirement with no UI component (confirmed against WF-02_requirement_implementation.md's Step 1b checklist item c, which only applies when such references exist). No implementation code present: all code blocks are TypeScript interface/type declarations and function signatures plus first-match-wins decision tables in prose, matching the exact documentation convention already used and passed for REQ-020.md/REQ-029.md/REQ-030.md/REQ-034.md -- no full function body with control flow is written anywhere in the artefact. Props/types are fully specified for every new export (ApprovalDecisionInput/ApprovalOutcome/ApproveRequestResult, RejectionDecisionInput/RejectionOutcome, PendingRequestListItem). All 10 ACs map to a concrete, traced design element in section 9's table, and every mapped element was independently re-derived against the current live code in this validation pass, not accepted from the design's or CODE-DESIGNER's own say-so. No schema change is proposed anywhere in the design, and this was independently confirmed: registrations.admission/source/qrToken and profiles.company/position/isStudent already exist with the stated types (schema.ts), and notification_ledger's UNIQUE(registration_id, kind) constraint already exists exactly as claimed -- DATA-DESIGNER correctly not dispatched for this run.",
+    "artifacts_out": [
+      "handoffs/WF02-REQ-035/step-01b-code-design-validator.json"
+    ],
+    "issues": [],
+    "next_action": "Route to BACKEND-DEV (Step 2)"
+  }
+}
