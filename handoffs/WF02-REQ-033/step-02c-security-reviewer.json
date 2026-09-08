@@ -8,8 +8,8 @@
   "file": "handoffs/WF02-REQ-033/step-02c-security-reviewer.json",
   "created_at": "2026-09-08T05:41:39Z",
   "started_at": "2026-09-08T05:41:39Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-09-08T05:42:56Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": [
@@ -39,9 +39,14 @@
     ]
   },
   "result": {
-    "status": null,
-    "summary": null,
+    "status": "PASS",
+    "summary": "S1-S14 run against git diff master...HEAD (schema.ts, 0007_sturdy_network.sql, inviteCode.ts, inviteCode.test.ts). S4 (generation half): PASS, verified by reading apps/bot/src/domain/inviteCode.ts directly. generateInviteCode() calls node:crypto randomBytes(26) (line 33) -- a real CSPRNG, never Math.random, never a counter, never derived from a user id or any predictable input. byte % 32 (line 35) is unbiased since 256/32=8 exactly. 26 bytes -> 26*log2(32)=130 bits >= the 128-bit S4 floor. Negative case constructed against each listed violation: predictable derivation (none -- output depends only on randomBytes), insufficient entropy (130>=128), Math.random (absent from source; also asserted at runtime by inviteCode.test.ts's Math.random-spy test, which I read), sequential/hash-derived (no counter, no createHash anywhere in the module). DB backstop: 0007_sturdy_network.sql line 15 creates a UNIQUE INDEX on invite_codes.code matching schema.ts's uniqueIndex, so even a collision would be rejected rather than silently accepted. S4 (expires_at/max_uses enforcement half): N/A-deferred to REQ-038. This diff adds only the expires_at and max_uses COLUMNS (schema.ts inviteCodes table) with zero redemption/validation logic anywhere in the diff -- no handler checks expires_at against now() or used_count against max_uses, because no redemption code path exists yet in this diff to violate the invariant. Not a gap in this diff; flagged for REQ-038's SECURITY-REVIEWER pass to verify for real, including the atomic-increment/read-then-write race on used_count under concurrent redemption (same class of concern as S7). S13 migration sign-off (given per this role's mandatory duty, read from the actual .sql not a description): PASS. 0007_sturdy_network.sql is purely additive -- one CREATE TABLE, three ADD CONSTRAINT FKs, one unique index -- no DROP/RENAME/ALTER COLUMN touching any existing column, no personal-data or attendance column removed or rewritten, nothing that could retroactively change a past event's published figures. All new FKs (invite_codes.event_id, issued_to_user_id, grants_companion_of; registrations.invite_code_id) are ON DELETE RESTRICT, consistent with the schema's anonymize-not-cascade pattern. Remaining items N/A with reason, no silent skips: S1 N/A (no consent writes; invite_codes carries no personal-data fields, only code/event/optional user-FKs/counts/timestamps). S2 N/A (no handler or role-check surface exists in this diff). S3 N/A (no read path added). S5 N/A (no check-in logic). S6 N/A (registrations.checked_in_at untouched, only its invite_code_id FK target changed). S7 N/A (no capacity/admission logic touched). S8 N/A (no status-change code path; invite_codes rows aren't written by any code in this diff -- creation is REQ-037's). S9 N/A (no notification code). S10 N/A (no messaging code). S11 N/A (no logging added; code column is a generated token, not PII). S12 N/A (no export code). S14 N/A (no speaker/Profile publication code).",
     "artifacts_out": [],
-    "issues": []
+    "issues": [
+      {
+        "severity": "MINOR",
+        "description": "REQ-038 (invite code redemption) must independently re-verify S4's expires_at/max_uses enforcement half AND treat used_count's increment as a S7-class atomicity concern (concurrent redemptions must not both succeed past max_uses via a read-then-write race) -- flagging now so it isn't missed at that gate."
+      }
+    ]
   }
 }
