@@ -552,4 +552,37 @@ export interface Catalog {
     hostNotification: string;
     refLinePrefix: string;
   };
+  // NEW, REQ-040 (docs/agents/design/REQ-040.md §4/§8 open question 2): the
+  // named invitation list -- /invite_list_add, /invite_list, the
+  // issue/remove callbacks. Provisional English/RU source strings pending
+  // CONTENT-BA, same precedent as inviteCodes above.
+  inviteList: {
+    usageAddMissingEventId: string;
+    usageAddMissingName: string;
+    eventNotFound: string;
+    notAuthorized: string;
+    // Interpolated with {name}, {userId} -- §4.1's confirmation reply.
+    addedReply: string;
+    // Interpolated with {event}, {count} -- §4.2 list header.
+    listHeader: string;
+    listEmpty: string;
+    // Status labels, §4.2's four-row derivation table.
+    statusInvited: string;
+    statusOpened: string;
+    statusRegistered: string;
+    statusAttended: string;
+    // Interpolated with {name}, {status} -- §4.2 row label.
+    entryRowLabel: string;
+    issueButtonLabel: string;
+    removeButtonLabel: string;
+    // Interpolated with {code}, {link} -- §4.3's issued-code reply, reusing
+    // inviteCodes.issuedReply's own wording shape.
+    issuedReply: string;
+    removeConfirmPrompt: string;
+    removeConfirmButtonLabel: string;
+    removeCancelButtonLabel: string;
+    removedReply: string;
+    removeCancelledNote: string;
+    entryNotFound: string;
+  };
 }
