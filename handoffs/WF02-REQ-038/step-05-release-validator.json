@@ -1,0 +1,45 @@
+{
+  "handoff_id": "step-05-release-validator",
+  "run_id": "WF02-REQ-038",
+  "workflow_id": "WF-02",
+  "step": "05",
+  "from_agent": "RELEASE-VALIDATOR",
+  "to_agent": "DOC-UPDATER",
+  "file": "handoffs/WF02-REQ-038/step-05-release-validator.json",
+  "created_at": "2026-09-08T13:19:30Z",
+  "started_at": "2026-09-08T13:10:00Z",
+  "completed_at": "2026-09-08T13:19:30Z",
+  "status": "COMPLETED",
+  "priority": "HIGH",
+  "context": {
+    "requirement_ids": ["REQ-038"],
+    "branch_name": "feature/WF02-REQ-038",
+    "commit": "9e3ff4c",
+    "artifacts_in": [
+      "docs/agents/design/REQ-038.md",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/domain/inviteCodeRedeem.db.test.ts",
+      "apps/bot/src/handlers/redeem.db.test.ts",
+      "handoffs/WF02-REQ-038/step-04-test-runner-rework1.json"
+    ]
+  },
+  "task": {
+    "description": "Independently re-verify all 11 acceptance criteria of REQ-038 (GitHub issue #70) against the actual current code and tests, re-running every check rather than trusting prior reports.",
+    "acceptance_criteria": [
+      "AC1-AC11 per issue #70, re-verified individually",
+      "npm run lint -w apps/bot, npm run build -w apps/bot, npx vitest run --no-file-parallelism re-run independently",
+      "AC4 concurrency test re-run in isolation at least twice more",
+      "Scope discipline confirmed: registerForEvent signature unchanged, zero schema/migration changes, no second code generator, no Wishlist"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Independently re-verified REQ-038 end to end. Checked out feature/WF02-REQ-038 at commit 9e3ff4c (clean working tree, matches TEST-RUNNER's reported commit).\n\nCOMMANDS RE-RUN MYSELF: `npm run lint -w apps/bot` -> clean, zero output beyond the script banner. `npm run build -w apps/bot` -> clean tsc compile, zero errors (this also (re)populated apps/bot/dist/, a gitignored build artifact). `npx vitest run --no-file-parallelism` from apps/bot immediately after the build showed 88 files/810 tests -- I investigated this discrepancy against TEST-RUNNER's reported 44 files/405 tests myself rather than accepting either number blindly: apps/bot/dist is gitignored (.gitignore line 25) and my own `npm run build` had just populated it with 44 compiled *.test.js files, which vitest's default include picked up alongside the 44 src *.test.ts files (44+44=88, confirmed by `find dist -iname '*.test.js' | wc -l` = 44). I removed dist and re-ran: clean result was 44 files passed (44), 405 tests passed (405), 59.16s -- this matches TEST-RUNNER's reported baseline exactly and is the correct number; the 88/810 run was an artifact of my own build step, not a real discrepancy in the codebase or a regression.\n\nAC4 CONCURRENCY -- re-run in isolation twice more beyond the 3+ prior clean runs already on record (TEST-RUNNER's baseline + rework1, each independently running both AC4 cases): `npx vitest run apps/bot/src/domain/inviteCodeRedeem.db.test.ts -t AC4` twice, both times 2 passed/15 skipped, both AC4 cases (20-iteration literal-shape race; 5x10 higher-fan-in race with a dedicated pool proving real multi-connection parallelism via totalCount) green both times. AC4 concurrency is stable across at least 5 independent executions now (3 prior + my 2).\n\nCODE-LEVEL SPOT-CHECKS (read the actual implementation, not the design doc's claims):\n\nAC2 (identity check) -- read validateInviteCodeForRedemption (apps/bot/src/domain/inviteCode.ts:572-594): row 4 checks `issuedToUserId !== null && issuedToUserId !== redeemerUserId` -> `{ ok: false, reason: 'not-yours' }`, in the stated order after expired/spent/wrong-event. Read redeemInviteCode's call site (lines 616-800): the invite_codes row is locked FOR UPDATE fresh inside the transaction (step 5, line 662-673) before validation runs, and a non-ok validation returns immediately with no write (used_count untouched, no registrations write). The corresponding test (apps/bot/src/domain/inviteCodeRedeem.db.test.ts:142-166) constructs the code for user A via issuePersonalInviteCode, redeems as user B (refused, invite-code-not-yours, registrationCount=0, usedCount=0), THEN redeems as user A as a positive control (admitted, usedCount=1) -- this positive control is exactly what the AC's own text demands ('a run where the redeemer is the issuee does not exercise this and is not evidence') and it is present, not skipped. AC2 verified.\n\nAC4 (concurrency) -- read the locking discipline directly: step 5 locks invite_codes FOR UPDATE by codeRow.id (never reusing the unlocked step-2 precheck for the decision), and the increment at step 10 (line 797-800) sets usedCount to the LOCKED row's own read value + 1 in the same transaction as the registrations write -- genuine serialization on the row lock, not a read-then-write race. Confirmed via my own 2 additional isolated runs above plus the 3 prior. AC4 verified.\n\nAC7 (past-attendee eligibility, both directions) -- read hasPastCheckIn (apps/bot/src/domain/registration.ts:132-139): a pure `checked_in_at IS NOT NULL` query, no stored flag, no evaluationTime. Read its single call site inside registerForEvent (line 218): `event.requiresInvite ? await hasPastCheckIn(tx, userId) : false`, inserted between the existing event-lock step and the existing decideRegistrationOutcome call, using the already-open tx handle -- registerForEvent's external signature (db, userId, eventId, evaluationTime) is unchanged; confirmed only one call site exists in apps/bot/src (`grep -rn registerForEvent\\( apps/bot/src` shows exactly the definition and handlers/registration.ts's existing unchanged 4-arg call). Tests (inviteCodeRedeem.db.test.ts:416-451) construct both directions: a user with checked_in_at set on a past registration is admitted to a NEW requires_invite event with zero code involved; a user with no past check-in registering for a requires_invite event without a code is refused (requires-invite). A third static test greps schema.ts for any returning/attended-before/eligibility column and finds none. AC7 verified.\n\nAC9 (consent preservation) -- read handlers/redeem.db.test.ts:241-307: an unconsented redeemer via the i_<code> deep link sees only the consent prompt, with zero registrations rows, zero profiles rows, and used_count still 0 after the first update; a second test confirms that a redeemer who NEVER taps consent:agree stays in that state indefinitely (re-checked via a later unrelated /start), with used_count still 0 and no rows written despite holding a valid code the whole time. Read the design's consent-gate-first ordering (§4.2 step 1, §0 point 5) and confirmed in code that resolveInviteDeepLink's consent check precedes any invite_codes read. AC9 verified.\n\nAC1, AC3, AC5, AC6, AC8, AC10, AC11 -- read the corresponding test blocks in inviteCodeRedeem.db.test.ts and redeem.db.test.ts and the implementation they exercise; each maps to a concrete, correctly-ordered check with real DB reads-back (not mocked), consistent with the design's §8 AC-to-design-element map. No gaps found.\n\nSCOPE DISCIPLINE -- confirmed independently: `git diff master...HEAD -- apps/bot/src/db/schema.ts` and `-- apps/bot/drizzle` both empty (zero schema/migration changes). `grep -ril wishlist apps/bot/drizzle apps/bot/src` only matches negative-check test assertions and comments confirming absence (AC10's own tests), never a table/row/migration. registerForEvent's only call site outside its own definition is handlers/registration.ts's pre-existing 4-argument call, unchanged. generateInviteCode (apps/bot/src/domain/inviteCode.ts:48) has exactly its 3 pre-existing call sites (issuePersonalInviteCode/issueBulkInviteCode/issueCompanionInviteCode) -- redeemInviteCode reuses an existing code, never generates a new one, so no second code generator was added.\n\nVERDICT: PASS. All 11 acceptance criteria independently re-verified against actual code and passing tests, not against the status history's narrative. Lint/build/full-suite (405/405) and AC4 concurrency (2 additional isolated clean runs) re-confirmed by me directly. Ready to merge.",
+    "artifacts_out": [
+      "handoffs/WF02-REQ-038/step-05-release-validator.json"
+    ],
+    "issues": [],
+    "next_action": "Route to DOC-UPDATER (Step 6)"
+  }
+}
