@@ -1,0 +1,65 @@
+{
+  "handoff_id": "step-01b-code-design-validator",
+  "run_id": "WF02-REQ-039",
+  "workflow_id": "WF-02",
+  "step": "01b",
+  "from_agent": "CODE-DESIGN-VALIDATOR",
+  "to_agent": "CODE-DESIGNER",
+  "file": "handoffs/WF02-REQ-039/step-01b-code-design-validator.json",
+  "created_at": "2026-09-08T13:36:49Z",
+  "started_at": "2026-09-08T13:36:49Z",
+  "completed_at": "2026-09-08T13:36:49Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-039"],
+    "requirement_text": {
+      "REQ-039": "GitHub issue #71 (verified by `gh issue view 71`). Companion (+1) registration through a companion code, with consent before storage and invited_by_user_id attribution. A code with grants_companion_of = X sets registrations.invited_by_user_id = X, one field for both mechanic and referral reporting, no schema change. The companion completes NAME, PHONE, COMPANY only, reusing REQ-030's reduced-field pattern. Consent before storage is the security-critical property -- nothing is written before consent_pd_at is set. Companions occupy a normal seat, waitlisted like anyone else when full. One use unless the organizer overrides max_uses. Both guest and host are notified once each, transactionally; host notification carries name+company only, never phone/email (S3)."
+    },
+    "source_text": {},
+    "related_handoff_ids": ["handoffs/WF02-REQ-039/step-01-code-designer.json"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-039.md",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/walkin.ts",
+      "apps/bot/src/domain/profile.ts",
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/src/handlers/start.ts",
+      "apps/bot/src/domain/notification.ts",
+      "docs/agents/instructions/security-invariants.md"
+    ],
+    "branch_name": "feature/WF02-REQ-039"
+  },
+  "task": {
+    "description": "WF-02 Step 1b (design gate) for REQ-039. Read docs/agents/design/REQ-039.md independently against the issue's 9 acceptance criteria and against the live code it claims to reuse/extend. Check hard for the returning-guest / profiles_user_id_unique collision the design itself flags as an open question.",
+    "acceptance_criteria": [
+      "Every AC has a concrete, non-TBD design element",
+      "No implementation code present, only structure/signatures",
+      "Every claimed reuse point (resolveInviteDeepLink insertion, redeemInviteCode extension, notification composeMessage) is verified against the actual current code, not asserted",
+      "Design contains no unresolved gap on any plausible/reachable input path"
+    ]
+  },
+  "result": {
+    "status": "FAIL",
+    "summary": "Read docs/agents/design/REQ-039.md in full directly (not CODE-DESIGNER's summary) and cross-checked its claims against the live code: apps/bot/src/domain/inviteCode.ts (validateInviteCodeForRedemption, redeemInviteCode, issueCompanionInviteCode), apps/bot/src/domain/profile.ts (createWalkinProfile), apps/bot/src/db/schema.ts (profiles_user_id_unique at line 149, invited_by_user_id at line 272, grants_companion_of at line 348), apps/bot/src/handlers/start.ts (resolveInviteDeepLink at lines 195-213), apps/bot/src/domain/notification.ts. Most of the design is sound and verified: the resolveInviteDeepLink insertion point (§2) matches the real hasConsented-then-unconditional-redeemInviteCode shape exactly; zero schema change is confirmed (invited_by_user_id and grants_companion_of both pre-exist); the redeemInviteCode extension (§5) is a genuinely backward-compatible delta (new optional trailing parameter, one added SELECT column, one added insert/update field that is a no-op for personal/bulk since grantsCompanionOf is always null there); capacity/one-use are confirmed structurally unchanged (decideRegistrationOutcome and validateInviteCodeForRedemption both called identically); the host-notification composeMessage closure is confirmed structurally incapable of reading phone/email, and notificationLedger's INSERT is confirmed to carry no payload column. HOWEVER: the design's own Open Question 1 (a companion guest who already has a Profile row hits profiles_user_id_unique via createWalkinProfile's plain INSERT) is a genuine, reachable, unresolved collision, not a hypothetical. Traced validateInviteCodeForRedemption's four-row table (expired/spent/wrong-event/not-yours): for a companion code, issuedToUserId is always null (issueCompanionInviteCode hard-codes it), so the 'not-yours' check -- the only identity-shaped check in the whole table -- never fires for a companion code. Nothing in REQ-038's validation table, nor in the design's own §2 branch condition ('no existing registration for this event/user' -- scoped to the target EVENT, not to whether a Profile row exists at all), excludes a redeemer who already has a profiles row from a prior registration to a DIFFERENT event. profiles.user_id is a single, cross-event unique column (schema.ts line 149; profile.ts's own writeRequiredProfileField/writeOptionalProfileField target it with onConflictDoUpdate specifically because it is one row per user across the whole app). Any returning bot user (onboarded via REQ-019, or having walked in via REQ-030 to a prior event) who is handed a companion code for a NEW event will reach §5 point 4's plain createWalkinProfile INSERT and violate the constraint -- an unhandled DB error on a plausible, ordinary-usage path (not an adversarial one), not merely an edge case. The design correctly identifies this exact mechanism in its own Open Questions section but explicitly declines to resolve it ('neither is chosen here... must be resolved before BACKEND-DEV can implement'). Per this gate's mandate, a design cannot ship with a known, unaddressed collision path on a reachable input -- this is a BLOCKER, not an acceptable open question for BACKEND-DEV to improvise at implementation time.",
+    "artifacts_out": [],
+    "issues": [
+      {
+        "severity": "BLOCKER",
+        "description": "Design's own Open Question 1 is a reachable, unresolved gap, confirmed reachable by tracing validateInviteCodeForRedemption: a companion code's issuedToUserId is always null (issueCompanionInviteCode), so the table's only identity check ('not-yours') never fires, and the design's §2 branch condition only checks for an existing registration on the SAME event, not whether the redeemer already has any profiles row. A returning guest with a Profile from any prior event redeeming a companion code for a new event reaches §5 point 4's plain createWalkinProfile INSERT and violates profiles_user_id_unique (schema.ts:149) with an unhandled DB error. REWORK REQUIRED: the design must explicitly pick and specify ONE resolution (not describe both and defer): either (a) detect an existing Profile row for the redeemer before entering the field-collection conversation and route that case through the normal REQ-038 redemption path (skip collection, redeem immediately with invited_by_user_id set, keep the existing profile as-is), or (b) collect fields and perform an UPDATE (upsert) rather than a plain INSERT when a Profile row already exists, mirroring profile.ts's own onConflictDoUpdate pattern instead of createWalkinProfile's plain INSERT. Whichever is chosen must be reflected concretely in §5 point 4's design text (not left as an open question) and reflected in the AC map (§7) for AC1/AC9 since the write path changes for this branch.",
+        "affected_requirement": "REQ-039"
+      }
+    ],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-039",
+      "commit_sha_list": [],
+      "remote_branch": "origin/feature/WF02-REQ-039",
+      "push_status": "ok",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Rework CODE-DESIGNER -- 1 BLOCKER above (returning-guest collision), rework iteration 1 of 3. CODE-DESIGNER must resolve Open Question 1 concretely (pick one direction, specify it in §5 point 4) before re-submitting to this gate. Open Questions #3, #4, #5 (function placement, callback_data string/copy, event-title-in-prompt copy) remain legitimately deferrable to BACKEND-DEV/CONTENT-BA and are not blocking."
+  },
+  "rework_count": 0,
+  "max_rework": 3
+}
