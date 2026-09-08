@@ -1849,7 +1849,7 @@ requirements:
   - id: REQ-035
     title: Organizer approve/reject surface for pending requests, with reason, notification and logged capacity override
     owner: BACKEND-DEV
-    status: pending
+    status: done
     description: >
       Implements USER-STORIES F3 / STORY-DETAILS F3 (Decide who comes in) -- the
       organizer-facing half of the approval flow REQ-034 opens -- plus the
