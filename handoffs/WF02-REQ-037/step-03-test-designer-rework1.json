@@ -1,0 +1,21 @@
+{
+  "handoff_id": "step-03-test-designer-rework1",
+  "run_id": "WF02-REQ-037",
+  "workflow_id": "WF-02",
+  "step": "03",
+  "from_agent": "TEST-DESIGNER",
+  "to_agent": "ORCH",
+  "status": "COMPLETED",
+  "started_at": "2026-09-08T11:56:02Z",
+  "completed_at": "2026-09-08T11:56:02Z",
+  "result": {
+    "status": "PASS",
+    "summary": "Rework of AC10 only, per TEST-RUNNER's step-04 FAIL (handoffs/WF02-REQ-037/step-04-test-runner.json). Root cause confirmed independently: apps/bot/src/domain/event.ts's createEvent (line 594, action 'event.create') and publishEvent (line 650, action likely 'event.publish'/'event.update' at line 622/677 in that file's other helpers) each call writeAuditLog, so seedEvent() -- called by all 3 AC10 cases before their audit-count baseline -- leaves 2 real audit_log rows in place by the time the old `expect(auditBefore).toBe(0)` assertion ran. This was a spec-fixture defect (a false precondition), not an implementation defect: the actual AC10 substance (countAuditRows(row.id) === 1 scoped to the invite code's own entityId, action === 'invite_code.issue') was never reached because the test aborted on the preceding line, and is itself unaffected by seedEvent's 2 rows since those are scoped to the event's own entityId, a different row.\n\nFix applied to both apps/bot/src/handlers/inviteCodes.db.test.ts (the committed test file) and docs/agents/test-specs/REQ-037.md (the design source, kept in sync per this project's REQ-035 precedent): in all 3 AC10 'it' cases (personal/bulk/companion), replaced `const auditBefore = ...; expect(auditBefore).toBe(0);` with a delta-based pattern matching apps/bot/src/domain/registrationApproval.db.test.ts's own AC10 fix from REQ-035's rework -- capture auditBefore as a plain baseline with no assertion on its value, run the action, then assert `auditAfter === auditBefore + 1` (repo-wide count, not entity-scoped, since the invite code's own entityId doesn't exist until after the INSERT). The pre-existing entity-scoped assertions (countAuditRows(row.id) === 1, action === 'invite_code.issue') are unchanged and remain the real substance of the AC.\n\nAC1-AC9 untouched -- TEST-RUNNER's step-04 report confirmed all 23 of the other 26 dynamic/static cases already pass; no changes needed or made there. No coverage change (same number of assertions per case, same ACs covered) -- per WF-02 Step 3/3b and core-directives.md, a pure baseline-count fix with no coverage change does not require a fresh TEST-DESIGN-VALIDATOR (Step 3b) pass; this routes directly back to TEST-RUNNER (Step 4) for re-verification.",
+    "issues": [],
+    "artifacts_out": [
+      "docs/agents/test-specs/REQ-037.md",
+      "apps/bot/src/handlers/inviteCodes.db.test.ts"
+    ],
+    "next_action": "Route directly to TEST-RUNNER (Step 4) for re-verification. No design-gate (Step 3b / TEST-DESIGN-VALIDATOR) re-run required -- this is a pure baseline-count fix to the 3 AC10 cases with no coverage change (same ACs, same case count, same entity-scoped substantive assertions unchanged); AC1-AC9 (23 of 26 cases) are unmodified and already confirmed passing by TEST-RUNNER's prior run."
+  }
+}

@@ -598,12 +598,23 @@ describe("AC10 -- exactly one audit_log row per issue", () => {
     const organizerTgId = nextTgId++;
     await seedUser(organizerTgId, { role: "organizer", chapterId });
 
+    // Baseline captured AFTER seedEvent(), not asserted to 0: seedEvent's own
+    // createEvent + publishEvent calls (domain/event.ts) each write their own
+    // audit_log row (event.create, event.publish/event.update), scoped to the
+    // event's own entityId -- so 2 rows already exist here, not 0. Delta-based
+    // assertion, matching REQ-035's own fix for the identical bug class
+    // (domain/registrationApproval.db.test.ts's AC10). The invite code's own
+    // entityId isn't known until after the INSERT below, so this uses the
+    // repo-wide count rather than an entity-scoped one for the before/after
+    // delta; the entity-scoped countAuditRows(row.id) call below is the real
+    // substance of this AC and is unaffected either way (different entityId).
     const auditBefore = (await db.select({ id: auditLog.id }).from(auditLog)).length;
-    expect(auditBefore).toBe(0); // beforeEach truncates audit_log
 
     const { bot } = makeTestBot();
     await bot.handleUpdate(commandUpdate(organizerTgId, `/invite_personal ${event.id} ${target.id}`) as never);
 
+    const auditAfter = (await db.select({ id: auditLog.id }).from(auditLog)).length;
+    expect(auditAfter).toBe(auditBefore + 1);
     const row = await latestInviteCodeRow(event.id);
     expect(await countAuditRows(row.id)).toBe(1);
     const rows = await db.select().from(auditLog).where(eq(auditLog.entityId, row.id));
@@ -617,12 +628,14 @@ describe("AC10 -- exactly one audit_log row per issue", () => {
     const organizerTgId = nextTgId++;
     await seedUser(organizerTgId, { role: "organizer", chapterId });
 
+    // See AC10 "personal" case above for why this baseline isn't asserted to 0.
     const auditBefore = (await db.select({ id: auditLog.id }).from(auditLog)).length;
-    expect(auditBefore).toBe(0);
 
     const { bot } = makeTestBot();
     await bot.handleUpdate(commandUpdate(organizerTgId, `/invite_bulk ${event.id} 4`) as never);
 
+    const auditAfter = (await db.select({ id: auditLog.id }).from(auditLog)).length;
+    expect(auditAfter).toBe(auditBefore + 1);
     const row = await latestInviteCodeRow(event.id);
     expect(await countAuditRows(row.id)).toBe(1);
     const rows = await db.select().from(auditLog).where(eq(auditLog.entityId, row.id));
@@ -637,12 +650,14 @@ describe("AC10 -- exactly one audit_log row per issue", () => {
     const organizerTgId = nextTgId++;
     await seedUser(organizerTgId, { role: "organizer", chapterId });
 
+    // See AC10 "personal" case above for why this baseline isn't asserted to 0.
     const auditBefore = (await db.select({ id: auditLog.id }).from(auditLog)).length;
-    expect(auditBefore).toBe(0);
 
     const { bot } = makeTestBot();
     await bot.handleUpdate(commandUpdate(organizerTgId, `/invite_companion ${event.id} ${host.id}`) as never);
 
+    const auditAfter = (await db.select({ id: auditLog.id }).from(auditLog)).length;
+    expect(auditAfter).toBe(auditBefore + 1);
     const row = await latestInviteCodeRow(event.id);
     expect(await countAuditRows(row.id)).toBe(1);
     const rows = await db.select().from(auditLog).where(eq(auditLog.entityId, row.id));
