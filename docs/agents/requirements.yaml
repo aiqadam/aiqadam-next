@@ -2172,7 +2172,7 @@ requirements:
   - id: REQ-039
     title: Companion (+1) registration through a companion code, with consent before storage and invited_by_user_id attribution
     owner: BACKEND-DEV
-    status: in_progress
+    status: done
     description: >
       Implements USER-STORIES B8 / STORY-DETAILS B8 (Bring someone with me) -- the `+1`
       half of PRD FR-5. USER-STORIES B8 states "Depends on B7" outright, so this
