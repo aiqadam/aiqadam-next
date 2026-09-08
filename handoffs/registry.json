@@ -1371,6 +1371,134 @@
           "result": "PASS"
         }
       ]
+    },
+    {
+      "run_id": "WF02-REQ-038",
+      "workflow_id": "WF-02",
+      "source": "GitHub issue #70 (tracker #74) -- REQ-038, sixth requirement of Release 2 of the Events Bot",
+      "started_at": "2026-09-08T12:10:44Z",
+      "completed_at": "2026-09-08T13:24:54Z",
+      "status": "COMPLETED",
+      "pr_url": "https://github.com/aiqadam/aiqadam-next/pull/85",
+      "closes_issue": "https://github.com/aiqadam/aiqadam-next/issues/70",
+      "current_step": "step-final-git-merge",
+      "note": "Two rework iterations: Step 1b design-gate rework (a real registerForEvent/hasPastCheckIn integration gap), and Step 4 test-spec rework (a markdown line-wrap breaking a literal assertion, not implementation). Highest-stakes requirement in Release 2 so far: security-sensitive identity check (AC2) and real used_count concurrency invariant (AC4), both independently traced by SECURITY-REVIEWER and RELEASE-VALIDATOR.",
+      "steps": [
+        {
+          "step": "00",
+          "file": "handoffs/WF02-REQ-038/step-00-git-setup.json",
+          "to_agent": "ORCH",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "01",
+          "file": "handoffs/WF02-REQ-038/step-01-code-designer.json",
+          "to_agent": "CODE-DESIGNER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "01b",
+          "file": "handoffs/WF02-REQ-038/step-01b-code-design-validator.json",
+          "to_agent": "CODE-DESIGN-VALIDATOR",
+          "status": "COMPLETED",
+          "result": "FAIL",
+          "rework_count": 1
+        },
+        {
+          "step": "01-rework-1",
+          "file": "handoffs/WF02-REQ-038/step-01-code-designer-rework1.json",
+          "to_agent": "CODE-DESIGNER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "01b-rework-1",
+          "file": "handoffs/WF02-REQ-038/step-01b-code-design-validator-regate.json",
+          "to_agent": "CODE-DESIGN-VALIDATOR",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "02",
+          "file": "handoffs/WF02-REQ-038/step-02-backend-dev.json",
+          "to_agent": "BACKEND-DEV",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "02b",
+          "file": "handoffs/WF02-REQ-038/step-02b-reviewer.json",
+          "to_agent": "REVIEWER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "02c",
+          "file": "handoffs/WF02-REQ-038/step-02c-security-reviewer.json",
+          "to_agent": "SECURITY-REVIEWER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "03",
+          "file": "handoffs/WF02-REQ-038/step-03-test-designer.json",
+          "to_agent": "TEST-DESIGNER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "03b",
+          "file": "handoffs/WF02-REQ-038/step-03b-test-design-validator.json",
+          "to_agent": "TEST-DESIGN-VALIDATOR",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "04",
+          "file": "handoffs/WF02-REQ-038/step-04-test-runner.json",
+          "to_agent": "TEST-RUNNER",
+          "status": "COMPLETED",
+          "result": "FAIL",
+          "rework_count": 1
+        },
+        {
+          "step": "03-rework-1",
+          "file": "handoffs/WF02-REQ-038/step-03-test-designer-rework1.json",
+          "to_agent": "TEST-DESIGNER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "04-rework-1",
+          "file": "handoffs/WF02-REQ-038/step-04-test-runner-rework1.json",
+          "to_agent": "TEST-RUNNER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "05",
+          "file": "handoffs/WF02-REQ-038/step-05-release-validator.json",
+          "to_agent": "RELEASE-VALIDATOR",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "06",
+          "file": "handoffs/WF02-REQ-038/step-06-doc-updater.json",
+          "to_agent": "DOC-UPDATER",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "final",
+          "file": "handoffs/WF02-REQ-038/step-final-git-merge.json",
+          "to_agent": "ORCH",
+          "status": "COMPLETED",
+          "result": "PASS"
+        }
+      ]
     }
   ]
 }
