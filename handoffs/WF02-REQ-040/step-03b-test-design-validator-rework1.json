@@ -1,0 +1,62 @@
+{
+  "handoff_id": "step-03b-test-design-validator-rework1",
+  "run_id": "WF02-REQ-040",
+  "workflow_id": "WF-02",
+  "step": "03b",
+  "from_agent": "TEST-DESIGN-VALIDATOR",
+  "to_agent": "TEST-RUNNER",
+  "file": "handoffs/WF02-REQ-040/step-03b-test-design-validator-rework1.json",
+  "created_at": "2026-09-08T18:29:01Z",
+  "started_at": "2026-09-08T18:29:01Z",
+  "completed_at": "2026-09-08T18:34:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-040"],
+    "related_handoff_ids": [
+      "step-03b-test-design-validator",
+      "step-03-test-designer-rework1"
+    ],
+    "artifacts_in": [
+      "handoffs/WF02-REQ-040/step-03b-test-design-validator.json",
+      "handoffs/WF02-REQ-040/step-03-test-designer-rework1.json",
+      "apps/bot/src/domain/inviteList.db.test.ts",
+      "apps/bot/src/handlers/inviteList.db.test.ts",
+      "apps/bot/src/handlers/start.ts"
+    ]
+  },
+  "task": {
+    "description": "RE-GATE (rework iteration 1) on commit 7fdb477, branch feature/WF02-REQ-040: TEST-DESIGNER added one new `it` case to each of the AC5/AC9/AC10 describe blocks in apps/bot/src/domain/inviteList.db.test.ts, reading handlers/start.ts to close the gap the prior pass FAILed on (that file was never read despite REQ-040's diff modifying it). Read the new test code independently and confirm: (a) it genuinely reads handlers/start.ts, (b) it scopes correctly to the two new REQ-040 call sites so it cannot false-pass by missing a real regression, (c) it cannot false-fail against legitimate pre-existing code in the same file (the REQ-039 companion-notification sender.send() call, the InviteListStatus enum's own 'registered'/'attended' strings). Also re-confirm nothing already validated in the prior round (AC1-AC4, AC6-AC8, AC11, S2 cases, resolvePersonalCodeIdentity rule table, relink cases, the c2a109c cancelled/finished refusal test) was disturbed by this commit.",
+    "acceptance_criteria": [
+      "AC5/AC9/AC10's widened static checks actually read apps/bot/src/handlers/start.ts (not a substitute file).",
+      "Each widened check's delimiter strings (identityStart/identityEnd, openedStart/openedEnd) match unique, real text in start.ts and isolate exactly the two new REQ-040 call sites (resolvePersonalCodeIdentity in makeStartHandler, markInviteListEntryOpened in resolveInviteDeepLink) -- not the whole file.",
+      "The new checks would fail if a stray registered/attended field (AC5), a stray send call (AC9), or a stray engagement/activity field (AC10) were introduced inside either of those two call-site blocks.",
+      "The new checks do not false-fail against the pre-existing, unrelated REQ-039 sender.send() call or the InviteListStatus enum's own 'registered'/'attended' literals elsewhere in start.ts.",
+      "No TODO left in either test file.",
+      "AC1-AC4, AC6-AC8, AC11, S2 negative cases, resolvePersonalCodeIdentity rule-table cases, relink cases, and the c2a109c refusal test are unchanged and still present."
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Read commit 7fdb477's diff to apps/bot/src/domain/inviteList.db.test.ts directly (pure addition, +92/-0 -- no lines removed from the AC1-AC4/AC6-AC8/AC11/S2/resolvePersonalCodeIdentity/relink/c2a109c cases the prior pass already PASSed, so nothing else was disturbed). Verified the three new `it` cases (one each in AC5/AC9/AC10's describe blocks) genuinely read apps/bot/src/handlers/start.ts via readFileSync on a real repo-relative path (confirmed against git diff master...HEAD -- apps/bot/src/handlers/start.ts, which shows exactly two REQ-040 additions in that file: the `markInviteListEntryOpened` call inside resolveInviteDeepLink and the `resolvePersonalCodeIdentity` block inside makeStartHandler). Checked every delimiter string against the actual file with grep: 'const identity = await resolvePersonalCodeIdentity(' and 'if (identityResolvedUserId === null) {' each occur exactly once and bracket precisely the resolvePersonalCodeIdentity call site (including its dependent if-block, not the whole handler); 'docs/agents/design/REQ-040.md §3.2 -- the first-open-only write' (verified char-for-char present, single occurrence, line 237) and 'const isCompanionCode = codeRow !== null' bracket precisely the markInviteListEntryOpened call site (a 4-line comment+if block), not the rest of resolveInviteDeepLink. Confirmed both isolated blocks contain the added REQ-040 code only -- no NotificationSender/sender./ctx.reply, no 'registered'/'attended', no engagement/activity strings inside either block as currently written, so the checks do not false-fail against the file's own legitimate content. Confirmed the file-wide false-fail risk is real and correctly avoided: grepped the whole of start.ts for sender\\.|NotificationSender|registered|attended|engagement|activity and found only the NotificationSender *type* import/parameter names (lines 26, 217, 505, 745) -- no literal 'sender.send()' call and no 'registered'/'attended'/engagement literals exist anywhere in the file today, and even the type-name occurrences sit outside both isolated blocks, so a whole-file grep would have been safe too, but the narrower per-call-site scoping the designer chose is still correct and matches the file's structure (two functions, two independent added blocks) -- it is not an unjustified narrowing, it is the natural boundary of the diff. Confirmed the checks are load-bearing, not merely plausible-looking, by actually running them: `npx vitest run apps/bot/src/domain/inviteList.db.test.ts --no-file-parallelism` -> 24 passed (24), including the 3 new cases. Ran `npm run lint -w apps/bot` -> clean, no errors. Grepped both test files for TODO -> none. This closes the gap the prior pass (handoffs/WF02-REQ-040/step-03b-test-design-validator.json) FAILed on: AC5/AC9/AC10's verification method now actually exercises the file this requirement's diff modifies, scoped precisely enough to catch a real regression in either new call site without being fooled by adjacent legitimate code. All prior-round coverage (AC1-AC4, AC6-AC8, AC11, S2 negatives on all four entry points, the full resolvePersonalCodeIdentity rule table, relink/multi-event/uniqueness-conflict cases, the c2a109c cancelled/finished refusal test) is untouched by this commit and remains PASS.",
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": "Route to TEST-RUNNER (Step 4) -- run npm run lint && npm run build, then the full verification spec (docs/agents/test-specs/REQ-040.md if present, else the domain/handlers .db.test.ts suites), against branch feature/WF02-REQ-040."
+  },
+  "rework_count": 1,
+  "max_rework": 3,
+  "gate_history": [
+    {
+      "iteration": 0,
+      "gated_at": "2026-09-08T18:14:58Z",
+      "status": "FAIL",
+      "summary": "AC5/AC9/AC10's static checks never read apps/bot/src/handlers/start.ts despite this requirement's diff modifying it (adds resolvePersonalCodeIdentity/markInviteListEntryOpened calls there). All other coverage (AC1-4, AC6-8, AC11, S2 negatives, c2a109c fix) was PASS.",
+      "issues": [
+        "AC5 static check reads only schema.ts + domain/inviteList.ts, not handlers/start.ts",
+        "AC9 static check reads only domain/inviteList.ts + handlers/inviteList.ts, not handlers/start.ts",
+        "AC10 static check reads only schema.ts + domain/inviteList.ts, not handlers/start.ts"
+      ],
+      "next_action": "Rework TEST-DESIGNER -- broaden AC5/AC9/AC10 static checks to cover handlers/start.ts"
+    }
+  ]
+}
