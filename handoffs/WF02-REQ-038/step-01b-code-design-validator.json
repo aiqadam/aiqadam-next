@@ -1,0 +1,57 @@
+{
+  "handoff_id": "step-01b-code-design-validator",
+  "run_id": "WF02-REQ-038",
+  "workflow_id": "WF-02",
+  "step": "01b",
+  "from_agent": "CODE-DESIGN-VALIDATOR",
+  "to_agent": "ORCH",
+  "file": "handoffs/WF02-REQ-038/step-01b-code-design-validator.json",
+  "created_at": "2026-09-08T00:00:00Z",
+  "started_at": "2026-09-08T00:00:00Z",
+  "completed_at": "2026-09-08T00:00:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-038"],
+    "source_text": { "github_issue": "#70" },
+    "related_handoff_ids": ["handoffs/WF02-REQ-038/step-01-code-designer.json"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-038.md",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/handlers/start.ts",
+      "apps/bot/src/handlers/registration.ts",
+      "apps/bot/src/domain/event.ts",
+      "apps/bot/src/db/schema.ts",
+      "docs/agents/design/REQ-033.md",
+      "docs/agents/instructions/security-invariants.md"
+    ],
+    "branch_name": "feature/WF02-REQ-038"
+  },
+  "task": {
+    "description": "WF-02 Step 1b (design gate) for REQ-038 on branch feature/WF02-REQ-038 (commit 5992700 at run start). Read docs/agents/design/REQ-038.md in full, independently (not from step-01's result.summary), against GitHub issue #70's full text/11 ACs (fetched live via `gh issue view 70`), and against the CURRENT state of apps/bot/src/domain/registration.ts (full decideRegistrationOutcome and registerForEvent read, lines 1-263), apps/bot/src/domain/inviteCode.ts (full file), apps/bot/src/handlers/start.ts (deep-link dispatch at lines 80-183, 390-431, 540-621), apps/bot/src/domain/event.ts's parseStartPayload (lines 479-513), apps/bot/src/handlers/registration.ts (full composeRegistrationReply/makeRegisterCallbackHandler), apps/bot/src/db/schema.ts (grepped for requiresInvite/invite_codes/used_count/invite_code_id -- confirmed no new column anywhere), docs/agents/design/REQ-033.md's §6 point 1 (the exact routed-here FR-4 wording), and security-invariants.md S1/S4/S7/S8 in full.",
+    "acceptance_criteria": [
+      "Redeeming a valid code for a requires_invite event with seats remaining, BOTH via ?start=i_<code> and by typing the code, each set admission='admitted' and registrations.invite_code_id to that code's id and increment invite_codes.used_count by exactly one.",
+      "A PERSONAL code redeemed by a DIFFERENT user is refused, no registration is created, and used_count is unchanged.",
+      "An expired code, a spent code, an unknown code string, and a code whose event_id is a DIFFERENT event are each refused with their own stated reason plus the upcoming-events list as an onward path.",
+      "Two concurrent redemptions of the LAST remaining use of a bulk code result in exactly one successful registration and used_count ending at max_uses, never above it.",
+      "Redeeming a valid code for an event that is BOTH requires_invite and requires_approval produces admission='requested'.",
+      "Redeeming a valid code for a requires_invite event at full capacity produces admission='waitlisted'.",
+      "A user with checked_in_at on a past event registering for a requires_invite event WITHOUT any code is admitted; a user with no past check-in is refused with the onward path; derivation is a query.",
+      "The design artefact states which resolution it takes for FR-4's 'configurable per event' question and no new column is added to events.",
+      "A redeemer without consent is taken through REQ-019's consent/profile flow; declining leaves zero rows.",
+      "No wishlist table/migration/row is created.",
+      "Each successful redemption writes exactly one audit_log row."
+    ]
+  },
+  "result": {
+    "status": "FAIL",
+    "summary": "Design FAILS the gate on one concrete, actionable gap in AC7's plain (no-code) half: the design never specifies how `hasPastCheckIn`'s result reaches `decideRegistrationOutcome` for the ordinary register:<eventId> callback path, and `registerForEvent` -- the existing function that actually calls `decideRegistrationOutcome` for that path -- is not listed among 'Files this design expects to change' and its call site (domain/registration.ts lines 177-188, read in full and confirmed unmodified by this design) is never mentioned as needing a new parameter or a new internal read. Every other checked item passed: the routed-here FR-4 resolution (option a, uniform application) is legitimate, reasoned, and independently re-confirmed against the live schema.ts to require zero new column (grepped events/registrations/invite_codes definitions directly); the identity-leakage reasoning in Design question 1's sub-question is sound under an adversarial trace (traced below); the used_count atomic-increment steps (§3.1 steps 4-6, 10) correctly mirror registerForEvent's real, current event-row-lock-then-decide shape and performQrCheckIn's real two-phase unlocked-precheck/locked-recheck discipline (both read in full); decideRegistrationOutcome's one-line/one-AND-term integration claim is verified byte-for-byte against the current function (rows 1-4 and 6-8 of the table match apps/bot/src/domain/registration.ts lines 62-83 exactly, only row 5 changes); hasPastCheckIn is specified as a pure, uncached, per-call query with no event-scoping parameter, structurally incapable of becoming a de facto cache; the i_ deep-link's consent gating is verified to reuse the exact same consent:agree/buildConsentAgreeCallbackData resume mechanism the e_ deep link already uses (start.ts lines 275-312, 556-621, read in full) -- not a parallel path; zero schema change is independently re-confirmed.",
+    "artifacts_out": ["handoffs/WF02-REQ-038/step-01b-code-design-validator.json"],
+    "issues": [
+      "FAIL 1 (blocking, AC7): docs/agents/design/REQ-038.md's top-of-document 'Files this design expects to change' list and §2.2 ('Where it's called') together leave the plain, no-code registration path's wiring unspecified. §2.2 states hasPastCheckIn is called 'from the plain (no-code) registration entry point (handlers/registration.ts's register:<eventId> callback, unchanged trigger)', but the function that actually constructs RegistrationDecisionInput and calls decideRegistrationOutcome for that path is registerForEvent (apps/bot/src/domain/registration.ts, verified at lines 119-263, specifically the decide call at lines 177-188) -- not the handler. RegistrationDecisionInput.inviteSatisfied (§1.1) is stated as a REQUIRED field with no default, so registerForEvent as it exists today (which builds this input without any inviteSatisfied field) cannot even type-check once this design lands, let alone satisfy AC7. The design never states: (a) whether registerForEvent's own signature gains a new parameter (and if so, its name/type, and the exact call-site change in handlers/registration.ts's makeRegisterCallbackHandler that computes hasPastCheckIn -- gated on event.requiresInvite per §1.1's own economy note -- before calling registerForEvent), or (b) whether registerForEvent instead grows its own internal hasPastCheckIn call inside its existing transaction (and if so, at what step relative to the existing event-lock/existingAdmission/admittedCount/decide sequence, given hasPastCheckIn needs userId which is already a registerForEvent parameter). Either resolution is legitimate; the design states neither. registerForEvent is also absent from the document's own file-change manifest despite this being a load-bearing, unavoidable change for AC1's pre-existing plain-path behaviour to keep compiling and for AC7 to be satisfiable at all.",
+      "NOTED (non-blocking, for CODE-DESIGNER's awareness on rework): the identity-leakage adversarial trace requested by ORCH was run explicitly and the design's reasoning holds -- lookup is by exact code string against a UNIQUE index (schema.ts inviteCodes, code column), never a prefix/partial match, so reaching the locked row at all (and therefore ever seeing a 'not-yours' vs 'not-found' distinction) already requires possessing the full 130-bit code string; an attacker enumerating/guessing gets no per-character or partial-match oracle from either refusal path, since a non-matching guess always resolves identically to 'not-found' regardless of how close it is to a real code. This is genuinely sound and requires no rework."
+    ]
+  },
+  "next_action": "Route to CODE-DESIGNER for rework: add registerForEvent (or its call site in handlers/registration.ts's register:<eventId> callback) to REQ-038's design, with a concrete, unambiguous statement of exactly how hasPastCheckIn's result reaches decideRegistrationOutcome's inviteSatisfied field on the plain (no-code) path, including the exact function signature change and the exact point in registerForEvent's existing transaction (or the handler, if the read is meant to happen outside the transaction) where hasPastCheckIn is called. Once revised, re-submit to CODE-DESIGN-VALIDATOR."
+}
