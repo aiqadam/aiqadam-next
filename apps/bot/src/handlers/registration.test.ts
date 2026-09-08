@@ -8,6 +8,7 @@ import { registrations } from "../db/schema.js";
 import { createEvent, publishEvent } from "../domain/event.js";
 import { resolveOrCreateUser } from "../domain/user.js";
 import { getCatalog } from "../i18n/catalog.js";
+import { formatDateTimeInTimezone } from "../i18n/formatTimeInTimezone.js";
 import { makeRegisterCallbackHandler, REGISTER_CALLBACK_PATTERN } from "./registration.js";
 
 // docs/agents/design/REQ-021.md — AC1 (waitlisted confirmation states a
@@ -186,6 +187,154 @@ async function seedFullyBookedPublishedEvent(chapterId: string): Promise<string>
 
   return eventId;
 }
+
+interface ApprovalGatedEventOptions {
+  registrationClosesAt: Date | null;
+  capacity?: number;
+}
+
+// REQ-034 -- an approval-gated, published event. `capacity` defaults to 5
+// (plenty of room) since AC2/AC3 are not about capacity; AC4's own
+// at-capacity fixture is built separately, directly, in its own test.
+async function seedApprovalGatedEvent(chapterId: string, opts: ApprovalGatedEventOptions): Promise<{
+  eventId: string;
+  startsAt: Date;
+  endsAt: Date;
+}> {
+  const venueId = await seedVenue(chapterId);
+  const organizer = await resolveOrCreateUser(db, {
+    tgId: BigInt(nextTgId++),
+    tgUsername: "organizer",
+    lang: "ru",
+  });
+  const startsAt = new Date("2026-10-01T18:00:00Z");
+  const endsAt = new Date("2026-10-01T20:00:00Z");
+  const eventId = await createEvent(
+    db,
+    organizer.id,
+    chapterId,
+    {
+      title: "Approval Gated Event",
+      description: "A test event that requires approval",
+      format: "meetup",
+      venueId,
+      startsAt,
+      endsAt,
+      registrationClosesAt: opts.registrationClosesAt,
+      capacity: opts.capacity ?? 5,
+      requiresInvite: false,
+      requiresApproval: true,
+      coverFileId: null,
+    },
+    new Date(),
+  );
+  await publishEvent(db, organizer.id, eventId, chapterId, "Approval Gated Event", new Date());
+  return { eventId, startsAt, endsAt };
+}
+
+describe("makeRegisterCallbackHandler -- REQ-034 AC2: the 'requested' confirmation states decision-will-follow and by when", () => {
+  it("registration_closes_at set: the reply states the exact chapter-local rendering of that column, not the fallback", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter(); // timezone "Asia/Tashkent" (seedChapter's fixed value)
+    const registrationClosesAt = new Date("2026-09-25T15:00:00Z");
+    const { eventId, startsAt, endsAt } = await seedApprovalGatedEvent(chapterId, { registrationClosesAt });
+
+    const { bot, captured } = makeTestBot();
+    const tgId = nextTgId++;
+    await resolveOrCreateUser(db, { tgId: BigInt(tgId), tgUsername: "requester", lang: "ru" });
+
+    await bot.handleUpdate(registerCallbackUpdate(tgId, eventId) as never);
+
+    const methods = captured.map((c) => c.method);
+    expect(methods).toEqual(["answerCallbackQuery", "sendMessage"]);
+
+    const replyText = textOf(captured[1]) ?? "";
+    const catalog = getCatalog("ru");
+    const expectedStartsAtText = formatDateTimeInTimezone(startsAt, "Asia/Tashkent", "ru");
+    const expectedEndsAtText = formatDateTimeInTimezone(endsAt, "Asia/Tashkent", "ru");
+    const expectedClosesAtText = formatDateTimeInTimezone(registrationClosesAt, "Asia/Tashkent", "ru");
+
+    expect(replyText).toContain(catalog.registration.requestedPrefix);
+    expect(replyText).toContain("Approval Gated Event");
+    expect(replyText).toContain(`${expectedStartsAtText}–${expectedEndsAtText}`);
+    expect(replyText).toContain(`${catalog.registration.requestedDecisionByPrefix} ${expectedClosesAtText}`);
+    expect(replyText).toContain(catalog.registration.requestedWhatNext);
+    // Mutually exclusive with the NULL-fallback branch (next test) -- the
+    // fallback string must never appear alongside the real closes-at text.
+    expect(replyText).not.toContain(catalog.registration.requestedDecisionByFallback);
+
+    const rows = await db.select().from(registrations).where(eq(registrations.eventId, eventId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.admission).toBe("requested");
+    expect(rows[0]?.qrToken).toBeNull();
+  });
+
+  it("registration_closes_at NULL: the reply states the fixed fallback string, never an empty or malformed date", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const { eventId, startsAt, endsAt } = await seedApprovalGatedEvent(chapterId, { registrationClosesAt: null });
+
+    const { bot, captured } = makeTestBot();
+    const tgId = nextTgId++;
+    await resolveOrCreateUser(db, { tgId: BigInt(tgId), tgUsername: "requester2", lang: "ru" });
+
+    await bot.handleUpdate(registerCallbackUpdate(tgId, eventId) as never);
+
+    const replyText = textOf(captured[1]) ?? "";
+    const catalog = getCatalog("ru");
+    const expectedStartsAtText = formatDateTimeInTimezone(startsAt, "Asia/Tashkent", "ru");
+    const expectedEndsAtText = formatDateTimeInTimezone(endsAt, "Asia/Tashkent", "ru");
+
+    expect(replyText).toContain(catalog.registration.requestedPrefix);
+    expect(replyText).toContain(`${expectedStartsAtText}–${expectedEndsAtText}`);
+    expect(replyText).toContain(catalog.registration.requestedDecisionByFallback);
+    expect(replyText).toContain(catalog.registration.requestedWhatNext);
+    // The prefix that would introduce a real closes-at value must be absent
+    // -- this is what makes the two branches genuinely mutually exclusive,
+    // not just "both happen to render some text".
+    expect(replyText).not.toContain(catalog.registration.requestedDecisionByPrefix);
+    // Not empty/malformed: the fallback line itself is a fixed, non-empty
+    // string (asserted above) and no literal "null"/"undefined"/"Invalid
+    // Date" leaks into the composed reply.
+    expect(replyText).not.toMatch(/null|undefined|Invalid Date/i);
+  });
+});
+
+describe("makeRegisterCallbackHandler -- REQ-034 AC3: a second tap shows the current pending status", () => {
+  it("the same user tapping Register twice on the same approval-gated event gets the already-registered/'requested' reply both times after the first", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const { eventId } = await seedApprovalGatedEvent(chapterId, { registrationClosesAt: null });
+
+    const tgId = nextTgId++;
+    await resolveOrCreateUser(db, { tgId: BigInt(tgId), tgUsername: "double-tapper", lang: "ru" });
+
+    const { bot: bot1, captured: captured1 } = makeTestBot();
+    await bot1.handleUpdate(registerCallbackUpdate(tgId, eventId) as never);
+    const firstReply = textOf(captured1[1]) ?? "";
+    const catalog = getCatalog("ru");
+    expect(firstReply).toContain(catalog.registration.requestedPrefix);
+
+    const { bot: bot2, captured: captured2 } = makeTestBot();
+    await bot2.handleUpdate(registerCallbackUpdate(tgId, eventId) as never);
+    const secondReply = textOf(captured2[1]) ?? "";
+    expect(secondReply).toContain(catalog.registration.alreadyRegisteredPrefix);
+    expect(secondReply).toContain(catalog.registration.statusRequested);
+
+    const rows = await db.select().from(registrations).where(eq(registrations.eventId, eventId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.admission).toBe("requested");
+  });
+});
 
 describe("makeRegisterCallbackHandler -- REQ-021 AC1: waitlisted confirmation states a computed position", () => {
   it("a registration against a fully-booked event replies with position 1", async (t) => {

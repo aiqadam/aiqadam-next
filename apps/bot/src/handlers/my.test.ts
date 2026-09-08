@@ -412,17 +412,28 @@ describe("makeMyCommandHandler -- REQ-024 AC3/AC4/AC5: QR gating and the shared 
     await db.insert(registrations).values({ eventId: eventId3, userId: user.id, admission: "rejected", source: "direct" });
     const eventId4 = await seedPublishedEvent(chapterId, 0);
     await db.insert(registrations).values({ eventId: eventId4, userId: user.id, admission: "waitlisted", source: "direct" });
+    // REQ-034 AC5 -- a 'requested' (approval-gated, decision-pending) row
+    // must render like every other non-admitted row: plain text, no photo.
+    const eventId5 = await seedPublishedEvent(chapterId, 5);
+    await db.insert(registrations).values({ eventId: eventId5, userId: user.id, admission: "requested", source: "direct" });
 
     const { bot, captured } = makeTestBot();
     await bot.handleUpdate(commandUpdate(tgId, "/my") as never);
 
-    // header + 4 rows = 5 sends.
-    expect(captured).toHaveLength(5);
+    // header + 5 rows = 6 sends.
+    expect(captured).toHaveLength(6);
     const rowSends = captured.slice(1);
     const photoSends = rowSends.filter((c) => c.method === "sendPhoto");
     const textSends = rowSends.filter((c) => c.method === "sendMessage");
     expect(photoSends).toHaveLength(1);
-    expect(textSends).toHaveLength(3);
+    expect(textSends).toHaveLength(4);
+
+    // REQ-034 AC5 -- the 'requested' row's own text send carries the
+    // statusRequested label and no photo attachment.
+    const catalog = getCatalog("ru");
+    const requestedRowSend = textSends.find((c) => (c.payload["text"] as string).includes(catalog.registration.statusRequested));
+    expect(requestedRowSend).toBeDefined();
+    expect(requestedRowSend?.payload["photo"]).toBeUndefined();
 
     // The one photo send is a real PNG whose decoded content is exactly
     // `?start=ci_<qrToken>` (AC3 -- decoded, not just inspected pre-encode).
@@ -437,8 +448,9 @@ describe("makeMyCommandHandler -- REQ-024 AC3/AC4/AC5: QR gating and the shared 
     expect(decoded).toBe(`https://t.me/test_bot?start=ci_${qrToken}`);
     expect(decoded).toContain(`?start=ci_${qrToken}`);
 
-    // None of the plain-text sends carry a photo, and none of the four rows'
-    // text bodies is empty (each row still shows its own status text).
+    // None of the plain-text sends carry a photo, and none of the four
+    // non-admitted rows' text bodies is empty (each row still shows its own
+    // status text).
     for (const send of textSends) {
       expect(send.payload["photo"]).toBeUndefined();
     }

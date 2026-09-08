@@ -95,6 +95,28 @@ describe("decideRegistrationOutcome — §2.2's first-match-wins table", () => {
     expect(outcome).toEqual({ kind: "requested" });
   });
 
+  // REQ-034 AC4 — the capacity boundary, at the pure-decision layer. This is
+  // what would fail FIRST if row 6 were ever accidentally moved after row 7,
+  // or if a new seatsLeft comparison were added to the requiresApproval
+  // branch: seatsLeft === 0 (exactly at capacity) and seatsLeft < 0 (over
+  // capacity, the "admitted count already exceeds capacity" case) must both
+  // still yield 'requested', never 'waitlisted' and never a refusal.
+  it("row 6 (REQ-034 AC4): requires_approval yields 'requested' even at exactly zero seats left", () => {
+    const outcome = decideRegistrationOutcome(
+      baseInput({ requiresApproval: true, seatsLeft: 0 }),
+      evalTime,
+    );
+    expect(outcome).toEqual({ kind: "requested" });
+  });
+
+  it("row 6 (REQ-034 AC4): requires_approval yields 'requested' even when seatsLeft is negative (over capacity)", () => {
+    const outcome = decideRegistrationOutcome(
+      baseInput({ requiresApproval: true, seatsLeft: -3 }),
+      evalTime,
+    );
+    expect(outcome).toEqual({ kind: "requested" });
+  });
+
   it("row 7: seatsLeft > 0 -> admitted", () => {
     expect(decideRegistrationOutcome(baseInput({ seatsLeft: 1 }), evalTime)).toEqual({
       kind: "admitted",
