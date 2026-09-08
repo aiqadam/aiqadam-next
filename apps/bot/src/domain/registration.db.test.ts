@@ -302,7 +302,7 @@ describe("registerForEvent — AC5: source resolution from pending_source", () =
   });
 });
 
-describe("registerForEvent — AC6: requires_invite / requires_approval refusal", () => {
+describe("registerForEvent — AC6: requires_invite refusal / requires_approval creates a 'requested' row (docs/agents/design/REQ-034.md)", () => {
   it("refuses, never admits, when requires_invite is true", async (t) => {
     if (!dbAvailable) {
       t.skip();
@@ -315,7 +315,7 @@ describe("registerForEvent — AC6: requires_invite / requires_approval refusal"
     expect(outcome).toEqual({ kind: "requires-invite" });
   });
 
-  it("refuses, never admits, when requires_approval is true", async (t) => {
+  it("creates a 'requested' registration, never admits, when requires_approval is true (REQ-034, replacing REQ-020's placeholder refusal)", async (t) => {
     if (!dbAvailable) {
       t.skip();
       return;
@@ -324,7 +324,8 @@ describe("registerForEvent — AC6: requires_invite / requires_approval refusal"
     const eventId = await seedPublishedEvent(chapterId, { capacity: 5, requiresApproval: true });
     const userId = await seedUser();
     const outcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
-    expect(outcome).toEqual({ kind: "requires-approval" });
+    expect(outcome.kind).toBe("requested");
+    expect(outcome.qrToken).toBeUndefined();
   });
 });
 

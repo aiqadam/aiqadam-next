@@ -209,7 +209,10 @@ export const ru = {
     refusedFinished: "Это мероприятие уже завершилось.",
     refusedClosed: "Регистрация на это мероприятие закрыта.",
     refusedRequiresInvite: "Это мероприятие только по приглашениям.",
-    refusedRequiresApproval: "Для этого мероприятия требуется подтверждение организатора.",
+    requestedPrefix: "Ваш запрос отправлен на участие в:",
+    requestedDecisionByPrefix: "Ответ будет получен до:",
+    requestedDecisionByFallback: "Ответ будет получен до начала мероприятия.",
+    requestedWhatNext: "Что дальше: если запрос одобрят, вы получите код для входа.",
   },
   // NEW, REQ-022: /withdraw <event_id>. Placeholder/minimal functional copy
   // per decisions/0002 (CONTENT-BA owns final wording).

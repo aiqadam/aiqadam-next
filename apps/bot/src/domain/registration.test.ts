@@ -87,12 +87,12 @@ describe("decideRegistrationOutcome — §2.2's first-match-wins table", () => {
     expect(outcome).toEqual({ kind: "requires-invite" });
   });
 
-  it("row 6: requires_approval refuses before the capacity check, checked after requires_invite", () => {
+  it("row 6: requires_approval yields 'requested' before the capacity check, checked after requires_invite (docs/agents/design/REQ-034.md §1)", () => {
     const outcome = decideRegistrationOutcome(
       baseInput({ requiresApproval: true, seatsLeft: 5 }),
       evalTime,
     );
-    expect(outcome).toEqual({ kind: "requires-approval" });
+    expect(outcome).toEqual({ kind: "requested" });
   });
 
   it("row 7: seatsLeft > 0 -> admitted", () => {

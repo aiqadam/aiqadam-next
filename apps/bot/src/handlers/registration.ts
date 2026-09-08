@@ -73,10 +73,12 @@ export function makeRegisterCallbackHandler(db: DbClient["db"]) {
     let eventTitle = "";
     let dateTimeText = "";
     let waitlistPosition: number | null = null;
+    let registrationClosesAtText: string | null = null;
     if (
       outcome.kind === "admitted" ||
       outcome.kind === "waitlisted" ||
-      outcome.kind === "already-registered"
+      outcome.kind === "already-registered" ||
+      outcome.kind === "requested"
     ) {
       const event = await getEventByIdWithChapterTimezone(db, eventId);
       if (event !== null) {
@@ -97,6 +99,16 @@ export function makeRegisterCallbackHandler(db: DbClient["db"]) {
         if (event.venueId !== null) {
           await getVenueById(db, event.venueId);
         }
+        // docs/agents/design/REQ-034.md §3.2 — computed only for the
+        // "requested" outcome, alongside startsAtText/endsAtText above, using
+        // the same formatter. Null when the event has no registration
+        // deadline configured (§3.3's fallback branch fires instead).
+        if (outcome.kind === "requested") {
+          registrationClosesAtText =
+            event.registrationClosesAt !== null
+              ? formatDateTimeInTimezone(event.registrationClosesAt, event.chapterTimezone, lang)
+              : null;
+        }
       }
       // docs/agents/design/REQ-021.md §3.1 — one additional read call, only
       // for the waitlisted outcome, whose registrationId is unconditionally
@@ -106,7 +118,9 @@ export function makeRegisterCallbackHandler(db: DbClient["db"]) {
       }
     }
 
-    await ctx.reply(composeRegistrationReply(outcome, catalog, eventTitle, dateTimeText, waitlistPosition));
+    await ctx.reply(
+      composeRegistrationReply(outcome, catalog, eventTitle, dateTimeText, waitlistPosition, registrationClosesAtText),
+    );
   };
 }
 
@@ -117,6 +131,7 @@ function composeRegistrationReply(
   eventTitle: string,
   dateTimeText: string,
   waitlistPosition: number | null = null,
+  registrationClosesAtText: string | null = null,
 ): string {
   switch (outcome.kind) {
     case "admitted":
@@ -151,8 +166,19 @@ function composeRegistrationReply(
       return [catalog.registration.refusedClosed, catalog.event.deepLinkSeeUpcoming].join("\n");
     case "requires-invite":
       return catalog.registration.refusedRequiresInvite;
-    case "requires-approval":
-      return catalog.registration.refusedRequiresApproval;
+    case "requested": {
+      // docs/agents/design/REQ-034.md §3.3 — lines 4/4' are mutually
+      // exclusive: the formatted registration_closes_at text when the event
+      // has one, the fixed fallback string when it does not.
+      const lines = [catalog.registration.requestedPrefix, eventTitle, dateTimeText];
+      lines.push(
+        registrationClosesAtText !== null
+          ? `${catalog.registration.requestedDecisionByPrefix} ${registrationClosesAtText}`
+          : catalog.registration.requestedDecisionByFallback,
+      );
+      lines.push(catalog.registration.requestedWhatNext);
+      return lines.join("\n");
+    }
     case "not-found":
       return [catalog.event.deepLinkNotAvailable, catalog.event.deepLinkSeeUpcoming].join("\n");
   }

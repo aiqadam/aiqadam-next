@@ -46,7 +46,7 @@ export type RegistrationOutcome =
   | { kind: "event-finished" }
   | { kind: "registration-closed" }
   | { kind: "requires-invite" }
-  | { kind: "requires-approval" }
+  | { kind: "requested" }
   | { kind: "admitted" }
   | { kind: "waitlisted" };
 
@@ -73,7 +73,7 @@ export function decideRegistrationOutcome(
     return { kind: "requires-invite" };
   }
   if (input.requiresApproval) {
-    return { kind: "requires-approval" };
+    return { kind: "requested" };
   }
   if (input.seatsLeft > 0) {
     return { kind: "admitted" };
@@ -186,7 +186,7 @@ export async function registerForEvent(
     );
 
     // §3.2 step 7 — every non-writing outcome returns unchanged.
-    if (outcome.kind !== "admitted" && outcome.kind !== "waitlisted") {
+    if (outcome.kind !== "admitted" && outcome.kind !== "waitlisted" && outcome.kind !== "requested") {
       return outcome;
     }
 
@@ -240,7 +240,12 @@ export async function registerForEvent(
 
     await writeAuditLog(tx, {
       actorUserId: userId,
-      action: outcome.kind === "admitted" ? "registration.admit" : "registration.waitlist",
+      action:
+        outcome.kind === "admitted"
+          ? "registration.admit"
+          : outcome.kind === "waitlisted"
+            ? "registration.waitlist"
+            : "registration.request",
       entity: "registration",
       entityId: insertedRow.id,
       payload: { eventId },

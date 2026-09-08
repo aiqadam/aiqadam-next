@@ -275,7 +275,13 @@ export interface Catalog {
     refusedFinished: string;
     refusedClosed: string;
     refusedRequiresInvite: string;
-    refusedRequiresApproval: string;
+    // NEW, REQ-034: the "requested" (approval-gated) confirmation, replacing
+    // the retired refusedRequiresApproval refusal. Placeholder/minimal
+    // functional copy per decisions/0002 (CONTENT-BA owns final wording).
+    requestedPrefix: string;
+    requestedDecisionByPrefix: string;
+    requestedDecisionByFallback: string;
+    requestedWhatNext: string;
   };
   // NEW, REQ-022: /withdraw <event_id> -- the two-step confirm/cancel UX
   // (design §4) and its refusal copy (design §2.1). Placeholder/minimal
