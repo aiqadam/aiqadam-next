@@ -8,8 +8,8 @@
   "file": "handoffs/WF02-REQ-033/step-03-test-designer.json",
   "created_at": "2026-09-08T05:43:41Z",
   "started_at": "2026-09-08T05:43:41Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-09-08T05:45:38Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": [
@@ -46,9 +46,10 @@
     ]
   },
   "result": {
-    "status": null,
-    "summary": null,
-    "artifacts_out": [],
-    "issues": []
+    "status": "PASS",
+    "summary": "Applied the WF-02 Step 3 scope test with a split verdict, not a single all-or-nothing routing decision. AC6/AC7 (the CSPRNG generator's collision/alphabet/entropy properties) have zero DB or handler surface and are already fully exercised by the existing apps/bot/src/domain/inviteCode.test.ts (5 Vitest tests: length, alphabet exactness, AC7's 1000-code alphabet-membership check, AC6's 10000-code zero-collision check, and a runtime Math.random-not-called check) -- no further spec needed there; TEST-RUNNER's job for those two is to run npm test and quote the real result, not invent a parallel manual procedure for an already-automated property. AC8 (design artefact states composition/legal-combinations/open-question) was already gated at Step 1b by CODE-DESIGN-VALIDATOR -- a grep-based still-present confirmation is included in the spec anyway, mirroring REQ-011's AC7 precedent, but this is not a re-review. AC1-AC5 and AC9, however, are properties of the migration applied to a real Postgres instance (unique-constraint enforcement, FK enforcement on all three new invite_codes FKs plus the closed registrations.invite_code_id FK, ON DELETE RESTRICT behavior) -- none of these are verifiable by reading schema.ts or the .sql file alone (the requirement's own AC2 text says the duplicate insert must actually be attempted, not just read). BACKEND-DEV already ran these manually once (Step 2 handoff result.summary), but per core-directives.md's 'every producing step has a validating step,' TEST-RUNNER/RELEASE-VALIDATOR need an independently-repeatable spec, not a report to trust -- so this is NOT the docs-only 'skip straight to RELEASE-VALIDATOR' path from WF-02 Step 3's scope test (that path is for artifacts with nothing runnable, and 0007_sturdy_network.sql's constraints are exactly the opposite: a real, applyable migration with database-level behavior to attempt against). Wrote docs/agents/test-specs/REQ-033.md following the REQ-010/REQ-011 scripted docker/psql checklist precedent exactly (same shared-setup/seed/teardown shape, same per-AC 'Steps'/'Expected'/failure-condition structure): AC1 full \\d+ invite_codes column/type/nullability/default/FK/index check; AC2 duplicate-code insert with exact invite_codes_code_unique error text; AC3 neither-set bulk insert (succeeds) plus bad-FK inserts on both issued_to_user_id and grants_companion_of (fail with exact constraint names); AC4 the load-bearing negative case -- insert naming a non-existent invite_codes row must fail with exact registrations_invite_code_id_invite_codes_id_fk text, plus a positive real-id insert kept as $REG_ID for AC5; AC5 deleting the $BULK_CODE_ID row AC4 referenced must be refused with the exact RESTRICT error, plus a follow-up SELECT confirming the row still exists; AC9 grep of 0007_sturdy_network.sql for the five forbidden computed-value names, zero matches expected. Verified every acceptance criterion has at least one case that would fail if violated before completing this handoff.",
+    "artifacts_out": ["docs/agents/test-specs/REQ-033.md"],
+    "issues": [],
+    "next_action": "Route to TEST-DESIGN-VALIDATOR"
   }
 }
