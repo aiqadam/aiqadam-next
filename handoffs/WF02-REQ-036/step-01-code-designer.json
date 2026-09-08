@@ -1,0 +1,63 @@
+{
+  "handoff_id": "step-01-code-designer",
+  "run_id": "WF02-REQ-036",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "file": "handoffs/WF02-REQ-036/step-01-code-designer.json",
+  "created_at": "2026-09-08T10:05:00Z",
+  "started_at": "2026-09-08T10:05:00Z",
+  "completed_at": "2026-09-08T10:05:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-036"],
+    "requirement_text": {
+      "REQ-036": "GitHub issue #68. Pending-request urgency flag at T-48h and honest auto-decline at registration close. Closes JOURNEY-AUDIT J3, implementing STORY-DETAILS B6 (member side, \"nobody waits past the event\") and F3 (organizer side, \"requests still pending 48h before the start are flagged urgent\"). depends_on: REQ-035 (merged). Two scheduled jobs registered via the existing startScheduledJobs() runner (apps/bot/src/scheduler/runner.ts) -- no new scheduling mechanism. URGENCY at T-48h before starts_at: every event with requests still admission='requested' surfaces those to that event's organizers as urgent, via a mechanism the design states concretely enough to be checked (a notification, a list marker, or both). AUTO-DECLINE at registration_closes_at: every remaining 'requested' registration -> 'rejected', person told honestly (no wording implying personal judgment), offered the SAME onward path REQ-035 established. registration_closes_at IS NULL: the design must state explicitly what happens (an ends_at fallback, or no auto-decline with urgency as sole backstop) and justify it -- no schema change permitted to make the null case go away. IDEMPOTENCY (S9): both sends through REQ-025's ledger with distinct kinds; the auto-decline's own state write is a SEPARATE, independently self-guarding mechanism (a row already 'rejected' can never match the still-'requested' selection filter again) -- the design must state these are TWO mechanisms, not one. Both sends are transactional, reach broadcast_opt_in=false users, skip blocked=true users. Each auto-decline writes exactly one AuditLog row with actor_user_id=NULL (system-initiated). Copy is honest/blame-free, same treatment as REQ-014/032, provisional pending product owner. AC4 is a genuine restart-safety test (kill mid-batch, restart, re-run: exactly the original send count, no further transitions) -- the design must trace that this actually holds given the chosen mechanism."
+    },
+    "source_text": { "github_issue": "#68" },
+    "related_handoff_ids": ["handoffs/WF02-REQ-036/step-00-git-setup.json"],
+    "artifacts_in": [
+      "apps/bot/src/scheduler/runner.ts",
+      "apps/bot/src/scheduler/noShowJobs.ts",
+      "apps/bot/src/scheduler/feedbackJobs.ts",
+      "apps/bot/src/domain/notification.ts",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/domain/event.ts",
+      "apps/bot/src/domain/eventAuthorization.ts",
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/src/i18n/types.ts",
+      "docs/agents/design/REQ-035.md",
+      "docs/agents/design/REQ-014.md",
+      "docs/agents/design/REQ-032.md",
+      "docs/agents/instructions/security-invariants.md"
+    ],
+    "branch_name": "feature/WF02-REQ-036"
+  },
+  "task": {
+    "description": "WF-02 Step 1 (Design) for REQ-036, on branch feature/WF02-REQ-036 (verified branch matches, commit f6468ff at run start). Produced docs/agents/design/REQ-036.md mapping all 8 acceptance criteria to concrete design elements. Key resolutions: (1) URGENCY mechanism = BOTH a push notification to ONE deterministically-chosen organizer per chapter (new NotificationKind 'pending_request_urgent', reusing sendLedgeredNotification completely unchanged) AND a list marker (new isUrgent field on the existing PendingRequestListItem/listPendingRequestsForOrganizer, computed fresh on every render via a new pure predicate isRequestUrgent in domain/event.ts, mirroring isAutoPromotionHalted's exact T-24h-boundary shape at a 48h threshold) -- traced explicitly why only ONE organizer is pushed (notification_ledger's UNIQUE(registration_id, kind) has no recipient column, so fanning the same registration+kind out to N organizers would let only the first organizer's call win the ledger insert; the list marker independently covers every other organizer who opens /requests, regardless of push delivery). (2) registration_closes_at IS NULL resolved as an ends_at fallback (not 'no auto-decline'), justified directly from STORY-DETAILS B6's own 'nobody waits past the event' language -- no column added. (3) Two-mechanism idempotency traced explicitly and named as genuinely distinct: Mechanism 1 (notification_ledger's UNIQUE(registration_id, kind), guards whether a message sends) vs Mechanism 2 (decideRejectionOutcome's existing admission!=='requested' branch, reused UNCHANGED from REQ-035, guards whether the row transitions) -- neither depends on the other. (4) Auto-decline write reuses decideRejectionOutcome unchanged but introduces a NEW transactional writer, autoDeclineRequest (no organizerUserId parameter, actorUserId always NULL, new audit action 'registration.auto_decline' distinct from REQ-035's 'registration.reject') -- reasoned as necessary because rejectRequest's signature has no branch that omits a human organizer id, and changing an already-merged/tested function's contract was rejected in favor of a dedicated writer, the same 'distinct action per branch' discipline REQ-035 already used for approve vs. approve_override. (5) Restart-safety (AC4) traced through an explicit kill-mid-batch scenario across three candidates, showing the send count and transition count both come out identical across a kill+restart, using only the two already-existing mechanisms -- no new restart-recovery logic added. A narrower single-candidate torn-write window (state committed, notification never attempted) is named explicitly in Open Question 3 as the same already-accepted class of risk REQ-035's own approve/reject sequencing carries, not newly introduced here, and not covered by any AC in this requirement's list. (6) Two new NotificationKind literals ('pending_request_urgent', 'registration_auto_declined'), both reusing sendLedgeredNotification unchanged -- no new send primitive. Confirmed independently: no schema change anywhere in this design (every write/read targets an existing column with its existing type, including audit_log.actor_user_id's already-nullable, already-commented system-actor case) -- DATA-DESIGNER is NOT needed for this run.",
+    "acceptance_criteria": [
+      "An event exactly 48h from starts_at with two admission='requested' registrations surfaces both to that event's organizers via the named mechanism; an event more than 48h out surfaces nothing; both timings are run.",
+      "At registration_closes_at, every remaining admission='requested' registration becomes 'rejected' and each person receives exactly one message; an already-approved and an already-rejected registration are untouched.",
+      "The auto-decline message states that no decision was reached in time and contains no wording attributing the outcome to the person's own merits, and offers the upcoming-events list as an onward path.",
+      "Running the auto-decline job, killing the process, restarting it, and running the job again for the same event delivers exactly the original number of messages and performs no further transitions.",
+      "An event whose registration_closes_at is NULL behaves exactly as the design artefact states for that case -- no unhandled crash, no undocumented silent skip, no new column.",
+      "Each auto-decline writes exactly one audit_log row, actor_user_id NULL.",
+      "Both the urgency message and the auto-decline message reach a user with broadcast_opt_in=false and reach neither a user with blocked=true.",
+      "Every user-facing string added by this requirement resolves through the catalog mechanism in both ru and en; the handoff result records the auto-decline wording as provisional pending the product owner."
+    ]
+  },
+  "result": {
+    "status": "SUCCESS",
+    "summary": "Produced docs/agents/design/REQ-036.md (9 sections, full AC map in section 8, open questions in section 7). Confirmed no schema change is needed anywhere in this design -- every write/read targets an existing column with its existing type (registrations.admission, events.startsAt/endsAt/registrationClosesAt, audit_log.actorUserId already nullable with a comment already anticipating this exact system-initiated case, notification_ledger's existing UNIQUE(registration_id, kind)). DATA-DESIGNER is NOT dispatched for this run. Design gate reviewers should check in particular: (a) the traced reasoning for why only ONE organizer receives the push notification rather than a fan-out to every organizer of the chapter, given notification_ledger has no per-recipient column (section 2.2); (b) the ends_at fallback for registration_closes_at IS NULL, justified from the requirement's own 'nobody waits past the event' language rather than invented (section 3.1); (c) the explicit two-mechanism idempotency trace (section 0.3/3.4) and the restart-safety walkthrough (section 4); (d) that no implementation code appears anywhere -- every new function is a signature ending in ';' plus prose/table rules, matching this codebase's own REQ-035 precedent artefact's style.",
+    "artifacts_out": ["docs/agents/design/REQ-036.md"],
+    "issues": [
+      "OPEN (Open Question 1 in the design): a chapter with zero assigned organizers at T-48h receives no push (getPrimaryOrganizerIdForChapter returns null, the job skips that candidate with no ledger row written) -- the list marker independently covers a later-assigned organizer since it is computed fresh on every render, but this is named explicitly rather than silently assumed to never happen.",
+      "OPEN (Open Question 2): exact file placement of getPrimaryOrganizerIdForChapter (domain/registration.ts vs domain/event.ts) is left to BACKEND-DEV, no behavioral consequence either way.",
+      "OPEN (Open Question 3): the narrow single-candidate torn-write window (autoDeclineRequest's state transition commits, then a crash occurs before sendLedgeredNotification is even invoked) would leave that one registrant permanently un-notified -- named explicitly as the same already-accepted risk class REQ-035's own approve/reject write-then-notify sequencing carries, not a new risk introduced here, and not required to be closed by any AC in this requirement's list.",
+      "OPEN (Open Question 4): urgentMarker's exact rendered placement/format in the /requests list is BACKEND-DEV's implementation choice -- no AC pins an exact visual format.",
+      "REQUIRED FOR BACKEND-DEV'S OWN HANDOFF (restated per the requirement's own instruction, REQ-014/032 precedent): the two new catalog leaves (organizerRequests.urgentMarker, organizerRequests.urgentNotification, autoDecline.notification) are provisional placeholder copy; BACKEND-DEV's result.summary must record this as pending the product owner, the same way REQ-014/REQ-032's implementation handoffs already did."
+    ]
+  }
+}
