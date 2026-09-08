@@ -1,0 +1,56 @@
+{
+  "handoff_id": "step-01b-code-design-validator",
+  "run_id": "WF02-REQ-034",
+  "workflow_id": "WF-02",
+  "step": "01b",
+  "from_agent": "CODE-DESIGN-VALIDATOR",
+  "to_agent": "ORCH",
+  "file": "handoffs/WF02-REQ-034/step-01b-code-design-validator.json",
+  "created_at": "2026-09-08T07:43:09Z",
+  "started_at": "2026-09-08T07:43:09Z",
+  "completed_at": "2026-09-08T07:43:09Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-034"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-034.md",
+      "handoffs/WF02-REQ-034/step-01-code-designer.json",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/handlers/registration.ts",
+      "apps/bot/src/handlers/my.ts",
+      "apps/bot/src/domain/notification.ts",
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/src/i18n/en.ts",
+      "apps/bot/src/i18n/ru.ts",
+      "apps/bot/src/i18n/types.ts",
+      "docs/agents/security-invariants.md",
+      "docs/agents/design/REQ-020.md",
+      "docs/agents/design/REQ-024.md",
+      "docs/agents/design/REQ-018.md",
+      "GitHub issue #66"
+    ],
+    "branch_name": "feature/WF02-REQ-034"
+  },
+  "task": {
+    "description": "WF-02 Step 1b (design gate) for REQ-034 on branch feature/WF02-REQ-034. Independently re-derive the verdict on docs/agents/design/REQ-034.md against issue #66's full text/7 ACs -- not against CODE-DESIGNER's result.summary.",
+    "acceptance_criteria": [
+      "Every AC in issue #66 maps to a concrete, traced design element -- no TBD language on structure.",
+      "No-schema-change claim independently re-verified against schema.ts/registration.ts.",
+      "decideRegistrationOutcome's exact branch-position change traced and confirmed to make AC4/AC7 structurally true.",
+      "Ledger-vs-direct-reply reasoning (S0.4) scrutinized against actual sendLedgeredNotification call sites and S9's stated purpose, not accepted on the design's own say-so.",
+      "/my and event-card zero-change claims re-verified by reading the actual current handler code.",
+      "AC2 fallback wording structurally exact (fixed catalog key + composition rule), copy text itself may be a placeholder per decisions/0002.",
+      "AC6 (exactly one AuditLog row) traced through the actual existing writeAuditLog call, not asserted."
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Read docs/agents/design/REQ-034.md in full and re-derived every claim against the live repo (not the design's own summary). VERIFIED INDEPENDENTLY: schema.ts lines 188-194 -- admission pgEnum already includes 'requested'; registration.ts lines 25-30 -- AdmissionState union already includes 'requested'; schema.ts line 232 -- registrationClosesAt has no .notNull(), nullable timestamptz; line 230 startsAt IS NOT NULL. No schema change needed -- design's claim confirmed, not taken on trust. TRACED decideRegistrationOutcome's actual current body (registration.ts lines 56-82): requiresApproval branch (line 75-77) sits before seatsLeft>0 (line 78) in the current shipped code, exactly as the design states; changing only that branch's return value while leaving table order unchanged makes AC4 (zero capacity check on this path) and AC7 (requires_approval=false unaffected) structurally true, not merely claimed -- confirmed by reading the actual control flow, not the design's prose. TRACED registerForEvent's writing-outcome set (line 189: outcome.kind !== 'admitted' && !== 'waitlisted' returns early) and the qrToken ternary (line 196) and audit action mapping (line 243) -- design's claim that qrToken/admission-column writes need zero code change (both already handle a widened outcome.kind correctly by shape) is correct by direct read; only the writing-outcome-set condition and the audit-action ternary genuinely need to change, matching the design's own scoped diff exactly. SCRUTINIZED the ledger-vs-direct-reply reasoning against actual call sites: grepped sendLedgeredNotification production call sites (reminderJobs.ts, feedbackJobs.ts, noShowJobs.ts, handlers/withdraw.ts, handlers/event.ts) -- every one of them is either a scheduled/batch job or (withdraw.ts) a notification to a THIRD PARTY (the promoted waitlist candidate, not the actor of the current callback) -- genuinely a re-runnable/cross-invocation send, unlike REQ-034's case. Confirmed 'admission_result' (the NotificationKind that would cover this) has NO production call site today -- only referenced in notification.test.ts -- meaning the existing admitted/waitlisted confirmations already bypass the ledger in production, exactly as the design claims. Checked the double-tap scenario explicitly: a second concurrent register tap re-enters registerForEvent, but the row-1 check (existingAdmission !== null) plus the FOR UPDATE lock (registration.ts line 137) means the second call resolves to 'already-registered' (a DIFFERENT reply), never a duplicate 'requested' confirmation -- this protection is structural and identical to what already protects the 'admitted'/'waitlisted' paths today, so the design's parity argument holds and is not a new, unaddressed risk. Checked the transient-Telegram-failure scenario: ctx.reply has no automatic retry path anywhere in this codebase for any outcome branch, so there is nothing here for the ledger's idempotency purpose (dedup across a re-run) to protect against, for 'requested' or for the existing 'admitted'/'waitlisted' branches alike -- parity confirmed, not just asserted. VERIFIED /my and event-card zero-change claims by reading the actual current files: handlers/registration.ts lines 21-27 -- STATUS_CATALOG_KEY already maps requested -> statusRequested (present in en.ts/ru.ts); handlers/my.ts line 108 -- the QR gate is admission==='admitted' && qrToken!==null, structurally excluding 'requested' with no code change; handlers/registration.ts lines 137-145 -- the existing already-registered branch already renders STATUS_CATALOG_KEY[outcome.admission] for any AdmissionState. All three re-derived from the actual code, not the design's prose. VERIFIED AC2's fallback: the design states an exact, fixed composition rule (registrationClosesAtText null -> requestedDecisionByFallback; non-null -> requestedDecisionByPrefix + formatDateTimeInTimezone output) and confirmed getEventByIdWithChapterTimezone (domain/event.ts line 807) already returns registrationClosesAt with no function change needed. The exact copy text of the four new catalog strings is left to CONTENT-BA per decisions/0002 -- this is the established, repo-wide convention (confirmed identical pattern in docs/agents/design/REQ-024.md section 4, 'Final wording owned by CONTENT-BA'), not a disqualifying TBD -- every structural element (which key fires under which condition, the line-join order) is fully specified. VERIFIED AC6: traced the existing writeAuditLog call (registration.ts lines 241-248) inside the same transaction as the single INSERT/UPDATE -- the design's three-way action mapping is the only change, reusing this exact call site and transaction boundary, so exactly one AuditLog row commits atomically with the row write, same as the admitted/waitlisted paths today. No implementation code present in the artefact (type/interface signatures and a first-match-wins table match the exact convention already used by REQ-020.md/REQ-024.md for documenting current+changed shape, not new code). No color/spacing/token references appear -- correctly out of scope for a bot backend/domain-logic requirement with no UI component. All 7 ACs map to a concrete, traced design element (section 6's table) -- every mapped element independently re-derivable from the current code, not merely asserted by the design or by CODE-DESIGNER's result.summary.",
+    "artifacts_out": [
+      "handoffs/WF02-REQ-034/step-01b-code-design-validator.json"
+    ],
+    "issues": [],
+    "next_action": "Route to BACKEND-DEV (Step 2)"
+  }
+}
