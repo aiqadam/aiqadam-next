@@ -21,6 +21,7 @@ function baseInput(overrides: Partial<RegistrationDecisionInput> = {}): Registra
     registrationClosesAt: null,
     endsAt: new Date("2026-10-01T20:00:00Z"),
     seatsLeft: 5,
+    inviteSatisfied: false,
     ...overrides,
   };
 }

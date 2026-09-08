@@ -206,6 +206,13 @@ export const en = {
     requestedDecisionByPrefix: "You'll hear back by:",
     requestedDecisionByFallback: "You'll hear back before the event starts.",
     requestedWhatNext: "What happens next: if approved, you'll get a check-in code.",
+    refusedRequiresInviteHint: "If you have an invite code, use /redeem <event_id> <code>.",
+    refusedInviteCodeNotFound: "That invite code isn't recognized.",
+    refusedInviteCodeExpired: "That invite code has expired.",
+    refusedInviteCodeSpent: "That invite code has already been used up.",
+    refusedInviteCodeWrongEvent: "That invite code is for a different event.",
+    refusedInviteCodeNotYours: "That invite code was issued to someone else.",
+    redeemUsage: "Usage: /redeem <event_id> <code>",
   },
   // NEW, REQ-022: /withdraw <event_id>. Placeholder/minimal functional copy
   // per decisions/0002 (CONTENT-BA owns final wording).

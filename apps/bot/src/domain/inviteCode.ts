@@ -1,11 +1,20 @@
 import { randomBytes } from "node:crypto";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type { DbClient } from "../db/client.js";
-import { inviteCodes, profiles, registrations, users } from "../db/schema.js";
+import { events, inviteCodes, profiles, registrations, users } from "../db/schema.js";
 import type { BotLang } from "../i18n/catalog.js";
 import { getCatalog } from "../i18n/catalog.js";
 import { writeAuditLog } from "./auditLog.js";
-import { deriveCheckinDisplayName } from "./registration.js";
+import { computeSeatsLeft, getPendingSource } from "./event.js";
+import {
+  clearPendingSource,
+  decideRegistrationOutcome,
+  deriveCheckinDisplayName,
+  generateQrToken,
+  resolveRegistrationSource,
+  type AdmissionState,
+  type RegisterForEventResult,
+} from "./registration.js";
 
 // docs/agents/design/REQ-033.md §4 — the invite code VALUE generator. Pure,
 // framework-free (decisions/0004): no grammY import, no I/O beyond the CSPRNG
@@ -485,4 +494,350 @@ export async function getInviteCodeDetail(
     expiresAt: row.expiresAt,
     redeemers,
   };
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-038.md — the redemption side of PRD FR-5. Framework-
+// free (decisions/0004): no grammY import anywhere in this file.
+// ---------------------------------------------------------------------------
+
+// §3.1 step 1 — normalize: trim, then uppercase. Invite codes are generated
+// exclusively from INVITE_CODE_ALPHABET's uppercase-only characters (§4
+// above) -- a code copy-pasted in lowercase by some Telegram client must
+// still resolve. Exported so both the lookup below and any caller that needs
+// to resolve a raw, user-typed code string (display-data lookups included)
+// apply the exact same rule rather than re-deriving it.
+export function normalizeInviteCode(rawCode: string): string {
+  return rawCode.trim().toUpperCase();
+}
+
+// §3.1 step 2 — the unlocked pre-check/by-code-string read. Deliberately
+// cheap: never touches events, never opens a transaction. Mirrors
+// getRegistrationByQrTokenForCheckin's identical "resolve to unknown fast"
+// role (REQ-029 §2.1).
+export async function getInviteCodeByCode(
+  db: DbClient["db"],
+  code: string,
+): Promise<InviteCodeRow | null> {
+  const rows = await db
+    .select({
+      id: inviteCodes.id,
+      eventId: inviteCodes.eventId,
+      code: inviteCodes.code,
+      issuedToUserId: inviteCodes.issuedToUserId,
+      grantsCompanionOf: inviteCodes.grantsCompanionOf,
+      maxUses: inviteCodes.maxUses,
+      usedCount: inviteCodes.usedCount,
+      expiresAt: inviteCodes.expiresAt,
+    })
+    .from(inviteCodes)
+    .where(eq(inviteCodes.code, code))
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// §3.2 — validateInviteCodeForRedemption: pure, no I/O, no clock read
+// (evaluationTime is an explicit parameter, decisions/0006). "Not found" is
+// NOT a case of this function -- the caller (redeemInviteCode's step 2)
+// already short-circuits before this function is ever reached, so it always
+// receives a real, locked row's fields.
+//
+// Table order, exactly as the requirement states it (existence handled
+// entirely outside this function -> expiry -> uses-remain -> event-match ->
+// identity-match). Design §3.2's info-leakage analysis: the personal-code-
+// redeemed-by-someone-else message is DELIBERATELY DISTINCT from "unknown
+// code" -- the requirement's own text calls for each case's own stated
+// reason, and codes carry >=128 bits of CSPRNG entropy (S4), so reaching this
+// branch at all requires already possessing the exact code string. A
+// distinct message therefore discloses nothing an attacker didn't already
+// have.
+// ---------------------------------------------------------------------------
+export interface InviteCodeValidationInput {
+  expiresAt: Date | null;
+  usedCount: number;
+  maxUses: number;
+  codeEventId: string;
+  issuedToUserId: string | null;
+  targetEventId: string;
+  redeemerUserId: string;
+  evaluationTime: Date;
+}
+
+export type InviteCodeValidationResult =
+  | { ok: true }
+  | { ok: false; reason: "expired" | "spent" | "wrong-event" | "not-yours" };
+
+export function validateInviteCodeForRedemption(
+  input: InviteCodeValidationInput,
+): InviteCodeValidationResult {
+  // Row 1's expiresAt !== null guard is defensive-only: every issuing
+  // function (issuePersonalInviteCode/issueBulkInviteCode/
+  // issueCompanionInviteCode) takes a required, non-optional expiresAt, so no
+  // row this requirement will ever read has a null expires_at in practice --
+  // mirrors isRegistrationOpen's identical "null means no deadline"
+  // convention (event.ts).
+  if (input.expiresAt !== null && input.evaluationTime >= input.expiresAt) {
+    return { ok: false, reason: "expired" };
+  }
+  if (input.usedCount >= input.maxUses) {
+    return { ok: false, reason: "spent" };
+  }
+  if (input.codeEventId !== input.targetEventId) {
+    return { ok: false, reason: "wrong-event" };
+  }
+  if (input.issuedToUserId !== null && input.issuedToUserId !== input.redeemerUserId) {
+    return { ok: false, reason: "not-yours" };
+  }
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// §3.1 — redeemInviteCode: the transactional entry point shared by BOTH
+// redemption routes (the i_<code> deep link and the typed /redeem command) --
+// one decision function, two callers, per decisions/0004. Mirrors
+// performQrCheckIn's two-phase discipline (unlocked pre-check, then a fresh
+// LOCKED re-read inside the write transaction, REQ-029 §3.3) and
+// registerForEvent's existing lock-then-decide shape (REQ-020 §3.2).
+//
+// `explicitEventId` is null for the i_<code> deep link (the target event is
+// always the code's own event_id) and non-null for the typed
+// /redeem <event_id> <code> command (§5.1).
+// ---------------------------------------------------------------------------
+export type InviteRedemptionOutcome =
+  | RegisterForEventResult
+  | { kind: "invite-code-not-found" }
+  | { kind: "invite-code-expired" }
+  | { kind: "invite-code-spent" }
+  | { kind: "invite-code-wrong-event" }
+  | { kind: "invite-code-not-yours" };
+
+export async function redeemInviteCode(
+  db: DbClient["db"],
+  redeemerUserId: string,
+  rawCode: string,
+  explicitEventId: string | null,
+  evaluationTime: Date,
+): Promise<InviteRedemptionOutcome> {
+  const normalizedCode = normalizeInviteCode(rawCode);
+
+  // §3.1 step 2 — unlocked pre-check, fast fail on "unknown". Never touches
+  // events, never opens a transaction.
+  const precheck = await getInviteCodeByCode(db, normalizedCode);
+  if (precheck === null) {
+    return { kind: "invite-code-not-found" };
+  }
+
+  // §3.1 step 3 — resolve the target event id.
+  const targetEventId = explicitEventId ?? precheck.eventId;
+
+  return db.transaction(async (tx) => {
+    // §3.1 step 4 — lock the events row, identical to registerForEvent's
+    // existing step 2.
+    const eventRows = await tx
+      .select({
+        id: events.id,
+        status: events.status,
+        requiresInvite: events.requiresInvite,
+        requiresApproval: events.requiresApproval,
+        registrationClosesAt: events.registrationClosesAt,
+        endsAt: events.endsAt,
+        capacity: events.capacity,
+      })
+      .from(events)
+      .where(eq(events.id, targetEventId))
+      .for("update");
+    const event = eventRows[0];
+    if (event === undefined) {
+      return { kind: "not-found" };
+    }
+
+    // §3.1 step 5 — lock the invite_codes row FRESH, by id -- never reuse
+    // step 2's unlocked read for the actual decision (same "never trust the
+    // pre-tx read" discipline performQrCheckIn's token-currency recheck
+    // already establishes). This is what makes AC4's concurrency property
+    // hold: two concurrent redemptions of the same code's last use serialize
+    // on this lock.
+    const codeRows = await tx
+      .select({
+        id: inviteCodes.id,
+        eventId: inviteCodes.eventId,
+        issuedToUserId: inviteCodes.issuedToUserId,
+        maxUses: inviteCodes.maxUses,
+        usedCount: inviteCodes.usedCount,
+        expiresAt: inviteCodes.expiresAt,
+      })
+      .from(inviteCodes)
+      .where(eq(inviteCodes.id, precheck.id))
+      .for("update");
+    const codeRow = codeRows[0];
+    if (codeRow === undefined) {
+      // Defensive/unreachable: the precheck just found this row, and
+      // invite_codes rows are never deleted anywhere in this codebase.
+      return { kind: "invite-code-not-found" };
+    }
+
+    // §3.1 step 6 — run the pure validation table against the locked row's
+    // CURRENT fields. Any non-ok result -> the matching refusal kind. No
+    // write happens, used_count is untouched.
+    const validation = validateInviteCodeForRedemption({
+      expiresAt: codeRow.expiresAt,
+      usedCount: codeRow.usedCount,
+      maxUses: codeRow.maxUses,
+      codeEventId: codeRow.eventId,
+      issuedToUserId: codeRow.issuedToUserId,
+      targetEventId,
+      redeemerUserId,
+      evaluationTime,
+    });
+    if (!validation.ok) {
+      switch (validation.reason) {
+        case "expired":
+          return { kind: "invite-code-expired" };
+        case "spent":
+          return { kind: "invite-code-spent" };
+        case "wrong-event":
+          return { kind: "invite-code-wrong-event" };
+        case "not-yours":
+          return { kind: "invite-code-not-yours" };
+      }
+    }
+
+    // §3.1 step 7 — the exact reads registerForEvent's existing steps 3-4
+    // already perform on the (already-locked) event.
+    const existingRows = await tx
+      .select({ id: registrations.id, admission: registrations.admission })
+      .from(registrations)
+      .where(and(eq(registrations.eventId, targetEventId), eq(registrations.userId, redeemerUserId)))
+      .limit(1);
+    const existingRow = existingRows[0];
+    const rawExistingAdmission = (existingRow?.admission as AdmissionState | undefined) ?? null;
+    const existingAdmission = rawExistingAdmission === "withdrawn" ? null : rawExistingAdmission;
+    const existingRegistrationId = rawExistingAdmission === "withdrawn" ? (existingRow?.id ?? null) : null;
+
+    const admittedRows = await tx
+      .select({ id: registrations.id })
+      .from(registrations)
+      .where(and(eq(registrations.eventId, targetEventId), eq(registrations.admission, "admitted")));
+    const seatsLeft = computeSeatsLeft(event.capacity, admittedRows.length);
+
+    // §3.1 step 8 — decide via the unchanged decideRegistrationOutcome, with
+    // inviteSatisfied: true (the code just passed §3.2's table, so the gate
+    // is cleared by construction).
+    const outcome = decideRegistrationOutcome(
+      {
+        existingAdmission,
+        eventStatus: event.status,
+        requiresInvite: event.requiresInvite,
+        requiresApproval: event.requiresApproval,
+        registrationClosesAt: event.registrationClosesAt,
+        endsAt: event.endsAt,
+        seatsLeft,
+        inviteSatisfied: true,
+      },
+      evaluationTime,
+    );
+
+    // §3.1 step 9 — every non-writing outcome returns unchanged. The code is
+    // NOT consumed -- used_count stays untouched (a valid, unused code
+    // presented against a cancelled/finished/closed event does not burn a
+    // use).
+    if (outcome.kind !== "admitted" && outcome.kind !== "waitlisted" && outcome.kind !== "requested") {
+      return outcome;
+    }
+
+    // §3.1 step 10 — the writing outcomes, in the same transaction.
+    const pendingSource = await getPendingSource(tx, redeemerUserId);
+    const source = resolveRegistrationSource(pendingSource);
+    const qrToken = outcome.kind === "admitted" ? generateQrToken() : null;
+
+    let insertedRow: { id: string } | undefined;
+    if (existingRegistrationId !== null) {
+      const updated = await tx
+        .update(registrations)
+        .set({
+          admission: outcome.kind,
+          source,
+          qrToken,
+          inviteCodeId: codeRow.id,
+        })
+        .where(eq(registrations.id, existingRegistrationId))
+        .returning({ id: registrations.id });
+      insertedRow = updated[0];
+    } else {
+      const inserted = await tx
+        .insert(registrations)
+        .values({
+          eventId: targetEventId,
+          userId: redeemerUserId,
+          admission: outcome.kind,
+          source,
+          qrToken,
+          inviteCodeId: codeRow.id,
+        })
+        .returning({ id: registrations.id });
+      insertedRow = inserted[0];
+    }
+
+    if (insertedRow === undefined) {
+      // Unreachable in practice: RETURNING on a successful INSERT/UPDATE
+      // always yields exactly one row (same no-speculation guard
+      // registerForEvent/issuePersonalInviteCode already establish).
+      throw new Error("redeemInviteCode: insert/update returned no row");
+    }
+
+    if (pendingSource !== null) {
+      await clearPendingSource(tx, redeemerUserId);
+    }
+
+    // AC4/AC1 — the atomic used_count increment: the locked row's OWN
+    // used_count (read at step 5) plus exactly 1, same transaction as the
+    // registrations write above.
+    await tx
+      .update(inviteCodes)
+      .set({ usedCount: codeRow.usedCount + 1 })
+      .where(eq(inviteCodes.id, codeRow.id));
+
+    // AC11 — exactly one audit_log row per successful redemption. No second,
+    // separate invite_code.redeem row: traceability is carried by this row's
+    // payload.inviteCodeId field instead (§3.1 step 10's explicit
+    // resolution).
+    await writeAuditLog(tx, {
+      actorUserId: redeemerUserId,
+      action:
+        outcome.kind === "admitted"
+          ? "registration.admit"
+          : outcome.kind === "waitlisted"
+            ? "registration.waitlist"
+            : "registration.request",
+      entity: "registration",
+      entityId: insertedRow.id,
+      payload: { eventId: targetEventId, inviteCodeId: codeRow.id },
+      at: evaluationTime,
+    });
+
+    return {
+      kind: outcome.kind,
+      registrationId: insertedRow.id,
+      ...(qrToken !== null ? { qrToken } : {}),
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// §5.1 — parseRedeemArgs: /redeem <event_id> <code>, mirroring
+// parseInvitePersonalArgs's exact two-token parse shape (splitInviteArgs,
+// above) -- the "second token" here is the code itself rather than a user id.
+// No optional third token (unlike the /invite_* family's expires_at
+// override) -- this design defines no such override for redemption.
+// ---------------------------------------------------------------------------
+export type RedeemArgsValidation = { ok: true; eventId: string; code: string } | { ok: false };
+
+export function parseRedeemArgs(raw: string): RedeemArgsValidation {
+  const { eventId, second } = splitInviteArgs(raw);
+  if (eventId === null || second === null || second.length === 0) {
+    return { ok: false };
+  }
+  return { ok: true, eventId, code: second };
 }

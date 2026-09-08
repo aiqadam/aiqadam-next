@@ -1,0 +1,33 @@
+{
+  "handoff_id": "step-02-backend-dev",
+  "run_id": "WF02-REQ-038",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "ORCH",
+  "to_agent": "REVIEWER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Completed WF-02 Step 2 for REQ-038 (invite code redemption via i_ deep link or typed /redeem code, with the full validation table and past-attendee eligibility). A previous BACKEND-DEV dispatch had already written the full implementation but stalled reporting back while waiting on its own background vitest verification -- this pass (ORCH, acting as a fork) inspected the committed-but-unstaged diff in full against the approved, reworked design (docs/agents/design/REQ-038.md) line by line before committing, rather than re-implementing.\n\nVerified against the design: apps/bot/src/domain/registration.ts (RegistrationDecisionInput gains inviteSatisfied; decideRegistrationOutcome's requires-invite row gains the AND !inviteSatisfied term, rows 1-4/6-8 byte-identical; hasPastCheckIn -- pure, uncached, no evaluationTime param; registerForEvent gains one internal step between its existing event lock and its existing decideRegistrationOutcome call, calling hasPastCheckIn(tx, userId) only when event.requiresInvite is true -- external signature unchanged, confirmed no caller needed editing), apps/bot/src/domain/inviteCode.ts (normalizeInviteCode -- trim+uppercase; getInviteCodeByCode -- unlocked pre-check; validateInviteCodeForRedemption -- pure 4-row table in the exact stated order existence[external]->expiry->uses-remain->event-match->identity-match, with the personal-code-wrong-redeemer message deliberately DISTINCT from unknown-code per the design's identity-leakage analysis; redeemInviteCode -- the shared transactional entry point, two-phase lock discipline mirroring performQrCheckIn, FOR UPDATE on both events and invite_codes rows, atomic used_count increment in the same transaction as the registrations write, exactly one audit_log row per success with inviteCodeId carried in the payload rather than a second row; parseRedeemArgs), apps/bot/src/handlers/registrationReply.ts (new file -- composeRegistrationReply and resolveRegistrationOutcomeDisplayData extracted from handlers/registration.ts and shared with handlers/start.ts's i_ deep link, avoiding a start.ts<->registration.ts import cycle -- a plumbing choice, not a design deviation, since the design's own instruction was 'one shared function, not a second copy'; requires-invite extended with refusedRequiresInviteHint + onward path; five new invite-code-* refusal branches each with their own reason + onward path), apps/bot/src/handlers/start.ts (i_ StartPayload dispatch; resolveInviteDeepLink mirrors resolveEventDeepLink's consent-gate-first shape; buildConsentAgreeCallbackData extended with the i_<code>__<eventId> with-suffix truncation branch, code as the untruncatable primary), apps/bot/src/domain/event.ts (StartPayload gains the invite member; parseStartPayload's i_ prefix parse, placed after ci_ before e_), apps/bot/src/i18n/{types,en,ru}.ts (7 new registration.* keys, full ru/en parity, the not-yours wording distinct in both languages from not-found), apps/bot/src/index.ts (one new bot.command('redeem', ...) registration). apps/bot/src/domain/registration.test.ts's one-line change (baseInput gains inviteSatisfied: false) is a required fixture update for the new required field, not scope creep -- confirmed by reading the diff, not assumed.\n\nNo schema/migration change anywhere in the diff. No second code generator. Zero Wishlist table/row/column. S1 preserved: no invite_codes read, no registrations/profiles write happens before consent in either entry point.\n\nVerification (real output, run by this same pass): npm run lint -w apps/bot -- clean, zero errors. npm run build -w apps/bot -- clean tsc build, zero errors. npx vitest run --no-file-parallelism (repo root) -- 42/42 test files, 384/384 tests passed, single clean run, no ISS-0031 contention pattern observed.\n\nNo REQ-038-specific automated tests exist yet -- TEST-DESIGNER's Step 3 (downstream of this gate) owns designing them, per this session's established WF-02 sequencing. AC4's concurrency requirement (20+ repeat test of the used_count atomic increment) will need particular care at that step, mirroring REQ-035's AC5 concurrency-test precedent.",
+    "issues": [
+      "Provisional i18n copy (7 new registration.* keys) pending CONTENT-BA/product-owner review, per the REQ-014/032/034/036/037 precedent -- not yet reviewed for final wording.",
+      "Three open questions the design itself left unresolved, not silently decided by this implementation: (1) companion-code host-linking via invited_by_user_id is not wired up by this requirement, (2) /redeem's <event_id> argument accepts only the raw UUID, no friendlier lookup, (3) no rate-limiting on repeated failed redemption attempts (the 130-bit code entropy is the sole current defense).",
+      "AC4's concurrency test (used_count atomic increment under 20+ concurrent redemptions of a bulk code's last use) is TEST-DESIGNER's Step 3 responsibility -- flagging explicitly so it receives the same design rigor REQ-035's AC5 concurrency test did, not a weaker sequential-only test."
+    ],
+    "artifacts_out": [
+      "apps/bot/src/domain/event.ts",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/domain/registration.test.ts",
+      "apps/bot/src/handlers/registration.ts",
+      "apps/bot/src/handlers/registrationReply.ts",
+      "apps/bot/src/handlers/start.ts",
+      "apps/bot/src/i18n/en.ts",
+      "apps/bot/src/i18n/ru.ts",
+      "apps/bot/src/i18n/types.ts",
+      "apps/bot/src/index.ts",
+      "handoffs/WF02-REQ-038/step-02-backend-dev.json"
+    ],
+    "next_action": "Route to REVIEWER (Step 2b)"
+  }
+}
