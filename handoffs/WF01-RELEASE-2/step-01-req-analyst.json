@@ -1,0 +1,57 @@
+{
+  "handoff_id": "3f2c9a41-7b0e-4d88-9c1a-52e6b0d47a13",
+  "run_id": "WF01-RELEASE-2",
+  "workflow_id": "WF-01",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "REQ-ANALYST",
+  "file": "handoffs/WF01-RELEASE-2/step-01-req-analyst.json",
+  "created_at": "2026-09-08T03:42:53Z",
+  "started_at": "2026-09-08T03:42:53Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": [],
+    "requirement_text": {},
+    "source_text": {
+      "docs/agents/requirements.yaml#REQ-032-release-boundary": "RELEASE BOUNDARY -- READ BEFORE DRAFTING MORE REQUIREMENTS. REQ-007..REQ-032 are the monorepo migration plus PRD 4's RELEASE 1 (Meetup #3, September) in PRD 14's stated build order. RELEASE 2 AND RELEASE 3 ARE DELIBERATELY NOT DRAFTED IN THIS WF-01 RUN ... They are a LATER WF-01 run, and they cover: (Release 2 -- PRD 4 and PRD 14 step 7, next Fail Stories, Q4, 7 stories) approval requests (FR-4's requires_approval rows, stories B6/F3); invite codes (FR-5, stories B7/F4); +1 companions (FR-5, story B8); the invitation list with invited/opened/registered/attended outreach status (FR-17, story F9); waitlist closure notification (story B9).",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/PRD.md#4-release-2": "### Release 2 -- next Fail Stories, Q4 - 7 stories\nA **curated** event. Adds: approval requests - invite codes - `+1` companions - invitation list with outreach status - waitlist closure.",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/PRD.md#14-build-order-step-7": "**Release 2 -- next Fail Stories, Q4**\n7. Approval requests + invite codes + `+1` + invitation list + waitlist closure."
+    },
+    "related_handoff_ids": [],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "docs/agents/AGENT_SYSTEM.md",
+      "docs/agents/anti-patterns.md",
+      "docs/agents/decisions/",
+      "docs/agents/instructions/security-invariants.md",
+      "apps/bot/src/db/schema.ts",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/PRD.md",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/USER-STORIES.md",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/STORY-DETAILS.md",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/RE-EVALUATION.md",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/DESIGN-REVIEW.md",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/JOURNEY-AUDIT.md"
+    ]
+  },
+  "task": {
+    "description": "Draft the RELEASE 2 requirements into docs/agents/requirements.yaml, appending from REQ-033 onward. Release 2 is PRD 4's 'next Fail Stories, Q4' -- a CURATED event -- covering exactly 7 user stories: B6 (Ask for a seat at a curated event), B7 (Use my invitation), B8 (Bring someone with me), B9 (Know when I didn't get in), F3 (Decide who comes in), F4 (Hand out invitations), F9 (Run an invitation list). Release 1 (REQ-007..REQ-032) is fully done and merged; REQ-032's own description pre-scoped this run verbatim (see context.source_text). This is the LATER WF-01 RUN it named. Read that boundary note first. Scope is exactly Release 2 -- do NOT draft Release 3 (speakers, broadcast, metrics, chapter-interest wishlist, manual promotion F5, organizer cancel flow F6); leave a release-boundary note for Release 3 the way REQ-032 left one for this run.",
+    "acceptance_criteria": [
+      "Every one of the 7 Release 2 stories (B6, B7, B8, B9, F3, F4, F9) is covered by at least one drafted requirement, and the mapping story->REQ id is stated explicitly in the handoff result.",
+      "Every new requirement has id, title, owner, status: pending, description, at least 2 concrete verifiable acceptance_criteria, and depends_on -- the canonical schema in requirements.yaml's header, not a new one.",
+      "Ids continue sequentially from the highest existing (REQ-032), never reusing or renumbering; entries are APPENDED, existing entries untouched.",
+      "Each requirement is sized to one agent turn; anything larger is split with depends_on chaining. Schema-bearing work (the new InviteCode table, and any new column) is drafted so DATA-DESIGNER's schema step is separable, following the REQ-010/REQ-011/REQ-025/REQ-031 precedent already in the registry.",
+      "No orphaned depends_on references, and no contradiction with any done requirement or any docs/agents/decisions/ record.",
+      "Requirements respect the PRD invariants and the computed-not-stored boundary: waitlist position, seats_taken, no_show and registration_open are never stored; the invitation list's invited/opened/registered/attended status (FR-17) is likewise derived where the PRD says it is derivable, and any genuinely stored outreach state is justified explicitly in the description.",
+      "Security-sensitive aspects are called out in the descriptions so SECURITY-REVIEWER has something to gate: consent before storage for companions (STORY-DETAILS B8 refusal 'Storing anything before consent'), a personal code redeemed by someone else being refused (B7), organizer-only authorization on F3/F4/F9 surfaces, and the F9 refusal that the bot cannot message a guest who has never started it.",
+      "A release-boundary note for Release 3 is left on the final drafted requirement, in the same style REQ-032 used for Release 2."
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": []
+  }
+}
