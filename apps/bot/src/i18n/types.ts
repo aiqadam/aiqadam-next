@@ -463,6 +463,43 @@ export interface Catalog {
     // placeholder copy, pending the product owner.
     urgentNotification: string;
   };
+  // NEW, REQ-037 (docs/agents/design/REQ-037.md §7) -- the issuing side of
+  // PRD FR-5: /invite_personal, /invite_bulk, /invite_companion, and the
+  // /invite_codes usage-visibility surface. Provisional English source
+  // strings -- final product-owner wording and RU translation are BACKEND-
+  // DEV's/CONTENT-BA's follow-up, same precedent as urgentMarker (en.ts
+  // §333-336).
+  inviteCodes: {
+    usageNoIdPersonal: string;
+    usageNoIdBulk: string;
+    usageNoIdCompanion: string;
+    eventNotFound: string;
+    notAuthorized: string;
+    eventCancelled: string;
+    eventFinished: string;
+    userNotFound: string;
+    invalidMaxUses: string;
+    invalidExpiresAt: string;
+    // Interpolated with {code}, {link} -- §5 success reply, all three
+    // issuing commands.
+    issuedReply: string;
+    // Interpolated with {event}, {count} -- §4.1.
+    listHeader: string;
+    listEmpty: string;
+    // Interpolated with {code}, {usedCount}, {maxUses} -- §4.1 row label.
+    codeRowLabel: string;
+    // Interpolated with {code}, {usedCount}, {maxUses} -- §4.2.
+    detailHeader: string;
+    detailEmpty: string;
+    // Interpolated with {displayName}, {company} (company omitted when null,
+    // same catalog.profile.fieldNotSet-or-blank convention
+    // renderRequestDetailMessage already uses) -- §4.2 row.
+    detailRedeemerLine: string;
+    // §4.3's derived shape label, display-time only -- never a stored value.
+    shapeLabelPersonal: string;
+    shapeLabelBulk: string;
+    shapeLabelCompanion: string;
+  };
   // NEW, REQ-036 (docs/agents/design/REQ-036.md §5): the auto-decline
   // notification sent to a registrant whose request was never decided
   // before registration closed (or, when registration_closes_at is NULL,

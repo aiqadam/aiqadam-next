@@ -1,0 +1,72 @@
+{
+  "handoff_id": "step-02-backend-dev",
+  "run_id": "WF02-REQ-037",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "BACKEND-DEV",
+  "to_agent": "REVIEWER",
+  "file": "handoffs/WF02-REQ-037/step-02-backend-dev.json",
+  "created_at": "2026-09-08T16:35:00Z",
+  "started_at": "2026-09-08T16:20:00Z",
+  "completed_at": "2026-09-08T16:35:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-037"],
+    "related_handoff_ids": [
+      "handoffs/WF02-REQ-037/step-01-code-designer.json",
+      "handoffs/WF02-REQ-037/step-01b-code-design-validator.json"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/REQ-037.md",
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/eventAuthorization.ts",
+      "apps/bot/src/domain/event.ts",
+      "apps/bot/src/domain/user.ts",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/domain/auditLog.ts",
+      "apps/bot/src/handlers/organizerRequests.ts",
+      "apps/bot/src/i18n/en.ts",
+      "apps/bot/src/i18n/ru.ts",
+      "apps/bot/src/i18n/types.ts",
+      "apps/bot/src/index.ts"
+    ],
+    "branch_name": "feature/WF02-REQ-037"
+  },
+  "task": {
+    "description": "WF-02 Step 2 (Implementation) for REQ-037 on branch feature/WF02-REQ-037, implementing docs/agents/design/REQ-037.md exactly (no invented business rules). NO schema/migration change -- apps/bot/src/db/schema.ts untouched, invite_codes/registrations columns consumed unchanged. Domain logic (parse/validate/issue/read functions) lives in apps/bot/src/domain/inviteCode.ts (extended, not rewritten) and one small addition to apps/bot/src/domain/user.ts; grammY handler code lives only in the new apps/bot/src/handlers/inviteCodes.ts (decisions/0004 -- no business logic in handler bodies). Wired into apps/bot/src/index.ts after the REQ-035 request-approval block, matching that file's existing ordering convention.\n\nWhat was implemented, mapped to the design:\n1. Three issuing commands (design §1): parseInvitePersonalArgs/parseInviteBulkArgs/parseInviteCompanionArgs (domain/inviteCode.ts) -- pure, no I/O, first-two-tokens-plus-optional-remainder parsing per §1.1-§1.5's exact IssueInviteCodeInput/IssueInviteCodeValidation types, reusing the same 'missing: string[]' convention as EventCreateValidation. issuePersonalInviteCode/issueBulkInviteCode/issueCompanionInviteCode (domain/inviteCode.ts) each perform exactly one invite_codes INSERT + one writeAuditLog call inside one db.transaction, mirroring createEvent's shape exactly -- action 'invite_code.issue', payload carrying only ids/parameters (no phone/email). Handlers: makeInvitePersonalHandler/makeInviteBulkHandler/makeInviteCompanionHandler (handlers/inviteCodes.ts), registered as bot.command('invite_personal'|'invite_bulk'|'invite_companion') in index.ts.\n2. Refusal check order (design §2), implemented once as resolveEventForIssuing() shared by all three commands: getEventById -> not found -> eventNotFound; requireOrganizerForChapter -> not ok -> notAuthorized; event.status==='cancelled' -> eventCancelled; isFinished(event.endsAt, evaluationTime) -> eventFinished (evaluationTime is new Date() captured once at the top of each handler and threaded through, decisions/0006 -- never a bare new Date() inside the domain layer). requiresInvite/requiresApproval are never read anywhere in this flow (§2 step 5's explicit non-check). A defensive null-check on event.startsAt/event.endsAt (both typed Date|null on EventRecord though createEvent's own EventCreateInput requires both non-null at creation -- never null in practice) is grouped with the 'finished' refusal, same precedent handlers/start.ts's own deep-link branch already establishes for a null endsAt -- flagged here for REVIEWER's visibility since it is a small defensive addition beyond the design's literal text, not a new business rule (it changes no observable behavior for any real event row).\n3. Authorization (design §3, S2): requireOrganizerForChapter(db, tgId, event.chapterId) called on every one of the three issuing commands, the list command (/invite_codes), and the invite:open:<id> detail callback -- re-run on the callback too, not only the list entry, same discipline organizerRequests.ts already uses.\n4. Usage visibility (design §4): listInviteCodesForEvent (plain SELECT on invite_codes filtered by eventId, no join, no UPDATE anywhere) backs /invite_codes <event_id>; getInviteCodeById + listInviteCodeRedeemers + getInviteCodeDetail (domain/inviteCode.ts) back the invite:open:<inviteCodeId> callback -- the redeemer query joins registrations/profiles/users on invite_code_id exactly per §4.2's shape, selecting only registrationId/firstName/lastName/tgUsername/company (profiles.phone and profiles.email never appear in the select clause -- structural exclusion, S3). deriveInviteCodeShape (domain/inviteCode.ts) implements §4.3's four-row table exactly as a pure, columnless function -- shape is never stored.\n5. Shareable link / bot-never-sends (design §5): buildIssuedReply (handlers/inviteCodes.ts) composes the bare code and the https://t.me/<botUsername>?start=i_<code> deep link, using ctx.me.username (the same already-resolved-at-init source handlers/my.ts's own QR-code reply already uses) -- never a second bot.api call. git grep confirms no code path in handlers/inviteCodes.ts or domain/inviteCode.ts ever calls ctx.reply/ctx.answerCallbackQuery/bot.api against issuedToUserId/grantsCompanionOf/targetUserId/hostUserId -- every reply targets ctx itself (the acting organizer's own chat).\n6. Audit logging (design §6, S8): exactly one writeAuditLog call per successful issue, inside the same transaction as the INSERT, never on any refusal path (every refusal in resolveEventForIssuing/the per-command validation returns before any domain issue function is ever called).\n7. i18n (design §7): new 'inviteCodes' catalog section added to apps/bot/src/i18n/{types,en,ru}.ts with every key the design names (usageNoIdPersonal/Bulk/Companion, eventNotFound, notAuthorized, eventCancelled, eventFinished, userNotFound, invalidMaxUses, invalidExpiresAt, issuedReply, listHeader, listEmpty, codeRowLabel, detailHeader, detailEmpty, detailRedeemerLine, shapeLabelPersonal/Bulk/Companion). RU translations added (provisional, same urgentMarker precedent the design itself cites) rather than left as English placeholders, since ru.ts's existing REQ-036 section already sets that precedent.\n8. AC3 (tgId=NULL user): userExistsById (new, domain/user.ts) checks users.id existence only -- never conditions on tgId in any way, so a personal/companion code targeting a user whose tgId is null succeeds by construction.\n\nCommand naming (design open question 1) resolved as invite_personal/invite_bulk/invite_companion/invite_codes, following the existing <entity>_<verb> convention exactly as the design's own precedent list states.\n\nVerification run synchronously in this session (real output, not predicted): npm run lint -w apps/bot -> clean (no output beyond the eslint invocation). npm run build -w apps/bot -> clean after one fix cycle (tsc caught that EventRecord.startsAt/endsAt are typed Date|null; resolveEventForIssuing now defensively null-checks both and returns a narrowed EventForIssuing{startsAt:Date,endsAt:Date} type, per point 2 above). npx vitest run --no-file-parallelism run TWICE per ISS-0031's re-run instruction: both runs report Test Files 82 passed (82), Tests 734 passed (734), no contention-pattern failures on either run.\n\nNo automated tests were written for REQ-037's own acceptance criteria in this step -- TEST-DESIGNER's job is Step 3, downstream of REVIEWER's Step 2b gate on this handoff.",
+    "acceptance_criteria": [
+      "Issuing a personal code creates one invite_codes row with issued_to_user_id set and max_uses=1; a bulk code with N creates issued_to_user_id NULL and max_uses=N; a companion code sets grants_companion_of to the host -- all three verified by reading rows back.",
+      "Issuing without an explicit expiry sets expires_at to the event's starts_at; an explicit expiry overrides it -- both verified by reading rows.",
+      "Issuing a personal code to a user whose tg_id is NULL succeeds, verified by constructing exactly that user row first.",
+      "Issuing a code for an OPEN event (requires_invite=false, requires_approval=false) succeeds rather than being refused.",
+      "Issuing a code for a cancelled event and for an event whose ends_at has passed are each refused with the reason stated, no invite_codes row created -- both constructed and the table re-counted.",
+      "The organizer's view of a code shows used_count and the name/company of each redeemer, and contains NO phone number and NO email.",
+      "The redeemer list is derived by querying registrations on invite_code_id: a redeeming registration inserted directly in the database is reflected on the next read, with no write to the invite_codes row (compared updated_at before/after).",
+      "A member, and separately an EventStaff member, invoking the issue-code handler directly are each refused and no invite_codes row is created; an organizer of chapter A issuing for a chapter B event is likewise refused.",
+      "git grep over apps/bot finds no code path that sends an invite code to the issued_to_user, and the design artefact states the bot-cannot-message-a-stranger reasoning.",
+      "Each code issue writes exactly one audit_log row naming the actor, action, entity and entity id, counted before and after."
+    ]
+  },
+  "result": {
+    "status": "SUCCESS",
+    "summary": "Implemented REQ-037 exactly per docs/agents/design/REQ-037.md, no schema change, no invented business rules. Files changed: apps/bot/src/domain/inviteCode.ts (extended -- generateInviteCode() left byte-for-byte unchanged; added the full issuing/read domain layer), apps/bot/src/domain/user.ts (added userExistsById), apps/bot/src/handlers/inviteCodes.ts (new -- all grammY handler code, zero business logic per decisions/0004), apps/bot/src/i18n/{types,en,ru}.ts (new 'inviteCodes' catalog section), apps/bot/src/index.ts (command/callback wiring, after the REQ-035 block). npm run lint -w apps/bot: clean. npm run build -w apps/bot: clean. npx vitest run --no-file-parallelism: run twice, 82/82 files and 734/734 tests passed both times, no contention-pattern variance. git status clean after commit, pushed to feature/WF02-REQ-037.",
+    "artifacts_out": [
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/user.ts",
+      "apps/bot/src/handlers/inviteCodes.ts",
+      "apps/bot/src/i18n/types.ts",
+      "apps/bot/src/i18n/en.ts",
+      "apps/bot/src/i18n/ru.ts",
+      "apps/bot/src/index.ts"
+    ],
+    "issues": [
+      "NOTED for REVIEWER: resolveEventForIssuing (handlers/inviteCodes.ts) adds a defensive null-check on event.startsAt/event.endsAt before calling isFinished()/defaulting expires_at, grouping a null value with the 'eventFinished' refusal. This is required for tsc's strict null checking (EventRecord types both fields Date|null) and mirrors handlers/start.ts's existing precedent for a null endsAt; it changes no observable behavior for any real event row, since createEvent's own EventCreateInput already requires both fields non-null at creation. Flagged for visibility, not because it changes design-specified behavior.",
+      "CARRIED FORWARD from design section 7 / step-01 result.issues: all inviteCodes catalog strings (en.ts and the RU translations this step added) are provisional source text pending CONTENT-BA/product-owner final wording, same precedent as REQ-014/032/036.",
+      "CARRIED FORWARD from design section 10, points 2-3 (REQ-033 §6 open question 4 on personal-code re-issuance coexistence, and the code's display chunking/grouping) -- neither is resolved by this implementation, matching the design's own explicit non-resolution. No new invite_codes constraint or column was added for either.",
+      "No automated tests exist yet for REQ-037's own acceptance criteria -- this is TEST-DESIGNER's Step 3 scope, downstream of this handoff's REVIEWER gate. All ten ACs above were verified only by direct code inspection (types, query shapes, git grep) in this step, not by a runnable test suite specific to REQ-037."
+    ],
+    "next_action": "Route to REVIEWER (Step 2b) for design-system/code-quality/scope review, then SECURITY-REVIEWER given this touches authorization, personal data (redeemer name/company), and an access-grant token (invite code)."
+  }
+}

@@ -337,6 +337,32 @@ export const en = {
     urgentNotification:
       "A request for {event} is still pending 48 hours before it starts. Review it with /requests.",
   },
+  // Provisional/placeholder wording (REQ-037 design §7) -- product owner and
+  // CONTENT-BA own final copy; recorded as provisional in this requirement's
+  // own implementation handoff per REQ-014/REQ-032/REQ-036 precedent.
+  inviteCodes: {
+    usageNoIdPersonal: "Usage: /invite_personal <event_id> <user_id> [expires_at]",
+    usageNoIdBulk: "Usage: /invite_bulk <event_id> <max_uses> [expires_at]",
+    usageNoIdCompanion: "Usage: /invite_companion <event_id> <host_user_id> [expires_at]",
+    eventNotFound: "Event not found.",
+    notAuthorized: "Only an organizer for this chapter can issue invite codes.",
+    eventCancelled: "This event is cancelled -- no code can be issued.",
+    eventFinished: "This event has already finished -- no code can be issued.",
+    userNotFound: "No user with that id exists.",
+    invalidMaxUses: "max_uses must be a whole number greater than 1.",
+    invalidExpiresAt: "Could not read that expiry date/time.",
+    issuedReply:
+      "Code issued: {code}\nLink: {link}\nShare this yourself -- the bot cannot message someone who hasn't started it.",
+    listHeader: "Invite codes for {event} ({count})",
+    listEmpty: "No invite codes issued yet.",
+    codeRowLabel: "{code} ({usedCount}/{maxUses})",
+    detailHeader: "{code} -- {usedCount}/{maxUses} used",
+    detailEmpty: "Not yet redeemed.",
+    detailRedeemerLine: "{displayName} -- {company}",
+    shapeLabelPersonal: "Personal",
+    shapeLabelBulk: "Bulk",
+    shapeLabelCompanion: "Companion",
+  },
   // Provisional/placeholder wording (REQ-036 design §5) -- product owner
   // owns final copy. Plain, factual, blame-free: states that no decision
   // was reached in time, never that the person was judged and found

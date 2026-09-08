@@ -346,6 +346,33 @@ export const ru = {
     urgentNotification:
       "Заявка на {event} всё ещё не рассмотрена за 48 часов до начала. Посмотрите её через /requests.",
   },
+  // Временная/предварительная формулировка (REQ-037, дизайн §7) --
+  // окончательный текст утверждают владелец продукта и CONTENT-BA; отмечено
+  // как предварительное в результате хендоффа этого требования (прецедент
+  // REQ-014/REQ-032/REQ-036).
+  inviteCodes: {
+    usageNoIdPersonal: "Использование: /invite_personal <event_id> <user_id> [expires_at]",
+    usageNoIdBulk: "Использование: /invite_bulk <event_id> <max_uses> [expires_at]",
+    usageNoIdCompanion: "Использование: /invite_companion <event_id> <host_user_id> [expires_at]",
+    eventNotFound: "Мероприятие не найдено.",
+    notAuthorized: "Только организатор этого отделения может выпускать коды приглашений.",
+    eventCancelled: "Это мероприятие отменено -- код выпустить нельзя.",
+    eventFinished: "Это мероприятие уже завершилось -- код выпустить нельзя.",
+    userNotFound: "Пользователь с таким id не найден.",
+    invalidMaxUses: "max_uses должен быть целым числом больше 1.",
+    invalidExpiresAt: "Не удалось распознать эту дату/время истечения срока.",
+    issuedReply:
+      "Код выпущен: {code}\nСсылка: {link}\nОтправьте её сами -- бот не может написать тому, кто не запускал его.",
+    listHeader: "Коды приглашений для {event} ({count})",
+    listEmpty: "Коды приглашений ещё не выпускались.",
+    codeRowLabel: "{code} ({usedCount}/{maxUses})",
+    detailHeader: "{code} -- использовано {usedCount}/{maxUses}",
+    detailEmpty: "Ещё не использован.",
+    detailRedeemerLine: "{displayName} -- {company}",
+    shapeLabelPersonal: "Личный",
+    shapeLabelBulk: "Групповой",
+    shapeLabelCompanion: "Сопровождающий",
+  },
   // Временная/предварительная формулировка (REQ-036, дизайн §5) --
   // окончательный текст утверждает владелец продукта. Простая, фактическая,
   // без обвинения: сообщает, что решение не было принято вовремя, а не что
