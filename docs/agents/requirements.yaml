@@ -2244,7 +2244,7 @@ requirements:
   - id: REQ-040
     title: Named invitation list with derived invited/opened/registered/attended outreach status and account linking on first contact
     owner: BACKEND-DEV
-    status: pending
+    status: in_progress
     description: >
       Implements USER-STORIES F9 / STORY-DETAILS F9 (Run an invitation list) and
       PRD FR-17. RE-EVALUATION R5 records why this story exists at all: the team had
