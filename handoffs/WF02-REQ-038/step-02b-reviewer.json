@@ -1,0 +1,71 @@
+{
+  "handoff_id": "step-02b-reviewer",
+  "run_id": "WF02-REQ-038",
+  "workflow_id": "WF-02",
+  "step": "02b",
+  "from_agent": "ORCH",
+  "to_agent": "SECURITY-REVIEWER",
+  "file": "handoffs/WF02-REQ-038/step-02b-reviewer.json",
+  "created_at": "2026-09-08T12:47:20Z",
+  "started_at": "2026-09-08T12:47:20Z",
+  "completed_at": "2026-09-08T12:47:20Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-038"],
+    "related_handoff_ids": ["step-02-backend-dev"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-038.md",
+      "handoffs/WF02-REQ-038/step-02-backend-dev.json",
+      "apps/bot/src/domain/event.ts",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/domain/registration.test.ts",
+      "apps/bot/src/handlers/registration.ts",
+      "apps/bot/src/handlers/registrationReply.ts",
+      "apps/bot/src/handlers/start.ts",
+      "apps/bot/src/i18n/en.ts",
+      "apps/bot/src/i18n/ru.ts",
+      "apps/bot/src/i18n/types.ts"
+    ]
+  },
+  "task": {
+    "description": "WF-02 Step 2b (REVIEWER) for REQ-038 on branch feature/WF02-REQ-038, commit 34c7980. Full diff read against master (git diff master...HEAD), checked against the approved post-rework design (docs/agents/design/REQ-038.md), docs/agents/anti-patterns.md, apps/bot-specific decision rules (domain-logic-outside-handlers; no now() in time-dependent predicates; migrations reviewed as SQL), and scope discipline.",
+    "acceptance_criteria": [
+      "hasPastCheckIn is called inside registerForEvent's existing transaction only, gated on event.requiresInvite, with registerForEvent's external signature unchanged",
+      "Personal-code-wrong-redeemer and unknown-code refusals are genuinely distinct copy in en.ts/ru.ts",
+      "invite_codes row is locked FOR UPDATE in the same transaction as the registration write, increment only on a writing outcome",
+      "i_ deep-link genuinely reuses the exact consent:agree mechanism e_ already uses",
+      "decideRegistrationOutcome's diff is minimal; rows unrelated to requires-invite are byte-identical; placeholder refusal genuinely replaced",
+      "registrationReply.ts is a reasonable import-cycle-avoidance refactor, not scope creep",
+      "registration.test.ts's edit is a required fixture update, not a weakened assertion",
+      "No schema/migration change, no second code generator, no Wishlist artefact",
+      "lint/build/test re-run independently by REVIEWER with real output"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Reviewed the full REQ-038 diff (git diff master...HEAD, 22 files, +1876/-85) against docs/agents/design/REQ-038.md line by line, plus docs/agents/anti-patterns.md and reviewer.md's apps/bot-specific rules. Findings below; no gaps found, PASS granted.\n\n1. hasPastCheckIn integration (design §2.2): confirmed in apps/bot/src/domain/registration.ts -- a single new line `const inviteSatisfied = event.requiresInvite ? await hasPastCheckIn(tx, userId) : false;` is inserted between the existing locked event read and the existing decideRegistrationOutcome call, using the already-open `tx` handle. registerForEvent's exported signature is textually unchanged (db, userId, eventId, evaluationTime); handlers/registration.ts's register:<eventId> callback call site has zero diff and needed no edit -- confirmed by re-reading that call site directly, not from the handoff's claim alone.\n\n2. Distinct refusal wording: read apps/bot/src/i18n/en.ts and ru.ts directly. refusedInviteCodeNotFound ('That invite code isn't recognized.') and refusedInviteCodeNotYours ('That invite code was issued to someone else.') are genuinely different strings in both languages -- confirmed, matching design §3.2's identity-leakage reasoning (>=128-bit code entropy makes the distinct message safe to show).\n\n3. Atomic used_count increment: apps/bot/src/domain/inviteCode.ts's redeemInviteCode locks invite_codes FOR UPDATE at step 5 (fresh read, never reusing the unlocked precheck), and the increment (`usedCount: codeRow.usedCount + 1`) happens only inside the branch reached after a writing outcome (admitted/waitlisted/requested), in the same db.transaction callback as the registrations INSERT/UPDATE and the writeAuditLog call. Non-writing outcomes (step 9) return before that point -- used_count is provably untouched on any refusal or non-writing outcome.\n\n4. Consent-gate reuse: traced handlers/start.ts's resolveInviteDeepLink -- checks !hasConsented first, sends the same buildConsentKeyboard(lang, payloadText) the event branch uses, returns before any DB read of invite_codes/registrations. makeConsentCallbackHandler gains one new `else if (payload.kind === \"invite\")` sibling branch, same position, same `true` (already-consented) argument, calling resolveInviteDeepLink -- identical shape to the existing event branch, no divergence.\n\n5. decideRegistrationOutcome diff: confirmed minimal -- one new field on RegistrationDecisionInput (inviteSatisfied: boolean), and the requires-invite branch changed from `if (input.requiresInvite)` to `if (input.requiresInvite && !input.inviteSatisfied)`. Every other line/branch of the function is untouched (confirmed via the diff, not the design doc's claim). The REQ-020 placeholder ('requires-invite' with no onward path) is genuinely replaced -- handlers/registrationReply.ts's composeRegistrationReply now returns refusedRequiresInvite + refusedRequiresInviteHint + deepLinkSeeUpcoming for that case; no dead placeholder branch left alongside it.\n\n6. registrationReply.ts (new file): read in full. It is composeRegistrationReply and resolveRegistrationOutcomeDisplayData moved verbatim (non-invite-code cases byte-for-byte identical to the prior handlers/registration.ts private function) out to a third module so both handlers/registration.ts and handlers/start.ts can import it without a start.ts<->registration.ts cycle -- neither file imports the other, both import only registrationReply.ts. This is plumbing, not a new architectural decision; STATUS_CATALOG_KEY is re-exported from registration.ts unchanged so handlers/my.ts's existing import keeps working with zero edit there. No behavior change, no scope creep.\n\n7. registration.test.ts's edit: one line, `inviteSatisfied: false` added to the baseInput fixture's default overrides object -- required because RegistrationDecisionInput gained a mandatory new field; every existing test's assertions are otherwise untouched (confirmed by the diff showing exactly one line changed). Not a weakened assertion.\n\n8. No schema/migration/Wishlist/second-generator: git diff master...HEAD -- apps/bot/src/db/schema.ts is empty (zero lines). No file under any migrations directory changed. grep -ril wishlist across apps/bot only hits pre-existing, untouched files (organizerRequests.ts, registrationApproval.db.test.ts, and their dist/ build artifacts) -- confirmed these are not part of this diff via git diff master...HEAD --name-only.\n\n9. No npm workspace added/renamed/removed, no build-output relocation -- Dockerfile re-verification (reviewer.md item 7) is not triggered; skipped correctly.\n\n10. apps/bot decision-record checks: all new domain logic (validateInviteCodeForRedemption, redeemInviteCode, hasPastCheckIn, decideRegistrationOutcome's new term) lives in apps/bot/src/domain/{inviteCode,registration}.ts, framework-free -- no grammY import in either file (confirmed by the import lists in the diff). Handlers (registration.ts, start.ts, registrationReply.ts) only call the domain functions and compose replies -- no admission-state rule written inside a handler body. grep for now()/current_timestamp in inviteCode.ts and registration.ts finds none used inside a predicate -- evaluationTime is an explicit parameter throughout, matching decisions/0006.\n\nVerification re-run independently (real output, this REVIEWER pass): `npm run lint -w apps/bot` -- clean, zero errors/warnings. `npm run build -w apps/bot` -- clean tsc build, zero errors. `npx vitest run --no-file-parallelism` (repo root) -- 42/42 test files, 384/384 tests passed, single clean run, no ISS-0031 contention pattern, no rerun needed.\n\nScope: the diff does exactly what REQ-038 asks (i_ deep link + /redeem command, the five-case validation table, past-check-in eligibility, atomic used_count increment, consent-gate preservation, distinct refusal copy) and nothing more -- the three open questions the design itself flagged (companion-code host-linking, /redeem's raw-UUID-only event id, no rate-limiting) are correctly left unresolved rather than silently decided in code.",
+    "artifacts_out": [
+      "handoffs/WF02-REQ-038/step-02b-reviewer.json"
+    ],
+    "issues": [
+      {
+        "severity": "MINOR",
+        "description": "Provisional i18n copy for the 7 new registration.* keys is pending CONTENT-BA/product-owner review per the REQ-014/032/034/036/037 precedent -- not a REVIEWER finding, carried forward from BACKEND-DEV's own step-02 handoff for downstream awareness.",
+        "affected_requirement": "REQ-038"
+      }
+    ],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-038",
+      "commit_sha_list": [],
+      "remote_branch": "origin/feature/WF02-REQ-038",
+      "push_status": "ok",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Route to SECURITY-REVIEWER (Step 2c) -- mandatory for apps/bot/** changes, and especially important here given AC2 (personal-code identity check) and AC4 (concurrent used_count increment)."
+  },
+  "rework_count": 0,
+  "max_rework": 3
+}
