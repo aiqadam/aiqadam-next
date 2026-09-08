@@ -15,8 +15,16 @@ import {
   parseStartPayload,
   setPendingSource,
 } from "../domain/event.js";
-import { getInviteCodeByCode, normalizeInviteCode, redeemInviteCode } from "../domain/inviteCode.js";
+import {
+  formatCompanionFieldsPrompt,
+  getInviteCodeByCode,
+  normalizeInviteCode,
+  redeemInviteCode,
+} from "../domain/inviteCode.js";
+import { getProfileByUserId } from "../domain/profile.js";
+import type { NotificationSender } from "../domain/notification.js";
 import { resolveCheckinQrDeepLink } from "./checkinQr.js";
+import { sendCompanionHostNotification } from "./companion.js";
 import { advanceOnboarding } from "../domain/onboarding.js";
 import { getVenueById } from "../domain/venue.js";
 import { getFlowUserByTgId, resolveOrCreateUser } from "../domain/user.js";
@@ -200,6 +208,12 @@ async function resolveInviteDeepLink(
   code: string,
   explicitEventId: string | null,
   hasConsented: boolean,
+  // docs/agents/design/REQ-039.md §6 -- optional so every existing caller
+  // (this file's own start.test.ts, which constructs makeStartHandler(db)/
+  // makeConsentCallbackHandler(db) with no sender) keeps compiling and
+  // behaving unchanged. Production wiring (index.ts) always passes the
+  // process-wide notificationSender.
+  sender: NotificationSender | null = null,
 ): Promise<void> {
   if (!hasConsented) {
     const payloadText = `i_${code}${explicitEventId !== null ? `__${explicitEventId}` : ""}`;
@@ -209,22 +223,45 @@ async function resolveInviteDeepLink(
     return; // STOP — resumes in the consent callback (§4.3)
   }
 
-  // §3.1 — the one transactional entry point both redemption routes share.
-  const outcome = await redeemInviteCode(db, userId, code, explicitEventId, new Date());
   const catalog = getCatalog(lang);
+
+  // docs/agents/design/REQ-039.md §2 -- two read-only lookups, inserted
+  // between the (already-passed) consent gate above and the unconditional
+  // redeemInviteCode call below. Zero behavior change for a non-companion
+  // code: existingProfile is never evaluated at all when grantsCompanionOf
+  // is null.
+  const normalizedCode = normalizeInviteCode(code);
+  const codeRow = await getInviteCodeByCode(db, normalizedCode);
+  const isCompanionCode = codeRow !== null && codeRow.grantsCompanionOf !== null;
+  const existingProfile = isCompanionCode ? await getProfileByUserId(db, userId) : null;
+
+  if (isCompanionCode && codeRow !== null && existingProfile === null) {
+    // §3.1 steps 1-5 / §3.2 -- the reduced-field collection flow. NO write
+    // of any kind happens here (S1) -- the prompt is pure composition
+    // (domain/inviteCode.ts's formatCompanionFieldsPrompt), and the flow
+    // resumes in handlers/companion.ts's reply-to-message listener.
+    const event = await getEventByIdWithChapterTimezone(db, codeRow.eventId);
+    const eventTitle = event?.title ?? "";
+    await ctx.reply(formatCompanionFieldsPrompt(eventTitle, codeRow.id, lang), {
+      reply_markup: { force_reply: true },
+    });
+    return;
+  }
+
+  // §3.1 — the one transactional entry point both redemption routes share.
+  // Reached unconditionally for a non-companion code, AND (§2 Open Question
+  // 1's resolution) for a companion code redeemed by a RETURNING guest who
+  // already has a Profile row -- companionProfile stays null on this call
+  // for both populations, exactly like every existing caller.
+  const outcome = await redeemInviteCode(db, userId, code, explicitEventId, new Date());
 
   // §4.2 point 3 — display data (eventTitle/dateTimeText/waitlistPosition)
   // fetched only when actually needed, after the transaction has already
   // committed, exactly like handlers/registration.ts's own register callback
   // does. The target event id for display purposes is the explicit one when
   // given, or (for the bare i_<code> deep link) the code's own event_id,
-  // resolved via the same unlocked by-code read redeemInviteCode itself uses
-  // (a plumbing read, not a second decision).
-  let targetEventId = explicitEventId;
-  if (targetEventId === null) {
-    const codeRow = await getInviteCodeByCode(db, normalizeInviteCode(code));
-    targetEventId = codeRow?.eventId ?? null;
-  }
+  // already resolved above via codeRow (no second lookup).
+  const targetEventId = explicitEventId ?? codeRow?.eventId ?? null;
 
   const display = await resolveRegistrationOutcomeDisplayData(db, outcome, targetEventId, lang);
   await ctx.reply(
@@ -237,6 +274,24 @@ async function resolveInviteDeepLink(
       display.registrationClosesAtText,
     ),
   );
+
+  // docs/agents/design/REQ-039.md §6/§7 AC7 -- the host notification, fired
+  // here for the returning-guest direct-redemption branch (a companion code
+  // whose reduced-field conversation was skipped by §2's existingProfile
+  // check) -- AC7 holds identically for both populations, mirroring the
+  // design's own §7 AC1 row ("holds identically for a returning guest").
+  // handlers/companion.ts's confirm-callback handler is the equivalent call
+  // site for a brand-new guest who DID complete the conversation.
+  if (
+    sender !== null &&
+    isCompanionCode &&
+    codeRow !== null &&
+    codeRow.grantsCompanionOf !== null &&
+    (outcome.kind === "admitted" || outcome.kind === "waitlisted" || outcome.kind === "requested") &&
+    outcome.registrationId !== undefined
+  ) {
+    await sendCompanionHostNotification(db, sender, outcome.registrationId, codeRow.grantsCompanionOf, userId);
+  }
 }
 
 // REQ-020 §7.1/§7.3 — the register:<eventId> callback_data shape, shared
@@ -438,7 +493,7 @@ export async function assignChapterOrPrompt(
  * here for a brand-new user), then chapter assignment (only reachable once
  * consent is already recorded), then the greeting.
  */
-export function makeStartHandler(db: DbClient["db"]) {
+export function makeStartHandler(db: DbClient["db"], sender: NotificationSender | null = null) {
   return async (ctx: Context): Promise<void> => {
     const tgId = ctx.from?.id;
     if (tgId === undefined) {
@@ -508,6 +563,7 @@ export function makeStartHandler(db: DbClient["db"]) {
         payload.code,
         payload.eventId,
         flowUser.consentPdAt !== null,
+        sender,
       );
       return;
     }
@@ -645,7 +701,7 @@ export function makeChapterCallbackHandler(db: DbClient["db"]) {
  * placeholder/explanation, not the ordinary greeting — the same trade-off
  * the already-consented fast path in `makeStartHandler` already makes.
  */
-export function makeConsentCallbackHandler(db: DbClient["db"]) {
+export function makeConsentCallbackHandler(db: DbClient["db"], sender: NotificationSender | null = null) {
   return async (ctx: Context): Promise<void> => {
     const tgId = ctx.from?.id;
     const match = CONSENT_AGREE_CALLBACK_PATTERN.exec(ctx.callbackQuery?.data ?? "");
@@ -717,6 +773,7 @@ export function makeConsentCallbackHandler(db: DbClient["db"]) {
           payload.code,
           payload.eventId,
           true, // hasConsented — recordConsent just succeeded above
+          sender,
         );
       }
       // The deep-link branch (or, for a malformed payload, nothing) has

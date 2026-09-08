@@ -525,4 +525,31 @@ export interface Catalog {
     // Interpolated with {event}.
     notification: string;
   };
+  // NEW, REQ-039 (docs/agents/design/REQ-039.md §3.2/§4/§6): companion (+1)
+  // registration through a companion code -- the reduced-field collection
+  // prompt, its confirm message, and the host notification. Provisional
+  // placeholder copy per decisions/0002 (CONTENT-BA owns final wording).
+  // `refLinePrefix` is a fixed, non-localized machine-parseable anchor
+  // (domain/inviteCode.ts's own COMPANION_REF_LINE_PREFIX constant), listed
+  // here only so catalogs.test.ts's runtime parity check keeps enforcing it
+  // stays present with the identical literal value in both locale files --
+  // same precedent as feedback.refLinePrefix/noShow.refLinePrefix.
+  companion: {
+    // Interpolated with {event}.
+    fieldsPrompt: string;
+    missingName: string;
+    missingPhone: string;
+    // Appended to the confirm message's canonical Name/Company/Phone/Event
+    // lines -- the consent-adjacent copy (mirrors walkin.consentStatement).
+    confirmStatement: string;
+    // parseCompanionConfirmMessage failed (edited/stale/forwarded tap).
+    staleMessage: string;
+    confirmButtonLabel: string;
+    cancelButtonLabel: string;
+    cancelled: string;
+    // Sent to the HOST. Interpolated with {name}, {company} -- NEVER phone
+    // or email (S3/S11).
+    hostNotification: string;
+    refLinePrefix: string;
+  };
 }

@@ -378,4 +378,19 @@ export const en = {
     notification:
       "Your request for {event} was not decided before registration closed, so it could not be approved. Nobody reviewed and declined it -- the window simply closed before a decision was made.",
   },
+  // Provisional/placeholder wording (REQ-039 design §3.2/§4/§6) -- product
+  // owner/CONTENT-BA owns final copy per decisions/0002.
+  companion: {
+    fieldsPrompt:
+      "Reply to this message with your Name | Company | Phone to complete your registration for {event}.",
+    missingName: "A name is required. Please reply again with Name | Company | Phone.",
+    missingPhone: "A phone number is required. Please reply again with Name | Company | Phone.",
+    confirmStatement: "By confirming, you agree to have this information stored for this registration.",
+    staleMessage: "This confirmation is no longer valid. Please open the invite link again.",
+    confirmButtonLabel: "Confirm & register",
+    cancelButtonLabel: "Cancel",
+    cancelled: "Cancelled -- nothing was saved.",
+    hostNotification: "Your guest {name}{company} has registered using your companion invite.",
+    refLinePrefix: "Companion code: ",
+  },
 } satisfies Catalog;

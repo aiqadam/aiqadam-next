@@ -6,6 +6,7 @@ import type { BotLang } from "../i18n/catalog.js";
 import { getCatalog } from "../i18n/catalog.js";
 import { writeAuditLog } from "./auditLog.js";
 import { computeSeatsLeft, getPendingSource } from "./event.js";
+import { createWalkinProfile, isNonBlank } from "./profile.js";
 import {
   clearPendingSource,
   decideRegistrationOutcome,
@@ -613,12 +614,26 @@ export type InviteRedemptionOutcome =
   | { kind: "invite-code-wrong-event" }
   | { kind: "invite-code-not-yours" };
 
+// docs/agents/design/REQ-039.md §5 point 1 -- the reduced field set collected
+// by the companion field-collection flow (§3.2), never the full REQ-019
+// form.
+export interface CompanionProfileInput {
+  name: string;
+  company: string; // "" treated as "no company given" (createWalkinProfile's own convention)
+  phone: string;
+}
+
 export async function redeemInviteCode(
   db: DbClient["db"],
   redeemerUserId: string,
   rawCode: string,
   explicitEventId: string | null,
   evaluationTime: Date,
+  // docs/agents/design/REQ-039.md §5 point 1 -- new optional parameter,
+  // defaulting to null for every existing caller (REQ-038's typed /redeem
+  // command, the non-companion `i_` deep-link path) -- zero behavior change
+  // for them.
+  companionProfile: CompanionProfileInput | null = null,
 ): Promise<InviteRedemptionOutcome> {
   const normalizedCode = normalizeInviteCode(rawCode);
 
@@ -667,6 +682,10 @@ export async function redeemInviteCode(
         maxUses: inviteCodes.maxUses,
         usedCount: inviteCodes.usedCount,
         expiresAt: inviteCodes.expiresAt,
+        // docs/agents/design/REQ-039.md §5 point 2 -- read from the LOCKED
+        // row, never the earlier unlocked precheck. This is the whole
+        // attribution mechanic (§5 point 3, below).
+        grantsCompanionOf: inviteCodes.grantsCompanionOf,
       })
       .from(inviteCodes)
       .where(eq(inviteCodes.id, precheck.id))
@@ -752,6 +771,28 @@ export async function redeemInviteCode(
     const source = resolveRegistrationSource(pendingSource);
     const qrToken = outcome.kind === "admitted" ? generateQrToken() : null;
 
+    // docs/agents/design/REQ-039.md §5 point 4 -- the Profile row for a
+    // just-collected companion, written ONLY when the caller actually
+    // collected fields (the ordinary case: a brand-new guest, §2's
+    // existingProfile check having found nothing). Guarded with
+    // onConflictDoNothing as the race backstop -- see profile.ts's own
+    // header comment on this call site. A returning guest (companionProfile
+    // === null, routed here directly by §2) never reaches this branch at
+    // all; the Profile insert is simply skipped for them, exactly as
+    // Option A (skip-and-redeem-immediately) specifies.
+    if (companionProfile !== null) {
+      await createWalkinProfile(
+        tx,
+        {
+          userId: redeemerUserId,
+          name: companionProfile.name,
+          company: companionProfile.company,
+          phone: companionProfile.phone,
+        },
+        { onConflictDoNothing: true },
+      );
+    }
+
     let insertedRow: { id: string } | undefined;
     if (existingRegistrationId !== null) {
       const updated = await tx
@@ -761,6 +802,11 @@ export async function redeemInviteCode(
           source,
           qrToken,
           inviteCodeId: codeRow.id,
+          // docs/agents/design/REQ-039.md §5 point 3 -- unconditional on
+          // companionProfile: a personal/bulk code always has
+          // grantsCompanionOf === null (a no-op here), so this is
+          // zero-behavior-change for every existing caller.
+          invitedByUserId: codeRow.grantsCompanionOf,
         })
         .where(eq(registrations.id, existingRegistrationId))
         .returning({ id: registrations.id });
@@ -775,6 +821,7 @@ export async function redeemInviteCode(
           source,
           qrToken,
           inviteCodeId: codeRow.id,
+          invitedByUserId: codeRow.grantsCompanionOf,
         })
         .returning({ id: registrations.id });
       insertedRow = inserted[0];
@@ -840,4 +887,184 @@ export function parseRedeemArgs(raw: string): RedeemArgsValidation {
     return { ok: false };
   }
   return { ok: true, eventId, code: second };
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-039.md §3.2/§4 — the companion field-collection
+// carrier. Placed here (Open Question 3), co-located with the feature it
+// serves, rather than domain/walkin.ts, whose functions it structurally
+// mirrors but does not share: this flow has no leading <event_id> token (the
+// event is already known from the deep link) and its confirm step is
+// distinguished from REQ-030's by carrying the invite code id, not the event
+// id, in callback_data. No DB write anywhere in this section (decisions/0004,
+// framework-free; every write stays inside redeemInviteCode's own
+// transaction, §5 above).
+// ---------------------------------------------------------------------------
+export interface ParsedCompanionFields {
+  name: string;
+  company: string; // "" when the guest left it blank
+  phone: string;
+}
+
+export type ParseCompanionFieldsResult =
+  | { ok: true; fields: ParsedCompanionFields }
+  | { ok: false; reason: "missing-name" | "missing-phone" };
+
+// §3.2 -- parses the guest's own free-text reply ("Name | Company | Phone"),
+// the same `|`-delimited convention parseWalkinArgs's remainder already
+// establishes. No leading event-id token here (unlike parseWalkinArgs) --
+// the event is already known from the deep link that started this flow.
+export function parseCompanionFieldsMessage(raw: string): ParseCompanionFieldsResult {
+  const segments = raw.split("|");
+  const name = (segments[0] ?? "").trim();
+  const company = (segments[1] ?? "").trim();
+  const phone = (segments[2] ?? "").trim();
+
+  if (!isNonBlank(name)) {
+    return { ok: false, reason: "missing-name" };
+  }
+  if (!isNonBlank(phone)) {
+    return { ok: false, reason: "missing-phone" };
+  }
+  return { ok: true, fields: { name, company, phone } };
+}
+
+const COMPANION_COMPANY_PLACEHOLDER = "—";
+
+function formatCompanionCanonicalLines(fields: ParsedCompanionFields, eventTitle: string): string {
+  return [
+    `Event: ${eventTitle}`,
+    `Name: ${fields.name}`,
+    `Company: ${fields.company === "" ? COMPANION_COMPANY_PLACEHOLDER : fields.company}`,
+    `Phone: ${fields.phone}`,
+  ].join("\n");
+}
+
+// §4 -- the confirm message: the canonical Name/Company/Phone(/Event) lines
+// (the state carrier for the confirm tap, §4's own "the carrier is the
+// message text, not the callback payload" instruction) plus one trailing
+// consent-adjacent line. No DB write -- this is a pure composition, exactly
+// like formatWalkinConfirmMessage.
+export function formatCompanionConfirmMessage(
+  fields: ParsedCompanionFields,
+  eventTitle: string,
+  lang: BotLang,
+): string {
+  const catalog = getCatalog(lang);
+  return [formatCompanionCanonicalLines(fields, eventTitle), "", catalog.companion.confirmStatement].join("\n");
+}
+
+// §4 step 1 -- re-parses the tapped confirm message's own text to recover
+// name/company/phone. A message whose text no longer parses (edited, or a
+// stale/forwarded tap) is refused with no write -- same discipline
+// parseWalkinMessageFields's `{ ok: false }` branch already establishes,
+// classified against whichever required line is missing (Company has no
+// "missing" case -- optional here exactly as in the initial parse above).
+export function parseCompanionConfirmMessage(messageText: string): ParseCompanionFieldsResult {
+  const lines = messageText.split("\n");
+  const nameLine = lines.find((line) => line.startsWith("Name: "));
+  const companyLine = lines.find((line) => line.startsWith("Company: "));
+  const phoneLine = lines.find((line) => line.startsWith("Phone: "));
+
+  if (nameLine === undefined) {
+    return { ok: false, reason: "missing-name" };
+  }
+  if (phoneLine === undefined) {
+    return { ok: false, reason: "missing-phone" };
+  }
+
+  const rawCompany = companyLine === undefined ? "" : companyLine.slice("Company: ".length);
+  const name = nameLine.slice("Name: ".length);
+  const phone = phoneLine.slice("Phone: ".length);
+  if (!isNonBlank(name)) {
+    return { ok: false, reason: "missing-name" };
+  }
+  if (!isNonBlank(phone)) {
+    return { ok: false, reason: "missing-phone" };
+  }
+
+  return {
+    ok: true,
+    fields: {
+      name,
+      company: rawCompany === COMPANION_COMPANY_PLACEHOLDER ? "" : rawCompany,
+      phone,
+    },
+  };
+}
+
+// §3.1 step 5 / §3.2 -- the reply-to-message state carrier for the FIRST
+// step (the guest's own free-text reply to the initial prompt), the same
+// fixed-prefix/ref-line mechanism handlers/feedback.ts's
+// formatFeedbackTextPrompt/parseFeedbackReplyContext pair already
+// establishes (FEEDBACK_REF_LINE_PREFIX). Fixed, not localized -- a
+// machine-parseable anchor, never actually looked up through the per-language
+// catalog at runtime (mirrored there only so catalogs.test.ts's parity check
+// keeps enforcing it stays present, same precedent as
+// FEEDBACK_REF_LINE_PREFIX/NO_SHOW_REF_LINE_PREFIX).
+export const COMPANION_REF_LINE_PREFIX = "Companion code: ";
+
+export function formatCompanionFieldsPrompt(eventTitle: string, inviteCodeId: string, lang: BotLang): string {
+  const catalog = getCatalog(lang);
+  return [
+    catalog.companion.fieldsPrompt.replace("{event}", eventTitle),
+    "",
+    `${COMPANION_REF_LINE_PREFIX}${inviteCodeId}`,
+  ].join("\n");
+}
+
+export type ParseCompanionReplyContextResult = { ok: true; inviteCodeId: string } | { ok: false };
+
+export function parseCompanionReplyContext(repliedToText: string): ParseCompanionReplyContextResult {
+  const lines = repliedToText.split("\n");
+  const refLine = lines.find((line) => line.startsWith(COMPANION_REF_LINE_PREFIX));
+  if (refLine === undefined) {
+    return { ok: false };
+  }
+  const inviteCodeId = refLine.slice(COMPANION_REF_LINE_PREFIX.length).trim();
+  if (inviteCodeId.length === 0) {
+    return { ok: false };
+  }
+  return { ok: true, inviteCodeId };
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-039.md §6 -- the host notification's own display
+// data. Structurally excludes profiles.phone/profiles.email from the SELECT
+// clause (S3/S11) -- the same "never a runtime filter that could be
+// bypassed" discipline listInviteCodeRedeemers already establishes above:
+// the composing function has no code path that can touch either column.
+// ---------------------------------------------------------------------------
+export interface CompanionDisplayData {
+  displayName: string;
+  company: string | null;
+}
+
+export async function getCompanionDisplayData(
+  db: DbClient["db"],
+  userId: string,
+  lang: BotLang,
+): Promise<CompanionDisplayData> {
+  const noNameFallback = getCatalog(lang).checkin.noNameFallback;
+
+  const rows = await db
+    .select({
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      tgUsername: users.tgUsername,
+      company: profiles.company,
+    })
+    .from(users)
+    .leftJoin(profiles, eq(profiles.userId, users.id))
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  const row = rows[0];
+  if (row === undefined) {
+    return { displayName: noNameFallback, company: null };
+  }
+  return {
+    displayName: deriveCheckinDisplayName(row.firstName, row.lastName, row.tgUsername, noNameFallback),
+    company: row.company,
+  };
 }
