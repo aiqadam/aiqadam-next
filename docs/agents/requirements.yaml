@@ -1674,7 +1674,7 @@ requirements:
   - id: REQ-033
     title: InviteCode data model, the registrations.invite_code_id foreign key, and the CSPRNG code generator
     owner: DATA-DESIGNER
-    status: in_progress
+    status: done
     description: >
       FIRST REQUIREMENT OF RELEASE 2 (PRD 4's "next Fail Stories, Q4 - 7 stories",
       PRD 14 build-order step 7). Release 2 covers exactly seven stories: B6, B7, B8,
