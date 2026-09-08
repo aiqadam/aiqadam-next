@@ -1,0 +1,57 @@
+{
+  "handoff_id": "step-02b-reviewer",
+  "run_id": "WF02-REQ-040",
+  "workflow_id": "WF-02",
+  "step": "02b",
+  "from_agent": "REVIEWER",
+  "to_agent": "BACKEND-DEV",
+  "file": "handoffs/WF02-REQ-040/step-02b-reviewer.json",
+  "created_at": "2026-09-08T17:32:14Z",
+  "started_at": "2026-09-08T17:32:14Z",
+  "completed_at": "2026-09-08T17:32:14Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-040"],
+    "related_handoff_ids": ["step-02-backend-dev"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-040.md",
+      "docs/agents/design/REQ-040-schema.md",
+      "apps/bot/src/domain/inviteList.ts",
+      "apps/bot/src/handlers/inviteList.ts",
+      "apps/bot/src/handlers/start.ts",
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/drizzle/0008_optimal_medusa.sql",
+      "apps/bot/src/index.ts",
+      "apps/bot/src/i18n/en.ts",
+      "apps/bot/src/i18n/ru.ts",
+      "apps/bot/src/i18n/types.ts",
+      "apps/bot/src/handlers/inviteCodes.ts"
+    ]
+  },
+  "task": {
+    "description": "WF-02 Step 2b code-quality/design-compliance/scope review of REQ-040's implementation (commits 3d292c0, 30acdf2) against docs/agents/design/REQ-040.md and REQ-040-schema.md.",
+    "acceptance_criteria": [
+      "Implementation matches the approved design (re-derived by reading design docs and diffs, not the producer's self-report).",
+      "No scope creep beyond the design's stated surface.",
+      "No violation of decisions/0004 (domain logic outside grammY handlers) or decisions/0006 (no now() in a time-dependent predicate).",
+      "Migration reviewed as SQL, not waved through.",
+      "No design-system/anti-pattern violations."
+    ]
+  },
+  "result": {
+    "status": "FAIL",
+    "summary": "Read git diff master...HEAD in full, both design docs (REQ-040.md, REQ-040-schema.md) in full, and cross-checked against precedent in apps/bot/src/handlers/inviteCodes.ts. domain/inviteList.ts is correctly framework-free (no grammY import), every time-dependent write takes an explicit `at: Date` parameter (no now()/current_timestamp in any predicate -- decisions/0006 honored), and resolvePersonalCodeIdentity/relinkToExistingAccount trace exactly to REQ-040.md SS2.2-2.4 and REQ-040-schema.md SS4's two-step conflict-free relink, including the audit-row-per-entry-A-held reading. The invite_list_entries migration (0008_optimal_medusa.sql) is a pure additive CREATE TABLE matching REQ-040-schema.md SS1/SS2 column-for-column (types, nullability, FK targets, ON DELETE RESTRICT posture, the uq_invite_list_entries_event_user unique index) -- no ALTER of any existing table, no column drop/rewrite of personal data, so no S13 sign-off is triggered by the migration itself. handlers/inviteList.ts correctly keeps all domain logic in domain/inviteList.ts, re-checks S2 (requireOrganizerForChapter) on every handler/callback including both remove steps, and every reply targets ctx (the organizer's own chat) -- confirmed by reading every ctx.reply/answerCallbackQuery call site in the file; no send path targets a list entry's own user_id (AC9/SS6 satisfied). i18n additions are provisional-copy, consistent with the REQ-014/032/037 precedent decisions/0002 established. One BLOCKER found: apps/bot/src/handlers/inviteList.ts's makeInviteListIssueCallbackHandler (the `invite_list:issue:<entryId>` callback) omits the cancelled/finished-event refusal that REQ-037's own issuing surface enforces. apps/bot/src/handlers/inviteCodes.ts's resolveEventForIssuing() (lines 92-128) refuses issuance when event.status === 'cancelled' or the event is finished (isFinished(event.endsAt, evaluationTime)), per REQ-037's own acceptance criterion ('Issuing a code for a cancelled event and for an event whose ends_at has passed are each refused ... no invite_codes row is created'). issuePersonalInviteCode() itself performs no such check -- by design, REQ-037 places that guard in the calling handler, not the domain function. REQ-040.md SS4.3 says this callback 'composes REQ-037's issuePersonalInviteCode unchanged', but the implementation only re-derives the S2 (organizer) check before calling it -- it never re-derives the cancelled/finished guard. Concretely: apps/bot/src/handlers/inviteList.ts lines ~206-224 fetch the event via getEventById, check S2, then compute `expiresAt = event.startsAt ?? evaluationTime` and call issueInviteListEntryCode() unconditionally, with no check of event.status or isFinished(event.endsAt, evaluationTime). Because a list entry can be added (and its 'Issue code' button remains available whenever invite_code_id IS NULL) before an event is later cancelled, or before it finishes, an organizer can issue a valid personal invite code for a cancelled or already-finished event through this new surface -- exactly the outcome REQ-037's handler was built to refuse. This is not a hypothetical: nothing in this design or its schema companion revisits or waives REQ-037's refusal for this new call site, so the gap is an implementation omission, not a documented, deliberate design choice. Fix: replicate the same refusal apps/bot/src/handlers/inviteCodes.ts's resolveEventForIssuing() performs (event.status !== 'cancelled' and not isFinished(event.endsAt, evaluationTime), refusing with a reply before calling issueInviteListEntryCode) in makeInviteListIssueCallbackHandler, reusing isFinished and equivalent catalog copy (catalog.inviteCodes.eventCancelled/eventFinished, or new inviteList-scoped equivalents) rather than silently falling back to evaluationTime on a null startsAt. Minor, non-blocking note (not filed as a separate issue, stated here for the record): REQ-040.md SS4.3 says the issued-code reply is 'identical composition to inviteCodes.ts's existing buildIssuedReply -- reused, not reinvented', but buildIssuedReply is a private, non-exported function in inviteCodes.ts, so the implementation instead composes an equivalent reply inline via catalog.inviteList.issuedReply. Functionally equivalent, not a design-system or convention violation, not blocking -- noting only because the design's literal text expected reuse of a function that was never exported for reuse.",
+    "artifacts_out": [],
+    "issues": [
+      {
+        "severity": "BLOCKER",
+        "description": "apps/bot/src/handlers/inviteList.ts's makeInviteListIssueCallbackHandler (invite_list:issue:<entryId>) does not refuse issuing a code for a cancelled or already-finished event, unlike apps/bot/src/handlers/inviteCodes.ts's resolveEventForIssuing() which REQ-037's own issuing surface uses. issuePersonalInviteCode() itself performs no such check by design (the guard lives in the caller), so this new caller must replicate it. Reachable whenever a list entry with no code yet exists for an event that is later cancelled or passes its ends_at.",
+        "affected_requirement": "REQ-040"
+      }
+    ],
+    "next_action": "Rework BACKEND-DEV -- add the cancelled/finished-event refusal to makeInviteListIssueCallbackHandler before calling issueInviteListEntryCode, mirroring inviteCodes.ts's resolveEventForIssuing() guard. Re-submit to REVIEWER (Step 2b) once fixed. Do not route to SECURITY-REVIEWER until this BLOCKER clears."
+  },
+  "rework_count": 0,
+  "max_rework": 3
+}
