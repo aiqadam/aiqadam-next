@@ -1,0 +1,25 @@
+{
+  "handoff_id": "step-06-doc-updater",
+  "run_id": "WF02-REQ-036",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "ORCH",
+  "to_agent": "DOC-UPDATER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Flipped REQ-036 (pending-request urgency flag at T-48h and honest auto-decline at registration close, GitHub issue #68) to done in docs/agents/requirements.yaml -- confirmed it was in_progress beforehand (Step 00 correctly flipped it there and logged the 'started' event). Appended one 'done' event to docs/status/requirement_status.yaml, real UTC timestamp (2026-09-08T11:07:45Z), matching REQ-034/REQ-035's done-event format and REQ-036's own started-event precedent -- git diff --numstat confirms 0 deletions, append-only preserved. Note summarizes RELEASE-VALIDATOR's independent PASS: lint/build clean, vitest 367/367 twice, all 8 acceptance criteria (including the two mandatory spot-checks AC4/AC5) independently re-verified against actual code, scope discipline confirmed (rejectRequest from REQ-035 byte-for-byte unchanged, zero schema/migration diff, exactly the 13 designed files touched). README.md checked (case-insensitive grep for urgen/auto-decline/registration_closes/48h) -- zero matches, no update warranted; this requirement's surface is entirely inside the bot's scheduled-job layer, same checked-then-skipped pattern as every prior bot requirement (REQ-010 through REQ-035). This is the FOURTH requirement of Release 2 -- REQ-037 through REQ-041 (5 more) remain pending, so no release-complete marker was added.",
+    "files_changed": [
+      "docs/agents/requirements.yaml",
+      "docs/status/requirement_status.yaml"
+    ],
+    "readme_updated": false,
+    "readme_check": "grep -in \"urgen|auto-decline|registration_closes|48h\" README.md returned zero matches; no user-facing/documented-behavior change from this requirement.",
+    "artifacts_out": [
+      "docs/agents/requirements.yaml",
+      "docs/status/requirement_status.yaml",
+      "handoffs/WF02-REQ-036/step-06-doc-updater.json"
+    ],
+    "next_action": "Route to ORCH for merge (Step Final)"
+  }
+}
