@@ -273,9 +273,14 @@ export const registrations = pgTable(
       onDelete: "restrict",
     }),
     source: text("source").notNull(),
-    // No FK: no InviteCode table exists in this requirement's scope
-    // (REQ-011.md §11 open question 3). A future requirement adds the FK.
-    inviteCodeId: uuid("invite_code_id"),
+    // REQ-033.md §3: real FK, closing REQ-011.md §11 open question 3. Still
+    // nullable (unchanged) — most registrations are not invite-gated.
+    // ON DELETE RESTRICT, matching every other person/event reference on
+    // this table: a redeemed invite code is history and must not be
+    // deletable out from under a registration.
+    inviteCodeId: uuid("invite_code_id").references(() => inviteCodes.id, {
+      onDelete: "restrict",
+    }),
     qrToken: text("qr_token"),
     // A real stored column, sharply distinct from the derived (columnless)
     // no_show boolean — see REQ-011.md §5.
@@ -307,6 +312,53 @@ export const registrations = pgTable(
       sql`${table.checkedInAt} IS NULL OR ${table.admission} = 'admitted'`,
     ),
   ],
+);
+
+// ---------------------------------------------------------------------------
+// REQ-033: invite_codes, and closing registrations.invite_code_id's FK.
+//
+// Pure schema — no domain logic, no handlers (decisions/0004). Translates
+// docs/agents/design/REQ-033.md into drizzle-orm/pg-core table definitions.
+// PERSONAL/BULK/COMPANION are compositions of issuedToUserId/
+// grantsCompanionOf/maxUses (design §2), not a `type` enum — no CHECK
+// constraint enforces the legal combinations (design §2's own reasoning,
+// mirroring REQ-011 §3's agenda doors-item precedent). Every person-
+// referencing FK resolves to users.id, never tg_id (REQ-010 §5.1).
+//
+// usedCount is a real stored counter, not a computed-never-stored violation
+// (design §1's dedicated note) — its atomic increment is REQ-038's problem,
+// not this file's.
+// ---------------------------------------------------------------------------
+
+export const inviteCodes = pgTable(
+  "invite_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "restrict" }),
+    code: text("code").notNull(),
+    // Nullable: null is the BULK-code shape; non-null is the PERSONAL-code
+    // shape (design §2). Never users.tg_id.
+    issuedToUserId: uuid("issued_to_user_id").references(() => users.id, {
+      onDelete: "restrict",
+    }),
+    // Nullable: non-null marks the COMPANION-code shape (design §2). Never
+    // users.tg_id.
+    grantsCompanionOf: uuid("grants_companion_of").references(() => users.id, {
+      onDelete: "restrict",
+    }),
+    maxUses: integer("max_uses").notNull(),
+    usedCount: integer("used_count").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [uniqueIndex("invite_codes_code_unique").on(table.code)],
 );
 
 export const eventStaff = pgTable(

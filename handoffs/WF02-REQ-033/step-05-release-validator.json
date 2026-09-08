@@ -1,0 +1,58 @@
+{
+  "handoff_id": "c5d6e7f8-0912-4231-5012-6547f1920312",
+  "run_id": "WF02-REQ-033",
+  "workflow_id": "WF-02",
+  "step": "05",
+  "from_agent": "ORCH",
+  "to_agent": "RELEASE-VALIDATOR",
+  "file": "handoffs/WF02-REQ-033/step-05-release-validator.json",
+  "created_at": "2026-09-08T05:52:13Z",
+  "started_at": "2026-09-08T05:52:13Z",
+  "completed_at": "2026-09-08T05:54:39Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": [
+      "REQ-033"
+    ],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": [
+      "b4c5d6e7-f809-4120-4901-5436f0819201"
+    ],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "docs/agents/design/REQ-033.md",
+      "docs/agents/test-specs/REQ-033.md",
+      "test-reports/report-2026-09-08-WF02-REQ-033.yaml",
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/drizzle/0007_sturdy_network.sql",
+      "apps/bot/src/domain/inviteCode.ts"
+    ],
+    "branch_name": "feature/WF02-REQ-033"
+  },
+  "task": {
+    "description": "WF-02 Step 5 (Release validation) for REQ-033 on branch feature/WF02-REQ-033. Independently re-run npm run lint and npm run build (apps/bot) yourself -- do not trust TEST-RUNNER's report alone. Spot-check at least one live-DB case from docs/agents/test-specs/REQ-033.md yourself (pick one you judge highest-risk -- e.g. AC4 the FK-closure insert-fails case, or AC5 the delete-restrict case) rather than accepting the whole report wholesale. Confirm all 9 of REQ-033's acceptance_criteria (read from docs/agents/requirements.yaml, grep -A 60 \"id: REQ-033\") are satisfied against the actual current code/migration, not against TEST-RUNNER's summary. Check requirements.yaml for staleness relative to what actually shipped (does REQ-033's description still match what was built, e.g. the alphabet exclusion fix from the design rework -- does anything in the requirement text now read as wrong given what shipped). Note TEST-RUNNER filed one MINOR issue (AC6's static Math.random grep false-positives on a code comment) -- confirm this doesn't mask a real gap (the actual generator code has zero real Math.random usage) and that it is correctly non-blocking.",
+    "acceptance_criteria": [
+      "lint and build independently re-run by RELEASE-VALIDATOR itself, real output quoted",
+      "At least one live-DB verification case independently spot-checked, not merely re-read from the report",
+      "All 9 REQ-033 acceptance criteria confirmed against actual shipped code, cited individually",
+      "requirements.yaml checked for staleness relative to what shipped",
+      "The MINOR AC6 grep-false-positive issue confirmed non-blocking, not masking a real gap",
+      "PASS routes to DOC-UPDATER; FAIL names the blocking issue and which agent it routes back to"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Independently re-verified REQ-033 end to end; PASS, routing to DOC-UPDATER. Lint and build re-run myself in apps/bot (not trusted from TEST-RUNNER): `npm run lint` -> eslint . exit 0, no output; `npm run build` -> tsc -p tsconfig.json exit 0, no output. Live-DB spot-check done independently (own fresh postgres:16-alpine container req033-validate, own seed rows, own UUIDs -- not copied from the report): applied all 8 migrations 0000-0007 in order with zero ERROR lines, 0007's tag sequence matched spec exactly (CREATE TABLE/3x ALTER TABLE/CREATE INDEX/ALTER TABLE). Ran AC4 (bad invite_code_id insert into registrations fails with exact `registrations_invite_code_id_invite_codes_id_fk` FK violation; real-id insert succeeds) and AC5 (DELETE of a referenced invite_codes row fails with the exact RESTRICT error naming the same constraint; row confirmed still present after) -- both the highest-risk cases per the handoff's own suggestion, both reproduced exactly. All 9 acceptance criteria confirmed individually against actual shipped code, not TEST-RUNNER's summary: AC1 (apps/bot/drizzle/0007_sturdy_network.sql + apps/bot/src/db/schema.ts's inviteCodes table -- PK/timestamps/7 data columns/3 FKs all ON DELETE RESTRICT/unique index, all match), AC2 (unique index invite_codes_code_unique present in migration -- constraint-name match confirmed structurally, and via my own AC4/AC5 runs which exercised the same constraint family), AC3 (issuedToUserId/grantsCompanionOf both nullable FKs to users.id in schema.ts, matching design), AC4 (independently spot-checked live, see above), AC5 (independently spot-checked live, see above), AC6 (ran `npx vitest run src/domain/inviteCode.test.ts` myself -- 5/5 pass, including the runtime CSPRNG-source test; re-ran the static grep myself: `grep -n Math.random apps/bot/src/domain/inviteCode.ts` hits only the comment at line 25, `grep -n 'Math\\.random\\(' ...` (real call syntax) returns zero matches -- confirms zero actual Math.random usage, TEST-RUNNER's MINOR characterization is correct and non-blocking, no real gap masked), AC7 (vitest alphabet/length assertions pass; `grep '26 . 5 = 130' docs/agents/design/REQ-033.md` reproduced 4 matches incl. explicit arithmetic), AC8 (all 4 required greps against docs/agents/design/REQ-033.md reproduced: composition framing line 124, legal-combinations header line 132, 'configurable per event' lines 330/334/443/465, REQ-038 routing-not-resolution line 339), AC9 (`grep -inE` for the 5 forbidden column names against 0007_sturdy_network.sql -- zero matches, exit 1). requirements.yaml checked for staleness: REQ-033's description text on the alphabet ('excluding visually ambiguous characters, with a stated length giving the entropy S4 demands') is deliberately non-specific about which characters/length, so it is not contradicted by what shipped (32-symbol alphabet, L/Q included, 0/O/1/I excluded, 26 chars, 130 bits) -- no staleness found; owner (DATA-DESIGNER) and status (in_progress, correct pre-DOC-UPDATER) fields both still accurate. Diff scope confirmed complete via `git diff --stat master...HEAD`: schema.ts, 0007_sturdy_network.sql, migration snapshot/journal, inviteCode.ts, design doc and test spec all present, nothing missing or stray in repo root.",
+    "artifacts_out": [
+      "handoffs/WF02-REQ-033/step-05-release-validator.json"
+    ],
+    "issues": [
+      {
+        "severity": "MINOR",
+        "summary": "Confirmed (not newly filed -- already reported by TEST-RUNNER): REQ-033.md AC6's static grep pattern for Math.random matches a benign code comment in apps/bot/src/domain/inviteCode.ts (line 25) rather than only executable code. Independently re-verified this does not mask a real gap: `grep -n 'Math\\.random\\('` (actual call syntax) returns zero matches, and the runtime CSPRNG-source vitest test passes. Non-blocking; TEST-DESIGNER should tighten the grep pattern in a future pass."
+      }
+    ]
+  }
+}

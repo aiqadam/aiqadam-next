@@ -1,0 +1,33 @@
+id: ISS-0029
+title: handoffs/registry.json stopped being appended after WF02-REQ-007 — runs REQ-009..REQ-032 are absent
+severity: MINOR
+status: open
+discovered_by: ORCH
+discovered_during: WF01-RELEASE-2 (Release 2 requirement drafting)
+discovered_at: "2026-09-08"
+area: pipeline bookkeeping
+description: >
+  ORCHESTRATOR.md §9 makes handoffs/registry.json ORCH-owned, "one entry per run,
+  tracking its current step and status". Its last entry before this run was
+  WF02-REQ-007. handoffs/orchestrator.log and the handoffs/WF02-REQ-*/ directories
+  show that runs for REQ-009 through REQ-032 — the whole of Release 1's bot
+  implementation — ran and completed after that, but none of them appended a
+  registry entry. The log stayed current; the registry did not.
+
+  Consequence: registry.json is not a usable index of what has run. Anything
+  reading it to answer "what runs exist / what is in flight" gets an answer that
+  is 24 runs stale. The orchestrator.log remains complete, so no history was
+  actually lost — this is a broken index, not missing data.
+
+  WF01-RELEASE-2 appended its own entry correctly, so the gap is bounded and
+  visible rather than growing silently.
+not_fixed_because: >
+  Backfilling 24 entries would mean ORCH asserting per-step statuses for runs it
+  did not witness, reconstructed from log lines — writing plausible bookkeeping
+  rather than recorded fact, which is the failure mode the pipeline's
+  producer/validator principle exists to prevent. The fix worth making is a
+  mechanism that keeps the two in sync (append to both in the same action, or
+  derive the registry from the log), plus a decision on whether the missing
+  window is reconstructed or explicitly marked as a gap. That is a change to the
+  pipeline's own machinery, which ORCHESTRATOR.md §5 check 6 puts through review,
+  not a direct ORCH edit.

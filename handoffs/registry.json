@@ -815,6 +815,31 @@
           "result": "PASS"
         }
       ]
+    },
+    {
+      "run_id": "WF01-RELEASE-2",
+      "workflow_id": "WF-01",
+      "source": "Direct request: 'Release 1 is implemented. Release 2 is required to detail the requirements.' Initial spec at c:/tmp/AI-Qadam-Events-Bot-Spec/. REQ-032's release-boundary note pre-scoped this run.",
+      "started_at": "2026-09-08T00:00:00Z",
+      "completed_at": "2026-09-08T04:02:52Z",
+      "status": "COMPLETED",
+      "current_step": "step-02-req-validator",
+      "steps": [
+        {
+          "step": "01",
+          "file": "handoffs/WF01-RELEASE-2/step-01-req-analyst.json",
+          "to_agent": "REQ-ANALYST",
+          "status": "COMPLETED",
+          "result": "PASS"
+        },
+        {
+          "step": "02",
+          "file": "handoffs/WF01-RELEASE-2/step-02-req-validator.json",
+          "to_agent": "REQ-VALIDATOR",
+          "status": "COMPLETED",
+          "result": "PASS"
+        }
+      ]
     }
   ]
 }

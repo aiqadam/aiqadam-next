@@ -1,0 +1,47 @@
+{
+  "handoff_id": "a3b4c5d6-e7f8-4019-3890-4325ef607190",
+  "run_id": "WF02-REQ-033",
+  "workflow_id": "WF-02",
+  "step": "03b",
+  "from_agent": "ORCH",
+  "to_agent": "TEST-DESIGN-VALIDATOR",
+  "file": "handoffs/WF02-REQ-033/step-03b-test-design-validator.json",
+  "created_at": "2026-09-08T05:46:50Z",
+  "started_at": "2026-09-08T05:46:50Z",
+  "completed_at": "2026-09-08T05:47:36Z",
+  "status": "COMPLETE",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": [
+      "REQ-033"
+    ],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": [
+      "92a3b4c5-d6e7-4f08-2789-3214de5f6089"
+    ],
+    "artifacts_in": [
+      "docs/agents/test-specs/REQ-033.md",
+      "docs/agents/design/REQ-033.md",
+      "handoffs/WF02-REQ-033/step-03-test-designer.json"
+    ],
+    "branch_name": "feature/WF02-REQ-033"
+  },
+  "task": {
+    "description": "WF-02 Step 3b (Test design gate, hard gate) for REQ-033 on branch feature/WF02-REQ-033. Read docs/agents/test-specs/REQ-033.md independently -- not TEST-DESIGNER's handoff summary. TEST-DESIGNER split coverage: AC6/AC7 (generator) are covered by the existing automated apps/bot/src/domain/inviteCode.test.ts, not a new manual case; AC1-5 and AC9 (DB-level constraint behavior) get a new scripted psql/live-DB case each; AC8 (design artefact content) gets a grep-based confirmation case. Verify this split is legitimate, not a shortcut -- confirm AC6/AC7 really are already exercised by real, passing automated tests (read inviteCode.test.ts yourself), and confirm every one of AC1-5/AC9 has a precise, mechanically-followable case (exact command, exact expected output/error, no judgment call).",
+    "acceptance_criteria": [
+      "Every one of REQ-033's 9 acceptance criteria has at least one verification case (automated-test-pointer or new spec case) -- none silently uncovered",
+      "No TODO or vague judgment-call language in any case",
+      "Each new spec case names the exact command/setup, exact expected result, and exact failure condition",
+      "AC6/AC7's automated-test coverage independently confirmed real (read inviteCode.test.ts, confirm it actually asserts what AC6/AC7 require) rather than accepted on trust",
+      "PASS or FAIL stated with specifics; FAIL routes to Rework TEST-DESIGNER"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "PASS. Independently re-read docs/agents/test-specs/REQ-033.md (not TEST-DESIGNER's handoff summary). All 9 ACs covered: AC1-5 and AC9 each have a new scripted psql/live-DB case; AC6/AC7 point at the existing automated apps/bot/src/domain/inviteCode.test.ts; AC8 has a grep-based confirmation. No TODO or vague judgment-call language found (grep -in TODO on the spec: zero matches). Every DB-level case (AC1-5, AC9) names an exact psql command, exact expected output/error text (including constraint names), and an explicit failure condition -- none require a judgment call. Cross-checked the spec's factual claims against the real artefacts rather than trusting them: (1) read apps/bot/src/domain/inviteCode.ts -- confirmed it uses node:crypto randomBytes (never Math.random), alphabet is exactly the stated 32-char string, length 26, unbiased byte%32 mapping; read inviteCode.test.ts -- confirmed its 5 tests genuinely assert AC6 (10000-code zero-collision, line 36-42; runtime Math.random-spy check, line 44-59) and AC7 (1000-code alphabet-membership, line 27-34; exact alphabet-string assertion, line 17-25), not tautological stand-ins. (2) Read apps/bot/drizzle/0007_sturdy_network.sql directly -- its columns/types/nullability/defaults, three ON DELETE restrict FKs, and invite_codes_code_unique index match AC1's expected \\d+ output exactly, and its command-tag order matches the spec's stated sequence. Confirmed registrations.invite_code_id (nullable uuid) and registrations.source (text NOT NULL) already exist from migration 0001, making the AC4 insert statement valid. Migration count/order (0000-0007, 8 files) matches the spec's shared-setup assumption. (3) Ran every AC7/AC8 grep from the spec against docs/agents/design/REQ-033.md and every AC9 grep against the migration file -- all resolved exactly as the spec predicts (matches found where expected, zero matches/exit 1 for the forbidden-column grep). The AC6/AC7-to-automated-test and AC8-to-grep split is legitimate, not a shortcut: the pointed-to tests and design content genuinely exist and genuinely assert what the ACs require.",
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": "Route to TEST-RUNNER (Step 4)"
+  }
+}

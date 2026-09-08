@@ -1,0 +1,145 @@
+run_id: WF02-REQ-033
+date: 2026-09-08T05:50:42Z
+lint: pass
+build: pass
+lint_output: |
+  > bot@0.1.0 lint
+  > eslint .
+  (no output, exit 0)
+build_output: |
+  > bot@0.1.0 build
+  > tsc -p tsconfig.json
+  (no output, exit 0)
+cases:
+  - acceptance_criterion: AC1
+    result: pass
+    notes: >
+      `\d+ invite_codes` against the scratch DB (all migrations 0000-0007 applied
+      in order, no ERROR lines, final 0007 tag sequence
+      CREATE TABLE/ALTER TABLE/ALTER TABLE/ALTER TABLE/CREATE INDEX/ALTER TABLE
+      matching the spec exactly). Output showed: id uuid not null default
+      gen_random_uuid() (PK, invite_codes_pkey btree(id)); event_id uuid not
+      null; code text not null; issued_to_user_id uuid nullable;
+      grants_companion_of uuid nullable; max_uses integer not null;
+      used_count integer not null default 0; expires_at timestamp with time
+      zone nullable; created_at/updated_at timestamp with time zone not null
+      default now(). FK constraints present: invite_codes_event_id_events_id_fk,
+      invite_codes_issued_to_user_id_users_id_fk,
+      invite_codes_grants_companion_of_users_id_fk, all ON DELETE RESTRICT.
+      Unique index invite_codes_code_unique UNIQUE btree(code) present. All
+      match spec exactly.
+  - acceptance_criterion: AC2
+    result: pass
+    notes: >
+      First insert of code CODE1TESTDUPLICATEVALUEAA -> INSERT 0 1 (id
+      b3c30aa6-d2fe-4b21-b737-c87b226e8bab). Second insert of same code ->
+      ERROR: duplicate key value violates unique constraint
+      "invite_codes_code_unique" DETAIL: Key (code)=(CODE1TESTDUPLICATEVALUEAA)
+      already exists. Matches spec exactly.
+  - acceptance_criterion: AC3
+    result: pass
+    notes: >
+      Neither-set bulk insert (issued_to_user_id NULL, grants_companion_of
+      NULL) -> INSERT 0 1 (id 11b79f97-3076-4818-8ef6-b8c2a949e4eb). Bad
+      issued_to_user_id (zero UUID) -> ERROR: foreign key constraint
+      "invite_codes_issued_to_user_id_users_id_fk", DETAIL Key
+      (issued_to_user_id)=(00000000-0000-0000-0000-000000000000) is not
+      present in table "users". Bad grants_companion_of (zero UUID) -> ERROR:
+      foreign key constraint "invite_codes_grants_companion_of_users_id_fk",
+      same DETAIL shape. All three sub-cases match spec exactly.
+  - acceptance_criterion: AC4
+    result: pass
+    notes: >
+      Insert into registrations with invite_code_id = zero UUID (non-existent
+      invite_codes row) -> ERROR: foreign key constraint
+      "registrations_invite_code_id_invite_codes_id_fk" DETAIL: Key
+      (invite_code_id)=(00000000-0000-0000-0000-000000000000) is not present
+      in table "invite_codes" -- the load-bearing negative case, FK is real
+      and enforced. Positive insert reusing AC2's BULK_CODE_ID
+      (b3c30aa6-d2fe-4b21-b737-c87b226e8bab) -> INSERT 0 1, id
+      fb7b058d-f6b8-44cd-82fc-727f2d15d706. Both match spec exactly.
+  - acceptance_criterion: AC5
+    result: pass
+    notes: >
+      DELETE FROM invite_codes WHERE id = BULK_CODE_ID (referenced by AC4's
+      registration) -> ERROR: update or delete on table "invite_codes"
+      violates foreign key constraint
+      "registrations_invite_code_id_invite_codes_id_fk" on table
+      "registrations" DETAIL: Key (id)=(b3c30aa6-d2fe-4b21-b737-c87b226e8bab)
+      is still referenced from table "registrations". Follow-up SELECT
+      confirms the row is still present (1 row returned, matching id). Both
+      match spec exactly -- delete correctly refused (RESTRICT), not
+      cascaded.
+  - acceptance_criterion: AC6
+    result: pass
+    notes: >
+      npx vitest run apps/bot/src/domain/inviteCode.test.ts
+      --no-file-parallelism from repo root: "Test Files 1 passed (1)",
+      "Tests 5 passed (5)", including the CSPRNG-source test and the
+      10000-code zero-collision test. Static grep `grep -n "Math.random"
+      apps/bot/src/domain/inviteCode.ts` DID produce one match (line 25:
+      "primitive generateQrToken() already uses; never Math.random, never a")
+      -- this is inside a comment explaining the generator does NOT use
+      Math.random, not an actual Math.random call. The spec's exact expected
+      grep result (no output, exit 1) was not met literally, but reading
+      the file confirms the generator uses node:crypto's randomBytes
+      exclusively (line 1 import, line 33 call) and never calls Math.random
+      anywhere in executable code -- the underlying property AC6 requires
+      (CSPRNG source, not Math.random) holds. Flagging the spec's grep
+      pattern as a false-positive-prone check (matches comments, not just
+      code) as a MINOR issue for TEST-DESIGNER to tighten (e.g. exclude
+      comment lines) rather than treating it as a product defect.
+  - acceptance_criterion: AC7
+    result: pass
+    notes: >
+      Covered by the same vitest run as AC6 (all 5 tests passed, including
+      the 1000-code alphabet-membership test and the exact-alphabet-string
+      assertion). Entropy arithmetic grep `grep -n "26 × 5 = 130\|26 \* 5 =
+      130" docs/agents/design/REQ-033.md` matched 4 lines (262, 280, 442,
+      462), including the design's explicit "26 × 5 = 130 bits" statement in
+      prose and code comment. Matches spec.
+  - acceptance_criterion: AC8
+    result: pass
+    notes: >
+      All four greps against docs/agents/design/REQ-033.md matched: line 124
+      "compositions, not special cases" (composition/not-a-type-enum
+      framing); line 132 "Legal combinations, stated explicitly:" header;
+      lines 330/334/443/465 "configurable per event"; line 339 "REQ-038
+      (redemption + eligibility) owns" (routing, not resolution). Matches
+      spec.
+  - acceptance_criterion: AC9
+    result: pass
+    notes: >
+      grep -inE "no_show|waitlist_position|seats_taken|registration_open|finished"
+      apps/bot/drizzle/0007_sturdy_network.sql produced no output, exit 1.
+      Matches spec exactly -- no forbidden computed-value columns added.
+issues:
+  - severity: MINOR
+    summary: >
+      REQ-033.md AC6's static grep for `Math.random` in
+      apps/bot/src/domain/inviteCode.ts matches a code comment (line 25:
+      "...never Math.random, never a...") rather than only executable code,
+      so the spec's stated expected result ("no output, exit 1") does not
+      literally hold even though the actual property (CSPRNG-only source,
+      confirmed by reading the file and by the passing vitest CSPRNG test) is
+      satisfied. Suggest TEST-DESIGNER tighten the grep (e.g. strip comment
+      lines, or grep for `Math\.random\(` outside `//` context) so future
+      runs don't have to manually disambiguate a benign comment match from a
+      real violation.
+notes: >
+  Shared setup used docker run postgres:16-alpine on port 55434, container
+  req033-pg-verify. All migrations 0000-0007 applied cleanly in order (file
+  count/order confirmed against apps/bot/drizzle/*.sql before running, matches
+  spec's expectation of 8 files 0000-0007). Seed values: CHAPTER_ID
+  b0907924-882e-4b7e-8917-c837383519e2, USER_ID
+  f7c567c1-7f48-4b46-a94e-e3f795f0bcb3, VENUE_ID
+  7eb357c4-ba3f-4f58-a1ac-e9853bafc314, EVENT_ID
+  f5f907e7-7385-4ab1-995f-6aedfff4463f. Teardown (docker rm -f
+  req033-pg-verify) completed, printed container name, exit 0. Environment
+  note (not a product defect): running under Git Bash on Windows required
+  `MSYS_NO_PATHCONV=1` before `docker exec ... -f /tmp/<file>` calls --
+  without it, Git Bash rewrites the /tmp/<file> argument into a Windows path
+  before it reaches docker, causing spurious "No such file or directory"
+  errors on the container side. Documented here in case a future TEST-RUNNER
+  hits the same thing on Windows.
+overall: PASS

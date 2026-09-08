@@ -50,6 +50,13 @@
       "when": 1788811417050,
       "tag": "0006_smiling_leader",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788845259479,
+      "tag": "0007_sturdy_network",
+      "breakpoints": true
     }
   ]
 }

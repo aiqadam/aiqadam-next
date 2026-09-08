@@ -1,0 +1,54 @@
+{
+  "handoff_id": "b4c5d6e7-f809-4120-4901-5436f0819201",
+  "run_id": "WF02-REQ-033",
+  "workflow_id": "WF-02",
+  "step": "04",
+  "from_agent": "ORCH",
+  "to_agent": "TEST-RUNNER",
+  "file": "handoffs/WF02-REQ-033/step-04-test-runner.json",
+  "created_at": "2026-09-08T05:48:24Z",
+  "started_at": "2026-09-08T05:48:24Z",
+  "completed_at": "2026-09-08T05:51:20Z",
+  "status": "COMPLETE",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": [
+      "REQ-033"
+    ],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": [
+      "a3b4c5d6-e7f8-4019-3890-4325ef607190"
+    ],
+    "artifacts_in": [
+      "docs/agents/test-specs/REQ-033.md",
+      "apps/bot/drizzle/0007_sturdy_network.sql",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/inviteCode.test.ts"
+    ],
+    "branch_name": "feature/WF02-REQ-033"
+  },
+  "task": {
+    "description": "WF-02 Step 4 (Verification run) for REQ-033 on branch feature/WF02-REQ-033. Run npm run lint and npm run build (apps/bot) -- quote real output. Follow docs/agents/test-specs/REQ-033.md's cases exactly, including the shared setup/teardown for the live-DB cases (AC1-5, AC9) -- report what was actually observed for each, not an impression. For AC6/AC7, confirm the automated apps/bot/src/domain/inviteCode.test.ts suite actually runs and passes (quote the real test output) rather than trusting that it exists. Write test-reports/report-<date>-WF02-REQ-033.yaml with the actual output. This project's DB-backed tests have known local file-parallelism deadlock issues (ISS-0027) -- if the full suite hangs/fails under default parallelism, retry with --no-file-parallelism and report both results, attributing per core-directives.md's Failure Attribution rule, not by assumption.",
+    "acceptance_criteria": [
+      "npm run lint exits 0, real output quoted",
+      "npm run build exits 0, real output quoted",
+      "Every case in docs/agents/test-specs/REQ-033.md executed and its actual outcome reported",
+      "test-reports/report-<date>-WF02-REQ-033.yaml written with real output",
+      "PASS or FAIL stated; FAIL routes to Rework the responsible agent"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "npm run lint -w apps/bot and npm run build -w apps/bot both exit 0 with no output. All 9 acceptance criteria in docs/agents/test-specs/REQ-033.md verified PASS: AC1-AC5 and AC9 run live against a scratch postgres:16-alpine container (all 8 migrations 0000-0007 applied cleanly, no ERROR lines; every insert/delete/select matched the spec's exact expected output and error text) then torn down. AC6/AC7 covered by npx vitest run apps/bot/src/domain/inviteCode.test.ts --no-file-parallelism: Test Files 1 passed (1), Tests 5 passed (5). AC8 confirmed via the 4 specified greps against docs/agents/design/REQ-033.md, all matched. One MINOR issue filed: AC6's static Math.random grep matches a benign code comment, not real code -- reading inviteCode.ts confirms the generator only calls node:crypto randomBytes; the underlying property holds, but the spec's grep pattern should be tightened by TEST-DESIGNER. Full evidence in test-reports/report-2026-09-08-WF02-REQ-033.yaml.",
+    "artifacts_out": [
+      "test-reports/report-2026-09-08-WF02-REQ-033.yaml"
+    ],
+    "issues": [
+      {
+        "severity": "MINOR",
+        "summary": "REQ-033.md AC6's static grep for Math.random in apps/bot/src/domain/inviteCode.ts matches a code comment (line 25) rather than only executable code, so the spec's literal expected result (no output, exit 1) does not hold even though the actual CSPRNG-only property is satisfied (confirmed by reading the file and the passing vitest test). Suggest TEST-DESIGNER tighten the grep to avoid matching comments."
+      }
+    ]
+  }
+}

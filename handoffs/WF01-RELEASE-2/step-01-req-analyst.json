@@ -1,0 +1,91 @@
+{
+  "handoff_id": "3f2c9a41-7b0e-4d88-9c1a-52e6b0d47a13",
+  "run_id": "WF01-RELEASE-2",
+  "workflow_id": "WF-01",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "REQ-ANALYST",
+  "file": "handoffs/WF01-RELEASE-2/step-01-req-analyst.json",
+  "created_at": "2026-09-08T03:42:53Z",
+  "started_at": "2026-09-08T03:42:53Z",
+  "completed_at": "2026-09-08T03:54:29Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": [],
+    "requirement_text": {},
+    "source_text": {
+      "docs/agents/requirements.yaml#REQ-032-release-boundary": "RELEASE BOUNDARY -- READ BEFORE DRAFTING MORE REQUIREMENTS. REQ-007..REQ-032 are the monorepo migration plus PRD 4's RELEASE 1 (Meetup #3, September) in PRD 14's stated build order. RELEASE 2 AND RELEASE 3 ARE DELIBERATELY NOT DRAFTED IN THIS WF-01 RUN ... They are a LATER WF-01 run, and they cover: (Release 2 -- PRD 4 and PRD 14 step 7, next Fail Stories, Q4, 7 stories) approval requests (FR-4's requires_approval rows, stories B6/F3); invite codes (FR-5, stories B7/F4); +1 companions (FR-5, story B8); the invitation list with invited/opened/registered/attended outreach status (FR-17, story F9); waitlist closure notification (story B9).",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/PRD.md#4-release-2": "### Release 2 -- next Fail Stories, Q4 - 7 stories\nA **curated** event. Adds: approval requests - invite codes - `+1` companions - invitation list with outreach status - waitlist closure.",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/PRD.md#14-build-order-step-7": "**Release 2 -- next Fail Stories, Q4**\n7. Approval requests + invite codes + `+1` + invitation list + waitlist closure."
+    },
+    "related_handoff_ids": [],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "docs/agents/AGENT_SYSTEM.md",
+      "docs/agents/anti-patterns.md",
+      "docs/agents/decisions/",
+      "docs/agents/instructions/security-invariants.md",
+      "apps/bot/src/db/schema.ts",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/PRD.md",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/USER-STORIES.md",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/STORY-DETAILS.md",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/RE-EVALUATION.md",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/DESIGN-REVIEW.md",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/JOURNEY-AUDIT.md"
+    ]
+  },
+  "task": {
+    "description": "Draft the RELEASE 2 requirements into docs/agents/requirements.yaml, appending from REQ-033 onward. Release 2 is PRD 4's 'next Fail Stories, Q4' -- a CURATED event -- covering exactly 7 user stories: B6 (Ask for a seat at a curated event), B7 (Use my invitation), B8 (Bring someone with me), B9 (Know when I didn't get in), F3 (Decide who comes in), F4 (Hand out invitations), F9 (Run an invitation list). Release 1 (REQ-007..REQ-032) is fully done and merged; REQ-032's own description pre-scoped this run verbatim (see context.source_text). This is the LATER WF-01 RUN it named. Read that boundary note first. Scope is exactly Release 2 -- do NOT draft Release 3 (speakers, broadcast, metrics, chapter-interest wishlist, manual promotion F5, organizer cancel flow F6); leave a release-boundary note for Release 3 the way REQ-032 left one for this run.",
+    "acceptance_criteria": [
+      "Every one of the 7 Release 2 stories (B6, B7, B8, B9, F3, F4, F9) is covered by at least one drafted requirement, and the mapping story->REQ id is stated explicitly in the handoff result.",
+      "Every new requirement has id, title, owner, status: pending, description, at least 2 concrete verifiable acceptance_criteria, and depends_on -- the canonical schema in requirements.yaml's header, not a new one.",
+      "Ids continue sequentially from the highest existing (REQ-032), never reusing or renumbering; entries are APPENDED, existing entries untouched.",
+      "Each requirement is sized to one agent turn; anything larger is split with depends_on chaining. Schema-bearing work (the new InviteCode table, and any new column) is drafted so DATA-DESIGNER's schema step is separable, following the REQ-010/REQ-011/REQ-025/REQ-031 precedent already in the registry.",
+      "No orphaned depends_on references, and no contradiction with any done requirement or any docs/agents/decisions/ record.",
+      "Requirements respect the PRD invariants and the computed-not-stored boundary: waitlist position, seats_taken, no_show and registration_open are never stored; the invitation list's invited/opened/registered/attended status (FR-17) is likewise derived where the PRD says it is derivable, and any genuinely stored outreach state is justified explicitly in the description.",
+      "Security-sensitive aspects are called out in the descriptions so SECURITY-REVIEWER has something to gate: consent before storage for companions (STORY-DETAILS B8 refusal 'Storing anything before consent'), a personal code redeemed by someone else being refused (B7), organizer-only authorization on F3/F4/F9 surfaces, and the F9 refusal that the bot cannot message a guest who has never started it.",
+      "A release-boundary note for Release 3 is left on the final drafted requirement, in the same style REQ-032 used for Release 2."
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Drafted PRD 4's Release 2 (next Fail Stories, Q4) as REQ-033..REQ-041 — 9 entries appended to docs/agents/requirements.yaml, covering all 7 stories (B6, B7, B8, B9, F3, F4, F9) plus one schema enabler and one JOURNEY-AUDIT J3 slice. Existing REQ-001a..REQ-032 untouched: `git diff --stat` reports 797 insertions and 0 deletions. The file parses as valid YAML (verified with the `yaml` parser, 42 entries), every new entry carries id/title/owner/status: pending/description/acceptance_criteria/depends_on in the header's canonical schema, every new entry has 7-12 acceptance criteria (minimum required: 2), and there are no orphaned depends_on references (checked programmatically against the full id set). STORY -> REQ MAPPING (all 7 covered): B6 Ask for a seat at a curated event -> REQ-034 (member request side) + REQ-036 (its auto-decline half); B7 Use my invitation -> REQ-038; B8 Bring someone with me -> REQ-039; B9 Know when I didn't get in -> REQ-041; F3 Decide who comes in -> REQ-035 (decision surface) + REQ-036 (its 48h-urgent + auto-decline half); F4 Hand out invitations -> REQ-037; F9 Run an invitation list -> REQ-040. REQ-033 is the InviteCode schema enabler serving B7/B8/F4/F9 and maps to no single story. REQ-036 is the only entry serving two stories: JOURNEY-AUDIT J3 files its deadline rules as acceptance criteria on BOTH B6 and F3 rather than as its own story, and it is scheduled-job work that would push either REQ-034 or REQ-035 past one agent turn. ID RANGE ALLOCATED: REQ-033 through REQ-041 (9 ids), continuing sequentially from the previous highest, REQ-032. Nothing reused, nothing renumbered. DEPENDENCY CHAIN: REQ-032 -> REQ-033 -> {REQ-034 -> REQ-035 -> REQ-036 -> REQ-041, REQ-037 -> REQ-038 -> REQ-039, REQ-037 -> REQ-040}. REQ-038 additionally depends on REQ-035 (a code on an approval-gated event must land in the organizer's decision surface, PRD FR-4 row 4); REQ-040 additionally on REQ-014 (it establishes the pre-created-User linking rule REQ-014 explicitly deferred to Release 2); REQ-041 additionally on REQ-021 (it fills the waitlist-closure hole REQ-021 declared out of scope). OWNER FIELD: REQ-033 is owner DATA-DESIGNER, matching the REQ-010/REQ-011 precedent for a table serving multiple flows and keeping DATA-DESIGNER's WF-02 schema step separable; the other 8 are owner BACKEND-DEV, matching REQ-025/REQ-031 (which carry their own single-flow schema inline) and every other bot requirement. SECURITY ASPECTS CALLED OUT FOR SECURITY-REVIEWER, per the handoff's criterion: consent-before-storage for companions is REQ-039's stated security-critical property with an AC proving zero users/profiles/registrations rows on an abandoned pre-consent flow (S1, STORY-DETAILS B8's 'Storing anything before consent'); a personal code redeemed by someone else is REQ-038's named refusal with its own AC and is framed as S4 extended to identity; organizer-only authorization on the handler (not the menu) with EventStaff explicitly refused is an AC on REQ-035, REQ-037 and REQ-040 (S2); the F9 refusal that the bot cannot message a guest who never started it is an AC on both REQ-037 and REQ-040, including a grep for any send path targeting a NULL-tg_id user (S3/platform fact). S3 phone-and-email exclusion ACs are on every new list surface (REQ-035, REQ-037, REQ-040) and on REQ-039's host notification; S11 log/audit-payload grep is on REQ-039; S7 atomicity concurrency tests are on REQ-035 (approval) and REQ-038 (used_count).",
+    "artifacts_out": [
+      "docs/agents/requirements.yaml"
+    ],
+    "next_action": "Route to REQ-VALIDATOR",
+    "issues": [
+      {
+        "severity": "MINOR",
+        "type": "OPEN_QUESTION_FLAGGED_NOT_RESOLVED",
+        "description": "AMBIGUITY 1 — the wishlist offramp, RESOLVED WITH A STATED ASSUMPTION rather than left silent, as the handoff's orientation demanded. STORY-DETAILS B6, B7, B8 and B9 all end their refusal paths with 'offered the wishlist', but the Wishlist entity is story G4, which USER-STORIES marks R3, PRD 4 places in Release 3, REQ-032's boundary note assigns to the Release 3 run, and REQ-017's own acceptance criteria forbid creating ahead of its requirement (there is no wishlist table in apps/bot/src/db/schema.ts). ASSUMPTION TAKEN, stated in full in REQ-035's description and inherited by name in REQ-036, REQ-038, REQ-039 and REQ-041: every Release 2 refusal path ends with a concrete onward path the already-built surfaces deliver — REQ-017's upcoming-events list, exactly as REQ-027's cancellation message already does — and NO Wishlist row, table, migration or interest-capture is created. Each of those five requirements carries an AC grepping every migration and the schema for 'wishlist' and requiring zero matches. The offramp principle (JOURNEY-AUDIT J7/J2) is honoured; the G4 mechanism is not pulled forward. REQ-041's Release 3 boundary note records that Release 3's G4 requirement must REPLACE this substitution on those specific refusal paths, not merely add a new surface — so it is a known deliberate substitution, not a gap discovered later."
+      },
+      {
+        "severity": "MINOR",
+        "type": "OPEN_QUESTION_FLAGGED_NOT_RESOLVED",
+        "description": "AMBIGUITY 2 — PRD FR-4's past-attendee eligibility rule is 'configurable per event', but PRD 5's Event entity lists no such flag, and inventing an unlisted Event column is what PRD's closing rule forbids (REQ-026's doors-time episode is this registry's precedent for reading an existing field instead). NOT resolved by REQ-ANALYST, per the forbidden-actions rule against silently settling something that belongs in docs/agents/decisions/. REQ-033's description records it as an open question and routes it to REQ-038; REQ-038's description requires its design step to state one of two resolutions with reasoning — (a) apply the rule uniformly to every requires_invite event and defer FR-4's 'configurable' until a real need appears, or (b) treat a per-event flag as architecturally significant and get a docs/agents/decisions/ record before any column is added — and forbids adding the column silently under either reading. REQ-038 carries an AC that the artefact states its choice and that no new events column appears in any migration."
+      },
+      {
+        "severity": "MINOR",
+        "type": "OPEN_QUESTION_FLAGGED_NOT_RESOLVED",
+        "description": "AMBIGUITY 3 — FR-17's 'opened' outreach status has two defensible readings that differ observably, and the handoff's criterion 6 requires any genuinely stored outreach state to be justified explicitly. Analysis recorded in REQ-040's description: 'registered' and 'attended' are DERIVED with no column (ACs prove this by mutating the database directly and confirming the list-entry row's updated timestamp is unchanged); 'invited' is stored, and is justified as the organizer's own act of adding the entry, which nothing else records and which cannot be derived from an invite code's existence because STORY-DETAILS F9 makes issuing a code a separate step from adding the entry — so the entry row's existence IS the invited state, with no separate boolean. 'opened' is left as a required design-step resolution: either store an opened_at written on first deep-link resolution (justified as genuinely unrecordable otherwise, since a deep-link open that never leads to registration leaves no trace) or derive it from tg_id becoming non-null and state plainly that this is the weaker signal. REQ-040's ACs require the artefact to state the choice and to justify against PRD 5 any column it stores."
+      },
+      {
+        "severity": "MINOR",
+        "type": "OPEN_QUESTION_FLAGGED_NOT_RESOLVED",
+        "description": "AMBIGUITY 4 — apps/bot/src/db/schema.ts has events.registrationClosesAt NULLABLE, and both REQ-036's auto-decline and REQ-041's waitlist-closure job key on that moment. A NULL value leaves each job with no trigger. Not resolved here (choosing an ends_at fallback versus no-job-at-all is a behaviour decision, not requirement text). Both descriptions require the design step to state the behaviour and its reasoning, forbid adding a column to make the case go away (PRD 5), and REQ-041 additionally requires its artefact to state why if its resolution differs from REQ-036's, so the two jobs cannot silently disagree about when registration closes. Each carries an AC constructing the NULL case, under which an unhandled crash, an undescribed silent skip, or a new column all fail."
+      },
+      {
+        "severity": "MINOR",
+        "type": "SCOPE_NOTE",
+        "description": "REQ-034 and REQ-038 each REPLACE a deliberate placeholder refusal shipped by done REQ-020 (its decideRegistrationOutcome() in apps/bot/src/domain/registration.ts returns distinct 'requires-approval' and 'requires-invite' outcomes). This is not a contradiction of a done requirement: REQ-020's own description states the refusals exist precisely so Release 2 could fill them in ('this requirement must nonetheless not make them impossible'). Both new descriptions state the relationship explicitly so REQ-VALIDATOR's consistency check (WF-01 Step 2b) can confirm it rather than read a conflict."
+      },
+      {
+        "severity": "MINOR",
+        "type": "PROVISIONAL_COPY",
+        "description": "Three new requirements carry user-facing copy whose exact wording the spec assigns to the product owner, and there is no human in this pipeline: REQ-036's honest auto-decline message (STORY-DETAILS B6's 'with an honest message'), and REQ-041's waitlist-closure message (STORY-DETAILS B9's 'told plainly'). Each follows the treatment REQ-014 and REQ-032 already established — the implementing agent writes plain factual wording through REQ-013's catalog mechanism in ru and en, and records in ITS OWN handoff result that the copy is provisional pending the product owner. Both requirements carry that recording as an acceptance criterion, so the obligation cannot be dropped downstream."
+      }
+    ]
+  }
+}
