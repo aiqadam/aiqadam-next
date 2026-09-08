@@ -65,45 +65,18 @@ are all reused unchanged as given.
 | `created_at` | `timestamptz` | No | `now()` | — (this table's `added_at`, §1.1) |
 | `updated_at` | `timestamptz` | No | `now()` | — |
 
-Reference shape (BACKEND-DEV's starting point for the `schema.ts` addition — not
-itself a migration or implementation artefact):
-
-```ts
-export const inviteListEntries = pgTable(
-  "invite_list_entries",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    eventId: uuid("event_id")
-      .notNull()
-      .references(() => events.id, { onDelete: "restrict" }),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "restrict" }),
-    inviteCodeId: uuid("invite_code_id").references(() => inviteCodes.id, {
-      onDelete: "restrict",
-    }),
-    addedBy: uuid("added_by")
-      .notNull()
-      .references(() => users.id, { onDelete: "restrict" }),
-    openedAt: timestamp("opened_at", { withTimezone: true }),
-    name: text("name").notNull(),
-    company: text("company"),
-    position: text("position"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (table) => [
-    uniqueIndex("uq_invite_list_entries_event_user").on(
-      table.eventId,
-      table.userId,
-    ),
-  ],
-);
-```
+Reference shape (BACKEND-DEV's starting point for the `schema.ts` addition — stated
+conceptually, not as literal Drizzle syntax): a `uuid` primary key defaulting to a
+random value; four `uuid` foreign keys — `event_id` (→ `events.id`, required),
+`user_id` (→ `users.id`, required), `invite_code_id` (→ `invite_codes.id`, optional —
+the one nullable FK), `added_by` (→ `users.id`, required) — each `ON DELETE RESTRICT`,
+matching this schema's uniform FK posture (§0); a nullable `opened_at` timestamp with no
+default; three plain text columns (`name` required, `company`/`position` optional); the
+usual `created_at`/`updated_at` `timestamptz NOT NULL DEFAULT now()` pair; and one named
+unique index, `uq_invite_list_entries_event_user`, on `(event_id, user_id)` (§2). The
+Column|Type|Nullable|Default|FK table above is the authoritative shape; this paragraph
+only restates it in words for a reader moving straight to `schema.ts`. BACKEND-DEV
+writes the actual `pgTable(...)` definition and runs `drizzle-kit generate`.
 
 ### 1.1 `added_at` is `created_at`, not a second column
 
@@ -278,22 +251,20 @@ it — a plain two-statement sequence, no new upsert primitive needed.**
 
 ### 4.2 Resolution — conflict-free relink in two statements, one transaction
 
-```sql
--- Step 1: repoint every entry that has no pre-existing conflict.
-UPDATE invite_list_entries AS ile
-SET user_id = $B
-WHERE ile.user_id = $A
-  AND NOT EXISTS (
-    SELECT 1 FROM invite_list_entries AS existing
-    WHERE existing.event_id = ile.event_id
-      AND existing.user_id = $B
-  );
+Stated conceptually (BACKEND-DEV's implementation, not this artefact's):
 
--- Step 2: for whatever's left under A (only the conflicting rows survive
--- step 1's WHERE clause) -- B's own entry for that event already exists and
--- is left completely untouched; A's now-superseded duplicate is dropped.
-DELETE FROM invite_list_entries WHERE user_id = $A;
-```
+- **Step 1 — a conditional repoint.** Update every `invite_list_entries` row currently
+  pointing at `user_id = A` to instead point at `user_id = B`, but only where doing so
+  would not collide with §2's unique constraint — i.e. only where no row already exists
+  for that same `event_id` with `user_id = B`. A row-existence check scoped to
+  `(event_id, B)` is the condition; rows for events where B already has an entry are
+  left untouched by this step.
+- **Step 2 — cleanup of the leftovers.** Delete every remaining `invite_list_entries`
+  row still pointing at `user_id = A` (exactly the rows step 1's condition skipped,
+  because B already had an entry for that event). B's own pre-existing entry for that
+  event is never read or written by this step — it is simply left in place.
+- Both steps run inside one transaction, so the pair is atomic: either both apply or
+  neither does.
 
 Traced against the scenario: step 1 repoints `(E1, A) → (E1, B)` (no conflict) and
 leaves `(E2, A)` alone (conflict exists, `NOT EXISTS` is false). Step 2 then deletes the

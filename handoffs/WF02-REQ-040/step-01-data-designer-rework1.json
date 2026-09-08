@@ -1,0 +1,31 @@
+{
+  "handoff_id": "step-01-data-designer-rework1",
+  "run_id": "WF02-REQ-040",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "DATA-DESIGNER",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "status": "COMPLETED",
+  "result": {
+    "status": "REWORK_COMPLETE",
+    "summary": "Reworked docs/agents/design/REQ-040-schema.md per handoffs/WF02-REQ-040/step-01b-code-design-validator.json's BLOCKER (Sec1 contained a complete, copy-paste-ready Drizzle pgTable(\"invite_list_entries\", ...) definition -- real .references() FK calls, real column-builder calls, a real named uniqueIndex() -- which is implementation code, violating DATA-DESIGNER's own role-file 'Forbidden: Writing implementation code, migrations included' clause and Step 1b check (d)).\n\nFix applied, formatting only, no design decision changed: removed the ```ts export const inviteListEntries = pgTable(...) code block from Sec1 in its entirety. The preceding Column|Type|Nullable|Default|FK prose table (unchanged) remains the authoritative, complete specification of every column, type, nullability, default, and FK/cascade behavior. In its place, the 'Reference shape' paragraph now names the same primitives conceptually in prose -- a uuid PK defaulting to a random value; four uuid FKs (event_id->events.id required, user_id->users.id required, invite_code_id->invite_codes.id optional/nullable, added_by->users.id required), each ON DELETE RESTRICT; a nullable opened_at timestamp; three text columns (name required, company/position optional); the created_at/updated_at timestamptz pair; and the named uq_invite_list_entries_event_user unique index on (event_id, user_id) -- with no literal .references()/.notNull()/.defaultNow()/pgTable() call syntax, matching REQ-031-schema.md/REQ-032-schema.md's precedent (neither contains a full new-table pgTable() block; REQ-032-schema.md's two ```ts fences are single-line quotes of an EXISTING column, not a novel table's complete definition).\n\nScanned the rest of the document for any other executable code that may have crept in. Found one: Sec4.2's relink mechanism was stated as a literal, executable two-statement SQL block (UPDATE ... SET ... WHERE ... NOT EXISTS (SELECT ...); DELETE FROM ... WHERE ...) describing the actual UPDATE-then-DELETE relink sequence BACKEND-DEV would implement. Converted this to prose: Step 1 is now described as 'a conditional repoint' (update every row pointing at A to point at B, but only where no row already exists for that same event under B), Step 2 as 'cleanup of the leftovers' (delete whatever rows step 1's condition skipped), both inside one transaction. No SQL keywords/syntax remain. Re-verified via grep for ``` code fences across the full document after the edit -- zero matches; the document is now code-fence-free throughout.\n\nNo design decision was revisited or changed: the UNIQUE(event_id, user_id) constraint (Sec2), hard-delete-not-soft-remove (Sec3), the two-step relink UPDATE/DELETE sequence's logic and atomicity (Sec4, same mechanism, prose form only), and the business-card field placement on invite_list_entries rather than profiles (Sec1.3) are all identical in substance to the version CODE-DESIGN-VALIDATOR already confirmed correct in step-01b -- only the Sec1 pgTable() block's removal and Sec4.2's SQL-to-prose conversion changed.",
+    "artifacts_out": [
+      "docs/agents/design/REQ-040-schema.md"
+    ],
+    "issues": [],
+    "next_action": "Route to CODE-DESIGN-VALIDATOR (Step 1b) for re-gate of docs/agents/design/REQ-040-schema.md only -- docs/agents/design/REQ-040.md (CODE-DESIGNER) was not faulted by step-01b and needs no re-review."
+  },
+  "context": {
+    "requirement_id": "REQ-040",
+    "depends_on": [
+      "REQ-037",
+      "REQ-038",
+      "REQ-039"
+    ],
+    "branch_name": "feature/WF02-REQ-040",
+    "related_handoff_ids": [
+      "handoffs/WF02-REQ-040/step-01-data-designer.json",
+      "handoffs/WF02-REQ-040/step-01b-code-design-validator.json"
+    ]
+  }
+}
