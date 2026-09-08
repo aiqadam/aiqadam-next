@@ -85,6 +85,22 @@ import {
   makeNoShowReasonCallbackHandler,
   makeNoShowTextReplyHandler,
 } from "./handlers/noShow.js";
+import {
+  REQ_APPROVE_CANCEL_PATTERN,
+  REQ_APPROVE_CONFIRM_PATTERN,
+  REQ_APPROVE_PATTERN,
+  REQ_OPEN_PATTERN,
+  REQ_PAGE_PATTERN,
+  REQ_REJECT_PATTERN,
+  makeRequestApproveCancelCallbackHandler,
+  makeRequestApproveCallbackHandler,
+  makeRequestApproveConfirmCallbackHandler,
+  makeRequestDetailCallbackHandler,
+  makeRequestRejectCallbackHandler,
+  makeRequestRejectTextReplyHandler,
+  makeRequestsListHandler,
+  makeRequestsPageCallbackHandler,
+} from "./handlers/organizerRequests.js";
 
 let config: BotConfig;
 
@@ -277,5 +293,21 @@ bot.on("message:text", makeFeedbackTextReplyHandler(db));
 bot.callbackQuery(NO_SHOW_REASON_PATTERN, makeNoShowReasonCallbackHandler(db));
 bot.callbackQuery(NO_SHOW_OTHER_PATTERN, makeNoShowOtherCallbackHandler(db));
 bot.on("message:text", makeNoShowTextReplyHandler(db));
+
+// REQ-035: organizer approve/reject surface for pending requests
+// (/requests <event_id> [query]) -- the list/detail/pagination callbacks,
+// the approve + capacity-override-confirm/cancel callbacks, the reject
+// prompt callback, and its own generic reply-to-message text listener
+// (handlers/organizerRequests.ts), registered after every bot.command(...)
+// registration, alongside the other generic message:text listeners above,
+// same ordering discipline those files' own header notes establish.
+bot.command("requests", makeRequestsListHandler(db));
+bot.callbackQuery(REQ_PAGE_PATTERN, makeRequestsPageCallbackHandler(db));
+bot.callbackQuery(REQ_OPEN_PATTERN, makeRequestDetailCallbackHandler(db));
+bot.callbackQuery(REQ_APPROVE_CONFIRM_PATTERN, makeRequestApproveConfirmCallbackHandler(db, notificationSender));
+bot.callbackQuery(REQ_APPROVE_CANCEL_PATTERN, makeRequestApproveCancelCallbackHandler(db));
+bot.callbackQuery(REQ_APPROVE_PATTERN, makeRequestApproveCallbackHandler(db, notificationSender));
+bot.callbackQuery(REQ_REJECT_PATTERN, makeRequestRejectCallbackHandler(db));
+bot.on("message:text", makeRequestRejectTextReplyHandler(db, notificationSender));
 
 bot.start();

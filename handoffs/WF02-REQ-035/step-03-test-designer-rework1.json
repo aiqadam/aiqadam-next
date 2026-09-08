@@ -1,0 +1,49 @@
+{
+  "handoff_id": "step-03-test-designer-rework1",
+  "run_id": "WF02-REQ-035",
+  "workflow_id": "WF-02",
+  "step": "03",
+  "from_agent": "TEST-DESIGNER",
+  "to_agent": "TEST-RUNNER",
+  "file": "handoffs/WF02-REQ-035/step-03-test-designer-rework1.json",
+  "created_at": "2026-09-08T14:35:00Z",
+  "started_at": "2026-09-08T14:00:00Z",
+  "completed_at": "2026-09-08T14:35:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-035"],
+    "artifacts_in": [
+      "handoffs/WF02-REQ-035/step-04-test-runner.json",
+      "docs/agents/test-specs/REQ-035.md",
+      "apps/bot/src/domain/registrationApproval.db.test.ts",
+      "apps/bot/src/handlers/organizerRequests.db.test.ts",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/domain/registration.db.test.ts"
+    ],
+    "branch_name": "feature/WF02-REQ-035"
+  },
+  "task": {
+    "description": "Rework docs/agents/test-specs/REQ-035.md (and the two already-committed test files it specifies verbatim) to fix the MAJOR baseline-count bug and MINOR dead-code issue TEST-RUNNER's step-04 FAIL filed. Pure fixture/assertion correction against unchanged AC coverage -- no new cases, no coverage change, AC5 untouched.",
+    "acceptance_criteria": [
+      "Every countAuditRows()-based baseline in AC2, AC4, AC6, AC7, AC10 correctly accounts for the pre-existing 'registration.request' audit row every seedPendingRequest() call produces.",
+      "The unused commandUpdate helper is removed from both the spec's markdown source and the actual test file (already true for the test file per TEST-RUNNER's own step-04 fix; spec brought into sync).",
+      "docs/agents/test-specs/REQ-035.md's fenced source is byte-for-byte identical to both actual committed test files.",
+      "npm run lint -w apps/bot and npm run build -w apps/bot both pass.",
+      "Full vitest suite passes 358/358 across at least two runs.",
+      "AC5's concurrency cases are untouched and still pass."
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Confirmed the root cause directly: apps/bot/src/domain/registration.ts:242-254's registerForEvent unconditionally writes a 'registration.request' audit_log row for every outcome including 'requested' (pre-existing REQ-034 code, untouched by REQ-035). Every seedPendingRequest() helper call in both test files therefore already produces one audit_log row for its own registrationId before any approve/reject/refusal is attempted -- confirmed against registration.db.test.ts's own REQ-034 AC6 test, which correctly captures its baseline via `const beforeCount = (await db.select().from(auditLog)).length;` immediately before calling registerForEvent and asserts `afterCount === beforeCount + 1`, the delta pattern this rework now matches.\n\nFixed all 8 failing assertions, all in File 1 (registrationApproval.db.test.ts) AC10 (3 cases) and File 2 (organizerRequests.db.test.ts) AC2 (1 case), AC4 (1 case with 3 affected count checks), AC6 (2 cases), AC7 (1 case). In every case the 'before' baseline was already captured at the correct point (right before the action under test, per the task's preferred option (a)) -- the bug was purely the hardcoded expected value (0) ignoring the pre-existing row. Fix applied uniformly:\n  - Baselines that previously asserted `toBe(0)` now assert `toBe(1)` (or a named `xAuditBefore`/`auditBefore` variable is introduced where no baseline var existed before, e.g. AC2, AC6 member/staff, AC7).\n  - Post-action counts now assert as deltas off that baseline (`before + 1` for a write, `before`/`auditBefore` unchanged for a no-write refusal/dismiss/blocked-attempt), not hardcoded absolutes -- matching REQ-034 AC6's own delta pattern, which is more robust against any future change to how many rows precede the action.\n  - Everywhere a single audit row was read via `rows[0]!.action`/`rows[0]!.payload` to check a specific write's action string or payload, switched to `rows.find(r => r.action === '...')` since the registrationId can now legitimately carry more than one row (the pre-existing request row plus the new one) by the time of the check, and row order is not guaranteed.\n  - AC4's reqB baseline (`reqBAuditBefore`) is captured once, before any of the three sequential actions on reqB (blocked attempt, dismiss, confirmed override), and each subsequent assertion is expressed relative to it.\n\nAlso removed the unused `commandUpdate(tgId, text)` helper from the spec's File 2 source (TEST-RUNNER had already deleted it from the actual committed test file to unblock lint; the spec's markdown was out of sync until this rework).\n\nVerification performed (I do not run TEST-RUNNER's full protocol -- this is my own confirmation the fix is real, not a substitute for TEST-RUNNER's re-verification):\n  - npm run lint -w apps/bot: PASS, clean.\n  - npm run build -w apps/bot: PASS, clean (tsc -p tsconfig.json).\n  - npx vitest run --no-file-parallelism (full suite, from repo root), run twice: 358/358 passing both times (39/39 test files).\n  - registrationApproval.db.test.ts run standalone: 7/7 passing, including both AC5 concurrency cases (one transient 'Connection terminated due to connection timeout' was observed on this dev machine on an initial combined-file run before a `docker compose restart postgres`; re-run after the restart passed cleanly, and both full-suite runs afterward were clean -- this reads as local Docker/connection-pool contention on this host, not a defect in AC5's design or a regression from this rework; AC5's source was not touched, confirmed via diff).\n  - organizerRequests.db.test.ts run standalone: 8/8 passing.\n  - Programmatically diffed docs/agents/test-specs/REQ-035.md's two fenced ```ts blocks against the actual file contents of apps/bot/src/domain/registrationApproval.db.test.ts and apps/bot/src/handlers/organizerRequests.db.test.ts: exact match (byte-for-byte after trailing-whitespace normalization) for both.\n\nAdded a 'Rework note' to docs/agents/test-specs/REQ-035.md immediately after the ISS-0014 execution note, documenting the root cause, the fix pattern, and the verification performed, for anyone reading the spec later.\n\nTEST-DESIGN-VALIDATOR gate: NOT re-run. This is a pure baseline-count/assertion-value fix within cases TEST-DESIGN-VALIDATOR already passed (step-03b) -- no AC gained or lost coverage, no case's structure, scope, or the invariant it verifies changed (AC10 still verifies exactly-one-row-per-write; AC2/AC4/AC6/AC7 still verify their respective audit-row-count invariants, now correctly). The only structural change is `rows[0]` -> `rows.find(...)`, which is strictly more correct given the schema-accurate row count, not a coverage change. Per this project's WF-02 Step 3 guidance, a fix of this shape does not warrant a full re-gate; routing straight back to TEST-RUNNER for re-verification.",
+    "artifacts_out": [
+      "docs/agents/test-specs/REQ-035.md",
+      "apps/bot/src/domain/registrationApproval.db.test.ts",
+      "apps/bot/src/handlers/organizerRequests.db.test.ts",
+      "handoffs/WF02-REQ-035/step-03-test-designer-rework1.json"
+    ],
+    "issues": [],
+    "next_action": "Route to TEST-RUNNER for re-verification: npm run lint -w apps/bot, npm run build -w apps/bot, full vitest suite with --no-file-parallelism run at least twice with exact pass/fail counts, and the concurrency file (registrationApproval.db.test.ts) re-run three times in isolation per WF-02 Step 4's standing protocol. Expect 358/358 passing. Do NOT route to RELEASE-VALIDATOR until TEST-RUNNER confirms."
+  }
+}
