@@ -1770,7 +1770,7 @@ requirements:
   - id: REQ-034
     title: Registration into 'requested' for an approval-gated event, with the decision-pending confirmation
     owner: BACKEND-DEV
-    status: pending
+    status: done
     description: >
       Implements the MEMBER-FACING half of Release 2's approval flow: USER-STORIES B6 /
       STORY-DETAILS B6 (Ask for a seat at a curated event), and PRD FR-4's
