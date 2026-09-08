@@ -1,7 +1,7 @@
 import { InlineKeyboard, type Context } from "grammy";
 import type { DbClient } from "../db/client.js";
 import { requireOrganizerForChapter } from "../domain/eventAuthorization.js";
-import { getEventById } from "../domain/event.js";
+import { getEventById, isFinished } from "../domain/event.js";
 import {
   addInviteListEntry,
   getEventIdForInviteListEntry,
@@ -212,6 +212,20 @@ export function makeInviteListIssueCallbackHandler(db: DbClient["db"]) {
     }
 
     const evaluationTime = new Date();
+    // handlers/inviteCodes.ts's resolveEventForIssuing() refuses issuing for
+    // a cancelled/finished event on every one of its own issuing commands --
+    // this callback is a fourth issuing surface and must refuse the same way
+    // (a list entry with no code yet can outlive the event being cancelled
+    // or finishing).
+    if (event.status === "cancelled") {
+      await ctx.answerCallbackQuery({ text: catalog.inviteCodes.eventCancelled, show_alert: true });
+      return;
+    }
+    if (event.startsAt === null || event.endsAt === null || isFinished(event.endsAt, evaluationTime)) {
+      await ctx.answerCallbackQuery({ text: catalog.inviteCodes.eventFinished, show_alert: true });
+      return;
+    }
+
     const expiresAt = event.startsAt ?? evaluationTime;
     const issued = await issueInviteListEntryCode(
       db,
