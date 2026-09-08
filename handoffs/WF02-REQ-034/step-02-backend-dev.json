@@ -1,0 +1,67 @@
+{
+  "handoff_id": "step-02-backend-dev",
+  "run_id": "WF02-REQ-034",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "BACKEND-DEV",
+  "to_agent": "REVIEWER",
+  "file": "handoffs/WF02-REQ-034/step-02-backend-dev.json",
+  "created_at": "2026-09-08T12:00:00Z",
+  "started_at": "2026-09-08T12:00:00Z",
+  "completed_at": "2026-09-08T12:50:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-034"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-034.md",
+      "handoffs/WF02-REQ-034/step-01-code-designer.json",
+      "handoffs/WF02-REQ-034/step-01b-code-design-validator.json"
+    ],
+    "branch_name": "feature/WF02-REQ-034"
+  },
+  "task": {
+    "description": "WF-02 Step 2 (implementation) for REQ-034 on branch feature/WF02-REQ-034, per the design gated PASS at step-01b. Implemented exactly the approved design: no schema/migration change, no invented business rules beyond what the design specifies.",
+    "acceptance_criteria": [
+      "Registering for an event with requires_approval=true and requires_invite=false creates exactly one registrations row with admission='requested'.",
+      "The confirmation message states both that a decision will follow and by when, matching registration_closes_at rendered in the chapter's timezone; the NULL case produces the design artefact's stated fallback.",
+      "Requesting a second time yields the person's CURRENT pending status and leaves exactly one registrations row for that (event_id, user_id).",
+      "A request succeeds even when the event's admitted count already equals capacity: admission='requested', never 'waitlisted' or a refusal.",
+      "The registrations row created by a request has qr_token NULL, and /my shows that row with its pending state and NO QR image.",
+      "Creating a request writes exactly one audit_log row naming the actor, action, entity and entity id.",
+      "An event with requires_approval=false is unaffected."
+    ]
+  },
+  "result": {
+    "status": "SUCCESS",
+    "summary": "Implemented docs/agents/design/REQ-034.md exactly as approved, no schema change, no invented business rules. domain/registration.ts: decideRegistrationOutcome's requiresApproval branch (still positioned before the seatsLeft>0 check, unchanged table order otherwise) now returns { kind: 'requested' } instead of { kind: 'requires-approval' }; RegistrationOutcome's union swaps the 'requires-approval' member for 'requested' in place. registerForEvent's step-7 writing-outcome set widened to { 'admitted', 'waitlisted', 'requested' } -- verified the existing qrToken ternary (outcome.kind === 'admitted' ? generateQrToken() : null) and the admission-column write (outcome.kind) needed literally zero code change, exactly as the design traced (both already handle 'requested' correctly by their existing shape). The audit-log action mapping is now a three-way expression: 'admitted'->'registration.admit', 'waitlisted'->'registration.waitlist', 'requested'->'registration.request' (writeAuditLog's own action field is a plain string, no closed union to extend). handlers/registration.ts: widened the event-data-fetch gate to include outcome.kind === 'requested'; inside that block, compute registrationClosesAtText via the exact same formatDateTimeInTimezone call already used for startsAtText/endsAtText, only when outcome.kind==='requested', using event.registrationClosesAt (confirmed present on EventWithChapterTimezone by direct read of domain/event.ts) -- null when the column is null. composeRegistrationReply gained a sixth parameter (registrationClosesAtText, default null) and a new 'requested' switch branch per the design's exact 5-line composition table (prefix, title, dateTimeText, then either 'requestedDecisionByPrefix + text' or the fixed 'requestedDecisionByFallback', then 'requestedWhatNext'); the now-dead 'requires-approval' branch was removed -- TS's exhaustiveness check over the narrowed union required this, confirmed by a clean tsc build. i18n: types.ts/en.ts/ru.ts all three updated in the same commit -- removed refusedRequiresApproval, added requestedPrefix/requestedDecisionByPrefix/requestedDecisionByFallback/requestedWhatNext. Copy is placeholder/minimal-functional per decisions/0002 (CONTENT-BA owns final wording) -- exact same convention every prior bot requirement in this pipeline uses; wrote plain, clear copy myself as instructed, e.g. en 'requestedDecisionByFallback': \"You'll hear back before the event starts.\" Per the design's own §5 (open questions), the exact preposition/final wording is explicitly left to CONTENT-BA/product-owner review, not resolved here. Confirmed zero changes needed to handlers/my.ts and handlers/start.ts's event-card send, and zero changes needed to STATUS_CATALOG_KEY (already maps requested->statusRequested) and the existing 'already-registered' branch (already renders STATUS_CATALOG_KEY[outcome.admission] for any AdmissionState) -- verified by reading the current files directly, matching the design's own §0.3 tracing; no redundant code added there. Existing tests: two pre-existing tests (registration.test.ts row-6 test, registration.db.test.ts's requires_approval refusal test) asserted the OLD placeholder outcome ({ kind: 'requires-approval' }) that this requirement's approved design explicitly retires -- updated their expectations to the new, designed behavior ({ kind: 'requested' }, qrToken undefined) rather than leaving them broken; no new coverage was added for AC1-AC7 beyond this minimal fix -- that is TEST-DESIGNER/TEST-RUNNER's scope next. No AuditLog schema/column change; no capacity check added anywhere on the requested path (verified structurally, same as the design's §0.2 tracing: seatsLeft is computed unconditionally but decideRegistrationOutcome never compares it for a requiresApproval=true input). No new NotificationKind, no sendLedgeredNotification call added -- the 'requested' confirmation reuses the existing direct ctx.reply path inside makeRegisterCallbackHandler, per the design's §0.4 reasoning.",
+    "artifacts_out": [
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/handlers/registration.ts",
+      "apps/bot/src/i18n/types.ts",
+      "apps/bot/src/i18n/en.ts",
+      "apps/bot/src/i18n/ru.ts",
+      "apps/bot/src/domain/registration.test.ts",
+      "apps/bot/src/domain/registration.db.test.ts"
+    ],
+    "commands_run": [
+      {
+        "command": "npm run lint -w apps/bot",
+        "result": "PASS -- eslint . produced no output (no errors/warnings)"
+      },
+      {
+        "command": "npm run build -w apps/bot",
+        "result": "PASS -- tsc -p tsconfig.json completed with no errors"
+      },
+      {
+        "command": "npx vitest run --no-file-parallelism (run from apps/bot)",
+        "result": "PASS -- Test Files 74 passed (74), Tests 668 passed (668), Duration 76.76s"
+      }
+    ],
+    "issues": [
+      "OPEN, routed to CONTENT-BA per decisions/0002 (unchanged from step-01's open items): final copy for the four requestedPrefix/requestedDecisionByPrefix/requestedDecisionByFallback/requestedWhatNext catalog keys is placeholder-quality only, in en.ts and ru.ts, and needs product-owner/CONTENT-BA review before this ships to real users -- same status every prior bot requirement's placeholder copy in this pipeline carries.",
+      "OPEN, routed to CONTENT-BA: the exact preposition/tense choice in requestedDecisionByPrefix ('You'll hear back by:') is a placeholder wording choice, not a structural requirement -- AC2 only requires the stated time to match registration_closes_at rendered in the chapter's timezone."
+    ],
+    "next_action": "Route to REVIEWER (Step 2b) for design-system/code-quality/scope gate, per WF-02."
+  }
+}

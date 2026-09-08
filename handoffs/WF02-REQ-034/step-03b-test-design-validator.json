@@ -1,0 +1,55 @@
+{
+  "handoff_id": "step-03b-test-design-validator",
+  "run_id": "WF02-REQ-034",
+  "workflow_id": "WF-02",
+  "step": "03b",
+  "from_agent": "TEST-DESIGN-VALIDATOR",
+  "to_agent": "ORCH",
+  "file": "handoffs/WF02-REQ-034/step-03b-test-design-validator.json",
+  "created_at": "2026-09-08T08:03:40Z",
+  "started_at": "2026-09-08T08:03:40Z",
+  "completed_at": "2026-09-08T08:03:40Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-034"],
+    "artifacts_in": [
+      "docs/agents/test-specs/REQ-034.md",
+      "docs/agents/design/REQ-034.md",
+      "apps/bot/src/domain/registration.test.ts",
+      "apps/bot/src/domain/registration.db.test.ts",
+      "apps/bot/src/handlers/registration.test.ts",
+      "apps/bot/src/handlers/my.test.ts",
+      "handoffs/WF02-REQ-034/step-03-test-designer.json"
+    ],
+    "branch_name": "feature/WF02-REQ-034"
+  },
+  "task": {
+    "description": "WF-02 Step 3b (test design gate) for REQ-034 on branch feature/WF02-REQ-034 at commit 4cab895. Independently re-derive PASS/FAIL against the actual test spec and the actual committed test code, not TEST-DESIGNER's self-report."
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Independently verified docs/agents/test-specs/REQ-034.md against GitHub issue #66's 7 ACs and against the actual diff in the four named test files (git diff HEAD~1 HEAD). All 7 ACs have at least one precise, mechanically-followable verification case; no TODOs found. Specific hard checks requested by this run's task, all independently re-derived: (1) AC4's real-DB-fixture case (registration.db.test.ts, 'REQ-034 AC4: an approval-gated event already at full capacity...') genuinely seeds capacity=1, directly inserts one admission='admitted' filler row, asserts fixture sanity (admittedRows.toHaveLength(1)) BEFORE the real assertion, then a fresh user registers and gets 'requested' -- this is a true at-capacity fixture, not a seats-remaining scenario. The two pure-decision cases in registration.test.ts call decideRegistrationOutcome directly via baseInput({ requiresApproval: true, seatsLeft: 0 }) and seatsLeft: -3, confirmed by reading the diff. (2) AC2's NULL case (handlers/registration.test.ts, second 'it' in the AC2 describe block) constructs the event via seedApprovalGatedEvent(chapterId, { registrationClosesAt: null }), a genuine explicit null passed through createEvent -- not merely unset/defaulted -- and asserts the exact catalog.registration.requestedDecisionByFallback string is present, requestedDecisionByPrefix is absent, and no /null|undefined|Invalid Date/i leaks into the text. (3) AC3's double-tap case asserts the SECOND reply contains both catalog.registration.alreadyRegisteredPrefix AND catalog.registration.statusRequested (the actual rendered pending-status label), not merely that a reply was sent. (4) AC5's /my extension: verified handlers/my.test.ts's diff adds a 5th 'requested' row, raises expected counts to 6 sends/1 photo/4 text, and adds a new assertion locating the requested row's own text send by catalog.registration.statusRequested and asserting its payload.photo is undefined -- genuine proof of no QR image for a requested row, not just 'doesn't crash'. (5) AC6's audit-log case counts audit_log rows via db.select() before and after one registerForEvent call, asserts afterCount === beforeCount + 1 (a real before/after delta, not an existence check), then filters by entityId=registrationId and asserts exactly one row with action='registration.request', entity='registration', actorUserId=userId. (6) AC7's 'no new case' claim: read the three cited existing tests directly at their current locations -- registration.db.test.ts:511 'issues a qr_token only for an admitted outcome, none for waitlisted', registration.test.ts:120 'row 7: seatsLeft > 0 -> admitted', registration.test.ts:126 'row 8: seatsLeft <= 0 -> waitlisted' -- all three exist, none appear as '+' lines in git diff HEAD~1 HEAD (confirmed unmodified), and registration.test.ts's baseInput() default is requiresApproval: false (line 20), so rows 7/8 genuinely exercise the requires_approval=false path; the qr_token-issuance test genuinely produces one admitted + one waitlisted outcome for the same (capacity-1) event. (7) tg_id reuse claim: git diff HEAD~1 HEAD over apps/bot/src, grepped for any added line with a 9+-digit numeric literal -- zero matches; independently confirmed every new case's tgId source (registration.db.test.ts's tgSeq=1_000_000_000 at line 65, handlers/registration.test.ts's nextTgId=800_000_000 at line 98, handlers/my.test.ts's nextTgId=950_000_000 at line 122) are pre-existing file-local counters, not new literals, and cross-checked against every other test file's own band (highest found: staff.test.ts's 1_010_000_000) -- no collision, no new range claimed. (8) Vitest-as-runnable-code precedent: read decisions/0006-test-framework-vitest.md in full -- it genuinely states 'TEST-DESIGNER writes runnable test code for bot logic, not manual checklists' as a stated 'Consequence for the agent system', and per core-directives.md's Instruction Precedence a docs/agents/decisions/ record is never overridden by a workflow step -- TEST-DESIGNER's citation of this precedent to justify writing runnable code instead of a manual checklist is accurate, not a convenient misreading. Also confirmed via direct read of apps/bot/src/handlers/registration.ts (lines 76-179) that the tested composeRegistrationReply 'requested' branch, the registrationClosesAtText computation, and the four new catalog keys are REAL, already-implemented current code (not aspirational) -- the tests exercise the actual shipped implementation.",
+    "artifacts_out": [
+      "handoffs/WF02-REQ-034/step-03b-test-design-validator.json"
+    ],
+    "commands_run": [
+      "gh issue view 66",
+      "git diff HEAD~1 HEAD -- apps/bot/src/domain/registration.test.ts apps/bot/src/domain/registration.db.test.ts apps/bot/src/handlers/registration.test.ts apps/bot/src/handlers/my.test.ts",
+      "git diff HEAD~1 HEAD -- apps/bot/src | grep -nE \"^\\+.*[0-9]{9,}\"",
+      "grep -rn \"nextTgId\\s*=|tgSeq\\s*=|requiresApproval:\\s*false\" apps/bot/src --include=*.test.ts"
+    ],
+    "issues": [],
+    "next_action": "Route to TEST-RUNNER (Step 4)"
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": [
+    {
+      "step": "03b",
+      "agent": "TEST-DESIGN-VALIDATOR",
+      "verdict": "PASS",
+      "at": "2026-09-08T08:03:40Z"
+    }
+  ]
+}

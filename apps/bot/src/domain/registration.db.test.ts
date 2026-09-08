@@ -302,7 +302,7 @@ describe("registerForEvent — AC5: source resolution from pending_source", () =
   });
 });
 
-describe("registerForEvent — AC6: requires_invite / requires_approval refusal", () => {
+describe("registerForEvent — AC6: requires_invite refusal / requires_approval creates a 'requested' row (docs/agents/design/REQ-034.md)", () => {
   it("refuses, never admits, when requires_invite is true", async (t) => {
     if (!dbAvailable) {
       t.skip();
@@ -315,7 +315,7 @@ describe("registerForEvent — AC6: requires_invite / requires_approval refusal"
     expect(outcome).toEqual({ kind: "requires-invite" });
   });
 
-  it("refuses, never admits, when requires_approval is true", async (t) => {
+  it("creates a 'requested' registration, never admits, when requires_approval is true (REQ-034, replacing REQ-020's placeholder refusal)", async (t) => {
     if (!dbAvailable) {
       t.skip();
       return;
@@ -324,7 +324,126 @@ describe("registerForEvent — AC6: requires_invite / requires_approval refusal"
     const eventId = await seedPublishedEvent(chapterId, { capacity: 5, requiresApproval: true });
     const userId = await seedUser();
     const outcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
-    expect(outcome).toEqual({ kind: "requires-approval" });
+    expect(outcome.kind).toBe("requested");
+    expect(outcome.qrToken).toBeUndefined();
+  });
+
+  // REQ-034 AC1 — the row itself, read back directly: exactly one row for
+  // this (event, user) pair, with admission='requested' and qr_token NULL.
+  // The test above only asserts on the returned outcome/qrToken shape; this
+  // one asserts on the actual persisted row, which is what AC1 and the S4
+  // half of AC5 are literally about.
+  it("REQ-034 AC1/AC5: the persisted row has admission='requested', qr_token NULL, and is the only row for (event, user)", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5, requiresApproval: true });
+    const userId = await seedUser();
+    const outcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    expect(outcome.kind).toBe("requested");
+
+    const rows = await db
+      .select()
+      .from(registrations)
+      .where(and(eq(registrations.eventId, eventId), eq(registrations.userId, userId)));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.admission).toBe("requested");
+    expect(rows[0]?.qrToken).toBeNull();
+  });
+
+  // REQ-034 AC3 — requesting a second time: the person's CURRENT pending
+  // status is echoed back, and exactly one row remains for (event, user).
+  it("REQ-034 AC3: a second request against the same approval-gated event reports the existing 'requested' status, still exactly one row", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5, requiresApproval: true });
+    const userId = await seedUser();
+
+    const first = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    expect(first.kind).toBe("requested");
+
+    const second = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:01Z"));
+    expect(second).toEqual({ kind: "already-registered", admission: "requested" });
+
+    const rows = await db
+      .select()
+      .from(registrations)
+      .where(and(eq(registrations.eventId, eventId), eq(registrations.userId, userId)));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.admission).toBe("requested");
+  });
+
+  // REQ-034 AC4 — the case the design calls out explicitly: an
+  // approval-gated event whose admitted count already equals (or exceeds)
+  // capacity still creates a 'requested' row, never 'waitlisted' and never a
+  // refusal. Constructed by directly inserting the filler's 'admitted' row
+  // (registerForEvent itself can never produce 'admitted' for a
+  // requires_approval=true event, so the only way to reach "at capacity" for
+  // this event is a direct insert, matching this file's existing
+  // insertWaitlisted-style fixture convention below).
+  it("REQ-034 AC4: an approval-gated event already at full capacity still creates a 'requested' row, not 'waitlisted' or a refusal", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 1, requiresApproval: true });
+
+    // Fill the single seat directly -- bypassing registerForEvent, which
+    // cannot itself produce 'admitted' for a requires_approval=true event.
+    const fillerId = await seedUser();
+    await db.insert(registrations).values({
+      eventId,
+      userId: fillerId,
+      admission: "admitted",
+      source: "direct",
+    });
+    const admittedRows = await db.query.registrations.findMany({
+      where: (reg, { eq: eqOp, and: andOp }) => andOp(eqOp(reg.eventId, eventId), eqOp(reg.admission, "admitted")),
+    });
+    expect(admittedRows).toHaveLength(1); // fixture sanity: event is genuinely at its capacity of 1.
+
+    const requestingUserId = await seedUser();
+    const outcome = await registerForEvent(db, requestingUserId, eventId, new Date("2026-09-01T00:00:00Z"));
+    expect(outcome.kind).toBe("requested");
+    expect(outcome.qrToken).toBeUndefined();
+
+    const rows = await db
+      .select()
+      .from(registrations)
+      .where(and(eq(registrations.eventId, eventId), eq(registrations.userId, requestingUserId)));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.admission).toBe("requested");
+  });
+});
+
+describe("registerForEvent — REQ-034 AC6: exactly one audit_log row for a 'requested' outcome", () => {
+  it("writes exactly one audit_log row, action='registration.request', correct actor/entity/entity_id", async (t) => {
+    if (!dbAvailable) {
+      t.skip();
+      return;
+    }
+    const chapterId = await seedChapter();
+    const eventId = await seedPublishedEvent(chapterId, { capacity: 5, requiresApproval: true });
+    const userId = await seedUser();
+
+    const beforeCount = (await db.select().from(auditLog)).length;
+    const outcome = await registerForEvent(db, userId, eventId, new Date("2026-09-01T00:00:00Z"));
+    expect(outcome.kind).toBe("requested");
+    const registrationId = (outcome as { registrationId: string }).registrationId;
+    const afterCount = (await db.select().from(auditLog)).length;
+    expect(afterCount).toBe(beforeCount + 1);
+
+    const rows = await db.select().from(auditLog).where(eq(auditLog.entityId, registrationId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.action).toBe("registration.request");
+    expect(rows[0]?.entity).toBe("registration");
+    expect(rows[0]?.actorUserId).toBe(userId);
   });
 });
 

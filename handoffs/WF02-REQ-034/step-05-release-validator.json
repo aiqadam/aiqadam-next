@@ -1,0 +1,54 @@
+{
+  "handoff_id": "step-05-release-validator",
+  "run_id": "WF02-REQ-034",
+  "workflow_id": "WF-02",
+  "step": "05",
+  "from_agent": "RELEASE-VALIDATOR",
+  "to_agent": "ORCH",
+  "file": "handoffs/WF02-REQ-034/step-05-release-validator.json",
+  "created_at": "2026-09-08T08:11:34Z",
+  "started_at": "2026-09-08T08:11:34Z",
+  "completed_at": "2026-09-08T08:11:34Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-034"],
+    "issue": "https://github.com (issue #66) -- read via `gh issue view 66`",
+    "branch_name": "feature/WF02-REQ-034",
+    "commit_at_review": "65e288a"
+  },
+  "task": {
+    "description": "WF-02 Step 5 (release validation) for REQ-034. Independently re-run lint/build/tests and re-verify all 7 acceptance criteria against actual code and tests, not against prior handoffs."
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Independently re-verified REQ-034 end to end; did not rely on any prior handoff's narrated verdict. Read docs/agents/design/REQ-034.md in full, `gh issue view 66` for the requirement text/7 ACs, and the real implementation (apps/bot/src/domain/registration.ts, apps/bot/src/handlers/registration.ts, apps/bot/src/i18n/{types,en,ru}.ts) and real test bodies (apps/bot/src/domain/registration.db.test.ts, registration.test.ts, apps/bot/src/handlers/registration.test.ts, my.test.ts) directly rather than summaries.\n\nRe-ran checks myself, all foreground: `npm run lint -w apps/bot` -> clean (eslint, 0 errors/warnings). `npm run build -w apps/bot` -> clean (tsc, 0 errors). `npx vitest run --no-file-parallelism` from repo root -> 37/37 test files, 343/343 tests passed (43.55s), matching TEST-RUNNER's reported count exactly, run once and spot-checked with a second targeted run of registration.db.test.ts alone (all pass, same names). Verified the scratch Postgres container used by the DB-backed suite (bot-postgres-1, port 55432) was actually up, so the DB-gated AC1/AC3/AC4/AC6 cases genuinely executed rather than silently skipping via the file's own dbAvailable guard.\n\nPer-AC independent re-verification against actual code/tests:\n- AC1 (creates admission='requested' row): confirmed in domain/registration.ts -- decideRegistrationOutcome's requiresApproval branch (line ~76) returns {kind:'requested'} (was {kind:'requires-approval'}); registerForEvent's step-7 writing-outcome set now includes 'requested' alongside 'admitted'/'waitlisted'; INSERT/UPDATE writes admission: outcome.kind unchanged. Verified against the real DB test 'REQ-034 AC1/AC5: the persisted row has admission=requested, qr_token NULL, and is the only row for (event,user)' -- passed.\n- AC2 (confirmation states decision timing, matches registration_closes_at, NULL exercises fallback): read handlers/registration.ts's new case 'requested' branch -- composes requestedDecisionByPrefix + formatted registrationClosesAtText when non-null, requestedDecisionByFallback when null, using the same formatDateTimeInTimezone call already used for startsAtText/endsAtText. Confirmed both branches have dedicated test cases in handlers/registration.test.ts (closes-at set / NULL fallback), both passed.\n- AC3 (second request shows current pending status, exactly one row): traced -- the pre-existing 'already-registered' branch (unchanged) renders STATUS_CATALOG_KEY[outcome.admission] for any AdmissionState including 'requested'; row 1 of decideRegistrationOutcome's table plus the pre-existing UNIQUE(event_id,user_id) index prevent a second row. Verified directly via the real DB test 'REQ-034 AC3: a second request against the same approval-gated event reports the existing requested status, still exactly one row' -- passed.\n- AC4 (capacity boundary -- spot-checked in full): read the actual test 'REQ-034 AC4: an approval-gated event already at full capacity still creates a requested row, not waitlisted or a refusal' in registration.db.test.ts. It genuinely fills a capacity-1 event's only seat via a direct INSERT of an 'admitted' row (bypassing registerForEvent, which by design can never itself produce 'admitted' for a requires_approval event), asserts admittedRows.length===1 as fixture sanity, then calls registerForEvent for a second user and asserts outcome.kind==='requested', outcome.qrToken is undefined, and exactly one registrations row exists with admission='requested'. This is real evidence of the capacity boundary, not a same-seats-remaining case. Traced the code path independently: decideRegistrationOutcome's requiresApproval check (row 6) sits before the seatsLeft>0 check (row 7) in the first-match-wins table, so seatsLeft's value (computed unconditionally at step 5) plays no role at all when requiresApproval is true -- structurally correct, matches design section 0.2. Ran this exact test file myself; it passed.\n- AC5 (qr_token NULL, /my shows no QR): confirmed registerForEvent's qrToken ternary (outcome.kind==='admitted' ? generateQrToken() : null) is untouched -- 'requested' already falls into the null branch, same as 'waitlisted' today. Confirmed apps/bot/src/handlers/my.ts has ZERO diff against master (git diff master...feature/WF02-REQ-034 -- apps/bot/src/handlers/my.ts is empty) -- its existing QR gate (admission==='admitted' && qrToken!==null) already structurally excludes 'requested'. my.test.ts's updated case (now covering the 5th 'requested' row) passed.\n- AC6 (audit logging -- spot-checked in full): read the actual test 'writes exactly one audit_log row, action=registration.request, correct actor/entity/entity_id' in registration.db.test.ts. It counts audit_log rows before and after the call (beforeCount/afterCount, asserting afterCount===beforeCount+1), then queries by entityId and asserts exactly one row, action==='registration.request', entity==='registration', actorUserId===userId. Read the real write site in domain/registration.ts: the audit-log action mapping is a three-way ternary (admitted->registration.admit, waitlisted->registration.waitlist, else(requested)->registration.request), written inside the same db.transaction as the INSERT/UPDATE, so both commit or roll back together (S8 preserved). Ran this exact test myself; it passed.\n- AC7 (requires_approval=false unaffected): traced -- rows 1-5 and 7-8 of decideRegistrationOutcome's first-match-wins table are byte-for-byte unchanged from the currently-shipped REQ-020/021 code; row 6 (the only changed row) is unreached whenever requiresApproval is false. Re-ran the pre-existing AC7 audit-log tests for 'admitted' and 'waitlisted' outcomes (unmodified assertions) -- both passed, confirming no regression.\n\nScope discipline confirmed independently via `git diff master...feature/WF02-REQ-034 --stat`: apps/bot/src/handlers/my.ts has NO diff at all (not just 'test additions only' -- zero lines changed). No file under apps/bot/src/db/ or any drizzle/migrations directory appears in the diff -- confirmed no schema/migration change. i18n diff confirmed parity across types.ts/en.ts/ru.ts: refusedRequiresApproval removed, four new registration.* keys (requestedPrefix, requestedDecisionByPrefix, requestedDecisionByFallback, requestedWhatNext) added identically in all three files, matching the design's section 4 exactly. No new NotificationKind or sendLedgeredNotification call site was added (grep of the diff confirms notification.ts is untouched).\n\nVerdict: REQ-034 is ready to merge. All 7 acceptance criteria independently verified true against the actual current code and real, non-trivial test assertions (not mocked/stubbed placeholders). Lint clean, build clean, 343/343 tests passing on a fresh, foreground run from repo root. No scope violations found.",
+    "artifacts_out": [
+      "handoffs/WF02-REQ-034/step-05-release-validator.json"
+    ],
+    "commands_run": [
+      "git status && git log --oneline -5 && git branch -a",
+      "gh issue view 66",
+      "npm run lint -w apps/bot",
+      "npm run build -w apps/bot",
+      "npx vitest run --no-file-parallelism (repo root)",
+      "npx vitest run --no-file-parallelism --reporter=verbose apps/bot/src/domain/registration.db.test.ts",
+      "git diff master...feature/WF02-REQ-034 --stat",
+      "git diff master...feature/WF02-REQ-034 -- apps/bot/src/db/ apps/bot/drizzle apps/bot/migrations",
+      "git diff master...feature/WF02-REQ-034 -- apps/bot/src/i18n/types.ts apps/bot/src/i18n/en.ts apps/bot/src/i18n/ru.ts",
+      "docker ps (confirmed bot-postgres-1 on port 55432 up, so DB-gated tests genuinely ran)"
+    ],
+    "issues": [],
+    "next_action": "Route to DOC-UPDATER (Step 6)"
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": [
+    {
+      "step": "05",
+      "agent": "RELEASE-VALIDATOR",
+      "verdict": "PASS",
+      "at": "2026-09-08T08:11:34Z"
+    }
+  ]
+}

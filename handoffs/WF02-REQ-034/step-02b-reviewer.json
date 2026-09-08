@@ -1,0 +1,61 @@
+{
+  "handoff_id": "step-02b-reviewer",
+  "run_id": "WF02-REQ-034",
+  "workflow_id": "WF-02",
+  "step": "02b",
+  "from_agent": "BACKEND-DEV",
+  "to_agent": "REVIEWER",
+  "file": "handoffs/WF02-REQ-034/step-02b-reviewer.json",
+  "created_at": "2026-09-08T07:51:23Z",
+  "started_at": "2026-09-08T07:51:23Z",
+  "completed_at": "2026-09-08T07:51:23Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-034"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-034.md",
+      "handoffs/WF02-REQ-034/step-02-backend-dev.json",
+      "docs/agents/anti-patterns.md",
+      "docs/agents/instructions/core-directives.md"
+    ],
+    "branch_name": "feature/WF02-REQ-034",
+    "commit_reviewed": "8dce05bd8385d3bf6537da42227f5ef4a67b782e"
+  },
+  "task": {
+    "description": "WF-02 Step 2b (review) for REQ-034 on branch feature/WF02-REQ-034. Verify BACKEND-DEV's implementation against docs/agents/design/REQ-034.md and REQ-034's 7 acceptance criteria (GitHub issue #66).",
+    "acceptance_criteria": [
+      "decideRegistrationOutcome's requiresApproval branch returns { kind: 'requested' } in the same table position (row 6, before seatsLeft>0), traced structurally not just read from summary",
+      "requested outcome never touches the seats-remaining comparison (AC4)",
+      "registerForEvent's widened writing-outcome set keeps qrToken NULL and writes admission='requested' via the existing write path, no duplicated logic",
+      "composeRegistrationReply's 'requested' branch is a direct ctx.reply, not sendLedgeredNotification",
+      "'requires-approval' kind and refusedRequiresApproval key are fully dead -- no remaining references anywhere",
+      "AC2 fallback string does not fabricate data beyond what dateTimeText already shows",
+      "AC6: 'registration.request' audit action reuses the same atomic writeAuditLog call inside the same transaction as admitted/waitlisted, not a separate write",
+      "the two updated pre-existing tests reflect the NEW designed behavior, not weakened to force a pass",
+      "zero changes to handlers/my.ts or the event-card render path",
+      "lint/build/tests re-run independently by REVIEWER, not trusted from BACKEND-DEV's report"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Read git diff master...HEAD directly (12 files: 5 apps/bot source files, 2 test files, 3 i18n files, plus expected design/handoff bookkeeping -- docs/agents/design/REQ-034.md and this run's step-00/01/01b/02 handoffs). Traced decideRegistrationOutcome's actual diff in apps/bot/src/domain/registration.ts: the requiresApproval branch (line ~75) changed only its return literal from { kind: 'requires-approval' } to { kind: 'requested' }; the surrounding if-chain is untouched, so row 6 still sits between the requires-invite check (row 5) and the `if (input.seatsLeft > 0)` check (row 7) with a `return` in between -- the requested path structurally returns before line evaluating seatsLeft is ever reached, matching design §1/§0.2 exactly, not merely re-stating the summary's claim. registerForEvent's step-7 guard changed from `outcome.kind !== 'admitted' && outcome.kind !== 'waitlisted'` to also exclude 'requested', so a requested outcome now falls through to the same INSERT/UPDATE and qrToken-ternary code every other writing outcome uses -- the qrToken line and the `admission: outcome.kind` write were not touched at all (confirmed by diff: zero lines changed there), so qrToken stays whatever the existing ternary already produces (null, since it only special-cases 'admitted') and admission is written from the same outcome.kind field. The audit action mapping became a 3-way nested ternary inside the SAME writeAuditLog(tx, ...) call already used for admitted/waitlisted -- same tx parameter, same call site, no new write call added; this satisfies AC6's exactly-one-row structurally (one INSERT/UPDATE, one writeAuditLog call, same transaction, unconditionally). Confirmed by grep across apps/bot/src that 'requires-approval' (the RegistrationOutcome kind) and refusedRequiresApproval (the i18n key) have zero remaining references anywhere in the codebase -- only the unrelated requiresApproval boolean field (Event.requiresApproval, an existing DB column/domain field) remains, which is expected and out of scope. The 'requires-approval' switch case in composeRegistrationReply was removed and replaced by a 'requested' case; confirmed by direct read that this case builds its reply with a plain array push + ctx.reply (handlers/registration.ts's existing direct-send call, same one used for admitted/waitlisted/already-registered) -- no sendLedgeredNotification or NotificationKind reference appears anywhere in the diff, matching design §0.4. AC2 fallback ('You'll hear back before the event starts.') introduces no new date/data -- it relies on dateTimeText (already always present on the requested branch, itself the event's start/end time) rather than asserting any new fact, matching the design's own stated reasoning in §3.3. Read both updated tests directly, not just BACKEND-DEV's description: registration.test.ts's row-6 test changed its expectation from { kind: 'requires-approval' } to { kind: 'requested' } with identical input (requiresApproval: true, seatsLeft: 5) -- an equality tightening, not a loosening (still exact-equals, still asserts the same seatsLeft-present precondition). registration.db.test.ts's second test changed from `expect(outcome).toEqual({ kind: 'requires-approval' })` to `expect(outcome.kind).toBe('requested')` PLUS a new assertion `expect(outcome.qrToken).toBeUndefined()` -- this is a strictly stronger check (adds a QR-token assertion) even though it drops the toEqual's exhaustive shape check; acceptable since RegisterForEventResult's shape includes optional registrationId/qrToken fields not present on the pure-decision outcome type, and the added qrToken assertion is new coverage supporting AC5, not a weakening. Confirmed via git diff --name-only that neither apps/bot/src/handlers/my.ts nor apps/bot/src/handlers/start.ts appear in the diff at all -- the 'zero changes' claim holds. No new npm workspace, no build-output/script change -- Dockerfile verification (role's item 7) does not apply; skipped correctly. Checked apps/bot-specific reviewer rules: domain logic (decideRegistrationOutcome, registerForEvent, the audit-action mapping) stays entirely inside apps/bot/src/domain/registration.ts, none of it moved into the grammY handler -- handlers/registration.ts's own new code is presentation-only (computing a display string, building a reply), consistent with decisions/0004. No now()/current_timestamp introduced -- evaluationTime remains an explicit parameter throughout, unchanged. No migration in this diff -- decisions/0005's SQL-review rule does not apply. Independently re-ran all three checks myself rather than trusting the step-02 handoff's report: `npm run lint -w apps/bot` produced no output (0 errors/warnings); `npm run build -w apps/bot` (tsc -p tsconfig.json) completed with no errors; `npx vitest run --no-file-parallelism` from apps/bot: 74 test files passed (74), 668 tests passed (668) -- matches BACKEND-DEV's reported count exactly, independently reproduced. No design-system violation to check (apps/bot has no visual/CSS surface -- this is a backend-only bot change). No anti-pattern from docs/agents/anti-patterns.md recurs (result.status values are legal throughout the run's handoffs; timestamps in this handoff were read from the clock via `date -u`). Copy quality: the four new i18n strings (requestedPrefix/requestedDecisionByPrefix/requestedDecisionByFallback/requestedWhatNext) are placeholder-quality per decisions/0002, already flagged as OPEN issues routed to CONTENT-BA in step-02's handoff -- carried forward here, not a blocking finding for this gate. No scope creep found: the diff touches exactly the files the design named (domain/registration.ts, handlers/registration.ts, i18n/{types,en,ru}.ts, the two pre-existing test files) plus expected bookkeeping.",
+    "artifacts_out": [],
+    "issues": [
+      "OPEN, carried forward from step-02 (unchanged): final copy for the four requestedPrefix/requestedDecisionByPrefix/requestedDecisionByFallback/requestedWhatNext catalog keys is placeholder-quality only (en.ts/ru.ts) and needs CONTENT-BA/product-owner review before shipping to real users, per decisions/0002. Non-blocking for this gate -- same status every prior bot requirement's placeholder copy carries at this stage."
+    ],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-034",
+      "commit_sha_reviewed": "8dce05bd8385d3bf6537da42227f5ef4a67b782e",
+      "commands_rerun": [
+        { "command": "npm run lint -w apps/bot", "result": "PASS -- no output" },
+        { "command": "npm run build -w apps/bot", "result": "PASS -- tsc completed with no errors" },
+        { "command": "npx vitest run --no-file-parallelism (from apps/bot)", "result": "PASS -- 74 files / 668 tests passed" }
+      ]
+    },
+    "next_action": "Route to SECURITY-REVIEWER (Step 2c) -- mandatory for apps/bot/** changes."
+  },
+  "rework_count": 0,
+  "max_rework": 3,
+  "gate_history": []
+}

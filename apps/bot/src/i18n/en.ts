@@ -202,7 +202,10 @@ export const en = {
     refusedFinished: "This event has already finished.",
     refusedClosed: "Registration for this event is closed.",
     refusedRequiresInvite: "This event is invite-only.",
-    refusedRequiresApproval: "This event requires organizer approval to register.",
+    requestedPrefix: "Your request has been sent for:",
+    requestedDecisionByPrefix: "You'll hear back by:",
+    requestedDecisionByFallback: "You'll hear back before the event starts.",
+    requestedWhatNext: "What happens next: if approved, you'll get a check-in code.",
   },
   // NEW, REQ-022: /withdraw <event_id>. Placeholder/minimal functional copy
   // per decisions/0002 (CONTENT-BA owns final wording).
