@@ -2012,7 +2012,7 @@ requirements:
   - id: REQ-037
     title: Organizer issues personal, bulk and companion invite codes and sees who has used each
     owner: BACKEND-DEV
-    status: in_progress
+    status: done
     description: >
       Implements USER-STORIES F4 / STORY-DETAILS F4 (Hand out invitations) -- the
       issuing side of PRD FR-5. Sequenced before REQ-038's redemption because a code
