@@ -1,0 +1,45 @@
+{
+  "handoff_id": "step-03-test-designer-rework1",
+  "run_id": "WF02-REQ-038",
+  "workflow_id": "WF-02",
+  "step": "03",
+  "from_agent": "TEST-DESIGNER",
+  "to_agent": "TEST-RUNNER",
+  "file": "handoffs/WF02-REQ-038/step-03-test-designer-rework1.json",
+  "created_at": "2026-09-08T13:30:00Z",
+  "started_at": "2026-09-08T13:15:00Z",
+  "completed_at": "2026-09-08T13:30:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-038"],
+    "artifacts_in": [
+      "handoffs/WF02-REQ-038/step-04-test-runner.json",
+      "docs/agents/test-specs/REQ-038.md",
+      "apps/bot/src/domain/inviteCodeRedeem.db.test.ts",
+      "docs/agents/design/REQ-038.md"
+    ],
+    "branch_name": "feature/WF02-REQ-038"
+  },
+  "task": {
+    "description": "Rework docs/agents/test-specs/REQ-038.md (and the already-committed File 1 test file it specifies verbatim) to fix the MAJOR line-wrap-fragile literal-string assertion TEST-RUNNER's step-04 FAIL filed against AC8's first it(). Pure assertion-robustness fix against unchanged AC coverage -- no new cases, no coverage change, no other test case touched.",
+    "acceptance_criteria": [
+      "AC8's first it() in apps/bot/src/domain/inviteCodeRedeem.db.test.ts no longer breaks on markdown line-wrapping in docs/agents/design/REQ-038.md",
+      "The fix preserves the assertion's actual intent (still requires the full 'resolution (a)...every' phrase, in order, and the 'No column is added to `events`' phrase) rather than weakening or removing the check",
+      "docs/agents/test-specs/REQ-038.md's fenced File 1 source is byte-for-byte identical to the actual committed apps/bot/src/domain/inviteCodeRedeem.db.test.ts",
+      "No other test case (AC1-AC7, AC9-AC11, File 2) is touched",
+      "npm run lint -w apps/bot passes"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Confirmed the root cause directly per TEST-RUNNER's step-04 finding: docs/agents/design/REQ-038.md lines 606-607 read '**This design takes resolution (a): the rule applies uniformly to\\nevery `requires_invite` event**' -- the committed markdown source line-wraps between 'to' and 'every', so the raw file bytes never contain \"resolution (a): the rule applies uniformly to every\" as one contiguous substring (a newline sits where the assertion expected a space). This is a test-fixture fragility -- an assertion too literal against normal line-wrapped prose -- not a real defect: the design doc genuinely states resolution (a) and its reasoning, just soft-wrapped across two lines for readability.\n\nFixed apps/bot/src/domain/inviteCodeRedeem.db.test.ts's AC8 first it() (was line 470/573 depending on file version) by normalizing whitespace before the .includes()-backed toContain checks: `const normalizedDesignText = designText.replace(/\\s+/g, \" \");` then both `expect(normalizedDesignText).toContain(...)` calls run against the normalized text instead of the raw file content. This collapses any run of whitespace -- including the line-wrap newline at issue, and any future rewrap of this prose -- to a single space, so the check is now robust against markdown reflowing while still requiring the exact phrase, in order, contiguous once whitespace is normalized. Chose option (a) from TEST-RUNNER's filed issue (whitespace normalization) over (b) split-substring checks or (c) a shorter wrap-safe substring, per the parent task's explicit preference: it's the most robust against any future rewrap and does not weaken the check's actual intent (still requires the full phrase intact, not just fragments present anywhere in the document).\n\nApplied the identical edit to docs/agents/test-specs/REQ-038.md's File 1 fenced source so the spec and the actual test file stay byte-for-byte in sync (established precedent: REQ-035's step-03-test-designer-rework1.json fixed both the spec and the committed test files together for its baseline-count rework; REQ-037 followed the same pattern). Also added a \"Rework note (rework1)\" paragraph to the spec immediately after the ISS-0014 execution note, documenting the root cause, the fix, and why TEST-DESIGN-VALIDATOR is not being re-run, for anyone reading the spec later -- same convention REQ-035's rework1 used.\n\nVerification performed (I do not run TEST-RUNNER's full protocol -- this is my own confirmation the fix is real, not a substitute for TEST-RUNNER's re-verification):\n  - node -e check: `docs/agents/design/REQ-038.md`'s content with `.replace(/\\s+/g, ' ')` applied contains both `\"resolution (a): the rule applies uniformly to every\"` and \"No column is added to `events`\" -- both true.\n  - npm run lint -w apps/bot: PASS, clean (zero errors/warnings).\n  - Diffed docs/agents/test-specs/REQ-038.md's File 1 fenced ```ts block against apps/bot/src/domain/inviteCodeRedeem.db.test.ts's actual content around the AC8 describe block: identical.\n\nDid NOT touch: apps/bot/src/handlers/redeem.db.test.ts (File 2, unaffected -- no design-doc literal-string assertions in it), any other describe block in File 1 (AC2-AC7, AC9-AC11 all untouched), or the design doc itself (docs/agents/design/REQ-038.md's prose is correct as committed; this was a test-fixture fix, not a design-doc fix, consistent with the parent task's explicit instruction not to touch the design doc).\n\nTEST-DESIGN-VALIDATOR gate: NOT re-run. This is a pure test-assertion robustness fix with no coverage change -- AC8 still verifies the exact same two facts (resolution (a) is stated in the design doc; no `events` column is added) via the exact same two toContain assertions, now correctly immune to markdown line-wrapping. No case gained or lost, no invariant changed, no new surface introduced. Same precedent as REQ-035's rework1, which also skipped a TEST-DESIGN-VALIDATOR re-run for an assertion-value/robustness fix within already-validated case structure.",
+    "artifacts_out": [
+      "docs/agents/test-specs/REQ-038.md",
+      "apps/bot/src/domain/inviteCodeRedeem.db.test.ts",
+      "handoffs/WF02-REQ-038/step-03-test-designer-rework1.json"
+    ],
+    "issues": [],
+    "next_action": "Route to TEST-RUNNER for re-verification: re-run npm run lint -w apps/bot, npm run build -w apps/bot, and the full vitest suite with --no-file-parallelism (from repo root) at least twice, plus the isolated third run of the AC4 concurrency file per WF-02 Step 4's standing protocol. Expect 405/405 tests passing (44/44 files), including AC8's now-fixed first it(). Do NOT route to RELEASE-VALIDATOR until TEST-RUNNER confirms a clean PASS."
+  }
+}

@@ -467,8 +467,15 @@ describe("AC8 -- design artefact states the FR-4 resolution; no new events colum
     const repoRoot = join(import.meta.dirname, "..", "..", "..", "..");
     const designPath = join(repoRoot, "docs", "agents", "design", "REQ-038.md");
     const designText = readFileSync(designPath, "utf8");
-    expect(designText).toContain("resolution (a): the rule applies uniformly to every");
-    expect(designText).toContain("No column is added to `events`");
+    // Normalize whitespace before the substring check so a markdown
+    // line-wrap in the prose (this exact phrase wraps between "to" and
+    // "every" in the committed source) can never break this assertion --
+    // robust against any future rewrapping without weakening the check's
+    // intent (still requires the full phrase, in order, contiguous once
+    // wrapping is collapsed).
+    const normalizedDesignText = designText.replace(/\s+/g, " ");
+    expect(normalizedDesignText).toContain("resolution (a): the rule applies uniformly to every");
+    expect(normalizedDesignText).toContain("No column is added to `events`");
   });
 
   it("static: schema.ts's events table definition carries no eligibility/returning-flag column", () => {
