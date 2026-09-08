@@ -411,4 +411,46 @@ export interface Catalog {
     notYours: string;
     refLinePrefix: string;
   };
+  // NEW, REQ-035 (docs/agents/design/REQ-035.md §7): the organizer's
+  // approve/reject surface for pending requests (/requests <event_id>).
+  // Placeholder/minimal functional copy per decisions/0002 (CONTENT-BA owns
+  // final wording). The reject onward-path line reuses
+  // catalog.event.deepLinkSeeUpcoming unchanged -- no new key for it (§0.4).
+  organizerRequests: {
+    usageNoId: string;
+    notAuthorized: string;
+    eventNotFound: string;
+    // Interpolated with {event}, {count} (total pending requests).
+    listHeader: string;
+    listEmpty: string;
+    searchNoMatches: string;
+    // Footer line on every render, restating "/requests <event_id> <name>".
+    searchHint: string;
+    // Shown when an approve/reject/open action targets a registration that
+    // is no longer 'requested' (already decided elsewhere, or not found).
+    noLongerPending: string;
+    // The detail view's fixed label for registrations.source.
+    detailSourceLabel: string;
+    // Interpolated with {admittedCount}, {capacity} (AC4).
+    overrideConfirmPrompt: string;
+    overrideConfirmButton: string;
+    overrideCancelButton: string;
+    // Shown after the Cancel/dismiss button -- AC4's "leaves admission=
+    // 'requested' unchanged" path, confirmed to the organizer with a toast.
+    overrideCancelledNote: string;
+    approveButton: string;
+    rejectButton: string;
+    rejectReasonPrompt: string;
+    // Sent to the REGISTRANT on approval (AC1). Interpolated with {event}.
+    approvedNotification: string;
+    approvedReplyToOrganizer: string;
+    // Sent to the REGISTRANT on rejection (AC2). Interpolated with {event}.
+    // The onward path (catalog.event.deepLinkSeeUpcoming) and the reason
+    // line (rejectedNotificationReasonPrefix + the organizer's verbatim
+    // text) are both always appended by the caller, never part of this
+    // string itself.
+    rejectedNotificationPrefix: string;
+    rejectedNotificationReasonPrefix: string;
+    rejectedReplyToOrganizer: string;
+  };
 }

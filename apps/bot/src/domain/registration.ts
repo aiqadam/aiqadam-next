@@ -7,6 +7,7 @@ import { getCatalog } from "../i18n/catalog.js";
 import { writeAuditLog } from "./auditLog.js";
 import {
   computeSeatsLeft,
+  countAdmittedRegistrations,
   getPendingSource,
   isAutoPromotionHalted,
   isFinished,
@@ -1566,5 +1567,340 @@ export async function overrideAdmitAndCheckIn(
     });
 
     return { ...outcome, eventId: row.eventId };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-035.md §1 — listPendingRequestsForOrganizer: the
+// organizer-facing pending-request list (F3's "Decide who comes in"). Mirrors
+// listAdmittedRegistrantsForCheckin's shape exactly (REQ-028 §2.1): same
+// plain-SELECT-then-map convention, same structural exclusion of
+// profiles.phone/profiles.email (S3) -- those two columns never appear in
+// this query's own select clause.
+// ---------------------------------------------------------------------------
+export interface PendingRequestListItem {
+  registrationId: string;
+  userId: string;
+  displayName: string;
+  company: string | null;
+  position: string | null;
+  isStudent: boolean | null;
+  source: string;
+  createdAt: Date;
+}
+
+export async function listPendingRequestsForOrganizer(
+  db: DbClient["db"],
+  eventId: string,
+  lang: BotLang,
+): Promise<PendingRequestListItem[]> {
+  const noNameFallback = getCatalog(lang).checkin.noNameFallback;
+
+  const rows = await db
+    .select({
+      registrationId: registrations.id,
+      userId: registrations.userId,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      tgUsername: users.tgUsername,
+      company: profiles.company,
+      position: profiles.position,
+      isStudent: profiles.isStudent,
+      source: registrations.source,
+      createdAt: registrations.createdAt,
+    })
+    .from(registrations)
+    .leftJoin(profiles, eq(profiles.userId, registrations.userId))
+    .innerJoin(users, eq(users.id, registrations.userId))
+    .where(and(eq(registrations.eventId, eventId), eq(registrations.admission, "requested")))
+    .orderBy(asc(registrations.createdAt));
+
+  return rows.map((row) => ({
+    registrationId: row.registrationId,
+    userId: row.userId,
+    displayName: deriveCheckinDisplayName(row.firstName, row.lastName, row.tgUsername, noNameFallback),
+    company: row.company,
+    position: row.position,
+    isStudent: row.isStudent,
+    source: row.source,
+    createdAt: row.createdAt,
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-035.md §1 -- getPendingRequestForOrganizer: the
+// single-row read the detail view (design §6.2) needs. Same S3-safe select
+// shape as listPendingRequestsForOrganizer above (no phone/email); returns
+// null when the row does not exist OR is no longer 'requested' -- the same
+// "already decided" refusal every handler in this design treats identically
+// (design §6.2/§6.3 step 3/§6.4 step 4's "no longer pending" outcome).
+// ---------------------------------------------------------------------------
+export async function getPendingRequestForOrganizer(
+  db: DbClient["db"],
+  registrationId: string,
+  lang: BotLang,
+): Promise<PendingRequestListItem | null> {
+  const noNameFallback = getCatalog(lang).checkin.noNameFallback;
+
+  const rows = await db
+    .select({
+      registrationId: registrations.id,
+      userId: registrations.userId,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      tgUsername: users.tgUsername,
+      company: profiles.company,
+      position: profiles.position,
+      isStudent: profiles.isStudent,
+      source: registrations.source,
+      createdAt: registrations.createdAt,
+      admission: registrations.admission,
+    })
+    .from(registrations)
+    .leftJoin(profiles, eq(profiles.userId, registrations.userId))
+    .innerJoin(users, eq(users.id, registrations.userId))
+    .where(eq(registrations.id, registrationId))
+    .limit(1);
+
+  const row = rows[0];
+  if (row === undefined || row.admission !== "requested") {
+    return null;
+  }
+  return {
+    registrationId: row.registrationId,
+    userId: row.userId,
+    displayName: deriveCheckinDisplayName(row.firstName, row.lastName, row.tgUsername, noNameFallback),
+    company: row.company,
+    position: row.position,
+    isStudent: row.isStudent,
+    source: row.source,
+    createdAt: row.createdAt,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-035.md §2 -- decideApprovalOutcome: pure,
+// first-match-wins table, no I/O. Structural copy of decideWalkinOutcome's
+// (domain/walkin.ts) override-threading shape (§0.1/§0.2 of the design),
+// narrowed to a "approve a requested row" decision that never touches
+// checkedInAt/checkedInBy/checkInMethod (unlike REQ-029's
+// decideOverrideOutcome, which has no capacity/seatsLeft input at all --
+// deliberately NOT reused here, per the design's own traced distinction).
+// ---------------------------------------------------------------------------
+export interface ApprovalDecisionInput {
+  registrationExists: boolean;
+  admission: AdmissionState | null;
+  seatsLeft: number;
+  overrideConfirmed: boolean;
+}
+
+export type ApprovalOutcome =
+  | { kind: "not-found" }
+  | { kind: "not-requested"; admission: AdmissionState }
+  | { kind: "needs-override-confirmation" }
+  | { kind: "approve" }
+  | { kind: "approve-override" };
+
+// §2's first-match-wins table, implemented in the exact stated order.
+export function decideApprovalOutcome(input: ApprovalDecisionInput): ApprovalOutcome {
+  if (!input.registrationExists) {
+    return { kind: "not-found" };
+  }
+  const admission = input.admission as AdmissionState;
+  if (admission !== "requested") {
+    return { kind: "not-requested", admission };
+  }
+  if (input.seatsLeft > 0) {
+    return { kind: "approve" };
+  }
+  if (input.overrideConfirmed) {
+    return { kind: "approve-override" };
+  }
+  return { kind: "needs-override-confirmation" };
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-035.md §3 -- approveRequest: the transactional
+// write. Reuses the exact SELECT ... FOR UPDATE row-lock-on-events + fresh
+// in-transaction admitted-count re-read pattern commitWalkin (domain/
+// walkin.ts) and registerForEvent/promoteFromWaitlistIfEligible (above, this
+// file) already establish (AC5's concurrency guarantee: two concurrent
+// approvals for the last seat cannot both observe seatsLeft > 0, since the
+// second transaction's events-row FOR UPDATE blocks until the first commits).
+// The registration row is ALSO locked first (step 1), so two concurrent
+// approve attempts against the SAME registration serialize too, not only two
+// approvals of different registrations against the same event.
+// ---------------------------------------------------------------------------
+export type ApproveRequestResult = ApprovalOutcome & {
+  eventId?: string;
+  userId?: string;
+  qrToken?: string;
+};
+
+export async function approveRequest(
+  db: DbClient["db"],
+  registrationId: string,
+  organizerUserId: string,
+  overrideConfirmed: boolean,
+  at: Date,
+): Promise<ApproveRequestResult> {
+  return db.transaction(async (tx) => {
+    // §3 step 1 -- lock the registration row.
+    const regRows = await tx
+      .select({
+        id: registrations.id,
+        eventId: registrations.eventId,
+        userId: registrations.userId,
+        admission: registrations.admission,
+      })
+      .from(registrations)
+      .where(eq(registrations.id, registrationId))
+      .for("update");
+    const reg = regRows[0];
+
+    if (reg === undefined) {
+      // §3 step 2 -- no event lock needed when the registration itself is
+      // not found (design's own stated shortcut).
+      return decideApprovalOutcome({
+        registrationExists: false,
+        admission: null,
+        seatsLeft: 0,
+        overrideConfirmed,
+      });
+    }
+
+    // §3 step 2 -- lock the events row, the same serialization point
+    // registerForEvent/promoteFromWaitlistIfEligible/commitWalkin already use.
+    const eventRows = await tx
+      .select({ id: events.id, capacity: events.capacity })
+      .from(events)
+      .where(eq(events.id, reg.eventId))
+      .for("update");
+    const event = eventRows[0];
+    if (event === undefined) {
+      // Defensive/unreachable: a registration's eventId always references an
+      // existing events row (no cascading delete anywhere in this schema).
+      return { kind: "not-found" };
+    }
+
+    // §3 step 3 -- fresh admitted count inside this same transaction.
+    const admittedCount = await countAdmittedRegistrations(tx, reg.eventId);
+    // §3 step 4.
+    const seatsLeft = computeSeatsLeft(event.capacity ?? 0, admittedCount);
+
+    // §3 step 5 -- decide (pure).
+    const outcome = decideApprovalOutcome({
+      registrationExists: true,
+      admission: reg.admission as AdmissionState,
+      seatsLeft,
+      overrideConfirmed,
+    });
+
+    // §3 step 6 -- every non-writing outcome returns unchanged: no write, no
+    // audit row.
+    if (
+      outcome.kind === "not-found" ||
+      outcome.kind === "not-requested" ||
+      outcome.kind === "needs-override-confirmation"
+    ) {
+      return { ...outcome, eventId: reg.eventId };
+    }
+
+    // §3 step 7 -- the two writing branches ("approve" / "approve-override").
+    const qrToken = generateQrToken();
+    await tx
+      .update(registrations)
+      .set({ admission: "admitted", qrToken })
+      .where(eq(registrations.id, reg.id));
+
+    const auditAction = outcome.kind === "approve" ? "registration.approve" : "registration.approve_override";
+    await writeAuditLog(tx, {
+      actorUserId: organizerUserId,
+      action: auditAction,
+      entity: "registration",
+      entityId: reg.id,
+      payload: { eventId: reg.eventId },
+      at,
+    });
+
+    // §3 step 8.
+    return { ...outcome, eventId: reg.eventId, userId: reg.userId, qrToken };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-035.md §4.1 -- decideRejectionOutcome: pure,
+// first-match-wins table, no I/O. No capacity input at all -- rejecting
+// never touches seatsLeft (a rejected request never consumed a seat).
+// ---------------------------------------------------------------------------
+export interface RejectionDecisionInput {
+  registrationExists: boolean;
+  admission: AdmissionState | null;
+}
+
+export type RejectionOutcome =
+  | { kind: "not-found" }
+  | { kind: "not-requested"; admission: AdmissionState }
+  | { kind: "reject" };
+
+export function decideRejectionOutcome(input: RejectionDecisionInput): RejectionOutcome {
+  if (!input.registrationExists) {
+    return { kind: "not-found" };
+  }
+  const admission = input.admission as AdmissionState;
+  if (admission !== "requested") {
+    return { kind: "not-requested", admission };
+  }
+  return { kind: "reject" };
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-035.md §4.2 -- rejectRequest: the transactional
+// write. `reason` is stored ONLY in audit_log.payload and (by the caller,
+// after this commits) the notification text -- no AC requires a stored,
+// queryable rejection-reason column, and registrations.noShowReason is a
+// different, unrelated concept (REQ-032) -- design's own Open Question 1.
+// ---------------------------------------------------------------------------
+export async function rejectRequest(
+  db: DbClient["db"],
+  registrationId: string,
+  organizerUserId: string,
+  reason: string,
+  at: Date,
+): Promise<RejectionOutcome & { eventId?: string; userId?: string }> {
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .select({
+        id: registrations.id,
+        eventId: registrations.eventId,
+        userId: registrations.userId,
+        admission: registrations.admission,
+      })
+      .from(registrations)
+      .where(eq(registrations.id, registrationId))
+      .for("update");
+    const row = rows[0];
+
+    const outcome = decideRejectionOutcome({
+      registrationExists: row !== undefined,
+      admission: (row?.admission as AdmissionState | undefined) ?? null,
+    });
+
+    if (outcome.kind !== "reject" || row === undefined) {
+      return outcome;
+    }
+
+    await tx.update(registrations).set({ admission: "rejected" }).where(eq(registrations.id, row.id));
+
+    await writeAuditLog(tx, {
+      actorUserId: organizerUserId,
+      action: "registration.reject",
+      entity: "registration",
+      entityId: row.id,
+      payload: { eventId: row.eventId, reason },
+      at,
+    });
+
+    return { kind: "reject", eventId: row.eventId, userId: row.userId };
   });
 }
