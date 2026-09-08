@@ -1,0 +1,50 @@
+{
+  "handoff_id": "step-03b-test-design-validator",
+  "run_id": "WF02-REQ-039",
+  "workflow_id": "WF-02",
+  "step": "03b",
+  "from_agent": "TEST-DESIGN-VALIDATOR",
+  "to_agent": "ORCH",
+  "file": "handoffs/WF02-REQ-039/step-03b-test-design-validator.json",
+  "created_at": "2026-09-08T14:18:59Z",
+  "started_at": "2026-09-08T14:18:59Z",
+  "completed_at": "2026-09-08T14:18:59Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-039"],
+    "related_handoff_ids": [
+      "handoffs/WF02-REQ-039/step-03-test-designer.json",
+      "handoffs/WF02-REQ-039/step-02c-security-reviewer.json"
+    ],
+    "artifacts_in": [
+      "docs/agents/test-specs/REQ-039.md",
+      "docs/agents/design/REQ-039.md",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/profile.ts",
+      "apps/bot/src/handlers/start.ts",
+      "apps/bot/src/handlers/companion.ts",
+      "apps/bot/src/db/schema.ts"
+    ],
+    "branch_name": "feature/WF02-REQ-039",
+    "commit_reviewed": "4a621ba"
+  },
+  "task": {
+    "description": "WF-02 Step 3b (test design gate) for REQ-039: verify docs/agents/test-specs/REQ-039.md against GitHub issue #71's 9 acceptance criteria and the actual apps/bot implementation.",
+    "acceptance_criteria": [
+      "Every AC has >= 1 verification case",
+      "No TODO left in the spec",
+      "Each case is precise and mechanically runnable, no judgment calls",
+      "Cases exercise real, existing functions/signatures, not invented ones"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Read docs/agents/test-specs/REQ-039.md in full independently (not TEST-DESIGNER's result.summary), cross-checked against GitHub issue #71's 9 ACs (gh issue view 71), docs/agents/design/REQ-039.md post-rework, step-02c-security-reviewer.json, and the actual current source (apps/bot/src/domain/inviteCode.ts, profile.ts, handlers/companion.ts, handlers/start.ts, db/schema.ts, drizzle migrations). All checks pass:\n\n1) AC-to-case coverage: every one of the 9 ACs has >=1 concrete verification case (AC-to-case map at the top of the spec, cross-checked case by case against the actual describe/it blocks in both files) -- no gap.\n2) No TODO anywhere in the spec (grep -in TODO returned nothing).\n3) Every case is mechanically precise: exact function calls, exact tg_id values, exact expected outcome.kind/row fields/message content -- no 'check it looks right' language anywhere.\n4) Function/signature accuracy verified against real source, not assumed: redeemInviteCode(db, redeemerUserId, rawCode, explicitEventId, evaluationTime, companionProfile) at inviteCode.ts:626 matches every call in the spec exactly (companionProfile as 6th positional arg, {name,company,phone} shape). issueCompanionInviteCode(db, actorUserId, eventId, hostUserId, expiresAt, at) at inviteCode.ts:280 matches. getInviteCodeById returns {maxUses, usedCount, ...} (inviteCode.ts:405-424) matching spec's .maxUses/.usedCount assertions. profiles table (schema.ts:107-137) has exactly the columns the spec asserts null/non-null on (firstName, company, phone, email, position, isStudent, experienceLevel, linksGithub, linksLinkedin, linksSite) -- exact names, exact set. auditLog table (schema.ts:472-487) has action/entity/entityId/payload/actorUserId matching AC8/AC9's assertions. Exported handler factory names (makeCompanionTextReplyHandler, makeCompanionConfirmCallbackHandler, makeCompanionCancelCallbackHandler in companion.ts; makeStartHandler, makeConsentCallbackHandler in start.ts) and COMPANION_CONFIRM_PATTERN/COMPANION_CANCEL_CALLBACK constants all match File 2's imports exactly.\n5) tg_id ranges: grep -rn 'let nextTgId' apps/bot/src confirms the highest pre-existing band is 1_051_000_000 (handlers/redeem.db.test.ts); the spec's 1_061_000_000+/1_062_000_000+ bands sit >=10,000,000 above every existing band (27 existing test files enumerated) -- genuinely fresh, no collision.\n6) AC2's static case verified against real files: apps/bot/drizzle/*.sql grepped directly -- only 0007_sturdy_network.sql (the pre-existing REQ-037 migration) contains 'companion', zero files contain 'referral' -- exactly what the spec's companionHits/referralHits assertions expect.\n7) AC3 scope-correction soundness (the requested focus point) -- CONFIRMED SOUND, not weakened: read apps/bot/src/db/schema.ts's users table definition directly (lines 57-77). It has exactly tgId/tgUsername/lang/role/chapterId/broadcastOptIn/consentPdAt(+version) -- no name, no phone, no company, no email column exists on `users` at all. There is structurally nowhere on that table for PII to land, so a literal 'zero new users rows' reading (violated by the pre-existing, requirement-independent REQ-014 resolveOrCreateUser bare-row insert on every /start) would fail on a table that cannot carry the PII S1 protects. The spec's corrected check -- zero new `profiles` rows, zero new `registrations` rows, and the baseline `users` row's consentPdAt/chapterId asserted null -- captures the exact S1 property (no PII stored before consent) without weakening it, since profiles is the only table any of this guest's PII could ever reach and its row count is asserted zero in both AC3 test cases (handlers/companion.db.test.ts lines ~780-832). This matches SECURITY-REVIEWER's own step-02c note verbatim in reasoning and scope. Verdict: sound correction, not a loophole.\n8) Returning-guest fix's test case (spec lines ~950-1002, 'AC7' describe block, and lines ~1056-1091 the dedicated 'Returning guest' describe block): confirmed the test genuinely (a) inserts a pre-existing `profiles` row for the guest via db.insert(profiles).values(...) BEFORE the /start i_<code> update is dispatched -- a real pre-existing Profile row, not a mock; (b) asserts field-collection is skipped by checking sentTexts.length === 1 and that the single message does NOT match /Name \\| Company \\| Phone/i (the exact catalog prompt text confirmed present verbatim in apps/bot/src/i18n/en.ts:385); (c) asserts row.invitedByUserId === host.id on the resulting registration; (d) asserts the host was notified exactly once (sent.length === 1). Cross-checked against the real implementation: handlers/start.ts:236-238's existingProfile check and its unconditional invitedByUserId: codeRow.grantsCompanionOf write at inviteCode.ts:809/824, plus the direct sendCompanionHostNotification call at start.ts:293 -- all three properties are genuinely exercised, not assumed.\n9) AC7's S3 check: confirmed the test (handlers/companion.db.test.ts 'AC7' describe, ~950-1002) constructs a guest with BOTH phone (+998909998877) and email (returning.guest@example.com) actually stored via a direct profiles insert, then greps hostMessage (sent[0].text, the real captured NotificationSender payload) for both exact string values with .not.toContain -- not a 'doesn't crash' check. Cross-checked getCompanionDisplayData (inviteCode.ts:1043-1070, independently re-read) selects only firstName/lastName/tgUsername/company -- structurally cannot carry phone/email -- confirming the test targets a real, non-trivial property.\n10) AC6 (single-use): File 1's domain-level case (companionRedeem.db.test.ts 'AC6') genuinely sets up issueCompanionInviteCode (which hard-codes maxUses:1, confirmed at inviteCode.ts:280-299), asserts issuedRow.maxUses === 1, redeems once (guestA, admitted, usedCount -> 1), then attempts a second redemption (guestB) and asserts outcome.kind === 'invite-code-spent', zero registration, zero profile, usedCount unchanged. File 2's handler-level case additionally drives guestB through the FULL conversation (consent, field reply, confirm tap) confirming the refusal surfaces correctly at the UX layer and the host is notified only once overall. Both are genuine, not shortcuts.\n11) AC5 (full-capacity waitlist): confirmed the test constructs capacity 1, fills the sole seat with a plain registerForEvent call (asserted admitted), then redeems the companion code and asserts outcome.kind === 'waitlisted' and row.admission === 'waitlisted' (not 'admitted') -- genuine full-capacity construction, cross-checked against decideRegistrationOutcome being unchanged/shared (confirmed via security reviewer's own capacity_S7_spirit finding and the design's §5 section, and independently by inviteCode.ts's redeemInviteCode calling decideRegistrationOutcome with the same seatsLeft/inviteSatisfied:true shape as every other code kind).\n12) AC4 (reduced field set): confirmed the test's assertion at companion.db.test.ts ~883-888 checks the ENTIRE captured conversation transcript (all sendMessage/editMessageText payloads joined, lowercased) against /experience|student|github|linkedin|portfolio|website link/ with .not.toMatch -- not merely confirming name/phone/company were collected, this actively searches for the excluded fields across every message sent during the flow, which is the correct, stronger verification AC4 demands.\n\nNo weakened, vague, or non-mechanical case found anywhere in the spec. All 9 ACs are covered by cases that would genuinely fail if the property under test were violated, and every function/table/field reference matches the real, current implementation on this branch at commit 4a621ba.",
+    "artifacts_out": [
+      "handoffs/WF02-REQ-039/step-03b-test-design-validator.json"
+    ],
+    "issues": []
+  },
+  "next_action": "Route to TEST-RUNNER (Step 4)"
+}

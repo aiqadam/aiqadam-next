@@ -1,0 +1,41 @@
+id: ISS-0032
+title: "A companion invite code redeemed via typed /redeem (not the i_ deep link) skips field-collection and host notification for a returning, profile-less guest"
+severity: MINOR
+status: open
+discovered_by: REVIEWER
+discovered_during: WF02-REQ-039
+discovered_at: "2026-09-08"
+area: apps/bot invite-code redemption (companion codes)
+description: >
+  REQ-039 (companion +1 registration) is explicitly scoped to the `i_<code>`
+  deep-link entry point only -- unlike REQ-038 (personal/bulk codes), whose own
+  text and ACs require BOTH the deep link and the typed `/redeem <event_id>
+  <code>` command to work identically. REQ-039's own requirement text (GitHub
+  issue #71) narrates only "the guest opens it" (the link), never mentions
+  `/redeem`, and none of its 9 ACs specify a `/redeem` verification path. The
+  approved, gated design independently scoped itself the same way.
+
+  Consequence, traced during REQ-039's REVIEWER pass: an already-consented
+  Telegram user with no existing `profiles` row who types `/redeem <event_id>
+  <code>` directly with a companion code bypasses the reduced-field
+  collection flow AND the host "your guest is coming" notification --
+  falling through to the same path a returning guest takes via the deep
+  link (skip-and-redeem-immediately, since `redeemInviteCode` cannot tell
+  "no profile because never collected" apart from "no profile because typed
+  the command directly" without a UI-level signal). The registration itself
+  still succeeds and still carries the correct `invited_by_user_id`
+  attribution -- only the profile-collection UX and the host notification
+  are skipped for this one narrow path.
+not_fixed_because: >
+  This is a genuine gap between the FULL companion experience (guided
+  collection, host told) and the typed-command shortcut, but it requires a
+  net-new requirement decision (should `/redeem` support companion codes at
+  all, and if so, should it prompt for fields inline the way the deep-link
+  flow does?) rather than a code fix within REQ-039's already-approved,
+  already-gated scope. REQ-039's own text and ACs deliberately did not ask
+  for this; inventing it now would be scope creep past what was gated.
+affected_files:
+  - apps/bot/src/handlers/start.ts
+  - apps/bot/src/handlers/companion.ts
+  - apps/bot/src/domain/inviteCode.ts
+status: open

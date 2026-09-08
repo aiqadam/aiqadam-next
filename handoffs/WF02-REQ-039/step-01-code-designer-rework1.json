@@ -1,0 +1,56 @@
+{
+  "handoff_id": "step-01-code-designer-rework1",
+  "run_id": "WF02-REQ-039",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "CODE-DESIGNER",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "file": "handoffs/WF02-REQ-039/step-01-code-designer-rework1.json",
+  "created_at": "2026-09-08T00:00:00Z",
+  "started_at": "2026-09-08T00:00:00Z",
+  "completed_at": "2026-09-08T00:00:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-039"],
+    "requirement_text": {
+      "REQ-039": "GitHub issue #71. Companion (+1) registration through a companion code, with consent before storage and invited_by_user_id attribution. A code with grants_companion_of = X sets registrations.invited_by_user_id = X, one field for both mechanic and referral reporting, no schema change. The companion completes NAME, PHONE, COMPANY only, reusing REQ-030's reduced-field pattern. Consent before storage is the security-critical property. Companions occupy a normal seat, waitlisted like anyone else when full. One use unless the organizer overrides max_uses. Both guest and host are notified once each, transactionally; host notification carries name+company only, never phone/email (S3)."
+    },
+    "source_text": { "github_issue": "#71" },
+    "related_handoff_ids": [
+      "handoffs/WF02-REQ-039/step-01-code-designer.json",
+      "handoffs/WF02-REQ-039/step-01b-code-design-validator.json"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/REQ-039.md",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/profile.ts",
+      "apps/bot/src/domain/user.ts",
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/src/handlers/start.ts",
+      "apps/bot/src/domain/notification.ts",
+      "docs/agents/instructions/security-invariants.md"
+    ],
+    "branch_name": "feature/WF02-REQ-039"
+  },
+  "task": {
+    "description": "Rework iteration 1 of REQ-039's design in response to CODE-DESIGN-VALIDATOR's BLOCKER (handoffs/WF02-REQ-039/step-01b-code-design-validator.json): the design's own Open Question 1 (a returning bot user handed a companion code hits profiles_user_id_unique via createWalkinProfile's plain INSERT, since a companion code's issuedToUserId is always null so validateInviteCodeForRedemption's identity check never fires) was left unresolved with two undecided options. Read apps/bot/src/domain/profile.ts and apps/bot/src/domain/user.ts to confirm the exact existing function for 'does this user already have a profiles row' -- getProfileByUserId(db, userId): Promise<ProfileRecord | null>, already exported, already used by REQ-019's own resumability logic. Chose and concretely specified Option A (skip-and-redeem-immediately), not Option B (collect-and-UPDATE), for the stated reasons below.",
+    "acceptance_criteria": [
+      "Pick ONE resolution (not both) and specify it concretely in the design text, not as an open question",
+      "State reasoning for which option is better, verified rather than assumed",
+      "Confirm the resolution does not reopen the pre-consent-write invariant (S1)",
+      "Reflect the resolution in AC1/AC9 of the AC map (§7)",
+      "Touch nothing else in the design"
+    ]
+  },
+  "result": {
+    "status": "SUCCESS",
+    "summary": "docs/agents/design/REQ-039.md updated in four places, everything else left untouched. (1) §0's reused-pieces table gains one row: domain/profile.ts's getProfileByUserId, reused read-only. (2) §2's branch now performs a second read -- existingProfile = await getProfileByUserId(db, flowUser.id), evaluated only when the code is a companion code -- and adds existingProfile === null to the condition for entering the field-collection flow; the else branch (unconditional redeemInviteCode call) now explicitly also covers a returning guest with an existing Profile row, and a new closing paragraph states why this introduces no double-consent-collection risk: hasConsented (checked immediately above, unchanged position) is already true by construction for anyone reaching this branch, whether that became true seconds ago (new guest, just tapped consent:agree) or on a prior visit (returning guest) -- S1 is satisfied identically either way, and this branch only ever changes whether the REDUCED-FIELD PROFILE conversation runs, never whether consent is collected. (3) §5 point 4 is rewritten: chosen resolution is Option A (skip-and-redeem-immediately) as the primary mechanism via §2's existingProfile check, backstopped at the write itself by changing createWalkinProfile's call site for this feature to use .onConflictDoNothing({ target: profiles.userId }) instead of a plain INSERT -- guards the pre-transaction read's staleness (a race between the read and the transaction committing) the same way resolveOrCreateUser's own onConflictDoUpdate on tg_id already guards user-row creation. Option B (collect-and-UPDATE) is explicitly named and rejected: it would let a raced/late field-collection write silently overwrite a returning guest's richer, previously-collected REQ-019 profile data (position/experienceLevel/isStudent/email/links -- fields this reduced flow never asks about) with blanks or stale values; DO NOTHING instead leaves any existing row untouched, at the cost only of a wasted conversation for that one guest, never data loss or a crash. (4) Open Questions #1 is marked RESOLVED (rework 1) with a summary of both the primary mechanism and the backstop, and §7's AC1 and AC9 rows are updated to state the resolution holds identically for the returning-guest branch (invited_by_user_id is set unconditionally in §5 point 3 regardless of companionProfile; exactly one AuditLog row is written whether the Profile INSERT succeeds or no-ops).",
+    "artifacts_out": ["docs/agents/design/REQ-039.md"],
+    "issues": [
+      "Open Questions #2 (re-redemption, not actually open), #3 (function file placement), #4 (callback_data string / catalog copy), #5 (event-title-in-prompt copy) are unchanged from the original design -- CODE-DESIGN-VALIDATOR already ruled these legitimately deferrable to BACKEND-DEV/CONTENT-BA, not blocking, and this rework did not touch them."
+    ]
+  },
+  "rework_count": 1,
+  "max_rework": 3
+}

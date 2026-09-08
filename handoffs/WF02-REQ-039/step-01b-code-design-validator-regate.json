@@ -1,0 +1,64 @@
+{
+  "handoff_id": "step-01b-code-design-validator-regate",
+  "run_id": "WF02-REQ-039",
+  "workflow_id": "WF-02",
+  "step": "01b",
+  "from_agent": "CODE-DESIGN-VALIDATOR",
+  "to_agent": "BACKEND-DEV",
+  "file": "handoffs/WF02-REQ-039/step-01b-code-design-validator-regate.json",
+  "created_at": "2026-09-08T00:00:00Z",
+  "started_at": "2026-09-08T00:00:00Z",
+  "completed_at": "2026-09-08T00:00:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-039"],
+    "requirement_text": {
+      "REQ-039": "GitHub issue #71 (verified by `gh issue view 71`). Companion (+1) registration through a companion code, with consent before storage and invited_by_user_id attribution. A code with grants_companion_of = X sets registrations.invited_by_user_id = X, one field for both mechanic and referral reporting, no schema change. The companion completes NAME, PHONE, COMPANY only, reusing REQ-030's reduced-field pattern. Consent before storage is the security-critical property -- nothing is written before consent_pd_at is set. Companions occupy a normal seat, waitlisted like anyone else when full. One use unless the organizer overrides max_uses. Both guest and host are notified once each, transactionally; host notification carries name+company only, never phone/email (S3)."
+    },
+    "source_text": {},
+    "related_handoff_ids": [
+      "handoffs/WF02-REQ-039/step-01b-code-design-validator.json",
+      "handoffs/WF02-REQ-039/step-01-code-designer-rework1.json"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/REQ-039.md",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/profile.ts",
+      "apps/bot/src/domain/user.ts",
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/src/handlers/start.ts",
+      "apps/bot/src/domain/notification.ts"
+    ],
+    "branch_name": "feature/WF02-REQ-039"
+  },
+  "task": {
+    "description": "Re-gate (WF-02 Step 1b) for REQ-039 after rework 1. Re-verify independently that the design's Open Question 1 fix (Option A skip-and-redeem-immediately + onConflictDoNothing race backstop) genuinely closes the returning-guest profiles_user_id_unique collision this gate FAILED on previously, that the race backstop does not produce a worse/inconsistent outcome, that S1's consent-before-write property is not reopened, and that only the claimed sections of the design changed.",
+    "acceptance_criteria": [
+      "Every AC has a concrete, non-TBD design element",
+      "No implementation code present, only structure/signatures",
+      "getProfileByUserId genuinely exists in domain/profile.ts with the claimed signature and is genuinely already used by REQ-019 resumability",
+      "The fix closes the collision on every reachable path: companion code identified -> Profile-existence check -> skip-to-normal-redemption OR reduced-field flow -> guarded INSERT; no remaining unguarded INSERT path",
+      "onConflictDoNothing race backstop traced for correctness in the rare-conflict case (invited_by_user_id / registration / audit row outcome)",
+      "S1 pre-consent-write reasoning not reopened -- hasConsented check position unchanged, reasoning for both populations holds",
+      "Scope discipline: only §0/§2/§5 point 4/§7/Open Question 1 changed"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Read docs/agents/design/REQ-039.md in full directly (not the CODE-DESIGNER rework handoff's summary). Cross-checked every claim against live code: apps/bot/src/domain/profile.ts (getProfileByUserId lines 67-94, exact signature `(db, userId): Promise<ProfileRecord | null>`, exported; createWalkinProfile lines 337-347, currently a plain `db.insert(profiles).values(...)` with no conflict clause, confirming the design's proposed `.onConflictDoNothing({ target: profiles.userId })` is a genuine, not-yet-applied delta; writeRequiredProfileField/writeOptionalProfileField's onConflictDoUpdate shape at lines 168-202 matches the design's 'mirrors this shape, DO NOTHING not DO UPDATE' claim), apps/bot/src/db/schema.ts (profiles_user_id_unique confirmed at line 149 via uniqueIndex on profiles.userId, matching the design's own citation), apps/bot/src/domain/user.ts (resolveOrCreateUser's onConflictDoUpdate confirmed at line 48, matching the design's 'same race-proofing discipline as user-row creation' analogy), apps/bot/src/domain/inviteCode.ts (getInviteCodeByCode at line 518 confirmed to be the exact function redeemInviteCode's own precheck calls at line 627; grantsCompanionOf confirmed read/written consistently across issue/redemption code, current redeemInviteCode signature at lines 616-622 has no companionProfile param yet, consistent with 'not yet implemented, this is the pre-Step-2 design'), apps/bot/src/handlers/start.ts (resolveInviteDeepLink lines 195-213: hasConsented check is the first statement, unchanged position, matching the design's citation verbatim). Traced the full branch the fix installs: companion code identified (codeRow.grantsCompanionOf !== null) -> existingProfile = getProfileByUserId(db, flowUser.id) evaluated only in that case -> if existingProfile !== null, the field-collection flow (§3-§4) is skipped entirely and redemption goes through redeemInviteCode(..., companionProfile: null), the same call shape personal/bulk codes already use -- companionProfile is null on this path, so §5 point 4's INSERT is never reached, so there is no unguarded INSERT anywhere on this branch. The only path that ever reaches §5 point 4's INSERT is the field-collection branch, taken only when existingProfile === null at the pre-tx read -- and that INSERT now carries onConflictDoNothing, so even a race (a second process creating the guest's Profile row between §2's read and this transaction's commit -- concurrent REQ-019 onboarding, a REQ-030 walk-in at a different event, or a double-submit racing two confirm taps) cannot raise an unhandled unique-constraint violation. No remaining path reaches a plain, unguarded INSERT for a redeemer who might already have a Profile row -- the collision is closed on every reachable branch, not just the ordinary case. Traced the race-backstop outcome for correctness, not just crash-avoidance: §5 point 3's `invitedByUserId: codeRow.grantsCompanionOf` write on the registrations insert/update is stated and confirmed structurally independent of companionProfile (a separate step, unconditional on the code's grantsCompanionOf value alone), and the single writeAuditLog call inside the same transaction is unchanged/unconditional per §7's AC9 row -- so even in the rare case where onConflictDoNothing actually no-ops (the race fired), the registration row is still written with correct invited_by_user_id attribution and exactly one AuditLog row still exists; the only difference from the ordinary case is that guest's freshly-typed name/company/phone are silently not persisted into profiles (their pre-existing Profile row, whatever it held, is left untouched) -- a wasted conversation, not data loss, not a crash, not a broken registration. This is a strictly better outcome than both the pre-fix unhandled-DB-error state and the rejected Option B (collect-and-UPDATE), which the design correctly identifies would have risked silently overwriting a returning guest's richer REQ-019 profile fields (position/experienceLevel/isStudent/email/links) that this reduced flow never asks about. Re-verified S1: hasConsented is checked first, unchanged position (start.ts line 204, matches the design's own quoted line numbers), and §2's new closing paragraph's reasoning holds under independent scrutiny -- a returning guest identified by existingProfile !== null necessarily has consent_pd_at already true from a prior visit (profiles rows in this codebase are never created before consent per the existing REQ-019/REQ-030 write paths, and getProfileByUserId is read-only), so this branch changes only whether the reduced-field conversation runs, never whether or when consent is collected; the property this gate previously found intact is not reopened by this fix. Diffed b546fc9 (original) against dbea559 (rework 1) directly with git diff -- confirmed the changed hunks are exactly: §0's reused-pieces table (one row added, one row's description updated), §2's branch logic and new double-consent-risk paragraph, §5 point 4's guarded-INSERT text and Option A/B reasoning, §7's AC1/AC9 rows, and Open Question 1's resolution -- every other section (§1, §3, §4, §6, Open Questions 2-5, the component/type structure block) is byte-identical to the pre-rework version. No 'TBD'/deferral language anywhere in the changed text; no .tsx or implementation-body code introduced (the component/type structure block, unchanged by this rework, remains signatures/interfaces only); no design-system token references apply (bot-only requirement, correctly noted in the design's own scope statement) so the token-resolution check is vacuously satisfied. All four Step 1b checks pass for every acceptance criterion, including AC1 and AC9 whose design elements now explicitly cover the previously-unaddressed returning-guest branch.",
+    "artifacts_out": [],
+    "issues": [],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-039",
+      "commit_sha_list": ["dbea559"],
+      "remote_branch": "origin/feature/WF02-REQ-039",
+      "push_status": "pending",
+      "pr_url": null,
+      "pr_create_error": null
+    },
+    "next_action": "Route to BACKEND-DEV (Step 2)"
+  },
+  "rework_count": 1,
+  "max_rework": 3
+}

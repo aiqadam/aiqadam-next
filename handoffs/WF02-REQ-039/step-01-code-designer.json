@@ -1,0 +1,64 @@
+{
+  "handoff_id": "step-01-code-designer",
+  "run_id": "WF02-REQ-039",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "CODE-DESIGNER",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "file": "handoffs/WF02-REQ-039/step-01-code-designer.json",
+  "created_at": "2026-09-08T13:34:19Z",
+  "started_at": "2026-09-08T13:34:19Z",
+  "completed_at": "2026-09-08T13:34:19Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-039"],
+    "requirement_text": {
+      "REQ-039": "GitHub issue #71. Companion (+1) registration through a companion code, with consent before storage and invited_by_user_id attribution. Implements USER-STORIES B8 / STORY-DETAILS B8 (Bring someone with me), the +1 half of PRD FR-5, sequenced after REQ-038 (Depends on B7). A host holding a companion code (invite_codes.grants_companion_of = host user id, issued by REQ-037) forwards the link; the guest redeems through REQ-038's validation table unchanged, no parallel implementation. A code with grants_companion_of = X sets registrations.invited_by_user_id = X (PRD FR-5, DESIGN-REVIEW F10 -- one field is both the +1 mechanic and referral reporting, no second column/table; invited_by_user_id already exists in schema.ts, no migration). The companion completes NAME, PHONE, COMPANY only (not the full REQ-019 form) -- the same reduced set REQ-030's walk-in flow uses; the design states whether REQ-030's collection path is reused or why not. Phone is required here even though PRD 5 marks it optional generally, mirroring REQ-030's own door-minimum reasoning. Consent before storage is the security-critical property: nothing (no User row carrying their name, no Profile row, no invited_by relationship, no partial-form draft) is written before consent_pd_at is set; this differs from REQ-019's resumable partial-write pattern (consent already established before the first partial write there) -- here consent comes first in the flow and there is no legitimate pre-consent write at all, stated explicitly so an implementer does not reach for REQ-019's write-as-you-go pattern by analogy. Companions occupy a normal seat -- a full event waitlists them like anyone else, no reserved-seat mechanic. One use unless the organizer said otherwise is just max_uses on REQ-033's row, defaulting to 1 at REQ-037's issue time -- REQ-038's existing spent-code refusal covers reuse, no second check. Both are told: the guest gets their own admission result, the host is told their guest is coming, both transactional through REQ-025's ledger; the host notification carries the guest's name and company only (S3 -- the host is not an organizer). The guest arrives via /start's existing REQ-014 first-contact path and REQ-019's consent gate, not a bypass around them."
+    },
+    "source_text": { "github_issue": "#71" },
+    "related_handoff_ids": ["handoffs/WF02-REQ-039/step-00-git-setup.json"],
+    "artifacts_in": [
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/walkin.ts",
+      "apps/bot/src/domain/profile.ts",
+      "apps/bot/src/domain/user.ts",
+      "apps/bot/src/domain/notification.ts",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/handlers/start.ts",
+      "apps/bot/src/handlers/registrationReply.ts",
+      "apps/bot/src/handlers/organizerRequests.ts",
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/src/i18n/types.ts",
+      "docs/agents/design/REQ-038.md",
+      "docs/agents/design/REQ-030.md",
+      "docs/agents/instructions/security-invariants.md"
+    ],
+    "branch_name": "feature/WF02-REQ-039"
+  },
+  "task": {
+    "description": "WF-02 Step 1 (Design) for REQ-039, on branch feature/WF02-REQ-039 (verified branch matches, commit c65525b at run start; working tree clean before and after). Produced docs/agents/design/REQ-039.md mapping all 9 acceptance criteria to concrete design elements. Re-verified directly against the live apps/bot/src/db/schema.ts (lines 272-274) that registrations.invited_by_user_id already exists as a nullable uuid FK to users.id, onDelete restrict -- zero schema change anywhere in this design, DATA-DESIGNER NOT dispatched. Read the actual REQ-038-merged code (domain/inviteCode.ts's redeemInviteCode/validateInviteCodeForRedemption), REQ-030's walkin.ts message-carrier pattern, and handlers/start.ts's REQ-038 consent-gated deep-link resolution before designing, per the dispatch prompt. All 6 design questions resolved explicitly: (1) collection-before-consent reuses REQ-030's message-text-carrier pattern (one guest-typed 'Name | Company | Phone' reply, re-parsed from the confirm message's own text on the final tap) rather than any DB draft row, with an explicit section (design doc section 3.3) stating WHY REQ-019's write-as-you-go pattern is not reused even though consent_pd_at is already true by the time collection starts -- the reasoning is 'no half-registered stranger' plus 'one atomic unit matching AC1's shape', not just chronology. (2) The companion-vs-personal/bulk distinction point is handlers/start.ts's resolveInviteDeepLink, inserted between the existing hasConsented check and the existing unconditional redeemInviteCode call, using the same getInviteCodeByCode read redeemInviteCode itself already performs (design doc section 2). (3) Host notification is a new NotificationKind 'companion_registered', sent via the existing sendLedgeredNotification (idempotent on (registrationId, kind)), modeled on organizerRequests.ts's sendApprovalNotification -- its composeMessage closure structurally never reads profiles.phone/email, satisfying S3/S11 by construction, not by a runtime filter (design doc section 6). (4) invited_by_user_id already exists -- confirmed by direct schema read, zero migration. (5) Capacity/waitlist is confirmed unchanged: decideRegistrationOutcome is called with the identical seatsLeft/inviteSatisfied:true shape for every code kind, no new branch. (6) One-use enforcement is confirmed as entirely validateInviteCodeForRedemption's existing usedCount>=maxUses row -- no second check anywhere. The extension to redeemInviteCode itself (design doc section 5) is a minimal, backward-compatible delta: one new optional parameter (companionProfile, defaulting to null for every existing caller), grantsCompanionOf added to the already-existing locked codeRows SELECT, invitedByUserId set on the existing insert/update from that field (a no-op for personal/bulk codes since they always have grantsCompanionOf=null), and a reuse (not a new function) of domain/profile.ts's existing createWalkinProfile for the Profile insert when companionProfile is supplied.",
+    "acceptance_criteria": [
+      "A guest redeeming a companion code whose grants_companion_of is host H gets a registration with invited_by_user_id = H's user id and invite_code_id set to that code -- verified by reading the row.",
+      "git grep over apps/bot finds no companion-specific column, no referral table and no second attribution field: invited_by_user_id is the only mechanism, and no migration adds another.",
+      "Abandoning the companion flow AT OR BEFORE the consent step leaves ZERO new users rows, ZERO new profiles rows and ZERO new registrations rows for that guest -- run against a guest the bot has never seen; a run that reaches consent before abandoning is not evidence.",
+      "Completing the flow collects name, phone and company and nothing further -- no experience-level, student-flag or links question is asked.",
+      "A companion redeeming against a FULL event is waitlisted, not admitted, and not given a seat outside capacity.",
+      "A second person attempting to redeem a single-use companion code is refused and no registration is created, verified by constructing max_uses=1, redeeming once, then attempting again.",
+      "Both the guest and the host receive exactly one message on a successful companion registration; the host's message contains the guest's name and company and contains NEITHER the guest's phone NOR their email.",
+      "The guest's phone appears in NO log line and in NO audit_log payload.",
+      "Each companion registration writes exactly one audit_log row, counted before and after."
+    ]
+  },
+  "result": {
+    "status": "SUCCESS",
+    "summary": "Produced docs/agents/design/REQ-039.md (8 sections plus open questions and a types-only component/type structure section, full AC map in section 7). Confirmed directly against the live apps/bot/src/db/schema.ts that registrations.invited_by_user_id already exists (nullable uuid FK, onDelete restrict) -- zero schema change, no new column/table/migration anywhere in this design. DATA-DESIGNER is NOT dispatched for this run. All 6 design questions from the dispatch prompt are resolved explicitly with stated reasoning (see task.description above); in particular the consent-before-storage mechanism (question 1) is resolved as REQ-030's message-carrier pattern reused (not REQ-019's write-as-you-go), with an explicit 'why not REQ-019 by analogy' subsection (design doc section 3.3) covering both the chronological point and the deeper reason (no half-registered stranger; one atomic unit). Design gate reviewers should check in particular: (a) section 3.1's step-by-step ordering table against AC3's exact wording -- the pre-existing bare users-row-from-resolveOrCreateUser exception is named explicitly and reasoned as pre-existing, unmodified platform behavior, not a new write this requirement introduces; (b) section 5's redeemInviteCode extension -- confirm it is genuinely a backward-compatible delta (new optional parameter defaulting to null, one added SELECT column, one added insert/update field, one reused existing function call) and not a parallel/forked implementation; (c) section 6's host-notification S3/S11 reasoning -- confirm the composeMessage closure is described as structurally never reading phone/email, not merely filtering it at render time; (d) that no implementation code appears anywhere -- every new function in the closing 'Component/type structure' section is a bare type/interface/signature declaration, no bodies, matching REQ-033/037/038's own artefact style; (e) the open questions section's item 1 (an already-profiled returning guest hitting profiles_user_id_unique) -- confirm this is a genuine, correctly-identified gap rather than something the design should have resolved.",
+    "artifacts_out": ["docs/agents/design/REQ-039.md"],
+    "issues": [
+      "OPEN (design doc, Open Questions #1): a companion guest who already has a Profile row (returning bot user, already onboarded via REQ-019, redeeming a companion code for a different event) would violate profiles_user_id_unique if createWalkinProfile's plain INSERT is reused as-is. Two directions are equally defensible (skip the reduced-field conversation and redeem immediately vs. still collect fields and UPDATE instead of INSERT) and neither is chosen here -- must be resolved before BACKEND-DEV can implement design doc section 5 point 4 for this branch.",
+      "OPEN (design doc, Open Questions #3): exact file placement for the new parse/format/confirm functions (domain/walkin.ts, co-located with the REQ-030 pattern they mirror, vs. domain/inviteCode.ts, co-located with the feature they serve) -- either is structurally correct, left for BACKEND-DEV.",
+      "OPEN (design doc, Open Questions #4): exact callback_data string/prefix for the confirm button and all new catalog copy (field-collection prompt, confirm message trailing text, host notification text) are naming/wiring/content details with no behavioral consequence -- not invented here, left for BACKEND-DEV/CONTENT-BA, same precedent prior invite-code requirements' artefacts already established for provisional copy.",
+      "OPEN (design doc, Open Questions #5): whether the companion's field-collection prompt states the event title/host name could not be checked against USER-STORIES B8's verbatim 'Conversation' text -- that source document is not present in this repository. The design assumes yes (an Event: line, mirroring formatWalkinConfirmMessage) but does not specify exact copy."
+    ]
+  }
+}

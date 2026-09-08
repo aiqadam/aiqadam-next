@@ -29,7 +29,11 @@ export type NotificationKind =
   | "pending_request_urgent"
   // docs/agents/design/REQ-036.md §1 — sent to the registrant whose request
   // was auto-declined.
-  | "registration_auto_declined";
+  | "registration_auto_declined"
+  // docs/agents/design/REQ-039.md §6 — sent to the HOST (grants_companion_of)
+  // once their companion's registration is created. One-line addition, not a
+  // migration: notification_ledger.kind is already `text`.
+  | "companion_registered";
 
 // AC5: exactly two members, and every call site must choose one explicitly —
 // enforced structurally by `SendNotificationInput.classification` below

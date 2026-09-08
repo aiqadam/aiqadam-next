@@ -115,6 +115,13 @@ import {
   makeInviteCompanionHandler,
   makeInvitePersonalHandler,
 } from "./handlers/inviteCodes.js";
+import {
+  COMPANION_CANCEL_CALLBACK,
+  COMPANION_CONFIRM_PATTERN,
+  makeCompanionCancelCallbackHandler,
+  makeCompanionConfirmCallbackHandler,
+  makeCompanionTextReplyHandler,
+} from "./handlers/companion.js";
 
 let config: BotConfig;
 
@@ -179,14 +186,19 @@ bot.callbackQuery(/^lang:(ru|en)$/, makeLangCallbackHandler(db));
 
 // REQ-014: real /start (User creation, chapter assignment, consent gate),
 // its two callback handlers, and /help.
-bot.command("start", makeStartHandler(db));
+// REQ-039 §6 — the /start entry point's companion (+1) host notification
+// needs the process-wide notificationSender, same single instance already
+// passed to every other notification-sending handler in this file. Both
+// factories default this to null (existing tests construct them with just
+// `db`) -- passing it here is the production wiring only.
+bot.command("start", makeStartHandler(db, notificationSender));
 bot.callbackQuery(/^chapter:(.+)$/, makeChapterCallbackHandler(db));
 // WF02-REQ-016 SECURITY REWORK — the callback_data may now carry a deep-link
 // payload appended after a `:` (see handlers/start.ts's own header note), so
 // this needs a pattern, not the old exact string; the handler itself
 // re-derives the exact match via its own regex against ctx.callbackQuery.data
 // (same discipline as the chapter:<id> callback below).
-bot.callbackQuery(/^consent:agree(?::.+)?$/, makeConsentCallbackHandler(db));
+bot.callbackQuery(/^consent:agree(?::.+)?$/, makeConsentCallbackHandler(db, notificationSender));
 bot.command("help", makeHelpHandler(db));
 
 // REQ-015: organizer-only venue CRUD, chapter-scoped.
@@ -344,5 +356,13 @@ bot.callbackQuery(INVITE_OPEN_PATTERN, makeInviteCodeDetailCallbackHandler(db));
 // resolution: no free-text/reply-to state) -- registered alongside the
 // issuing block above.
 bot.command("redeem", makeRedeemCommandHandler(db));
+
+// REQ-039: the companion (+1) reduced-field collection flow -- the
+// reply-to-message listener (registered alongside the other generic
+// message:text listeners above, same ordering discipline those files' own
+// header notes establish) and the confirm/cancel callbacks.
+bot.callbackQuery(COMPANION_CONFIRM_PATTERN, makeCompanionConfirmCallbackHandler(db, notificationSender));
+bot.callbackQuery(COMPANION_CANCEL_CALLBACK, makeCompanionCancelCallbackHandler());
+bot.on("message:text", makeCompanionTextReplyHandler(db));
 
 bot.start();

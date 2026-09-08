@@ -334,16 +334,33 @@ export interface CreateWalkinProfileInput {
   phone: string;
 }
 
+// docs/agents/design/REQ-039.md §5 point 4 -- an optional, call-site-scoped
+// conflict clause. Left undefined/false, this INSERT behaves EXACTLY as
+// before (REQ-030's own call site, domain/walkin.ts's commitWalkin, passes no
+// options and is byte-for-byte unchanged). Only REQ-039's companion
+// redemption path (domain/inviteCode.ts's redeemInviteCode) passes
+// `{ onConflictDoNothing: true }` -- the race backstop for a returning guest
+// whose Profile row was created by a second process between §2's
+// pre-transaction read and this transaction's commit (design §5 point 4's
+// full reasoning: DO NOTHING, never DO UPDATE, so a raced/late write here can
+// never silently overwrite a returning guest's richer, previously-collected
+// profile data).
 export async function createWalkinProfile(
   db: DbClient["db"],
   input: CreateWalkinProfileInput,
+  options: { onConflictDoNothing?: boolean } = {},
 ): Promise<void> {
-  await db.insert(profiles).values({
+  const values = {
     userId: input.userId,
     firstName: input.name,
     company: input.company === "" ? null : input.company,
     phone: input.phone,
-  });
+  };
+  if (options.onConflictDoNothing === true) {
+    await db.insert(profiles).values(values).onConflictDoNothing({ target: profiles.userId });
+    return;
+  }
+  await db.insert(profiles).values(values);
 }
 
 // ---------------------------------------------------------------------------

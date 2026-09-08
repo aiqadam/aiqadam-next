@@ -1,0 +1,73 @@
+{
+  "handoff_id": "step-02-backend-dev",
+  "run_id": "WF02-REQ-039",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "BACKEND-DEV",
+  "to_agent": "REVIEWER",
+  "file": "handoffs/WF02-REQ-039/step-02-backend-dev.json",
+  "created_at": "2026-09-08T00:00:00Z",
+  "started_at": "2026-09-08T00:00:00Z",
+  "completed_at": "2026-09-08T00:00:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-039"],
+    "requirement_text": {
+      "REQ-039": "GitHub issue #71 (verified by `gh issue view 71`). Companion (+1) registration through a companion code, with consent before storage and invited_by_user_id attribution. A code with grants_companion_of = X sets registrations.invited_by_user_id = X, one field for both mechanic and referral reporting, no schema change. The companion completes NAME, PHONE, COMPANY only, reusing REQ-030's reduced-field pattern. Consent before storage is the security-critical property -- nothing is written before consent_pd_at is set. Companions occupy a normal seat, waitlisted like anyone else when full. One use unless the organizer overrides max_uses. Both guest and host are notified once each, transactionally; host notification carries name+company only, never phone/email (S3)."
+    },
+    "source_text": { "github_issue": "#71" },
+    "related_handoff_ids": [
+      "handoffs/WF02-REQ-039/step-01-code-designer.json",
+      "handoffs/WF02-REQ-039/step-01-code-designer-rework1.json",
+      "handoffs/WF02-REQ-039/step-01b-code-design-validator-regate.json"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/REQ-039.md",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/walkin.ts",
+      "apps/bot/src/domain/profile.ts",
+      "apps/bot/src/domain/notification.ts",
+      "apps/bot/src/handlers/start.ts",
+      "apps/bot/src/handlers/registrationReply.ts",
+      "apps/bot/src/handlers/organizerRequests.ts",
+      "apps/bot/src/db/schema.ts"
+    ],
+    "branch_name": "feature/WF02-REQ-039"
+  },
+  "task": {
+    "description": "WF-02 Step 2 (Implementation) for REQ-039 on branch feature/WF02-REQ-039 (started at commit 99fdd8c). Implemented exactly the approved, reworked design (docs/agents/design/REQ-039.md, passed re-gate after rework 1). No schema/migration change anywhere (git grep over apps/bot confirms grantsCompanionOf, the pre-existing column, is the only companion-related column touched; no new migration file created; AC2 satisfied by construction). Changes: (1) domain/inviteCode.ts -- redeemInviteCode gains an optional `companionProfile: { name, company, phone } | null = null` parameter (default null, every existing caller unchanged); the locked codeRows SELECT (step 5) gains `grantsCompanionOf`; the registrations insert/update (step 10) gains `invitedByUserId: codeRow.grantsCompanionOf`, unconditional on companionProfile (a no-op for personal/bulk codes, always null there); when companionProfile !== null, a Profile row is written via profile.ts's createWalkinProfile immediately before the registrations write, in the same transaction, with the onConflictDoNothing race backstop. New pure functions (placed here, Open Question 3 resolved in favor of co-locating with the feature they serve, not domain/walkin.ts): parseCompanionFieldsMessage/formatCompanionConfirmMessage/parseCompanionConfirmMessage (the message-text-carrier, mirroring domain/walkin.ts's REQ-030 pattern per the design's own instruction), formatCompanionFieldsPrompt/parseCompanionReplyContext (the reply-to-message carrier for the FIRST collection step, mirroring handlers/feedback.ts's formatFeedbackTextPrompt/parseFeedbackReplyContext precedent -- not explicitly named in the design's own component/type-structure section, since that section only covers Open Question 4's already-flagged wiring gap), and getCompanionDisplayData (structurally excludes profiles.phone/profiles.email from its SELECT clause, S3/S11, mirroring listInviteCodeRedeemers's existing discipline). (2) domain/profile.ts -- createWalkinProfile gains an optional `options: { onConflictDoNothing?: boolean }` parameter, default {} (REQ-030's own call site in domain/walkin.ts is unchanged, byte-for-byte, since it never passes this option); only REQ-039's companion call site passes `{ onConflictDoNothing: true }`. (3) domain/notification.ts -- one new NotificationKind member, 'companion_registered'. (4) handlers/start.ts's resolveInviteDeepLink -- after the unchanged hasConsented gate, two read-only lookups (getInviteCodeByCode, then getProfileByUserId only when the code is a companion code) decide whether to enter the reduced-field collection flow (send the prompt, no write, return) or fall through to the existing unconditional redeemInviteCode call (now also covering a companion code redeemed by a returning guest with an existing Profile row, per the design's Open Question 1 resolution). Both makeStartHandler and makeConsentCallbackHandler gained an optional `sender: NotificationSender | null = null` parameter (default null, so start.test.ts's existing `makeStartHandler(db)`/`makeConsentCallbackHandler(db)` construction calls keep compiling and behaving unchanged) threaded through to resolveInviteDeepLink for the host notification. (5) NEW FILE handlers/companion.ts -- the reply-to-message listener (makeCompanionTextReplyHandler) that catches the guest's free-text 'Name | Company | Phone' reply and renders the confirm message (no write), the confirm-tap callback (makeCompanionConfirmCallbackHandler) that re-parses the confirm message's own text and performs the single combined write via redeemInviteCode, a Cancel callback (makeCompanionCancelCallbackHandler, mirrors handlers/walkin.ts's walkin:cancel), and the shared sendCompanionHostNotification helper used by BOTH this file's confirm callback (a brand-new guest) AND handlers/start.ts's resolveInviteDeepLink (a returning guest redeemed directly) -- see result.issues for the one interpretive completion this required beyond the design's literal text. (6) i18n/types.ts, en.ts, ru.ts -- one new top-level catalog key `companion` (provisional English/Russian copy per decisions/0002, CONTENT-BA owns final wording), including a fixed, non-localized `refLinePrefix` mirrored for catalogs.test.ts's parity check only (same precedent as feedback.refLinePrefix/noShow.refLinePrefix -- never actually read through the catalog at runtime; the real anchor is domain/inviteCode.ts's COMPANION_REF_LINE_PREFIX constant). (7) index.ts -- wires makeStartHandler/makeConsentCallbackHandler with the process-wide notificationSender, and registers the three new companion handlers (confirm callback, cancel callback, the message:text reply listener, registered after every bot.command(...) registration per this file's own established ordering discipline).",
+    "acceptance_criteria": [
+      "A guest redeeming a companion code whose grants_companion_of is host H gets a registration with invited_by_user_id = H's user id and invite_code_id set to that code -- verified by reading the row.",
+      "git grep over apps/bot finds no companion-specific column, no referral table and no second attribution field: invited_by_user_id is the only mechanism, and no migration adds another.",
+      "Abandoning the companion flow AT OR BEFORE the consent step leaves ZERO new users rows, ZERO new profiles rows and ZERO new registrations rows for that guest.",
+      "Completing the flow collects name, phone and company and nothing further.",
+      "A companion redeeming against a FULL event is waitlisted, not admitted, and not given a seat outside capacity.",
+      "A second person attempting to redeem a single-use companion code is refused and no registration is created.",
+      "Both the guest and the host receive exactly one message on a successful companion registration; the host's message contains the guest's name and company and contains NEITHER the guest's phone NOR their email.",
+      "The guest's phone appears in NO log line and in NO audit_log payload.",
+      "Each companion registration writes exactly one audit_log row."
+    ]
+  },
+  "result": {
+    "status": "SUCCESS",
+    "summary": "All 9 ACs implemented per the approved design; no schema/migration change (confirmed by `git status` on apps/bot/drizzle and `git diff --stat` on schema.ts showing zero changes). `npm run lint -w apps/bot` -- clean, zero errors/warnings. `npm run build -w apps/bot` (tsc) -- clean, zero errors. `npx vitest run --no-file-parallelism` (run from apps/bot) -- 88 test files, 810 tests, ALL PASSED, 0 failures, run duration ~123s; no rework/re-run needed (ISS-0031's contention-pattern re-run condition did not trigger). REQ-038's own existing tests (redeem.db.test.ts, start.test.ts, and every other suite touching redeemInviteCode/resolveInviteDeepLink/makeStartHandler/makeConsentCallbackHandler) required ZERO edits -- companionProfile defaults to null and sender defaults to null for every pre-existing call site, confirmed by the unmodified test files still passing unchanged. AC-by-AC: AC1 -- redeemInviteCode's registrations write now sets invitedByUserId: codeRow.grantsCompanionOf unconditionally (a no-op for personal/bulk codes, whose grantsCompanionOf is always null per REQ-033/037's issuing functions). AC2 -- git grep -n 'companion' apps/bot/src/db/schema.ts returns exactly one line, the pre-existing grantsCompanionOf column; no new migration file in apps/bot/drizzle/. AC3 -- the reduced-field collection flow (resolveInviteDeepLink's new branch, handlers/companion.ts's text-reply listener and confirm callback) performs no DB write of any kind until the single confirm tap calls redeemInviteCode; the consent gate (unchanged position, first statement of resolveInviteDeepLink) still runs before any of this. AC4 -- parseCompanionFieldsMessage/parseCompanionConfirmMessage together ask exactly Name/Company/Phone, nothing else; no experience/student/links prompt exists anywhere in the new code. AC5 -- companion redemption calls the unchanged redeemInviteCode/decideRegistrationOutcome, so a full event's companion redemption waitlists via the exact same branch a personal/bulk code would (no companion-specific capacity path was added). AC6 -- validateInviteCodeForRedemption's usedCount>=maxUses check is untouched; a companion code's maxUses is set once at issue time (REQ-037, unchanged). AC7 -- the guest's own reply reuses the unchanged composeRegistrationReply; the host is notified exactly once via the new companion_registered NotificationKind through sendLedgeredNotification's existing (registrationId, kind) idempotency; getCompanionDisplayData's SELECT clause structurally excludes profiles.phone and profiles.email (never selected, so they cannot appear in the composed text by construction, not by a runtime filter). AC8 -- no log line or writeAuditLog payload in the changed code ever reads companionProfile.phone/parsed.fields.phone; the audit payload for a companion redemption is the same `{ eventId, inviteCodeId }` shape every other redemption already writes (unchanged). AC9 -- the single writeAuditLog call inside redeemInviteCode's transaction is unchanged/unconditional; the Profile insert (guarded, may no-op) writes no separate audit row either way.",
+    "artifacts_out": [
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/profile.ts",
+      "apps/bot/src/domain/notification.ts",
+      "apps/bot/src/handlers/start.ts",
+      "apps/bot/src/handlers/companion.ts",
+      "apps/bot/src/i18n/types.ts",
+      "apps/bot/src/i18n/en.ts",
+      "apps/bot/src/i18n/ru.ts",
+      "apps/bot/src/index.ts"
+    ],
+    "issues": [
+      "INTERPRETIVE COMPLETION (flagged, not a silent business-rule invention): the design's own §7 AC-map row for AC7 cites only §4 (the confirm-callback path, a brand-new guest) and §6 (the notification mechanism itself) -- it does not explicitly restate, the way it does for AC1 ('holds identically for a returning guest'), that the host notification must also fire on the direct-redemption branch a returning guest (existing Profile row) takes per Open Question 1's resolution. I implemented the host notification for BOTH branches (handlers/companion.ts's sendCompanionHostNotification is called from both the confirm callback and handlers/start.ts's resolveInviteDeepLink), reasoning that AC7's issue text ('Both the guest and the host receive exactly one message on a successful companion registration') states no returning-guest carve-out, and that this only applies the design's own fully-specified §6 mechanism to a symmetric case, not new business logic. REVIEWER/SECURITY-REVIEWER should confirm this reading rather than treat it as settled.",
+      "DESIGN GAP, not filled in: the typed /redeem command (handlers/registration.ts's makeRedeemCommandHandler) is outside every version of this design's artifacts_in list and its own §0 table (which names only handlers/start.ts's resolveInviteDeepLink as the modified handler). A companion code redeemed via /redeem therefore still gets full invited_by_user_id attribution (AC1, unconditional on companionProfile) and the one-use/capacity/waitlist rules (AC5/AC6, unchanged shared logic) but does NOT go through the reduced-field collection flow and does NOT trigger a host notification -- it silently falls through to the same companionProfile: null path a returning guest takes. This is left unchanged, per instruction not to invent scope the approved design never analyzed; flagging for ORCH/CODE-DESIGNER to decide whether a follow-up requirement or design amendment is needed.",
+      "OPEN (carried from design, unresolved by BACKEND-DEV per instruction not to invent content): Open Questions #4/#5's copy items -- the exact companion.* catalog strings (fieldsPrompt, missingName, missingPhone, confirmStatement, staleMessage, button labels, cancelled, hostNotification) are provisional/placeholder English+Russian text, matching every prior invite-code requirement's own precedent (decisions/0002, CONTENT-BA owns final wording). The 'Event:' line in formatCompanionConfirmMessage/formatCompanionCanonicalLines is included per the design's own stated assumption (Open Question #5, 'the design assumes yes')."
+    ]
+  },
+  "next_action": "Route to REVIEWER (Step 2b) for design-system/code-quality/scope review, per WF-02's standard sequencing; SECURITY-REVIEWER gate follows per core-directives.md (this change touches personal data, consent, and a new notification kind)."
+}
