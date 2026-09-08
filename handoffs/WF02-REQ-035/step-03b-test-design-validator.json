@@ -1,0 +1,45 @@
+{
+  "handoff_id": "step-03b-test-design-validator",
+  "run_id": "WF02-REQ-035",
+  "workflow_id": "WF-02",
+  "step": "03b",
+  "from_agent": "TEST-DESIGN-VALIDATOR",
+  "to_agent": "TEST-RUNNER",
+  "file": "handoffs/WF02-REQ-035/step-03b-test-design-validator.json",
+  "created_at": "2026-09-08T09:13:33Z",
+  "started_at": "2026-09-08T09:13:33Z",
+  "completed_at": "2026-09-08T09:13:33Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-035"],
+    "artifacts_in": [
+      "docs/agents/test-specs/REQ-035.md",
+      "handoffs/WF02-REQ-035/step-03-test-designer.json",
+      "docs/agents/design/REQ-035.md",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/handlers/organizerRequests.ts",
+      "handoffs/WF02-REQ-035/step-02c-security-reviewer.json",
+      "GitHub issue #67"
+    ],
+    "branch_name": "feature/WF02-REQ-035"
+  },
+  "task": {
+    "description": "WF-02 Step 3b (test design gate) for REQ-035. Re-derive whether docs/agents/test-specs/REQ-035.md gives every one of issue #67's 10 acceptance criteria at least one precise, mechanically-followable verification case, with particular scrutiny on AC5's real-Postgres concurrency test.",
+    "acceptance_criteria": [
+      "Every AC has at least one case that would fail if the AC were violated, with no TODOs.",
+      "Each case names the exact function/handler/expected result -- no case relies on judgment.",
+      "AC5's concurrency case is genuinely probative against real concurrent Postgres access, not sequential or client-serialized.",
+      "Every referenced function/type/i18n-key/signature in the proposed test source is real, confirmed against the actual committed files, not aspirational."
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Read issue #67 directly (gh issue view 67) and independently mapped all 10 ACs against docs/agents/test-specs/REQ-035.md's AC-to-case table -- every AC has at least one describe/it case, no TODOs found (grep for TODO/FIXME/XXX: zero matches). Read both proposed test files' full source, not just the prose summary.\n\nAC5 concurrency test -- verified sound after independently tracing the real implementation (apps/bot/src/domain/registration.ts:1740-1829's approveRequest): (1) both cases use Promise.all over an array of unawaited approveRequest(...) call expressions (registrationApproval.db.test.ts lines 297-300 for the 20-iteration/2-caller case, lines 352-363 for the 10-way fan-in case) -- calls are genuinely fired concurrently, not sequentially awaited in a loop; the .map() producing promises executes each call up to its first await (pool.connect()) before any transaction can commit. (2) approveRequest's real code does SELECT...FOR UPDATE on the registrations row (step 1), then SELECT...FOR UPDATE on the events row (step 2), then countAdmittedRegistrations(tx, ...) is called with the transaction handle, not top-level db (confirmed at line 1787) -- so the fresh count executes inside the same transaction holding the events-row lock, meaning a second transaction's FOR UPDATE genuinely blocks in Postgres until the first commits. This independently corroborates SECURITY-REVIEWER's own step-02c trace of the identical mechanism (word-for-word consistent lock-then-recount sequence). (3) The dedicated pool (max:30) sized above the tested fan-in (10) plus the pool.totalCount>1 assertion (taken after firing all 10 calls but before awaiting them, following a setImmediate tick) is direct, not inferred, evidence that more than one physical connection was opened for the batch -- the spec's own claim is correctly scoped to 'greater than 1', not 'exactly 10', which is an honest, non-overclaimed assertion given a setImmediate tick does not guarantee all 10 connections are established. (4) The final assertion checks admittedRows.length===1 (never more than one admitted row for the event) in both cases, across every iteration (20 and 5x10=50 respectively) -- this is the correct invariant (capacity never exceeded), not a weaker proxy like 'total admits <= iterations'. (5) Each iteration constructs a fresh event (capacity 1) and two/ten SEPARATE seedPendingRequest() calls, each creating its own resolveOrCreateUser + registerForEvent-produced registration row racing for the SAME event's single seat -- confirmed these are genuinely separate registrations, not one shared row, which is what makes this a real capacity race rather than a single-row update race.\n\nOther spot-checks, all independently re-derived against the actual committed code (not the spec's or BACKEND-DEV's/SECURITY-REVIEWER's prose):\n- AC4: dismiss case (approve_cancel callback) asserts admission stays 'requested', zero audit rows, zero notifications sent -- correct, since makeRequestApproveCancelCallbackHandler (organizerRequests.ts:466-474) makes no domain call at all. Confirm case (approve_confirm) asserts exactly one audit row with action 'registration.approve_override' -- matches approveRequest's real branch (line 1816).\n- AC6: verified the member and EventStaff sub-cases are genuinely distinct fixtures (one has an event_staff row via addEventStaff, one does not) even though both take the identical refusal code path -- this is the correct test shape given checkOrganizerForChapter structurally never queries event_staff (confirmed by SECURITY-REVIEWER's step-02c trace and matches the literal wording of AC6, which names both cases explicitly).\n- AC8: positive control (expect(detailSerialized).toContain('Acme Robotics')) closes the vacuous-pass gap before the negative phone/email assertions -- sound.\n- AC10: before/after count deltas via countAuditRows, plus a re-decision-produces-zero-further-rows check on each of approve/approve-override/reject -- not merely 'at least one row exists'.\n- AC3: covers both apps/bot/src/db/schema.ts AND every apps/bot/drizzle/*.sql migration file (readFileSync + readdirSync over both), which is a superset of REQ-032's own AC4 precedent (that one covered only drizzle/*.sql) -- correctly broader because issue #67's own AC3 text explicitly demands 'grepping every apps/bot migration and the schema', not migrations alone. Independently re-ran the equivalent check (grep -rin wishlist apps/bot/drizzle apps/bot/src/db/schema.ts) -- zero matches, confirming the case's own expectation currently holds.\n- tg_id ranges: independently grepped `grep -rn \"let nextTgId\\|let tgSeq\" apps/bot/src` -- 22 existing bands found, highest is staff.test.ts's 1_010_000_000. The spec's claimed 1_020_000_000+/1_021_000_000+ are both genuinely fresh, above every existing band including the one the spec itself lists.\n\nSignature/reference verification (independently read, not trusted from the design doc or handoff prose): approveRequest/rejectRequest/decideApprovalOutcome/decideRejectionOutcome/listPendingRequestsForOrganizer/getPendingRequestForOrganizer (registration.ts) match every call site in both proposed files exactly, including parameter order and return shape. organizerRequests.ts's exported handler factories, pattern constants, formatRejectReasonPrompt, renderRequestsListMessage/renderRequestDetailMessage all match their call sites. Every referenced en.ts organizerRequests.* catalog key (usageNoId, notAuthorized, eventNotFound, listHeader, listEmpty, searchNoMatches, searchHint, noLongerPending, detailSourceLabel, overrideConfirmPrompt/Button, overrideCancelButton/Note, approveButton, rejectButton, rejectReasonPrompt, approvedNotification, approvedReplyToOrganizer, rejectedNotificationPrefix/ReasonPrefix, rejectedReplyToOrganizer) and catalog.event.deepLinkSeeUpcoming exist verbatim in apps/bot/src/i18n/en.ts. addEventStaff's real signature (db, actorUserId, eventId, targetUserId, eventTitle, at) matches File 2's AC6b call. countAdmittedRegistrations's real signature (db, eventId) accepts either db or tx per its DbClient['db'] param type, consistent with domain-layer usage. resolveOrCreateUser/createEvent/publishEvent signatures all match their call sites.\n\nConvention precedent: decisions/0006-test-framework-vitest.md confirms 'TEST-DESIGNER writes runnable test code... TEST-RUNNER runs npm test' -- matches this spec's framing. docs/agents/test-specs/REQ-030.md's header establishes the identical 'TEST-DESIGNER writes the full runnable source in markdown, TEST-RUNNER commits it at Step 4' precedent this spec explicitly cites and follows.\n\nNo gaps found. No case is vague or requires judgment -- every case names the exact function, exact input construction, and exact expected value/count.",
+    "artifacts_out": [
+      "handoffs/WF02-REQ-035/step-03b-test-design-validator.json"
+    ],
+    "issues": [],
+    "next_action": "Route to TEST-RUNNER (Step 4)"
+  }
+}
