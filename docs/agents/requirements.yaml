@@ -1670,3 +1670,800 @@ requirements:
       - "The message reaches a user with broadcast_opt_in=false, verified by setting that flag before the run (PRD 9 — transactional)."
       - "The handoff result records that the no-show wording is provisional pending the product owner, per USER-STORIES D3's 'Viktor should write it' (verified by reading the handoff's result.issues)."
     depends_on: [REQ-031]
+
+  - id: REQ-033
+    title: InviteCode data model, the registrations.invite_code_id foreign key, and the CSPRNG code generator
+    owner: DATA-DESIGNER
+    status: pending
+    description: >
+      FIRST REQUIREMENT OF RELEASE 2 (PRD 4's "next Fail Stories, Q4 - 7 stories",
+      PRD 14 build-order step 7). Release 2 covers exactly seven stories: B6, B7, B8,
+      B9, F3, F4, F9. This requirement is the schema enabler all of B7/B8/F4/F9 need
+      and none of them can create for itself without three requirements racing to
+      define the same table.
+
+      It follows the REQ-010/REQ-011/REQ-025/REQ-031 precedent exactly: schema-bearing
+      work is drafted as its own DATA-DESIGNER-owned requirement producing a design
+      artefact under docs/agents/design/ PLUS the migration under apps/bot/, so
+      DATA-DESIGNER's step is separable from the BACKEND-DEV requirements that consume
+      it. (REQ-010 and REQ-011 are owner: DATA-DESIGNER; REQ-025 and REQ-031 are
+      owner: BACKEND-DEV and carry their schema inline because their table exists only
+      to serve one flow. InviteCode serves four separate flows, so it takes REQ-010's
+      shape, not REQ-025's.)
+
+      VERIFIED CURRENT STATE (read from apps/bot/src/db/schema.ts at drafting time --
+      re-verify before changing, per HANDOFF_PROTOCOL.md 1.1, do not trust this
+      paragraph): there is NO InviteCode table anywhere in the schema. The
+      `registrations` table carries `inviteCodeId: uuid("invite_code_id")` as a PLAIN
+      UUID COLUMN WITH NO FOREIGN KEY, and the comment above it reads: "No FK: no
+      InviteCode table exists in this requirement's scope (REQ-011.md 11 open question
+      3). A future requirement adds the FK." THIS IS THAT REQUIREMENT. Adding the FK
+      is not scope creep; it is the deferred half of an explicitly-recorded open
+      question being closed at the point the referenced table finally exists.
+
+      Scope of work -- one entity plus one FK plus one generator:
+      - InviteCode, per PRD 5: event_id - code(UNIQUE) - issued_to_user_id(nullable) -
+        grants_companion_of(user_id, nullable) - max_uses - used_count - expires_at.
+        UUID primary key and created/updated timestamps like every other entity
+        (PRD 5 preamble).
+      - The three code SHAPES PRD FR-5 and story F4 name are COMPOSITIONS of those
+        columns, not a fourth `type` enum column: PERSONAL is
+        issued_to_user_id non-null with max_uses=1; BULK is issued_to_user_id null
+        with max_uses=N; COMPANION is grants_companion_of non-null. The design
+        artefact states this composition explicitly and states which combinations are
+        legal, because REQ-037 (issuing) and REQ-038/REQ-039 (redeeming) all branch
+        on it and must not each invent their own reading. This mirrors
+        DESIGN-REVIEW.md's own reasoning for requires_invite/requires_approval being
+        two booleans rather than one access enum ("compositions, not special cases").
+      - The FK: registrations.invite_code_id becomes a real foreign key to
+        invite_codes.id, replacing the plain uuid column, with the same onDelete
+        posture as the other person/event references in that table (`restrict` -- a
+        redeemed code is history and must not be deletable out from under a
+        registration; the design artefact states this).
+      - The code VALUE generator: security-invariants.md S4 sets the SAME bar for
+        InviteCode values as for qr_token -- cryptographically secure source, never
+        Math.random, never a sequential id, never a hash of a user id. It must also be
+        human-typeable, because story B7 requires redemption "by typing it" as well as
+        by `?start=i_<code>` deep link. These two pull against each other and the
+        design artefact must resolve the tension explicitly (an alphabet excluding
+        visually ambiguous characters, with a stated length giving the entropy S4
+        demands). apps/bot/src/domain/registration.ts's generateQrToken() is the
+        existing CSPRNG precedent to follow, not to copy verbatim -- its 64-character
+        hex output is not typeable.
+      - used_count is a STORED counter and this is NOT a violation of PRD 5's
+        computed-never-stored rule. PRD 5 names exactly five computed values (no_show,
+        waitlist position, seats taken, registration_open, finished) and lists
+        `used_count` as an InviteCode FIELD in the same block. Stated here because a
+        reader who has internalized REQ-017/REQ-021's discipline will otherwise flag
+        it. It is nonetheless subject to S7-style atomicity at increment time, which
+        is REQ-038's problem, not this one's.
+      - NO handlers, NO domain logic, NO issuing or redemption flow -- REQ-037 and
+        REQ-038 own those. This requirement produces the design artefact and the
+        migration only, exactly as REQ-010 and REQ-011 did.
+
+      OPEN QUESTION, flagged rather than silently resolved (docs/agents/decisions/ is
+      the place it would be settled if it needs to be): PRD FR-4's row
+      `requires_invite=true, requires_approval=false` states "Valid code -> admitted;
+      no code -> offer wishlist", and FR-4 additionally says "A user who has
+      checked_in_at on any past event satisfies requires_invite without a code
+      (eligibility rule, CONFIGURABLE PER EVENT)". "Configurable per event" implies an
+      Event-level flag that PRD 5's Event entity does not list. This requirement does
+      NOT add such a column -- inventing an unlisted Event field is exactly what PRD's
+      closing rule forbids, and REQ-026's doors-time episode is this registry's own
+      precedent for reading an existing field rather than adding one. REQ-038 owns the
+      eligibility rule and must state how it resolves "configurable per event" (a new
+      flag needing a decision record, or the rule applying uniformly to every
+      requires_invite event); this requirement records the question so REQ-038 cannot
+      inherit it silently.
+    acceptance_criteria:
+      - "The migration creates an invite_codes table with a UUID primary key, created/updated timestamps, and columns for event_id, code, issued_to_user_id, grants_companion_of, max_uses, used_count and expires_at -- verified by applying the migration to a scratch Postgres database and pasting the resulting schema into the verification report (PRD 5)."
+      - "invite_codes.code carries a UNIQUE constraint that is actually enforced: verified by inserting the same code value twice against the scratch database and confirming the second insert fails with a unique-violation error. Reading the schema is not sufficient; the duplicate insert must be attempted."
+      - "invite_codes.issued_to_user_id and invite_codes.grants_companion_of are both nullable and both reference users.id, verified by inserting a bulk code supplying neither (must succeed) and a code whose issued_to_user_id names a non-existent user id (must fail on the foreign key) -- both cases run (PRD 5)."
+      - "registrations.invite_code_id is a real FOREIGN KEY to invite_codes.id after this migration, verified by attempting to insert a registration whose invite_code_id names a non-existent invite_codes row and confirming it FAILS -- an insert that succeeds proves the FK was not added and is a FAIL of this criterion (REQ-011.md 11 open question 3, closed here)."
+      - "Deleting an invite_codes row that a registration references is refused by the database, verified by constructing exactly that pair and attempting the delete (the restrict posture this requirement's design states)."
+      - "The code generator draws from a cryptographically secure source: verified by reading the generation code (it must call crypto.randomBytes or an equivalent CSPRNG -- a `git grep` for Math.random in the generator's module must return no hit) AND by generating 10000 codes in a test and asserting zero collisions (security-invariants.md S4)."
+      - "The generated code contains only characters from the design artefact's stated typeable alphabet, and the artefact states the resulting entropy in bits with the arithmetic shown -- verified by generating 1000 codes, asserting every character is in the alphabet, and reading the artefact's entropy calculation (S4 plus story B7's 'or by typing it')."
+      - "The design artefact under docs/agents/design/ states: how personal, bulk and companion codes are composed from the columns (not a type enum); which column combinations are legal; and the FR-4 'configurable per event' eligibility open question as an unresolved question routed to REQ-038, not a decision made here."
+      - "No column named no_show, waitlist_position, seats_taken, registration_open or finished is added by this migration, verified by grepping it for each of the five names (PRD 5)."
+    depends_on: [REQ-032]
+
+  - id: REQ-034
+    title: Registration into 'requested' for an approval-gated event, with the decision-pending confirmation
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Implements the MEMBER-FACING half of Release 2's approval flow: USER-STORIES B6 /
+      STORY-DETAILS B6 (Ask for a seat at a curated event), and PRD FR-4's
+      `requires_invite=false, requires_approval=true` row ("requested -> organizer
+      decides"). Split from REQ-035 (the organizer's decision surface) because B6 and
+      F3 are two separate stories in USER-STORIES, sit on opposite sides of the
+      request, and each is independently testable: this one is verified by reading a
+      registrations row and a message; REQ-035 is verified by an organizer action and
+      an audit row.
+
+      VERIFIED CURRENT STATE (read from apps/bot/src/domain/registration.ts at drafting
+      time -- re-verify before changing): decideRegistrationOutcome() already reads
+      Event.requires_approval and already returns a distinct
+      `{ kind: "requires-approval" }` outcome, and REQ-020's own acceptance criteria
+      required that this be "a clear refusal naming the reason rather than an
+      admission", because approvals were Release 2. THIS REQUIREMENT REPLACES THAT
+      DELIBERATE PLACEHOLDER REFUSAL with the real behaviour. That is not a
+      contradiction of done REQ-020 -- REQ-020's description states the refusal exists
+      precisely so Release 2 could fill it in ("this requirement must nonetheless not
+      make them impossible"). The `requested` value already exists in the `admission`
+      pgEnum (apps/bot/src/db/schema.ts) and in the AdmissionState union, so no schema
+      change is needed here and none may be added.
+
+      Scope of work:
+      - For an event with requires_approval=true and requires_invite=false, registering
+        creates the registration with admission='requested' instead of refusing
+        (PRD FR-4, PRD 6's state machine: register -> requested -> admitted | rejected).
+      - The confirmation TELLS THE PERSON A DECISION WILL FOLLOW AND WHEN BY
+        (STORY-DETAILS B6 flow step 3). "When by" is derivable from data the schema
+        already holds -- Event.registration_closes_at is the point past which
+        REQ-036's auto-decline fires, so it is the honest answer and no new field is
+        needed. If registration_closes_at is null for the event, the message states
+        the decision timing in terms of the event start instead; the design artefact
+        states which, rather than leaving the null case to the handler.
+      - THE CAPACITY QUESTION, resolved explicitly: a 'requested' registration does NOT
+        occupy a seat. security-invariants.md S7 and PRD 12.2 define
+        seats_taken = count(admission='admitted') and nothing else; PRD 6's state
+        machine routes an approval-gated registration to `requested` with no capacity
+        check on that path at all, and STORY-DETAILS F3's refusal ("Approving beyond
+        capacity without an explicit override") places the capacity decision at
+        APPROVAL time, which is REQ-035's scope. So requests are accepted regardless
+        of seats remaining, and this requirement adds NO capacity check to the
+        requested path. Stated explicitly because silently adding one would break
+        F3's own refusal, and silently omitting it without saying so would look like
+        an oversight.
+      - REFUSAL (STORY-DETAILS B6): requesting twice is refused. The existing
+        `{ kind: "already-registered" }` outcome plus the UNIQUE(event_id, user_id)
+        constraint from REQ-011 already cover this; this requirement must show the
+        person their CURRENT pending status rather than a bare error, matching
+        REQ-020's treatment of the same case.
+      - The event card and /events (REQ-017) and /my (REQ-024) must render a
+        `requested` registration's state plainly rather than as a blank or an
+        admitted-looking row -- /my already handles rejected and withdrawn per
+        REQ-024's no-dead-ends criterion, and `requested` joins that set.
+      - NO QR TOKEN is issued at request time. PRD FR-14 issues qr_token "on
+        admission", REQ-024's own criteria require that waitlisted/withdrawn/rejected
+        rows show no QR, and a pass for a seat nobody has granted yet would be exactly
+        the single-purpose-token violation security-invariants.md S4 names. The token
+        is issued when REQ-035 approves.
+      - Every admission-state write is a status change and writes exactly one AuditLog
+        row (PRD 12.7, security-invariants.md S8).
+      - The request-received confirmation is transactional (PRD 9) and goes through
+        REQ-025's ledger where it is a scheduled/repeatable send; a synchronous
+        reply to the person's own tap is a direct send, the same distinction REQ-018's
+        description drew for its assignment notification.
+    acceptance_criteria:
+      - "Registering for an event with requires_approval=true and requires_invite=false creates exactly one registrations row with admission='requested' -- verified by reading the row back against a live instance, replacing the placeholder refusal REQ-020 shipped (PRD FR-4, PRD 6)."
+      - "The confirmation message states both that a decision will follow and by when, and the stated time matches the event's registration_closes_at rendered in the chapter's timezone -- verified by reading the captured message and comparing against the events row (STORY-DETAILS B6). Running this check with registration_closes_at NULL exercises the other branch and must produce the design artefact's stated fallback, not an empty or malformed date."
+      - "Requesting a second time yields the person's CURRENT pending status and leaves exactly one registrations row for that (event_id, user_id), verified by querying the row count after the second attempt (STORY-DETAILS B6's refusal, PRD 12.1)."
+      - "A request succeeds even when the event's admitted count already equals capacity: verified by constructing an event at full capacity with requires_approval=true, requesting, and confirming admission='requested' rather than 'waitlisted' or a refusal -- a run against an event with seats remaining does not exercise this and is not evidence (PRD 6, S7)."
+      - "The registrations row created by a request has qr_token NULL, and /my shows that row with its pending state and NO QR image -- both verified by reading the row and rendering /my (PRD FR-14, security-invariants.md S4, REQ-024)."
+      - "Creating a request writes exactly one audit_log row naming the actor, action, entity and entity id -- counted before and after; zero rows or two rows both fail (PRD 12.7, security-invariants.md S8)."
+      - "An event with requires_approval=false is unaffected: registering for it still admits or waitlists exactly as REQ-020 and REQ-021 do, verified by re-running one admitted and one waitlisted case (no regression)."
+    depends_on: [REQ-033]
+
+  - id: REQ-035
+    title: Organizer approve/reject surface for pending requests, with reason, notification and logged capacity override
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Implements USER-STORIES F3 / STORY-DETAILS F3 (Decide who comes in) -- the
+      organizer-facing half of the approval flow REQ-034 opens -- plus the
+      approve/reject part of PRD FR-13 ("approve/reject with reason"). Sequenced after
+      REQ-034 because there is nothing to decide on until requests can exist.
+
+      Scope of work:
+      - An organizer lists the PENDING requests (admission='requested') for an event in
+        their own chapter, each row showing the person's company, position, student flag
+        and source (STORY-DETAILS F3 flow step 1, USER-STORIES F3's Confirmation
+        "each person's relevant details"). Filter and search for larger rooms
+        (STORY-DETAILS F3's "Also").
+      - APPROVE: requested -> admitted, the person is notified, and the qr_token is
+        issued at this moment (PRD FR-14 "on admission each registration gets a
+        qr_token") using the existing generateQrToken() in
+        apps/bot/src/domain/registration.ts -- not a second generator.
+      - REJECT WITH A REASON: requested -> rejected, and the person is notified
+        respectfully and offered the onward path (STORY-DETAILS B6: "Rejected -> told
+        respectfully, offered the wishlist"; JOURNEY-AUDIT's no-dead-ends principle).
+        See this requirement's WISHLIST OFFRAMP note below for what "offered the
+        wishlist" means in Release 2.
+      - CAPACITY AT APPROVAL (STORY-DETAILS F3's explicit refusal "Approving beyond
+        capacity without an explicit override"; PRD 12.2; security-invariants.md S7):
+        approving when admitted count already equals capacity requires an EXPLICIT,
+        CONFIRMED override that writes an AuditLog row. This is the same override
+        shape REQ-030 already implements for walk-ins and REQ-029 for check-in
+        override; the design artefact states whether the existing mechanism is reused
+        or why it cannot be. The approval write is ATOMIC against the capacity check
+        for the same reason REQ-020's registration is (S7) -- two organizers approving
+        the last seat concurrently must not both succeed without an override.
+      - AUTHORIZATION (security-invariants.md S2): organizer-only, scoped to their own
+        chapter, checked ON THE HANDLER and not only on the menu that renders the
+        button. apps/bot/src/domain/eventAuthorization.ts's
+        requireOrganizerForChapter() is the existing mechanism. An EventStaff member
+        must be refused -- S2 confines staff to check-in screens, and this is a
+        registration-decision screen, not one.
+      - PRIVACY (security-invariants.md S3): the request list shows company, position,
+        student flag and source -- the fields F3 names -- and MUST NOT show phone or
+        email. S3 names a list view as exactly the shape through which this leaks, and
+        REQ-028's check-in list already carries the identical constraint.
+      - Both notifications are transactional (PRD 9, S10): the admission result reaches
+        the person regardless of broadcast_opt_in, through REQ-025's ledger with a
+        distinct kind per outcome so an approve and a later state change cannot
+        collide on one ledger key. The 'admission_result' NotificationKind already
+        exists in apps/bot/src/domain/notification.ts.
+      - Every approve and every reject writes exactly one AuditLog row (PRD 12.7, S8),
+        and USER-STORIES section 11 lists the audit log as the enabler "first needed
+        by F3" -- it exists as of REQ-011, so this requirement consumes it.
+
+      WISHLIST OFFRAMP IN RELEASE 2 -- DECIDED HERE, NOT SILENTLY DROPPED AND NOT
+      SILENTLY PULLED FORWARD. STORY-DETAILS B6, B7, B8 and B9 all end their refusal
+      paths with "offered the wishlist", and JOURNEY-AUDIT's J7/J2 make the offramp a
+      stated principle. But the Wishlist entity itself is story G4, which USER-STORIES
+      marks R3, PRD 4 places in Release 3 ("chapter interest"), and REQ-032's release
+      boundary note assigns to the Release 3 WF-01 run. There is NO wishlist table in
+      apps/bot/src/db/schema.ts and REQ-017's own acceptance criteria forbid creating
+      one ahead of its requirement. DECISION, applying to REQ-035, REQ-036, REQ-038,
+      REQ-039 and REQ-041 alike: every Release 2 refusal path ends with a CONCRETE
+      ONWARD PATH the already-built surfaces can deliver -- the upcoming-events list
+      from REQ-017, exactly as REQ-027's cancellation message already does -- and NO
+      Wishlist row, table, migration or "register interest" capture is created. The
+      offramp principle is honoured; the specific G4 mechanism is not pulled forward.
+      When Release 3 lands G4, the wishlist offer replaces the events-list offer on
+      these same paths, and that replacement is Release 3's scope, stated here so it is
+      a known, deliberate substitution rather than a gap someone later discovers.
+
+      NOTE ON WHAT THIS REQUIREMENT DOES NOT COVER: the 48h-urgent flag and the
+      auto-decline at registration close (STORY-DETAILS F3's "Also",
+      JOURNEY-AUDIT J3) are REQ-036's scope -- they are scheduled-job behaviour, not
+      decision-surface behaviour, and mixing a job runner into this requirement would
+      push it past one agent turn.
+    acceptance_criteria:
+      - "Approving a request sets admission='admitted', issues a non-null qr_token, and notifies the person -- verified by reading the row back and reading the captured message; the qr_token must be produced by the existing generateQrToken() in apps/bot/src/domain/registration.ts, confirmed by reading the call site (PRD FR-14, no second generator)."
+      - "Rejecting a request sets admission='rejected', notifies the person, and the captured message contains BOTH the organizer's stated reason AND an onward path pointing at the upcoming-events list -- verified by reading the captured message text (STORY-DETAILS F3, B6, and this requirement's wishlist-offramp decision)."
+      - "No wishlist table, migration or row is created by this requirement, verified by grepping every apps/bot migration and the schema for 'wishlist' and finding zero matches (PRD 4 -- G4 is Release 3)."
+      - "Approving when admitted count already equals capacity requires an explicit confirmation: dismissing it leaves admission='requested' unchanged, and confirming sets 'admitted' AND writes exactly one audit_log row recording the override -- all three facts verified by constructing the at-capacity state, running both branches, and counting audit rows (STORY-DETAILS F3's refusal, PRD 12.2, security-invariants.md S7)."
+      - "Two organizers approving the last remaining seat concurrently never produce an admitted count above capacity without an override -- verified by an automated concurrency test using the REQ-009 Vitest runner against a real Postgres, repeated at least 20 times with zero silent over-admissions (security-invariants.md S7). A sequential two-call test does not exercise this and is not evidence."
+      - "A member, and separately an EventStaff member for that same event, each invoking the approve handler DIRECTLY (by constructing the callback data the organizer menu would produce, not by tapping a rendered button) are both refused and the registration is unchanged -- both cases run and the row re-read (security-invariants.md S2's named negative case)."
+      - "An organizer of chapter A invoking the approve handler for a chapter B event is refused, verified by constructing two chapters, one organizer and one request (security-invariants.md S2)."
+      - "The rendered request list contains no phone number and no email address -- verified by constructing requests where every requester has both stored, rendering the list as an organizer, and grepping the captured output for each stored value (security-invariants.md S3)."
+      - "The approval and the rejection notification each reach a user with broadcast_opt_in=false, verified by setting that flag before each (PRD 9, security-invariants.md S10 -- admission results are transactional)."
+      - "Each approve and each reject writes exactly one audit_log row, counted before and after each (PRD 12.7, security-invariants.md S8)."
+    depends_on: [REQ-034]
+
+  - id: REQ-036
+    title: Pending-request urgency flag at T-48h and honest auto-decline at registration close
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Closes JOURNEY-AUDIT's J3 ("An approval request can hang forever"), which the
+      audit files as acceptance criteria on BOTH B6 and F3 rather than as its own
+      story -- which is why it lands as its own requirement between the two flows
+      rather than inside either. STORY-DETAILS B6 states it from the member's side
+      ("Still undecided when registration closes -> AUTO-DECLINED with an honest
+      message; nobody waits past the event") and STORY-DETAILS F3 from the
+      organizer's ("Requests still pending 48h before the start are flagged urgent.
+      Anything undecided when registration closes is auto-declined honestly").
+
+      Split from REQ-035 because this is scheduled-job work -- it uses REQ-025's job
+      runner (apps/bot/src/scheduler/runner.ts) and its send-once ledger, which
+      REQ-035's synchronous decision surface does not touch at all.
+
+      Scope of work:
+      - A scheduled job registered with the existing startScheduledJobs() runner in
+        apps/bot/src/scheduler/runner.ts, alongside the reminder, feedback and no-show
+        jobs already registered there -- no new scheduling mechanism (PRD 1: "one
+        Postgres and one bot process are sufficient. Do not add infrastructure").
+      - URGENCY, at T-48h before starts_at: every event with requests still in
+        admission='requested' surfaces those requests to that event's organizers as
+        urgent. The design artefact states WHERE they are surfaced -- a notification to
+        the organizers, a marker on REQ-035's request list, or both -- and states it
+        concretely enough to be checked, rather than leaving "flagged urgent" to the
+        implementer's reading.
+      - AUTO-DECLINE, at registration_closes_at: every remaining
+        admission='requested' registration transitions to 'rejected' and the person is
+        told honestly -- the message says the request was not decided in time and the
+        event's registration has closed, and offers the onward path (the
+        upcoming-events list, per REQ-035's stated wishlist-offramp decision, which
+        this requirement inherits unchanged and does not re-decide).
+      - HONEST WORDING (STORY-DETAILS B6's "with an honest message"): the message must
+        not imply the person was individually judged and found wanting, because they
+        were not -- nobody decided. This is copy in the same class as REQ-014's consent
+        wording and REQ-032's blame-free no-show wording: the implementing agent
+        writes plain factual wording through REQ-013's catalog mechanism (ru and en,
+        no hardcoded literals in the handler) and records in its handoff result that
+        the exact copy is provisional pending the product owner.
+      - An event with registration_closes_at NULL has no close moment for the
+        auto-decline to key on. The design artefact must state what happens to a
+        pending request on such an event -- the ends_at fallback, or no auto-decline at
+        all with the urgency flag as the only backstop -- and state the reasoning. It
+        must NOT add a column to make the null case go away; PRD 5 lists
+        registration_closes_at as it is, and the schema already has it nullable
+        (apps/bot/src/db/schema.ts's events table).
+      - IDEMPOTENCY (PRD 12.8, security-invariants.md S9): both sends go through
+        REQ-025's ledger with distinct kinds, so a restart mid-batch or a repeated job
+        tick sends nothing twice. The auto-decline's state write is itself
+        self-guarding the way REQ-023's promotion is -- a row already moved to
+        'rejected' can never match the still-requested selection filter again -- and
+        the design artefact states that, so the ledger and the state guard are
+        understood as two mechanisms and not mistaken for one.
+      - Both sends are transactional (PRD 9, S10) and reach a user regardless of
+        broadcast_opt_in. `blocked` users are skipped, as REQ-025's send API already
+        does for every caller.
+      - Each auto-decline is a status change and writes exactly one AuditLog row
+        (PRD 12.7, S8), with the actor recorded as the system rather than a person --
+        audit_log.actor_user_id is already nullable for exactly this case
+        (apps/bot/src/db/schema.ts's comment: "a genuinely system-initiated action
+        (e.g. a scheduled job) has no human actor to attribute").
+    acceptance_criteria:
+      - "With an event exactly 48h from starts_at and two registrations still in admission='requested', the urgency job surfaces both to that event's organizers through the mechanism the design artefact names -- verified by running the job at that constructed boundary and capturing the surfaced result; a run with the event more than 48h out must surface nothing, and both timings are run (STORY-DETAILS F3)."
+      - "At registration_closes_at, every remaining admission='requested' registration becomes 'rejected' and each person receives exactly one message -- verified by constructing three pending requests plus one already-approved and one already-rejected registration, running the job, and confirming exactly three transitions and three sends, with the approved and previously-rejected rows untouched (STORY-DETAILS B6, F3)."
+      - "The auto-decline message states that no decision was reached in time and contains no wording attributing the outcome to the person's own merits, and it offers the upcoming-events list as an onward path -- verified by reading the captured message text (STORY-DETAILS B6's 'honest message', REQ-035's offramp decision)."
+      - "Running the auto-decline job, KILLING the process, restarting it, and running the job again for the same event delivers exactly the original number of messages and performs no further transitions -- verified by counting captured sends and re-reading every row across both runs (PRD 12.8, PRD 13 criterion 6, security-invariants.md S9). A single-run test does not exercise restart-safety and is not evidence."
+      - "An event whose registration_closes_at is NULL behaves exactly as the design artefact states for that case, verified by constructing that event with a pending request and running the job -- an unhandled crash, a silent skip the artefact does not describe, or a new column added to avoid the case all fail this criterion."
+      - "Each auto-decline writes exactly one audit_log row, counted before and after, with actor_user_id NULL to mark it system-initiated (PRD 12.7, security-invariants.md S8)."
+      - "Both the urgency message and the auto-decline message reach a user with broadcast_opt_in=false and reach neither a user with blocked=true, verified by setting each flag and re-running (PRD 9, security-invariants.md S10)."
+      - "Every user-facing string added by this requirement resolves through REQ-013's catalog mechanism in both ru and en, verified by grepping the handler and the job for literal user-facing text and by the existing catalog key-set parity check; and the handoff result records that the auto-decline wording is provisional pending the product owner."
+    depends_on: [REQ-035]
+
+  - id: REQ-037
+    title: Organizer issues personal, bulk and companion invite codes and sees who has used each
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Implements USER-STORIES F4 / STORY-DETAILS F4 (Hand out invitations) -- the
+      issuing side of PRD FR-5. Sequenced before REQ-038's redemption because a code
+      must exist before it can be redeemed, and STORY-DETAILS F4 says so directly
+      ("Moves. Nothing directly; drives B7 and B8").
+
+      Consumes REQ-033's invite_codes table and code generator unchanged; this
+      requirement adds NO schema and MUST NOT add a column. If a field turns out to be
+      missing, that is a BLOCKER to report against REQ-033, not a licence to add one
+      here -- the same rule REQ-026 states for REQ-011's agenda shape.
+
+      Scope of work:
+      - An organizer issues a code for an event in THEIR OWN chapter, in the three
+        shapes PRD FR-5 and story F4 name, composed from REQ-033's columns:
+        PERSONAL -- issued_to_user_id set, max_uses=1, works once and only for that
+        event; BULK -- issued_to_user_id null, max_uses=N (STORY-DETAILS F4's example:
+        a partner's team); COMPANION -- grants_companion_of set to the host user, which
+        is what makes the redeemer's registration carry invited_by_user_id = host
+        (PRD FR-5, and DESIGN-REVIEW F10's decision that the +1 mechanic and referral
+        reporting are ONE field, not two mechanics).
+      - A personal code may be issued to a person WHO HAS NEVER OPENED THE BOT. PRD 5
+        and DESIGN-REVIEW both make User.tg_id nullable for exactly this, and
+        apps/bot/src/db/schema.ts already has tgId nullable with a unique index (which
+        REQ-010's own acceptance criteria proved does not collide across multiple NULL
+        rows). Creating that pre-arrival User row is REQ-040's invitation-list scope;
+        this requirement must simply accept an issued_to_user_id whose user has
+        tg_id NULL and not assume a Telegram account exists.
+      - THE SHAREABLE LINK: the code is presented to the organizer as a
+        `?start=i_<code>` deep link (PRD FR-5, PRD 8's `i_` deep-link prefix) plus the
+        bare code for typing, since story B7 requires both redemption routes. The bot
+        does not send it to the invitee -- see the REFUSAL below.
+      - EXPIRY DEFAULTS TO THE EVENT START (STORY-DETAILS F4's "Also"), i.e.
+        expires_at defaults to Event.starts_at, overridable by the organizer at issue
+        time. This is a default, not a constraint.
+      - CODES WORK ON ANY EVENT (STORY-DETAILS F4, DESIGN-REVIEW F9): issuing a code
+        for an OPEN event is legal and is not an error -- on an open event the code
+        simply carries attribution (it sets invite_code_id and, for a companion code,
+        invited_by_user_id). This requirement must not gate issuing on
+        requires_invite=true.
+      - USAGE VISIBILITY (USER-STORIES F4's fourth Confirmation, "Given I look at a
+        code, then I can see who has used it"): the organizer sees, per code, its
+        used_count and WHO redeemed it -- derived by joining registrations on
+        invite_code_id, not by adding a redemption-list column. Personal data shown is
+        bounded by security-invariants.md S3: name and company, never phone or email,
+        matching what REQ-028's check-in list and REQ-035's request list already show.
+      - REFUSALS: codes for finished or cancelled events are refused (STORY-DETAILS
+        F4's stated refusal). And per STORY-DETAILS F9's refusal -- stated here too
+        because this is where the temptation actually arises -- THE BOT DOES NOT SEND
+        THE CODE TO THE INVITEE ON THE ORGANIZER'S BEHALF: Telegram does not permit a
+        bot to message someone who has never started it, so the organizer shares the
+        link themselves by DM, email or in person. A design proposing an
+        outbound-to-a-stranger send is contradicting a platform fact, not choosing a
+        product option.
+      - AUTHORIZATION (security-invariants.md S2): organizer-only, own-chapter,
+        checked on the HANDLER via
+        apps/bot/src/domain/eventAuthorization.ts's requireOrganizerForChapter(), with
+        EventStaff refused. Every issue and every revoke/edit writes exactly one
+        AuditLog row (PRD 12.7, S8) -- an invite code is an access grant, so its
+        creation is precisely the kind of action S8 exists to record.
+    acceptance_criteria:
+      - "Issuing a personal code creates one invite_codes row with issued_to_user_id set to the named user and max_uses=1; issuing a bulk code with N uses creates a row with issued_to_user_id NULL and max_uses=N; issuing a companion code creates a row with grants_companion_of set to the host -- all three verified by reading the rows back (PRD FR-5, story F4)."
+      - "Issuing a code without specifying an expiry sets expires_at equal to that event's starts_at, and supplying an explicit expiry overrides it -- both verified by reading the rows (STORY-DETAILS F4)."
+      - "Issuing a personal code to a user whose tg_id is NULL succeeds, verified by constructing exactly that user row first (PRD 5, DESIGN-REVIEW F11) -- a run against a user who has opened the bot does not exercise this and is not evidence."
+      - "Issuing a code for an OPEN event (requires_invite=false, requires_approval=false) succeeds rather than being refused, verified by constructing that event and issuing (STORY-DETAILS F4, DESIGN-REVIEW F9)."
+      - "Issuing a code for a cancelled event and for an event whose ends_at has passed are each refused with the reason stated, and no invite_codes row is created -- both constructed and the table re-counted (STORY-DETAILS F4's refusal)."
+      - "The organizer's view of a code shows its used_count and the name and company of each person who redeemed it, and contains NO phone number and NO email -- verified by constructing redeemers with both stored and grepping the captured output for each stored value (USER-STORIES F4, security-invariants.md S3)."
+      - "The redeemer list is derived by querying registrations on invite_code_id: verified by inserting a redeeming registration directly in the database and confirming the organizer's view reflects it on the next read with no write to the invite_codes row (checked by comparing that row's updated timestamp before and after)."
+      - "A member, and separately an EventStaff member, each invoking the issue-code handler directly are refused and no invite_codes row is created -- both cases run and the table re-counted (security-invariants.md S2); an organizer of chapter A issuing for a chapter B event is likewise refused."
+      - "`git grep` over apps/bot finds no code path that sends an invite code to the issued_to_user, and the design artefact states that the organizer shares it themselves because a bot cannot message a person who has never started it (STORY-DETAILS F9's refusal)."
+      - "Each code issue writes exactly one audit_log row naming the actor, action, entity and entity id, counted before and after (PRD 12.7, security-invariants.md S8)."
+    depends_on: [REQ-033]
+
+  - id: REQ-038
+    title: Invite code redemption via i_ deep link or typed code, with the full validation table and past-attendee eligibility
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Implements USER-STORIES B7 / STORY-DETAILS B7 (Use my invitation) and PRD FR-4's
+      two requires_invite rows: `requires_invite=true, requires_approval=false` (valid
+      code -> admitted; no code -> onward path) and `requires_invite=true,
+      requires_approval=true` (valid code -> requested -> organizer decides). It is the
+      redemption counterpart to REQ-037's issuing, and it replaces the placeholder
+      `{ kind: "requires-invite" }` refusal REQ-020 shipped in
+      apps/bot/src/domain/registration.ts -- deliberately, exactly as REQ-034 replaces
+      the requires-approval one, and for the reason REQ-020's own description gives.
+
+      Scope of work:
+      - REDEMPTION BY BOTH ROUTES (story B7): the `?start=i_<code>` deep link (PRD 8
+        lists `i_` alongside the already-implemented `e_` and `ci_` prefixes in
+        apps/bot/src/handlers/start.ts) AND by typing the code. Both resolve to one
+        validation path -- two entry points, one decision function, following the
+        framework-free-domain-logic rule decisions/0004 binds all bot work to.
+      - THE VALIDATION TABLE, implemented case by case, each a distinct verifiable
+        behaviour (STORY-DETAILS B7 flow step 2, security-invariants.md S4):
+        (1) the code EXISTS; (2) it is NOT EXPIRED (now < expires_at); (3) USES REMAIN
+        (used_count < max_uses); (4) it BELONGS TO THIS EVENT; (5) if PERSONAL
+        (issued_to_user_id non-null) it was ISSUED TO THIS REDEEMER.
+      - THE TWO NAMED REFUSALS (STORY-DETAILS B7): a code for a DIFFERENT event, and a
+        PERSONAL CODE REDEEMED BY SOMEONE ELSE. The second is the security-sensitive
+        one -- a personal code is a named grant, and honouring it for whoever holds the
+        string would turn every forwarded message into a transferable ticket. It is
+        security-invariants.md S4's negative case ("a code accepted past expires_at or
+        beyond max_uses") extended to identity, and SECURITY-REVIEWER gates it.
+      - OUTCOME: a valid code admits (seats permitting) or, when the event ALSO has
+        requires_approval=true, produces admission='requested' routed into REQ-035's
+        organizer decision surface -- PRD FR-4's fourth row, and STORY-DETAILS B7's
+        "(or `requested` if approval is also on)". A valid code on a FULL event
+        waitlists like any other registration; a code buys past the invite gate, not
+        past capacity (PRD 12.2, security-invariants.md S7 -- capacity holds).
+      - used_count INCREMENTS ATOMICALLY WITH THE REGISTRATION WRITE (story B7 step 4).
+        Read-then-write is the defect: two people redeeming the last use of a bulk code
+        concurrently must not both succeed. This is the same atomicity property
+        REQ-020's capacity check has and security-invariants.md S7 states, applied to a
+        different counter. The registration and the increment are one transaction -- a
+        registration created without its increment, or an increment without its
+        registration, are both defects.
+      - PAST-ATTENDEE ELIGIBILITY (PRD FR-4, story B7's third Confirmation): a user who
+        has checked_in_at on any past event satisfies requires_invite WITHOUT a code.
+        The derivation is a query over registrations, never a stored "is_returning"
+        flag (PRD 5's computed-not-stored discipline; FR-16's "Returning" factsheet
+        line is likewise computed). THE OPEN QUESTION REQ-033 ROUTED HERE MUST BE
+        RESOLVED IN THIS REQUIREMENT'S DESIGN ARTEFACT AND STATED, NOT SILENTLY
+        DECIDED IN CODE: FR-4 calls this rule "configurable per event", but PRD 5's
+        Event entity lists no such flag and inventing an unlisted Event column is what
+        PRD's closing rule forbids. The implementing chain must either (a) apply the
+        rule uniformly to every requires_invite event and state that FR-4's
+        "configurable" is deferred until a real need for per-event variation appears,
+        or (b) treat the per-event flag as an architecturally significant addition
+        needing a docs/agents/decisions/ record before any column is added. It must
+        not add the column silently under either reading. Whichever is chosen, the
+        artefact states it and the reasoning.
+      - REFUSALS OFFER AN ONWARD PATH (STORY-DETAILS B7: "Expired, spent or unknown ->
+        said plainly, wishlist offered"): expired, spent, unknown and wrong-event codes
+        each produce their own stated reason plus the upcoming-events list, per
+        REQ-035's wishlist-offramp decision, which this requirement inherits unchanged
+        -- no Wishlist row or table is created here either.
+      - CONSENT AND PROFILE ORDER (security-invariants.md S1): redeeming a code does
+        not bypass REQ-019's profile-and-consent gate. A redeemer without
+        consent_pd_at set is taken through consent and profile capture exactly as
+        REQ-019 defines, and nothing about them is stored before consent. A code is an
+        access grant, never a consent substitute.
+      - Every admission-state write writes exactly one AuditLog row (PRD 12.7, S8).
+    acceptance_criteria:
+      - "Redeeming a valid code for a requires_invite event with seats remaining, BOTH via `?start=i_<code>` and by typing the code, each set admission='admitted' and registrations.invite_code_id to that code's id and increment invite_codes.used_count by exactly one -- both entry points run and the rows read back (story B7, PRD FR-5)."
+      - "A PERSONAL code (issued_to_user_id set) redeemed by a DIFFERENT user is refused, no registration is created, and used_count is unchanged -- verified by constructing the code for user A, redeeming as user B, and re-reading both tables (STORY-DETAILS B7's explicit refusal, security-invariants.md S4). A run where the redeemer is the issuee does not exercise this and is not evidence."
+      - "An expired code (expires_at in the past), a spent code (used_count = max_uses), an unknown code string, and a code whose event_id is a DIFFERENT event are each refused with their own stated reason plus the upcoming-events list as an onward path, and none creates a registration or changes used_count -- all four constructed and run (STORY-DETAILS B7, security-invariants.md S4)."
+      - "Two concurrent redemptions of the LAST remaining use of a bulk code result in exactly one successful registration and used_count ending at max_uses, never above it -- verified by an automated concurrency test using the REQ-009 Vitest runner against a real Postgres, repeated at least 20 times (security-invariants.md S4, S7). A sequential test does not exercise this and is not evidence."
+      - "Redeeming a valid code for an event that is BOTH requires_invite and requires_approval produces admission='requested' (not 'admitted') and the request appears in REQ-035's organizer list -- verified by constructing both flags and reading the row (PRD FR-4's fourth row)."
+      - "Redeeming a valid code for a requires_invite event that is at full capacity produces admission='waitlisted', not 'admitted' -- verified by constructing the at-capacity state (PRD 12.2, security-invariants.md S7: a code does not buy past capacity)."
+      - "A user with checked_in_at on a past event registering for a requires_invite event WITHOUT any code is admitted, and a user with no past check-in is refused with the onward path -- both constructed and run (PRD FR-4, story B7). The eligibility derivation is a query: `git grep` over apps/bot finds no stored column, cache or flag holding returning/attended-before status."
+      - "The design artefact states which resolution it takes for FR-4's 'configurable per event' eligibility question and the reasoning, and no new column is added to the events table by this requirement -- verified by reading the artefact and grepping every apps/bot migration for a new events column."
+      - "A redeemer who has not yet given personal-data consent is taken through REQ-019's consent and profile flow, and declining consent leaves zero profiles rows and no registration for that user despite the valid code -- verified by querying both tables after the decline (security-invariants.md S1)."
+      - "No wishlist table, migration or row is created by this requirement, verified by grepping every apps/bot migration and the schema for 'wishlist' (PRD 4 -- G4 is Release 3)."
+      - "Each successful redemption writes exactly one audit_log row, counted before and after (PRD 12.7, security-invariants.md S8)."
+    depends_on: [REQ-037, REQ-035]
+
+  - id: REQ-039
+    title: Companion (+1) registration through a companion code, with consent before storage and invited_by_user_id attribution
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Implements USER-STORIES B8 / STORY-DETAILS B8 (Bring someone with me) -- the `+1`
+      half of PRD FR-5. USER-STORIES B8 states "Depends on B7" outright, so this
+      requirement is sequenced after REQ-038 and reuses its validation path rather than
+      forking a second one.
+
+      Scope of work:
+      - A host holding a COMPANION code (invite_codes.grants_companion_of = host user
+        id, issued by REQ-037) FORWARDS THE LINK to their guest. The guest opens it and
+        redeems through REQ-038's validation table -- same five checks, no parallel
+        implementation.
+      - THE ATTRIBUTION: a code with grants_companion_of = X sets
+        Registration.invited_by_user_id = X on the resulting registration (PRD FR-5).
+        DESIGN-REVIEW F10 is explicit that this ONE field is both the `+1` mechanic and
+        referral reporting -- "the `+1` mechanic and referral analytics are now the same
+        feature". No companion-specific column, no separate referral table, no second
+        mechanic may be introduced. registrations.invited_by_user_id already exists in
+        apps/bot/src/db/schema.ts, so this requirement adds no schema.
+      - THE SHORT PROFILE (STORY-DETAILS B8 step 2, USER-STORIES B8's Conversation):
+        the companion completes NAME, PHONE and COMPANY -- not the full REQ-019 form.
+        This is the same reduced field set REQ-030's walk-in flow already uses at the
+        door, and the design artefact states whether REQ-030's collection path is
+        reused or why it cannot be, rather than writing a third profile-capture flow.
+        Note that phone is required here even though PRD 5 marks it optional generally
+        -- that is not a contradiction, it is this flow's own minimum, exactly as
+        REQ-030's description already reasons for the door.
+      - CONSENT BEFORE STORAGE -- THE SECURITY-CRITICAL PROPERTY OF THIS REQUIREMENT.
+        STORY-DETAILS B8's second explicit refusal is "Storing anything before
+        consent", and security-invariants.md S1's negative case names precisely this
+        shape of failure. The companion is a person the bot has never met, arriving
+        through someone else's link, and the temptation to record the forwarding
+        relationship or a partial name before the consent step is exactly the failure
+        mode. NOTHING -- not a User row carrying their name, not a Profile row, not the
+        invited_by relationship, not a partial-form draft -- is written before
+        consent_pd_at is set. This differs from REQ-019's resumable partial-write form,
+        where consent is already established BEFORE the first partial write; here
+        consent comes first in the flow and there is no legitimate pre-consent write at
+        all. The design artefact states that distinction explicitly so an implementer
+        does not reach for REQ-019's write-as-you-go pattern by analogy.
+      - CAPACITY: companions occupy a NORMAL seat (PRD FR-5, STORY-DETAILS B8's
+        "Also"). A full event waitlists the companion like anyone else -- story B8's
+        second Confirmation states this directly. There is no reserved-seat mechanic
+        and none may be invented.
+      - ONE USE UNLESS THE ORGANIZER SAID OTHERWISE (STORY-DETAILS B8) -- which is just
+        max_uses on REQ-033's row, defaulting to 1 for a companion code at REQ-037's
+        issue time. Reusing a spent code is B8's first stated refusal and is already
+        REQ-038's spent-code case; this requirement must not implement a second
+        spent-code check with different behaviour.
+      - BOTH ARE TOLD (STORY-DETAILS B8 step 4): the guest gets their own admission
+        result, and the HOST is told their guest is coming. Both are transactional
+        (PRD 9, S10) and go through REQ-025's ledger. The host notification carries the
+        guest's name and company only -- security-invariants.md S3 bounds what one
+        person is shown about another, and the host is not an organizer.
+      - The guest is a person who may never have opened the bot before, so /start's
+        existing REQ-014 first-contact path and REQ-019's consent gate are the entry,
+        not a bypass around them.
+    acceptance_criteria:
+      - "A guest redeeming a companion code whose grants_companion_of is host H gets a registration with invited_by_user_id = H's user id and invite_code_id set to that code -- verified by reading the row (PRD FR-5, DESIGN-REVIEW F10)."
+      - "`git grep` over apps/bot finds no companion-specific column, no referral table and no second attribution field: invited_by_user_id is the only mechanism, and no migration adds another (DESIGN-REVIEW F10)."
+      - "Abandoning the companion flow AT OR BEFORE the consent step leaves ZERO new users rows, ZERO new profiles rows and ZERO new registrations rows for that guest -- verified by capturing all three tables' row counts before and after the abandoned flow, run against a guest the bot has never seen (security-invariants.md S1, STORY-DETAILS B8's refusal). A run that reaches consent before abandoning does not exercise this and is not evidence."
+      - "Completing the flow collects name, phone and company and nothing further -- verified by walking the whole flow and confirming no experience-level, student-flag or links question is asked (STORY-DETAILS B8, USER-STORIES B8)."
+      - "A companion redeeming against a FULL event is waitlisted, not admitted, and not given a seat outside capacity -- verified by constructing the at-capacity state and reading the row (story B8's second Confirmation, PRD 12.2)."
+      - "A second person attempting to redeem a single-use companion code is refused and no registration is created, verified by constructing max_uses=1, redeeming once, then attempting again (story B8's third Confirmation, STORY-DETAILS B8's refusal)."
+      - "Both the guest and the host receive exactly one message on a successful companion registration, counted from the captured sends; the host's message contains the guest's name and company and contains NEITHER the guest's phone NOR their email -- verified by storing both on the guest and grepping the host's captured message for each value (STORY-DETAILS B8, security-invariants.md S3)."
+      - "The guest's phone appears in NO log line and in NO audit_log payload -- verified by grepping the captured process logs and every audit row written during the flow for the exact phone string used (security-invariants.md S11)."
+      - "Each companion registration writes exactly one audit_log row, counted before and after (PRD 12.7, security-invariants.md S8)."
+    depends_on: [REQ-038]
+
+  - id: REQ-040
+    title: Named invitation list with derived invited/opened/registered/attended outreach status and account linking on first contact
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      Implements USER-STORIES F9 / STORY-DETAILS F9 (Run an invitation list) and
+      PRD FR-17. RE-EVALUATION R5 records why this story exists at all: the team had
+      "no way to run a VIP invitation list", and the clearest ask in the team chat was
+      "I need a list of the VIPs we're inviting" -- Uzcard, the fintech association,
+      SAP, EPAM, Andersen, none of whom have opened the bot. It replaces the VIP
+      spreadsheet.
+
+      Sequenced last among Release 2's build requirements because it composes
+      everything before it: it creates pre-arrival Users (REQ-010's nullable tg_id),
+      issues personal codes (REQ-037), and reads registration and check-in state
+      (REQ-020, REQ-028/REQ-029) to derive its status column.
+
+      Scope of work:
+      - An organizer builds a NAMED list for a curated event in their own chapter, and
+        adds entries INCLUDING PEOPLE WHO HAVE NEVER OPENED THE BOT. PRD FR-17 and
+        DESIGN-REVIEW F11 both make this the whole point of User.tg_id being nullable:
+        "a person can exist before they arrive". apps/bot/src/db/schema.ts already has
+        users.tgId nullable under a unique index, and REQ-010's acceptance criteria
+        already proved two NULL-tg_id rows can coexist -- so the mechanism is built and
+        this requirement uses it rather than inventing a parallel "guest" concept,
+        which DESIGN-REVIEW F11 explicitly warns against ("which invites a parallel
+        guest concept and duplicate identity. One identity, always").
+      - Each entry can be issued a PERSONAL CODE through REQ-037's issuing path -- not a
+        second code generator and not a second invite_codes-shaped table.
+      - THE OUTREACH STATUS -- invited -> opened -> registered -> attended (PRD FR-17,
+        story F9's second Confirmation) -- AND THE COMPUTED-NOT-STORED BOUNDARY, which
+        this requirement's handoff singles out and which is decided here explicitly
+        rather than left to the implementer:
+        * REGISTERED is DERIVED: a registration exists for that user and event with a
+          live admission. No column.
+        * ATTENDED is DERIVED: that registration's checked_in_at is non-null. No
+          column. This is the same derivation REQ-028's live counter and REQ-032's
+          no-show rule already use.
+        * INVITED is a genuinely STORED fact and is justified here as the handoff
+          requires: it is the organizer's own act of adding the person to the list,
+          which nothing else in the database records. It cannot be derived from the
+          existence of an invite code either, because STORY-DETAILS F9 step 2 makes
+          issuing a code a SEPARATE step from adding the entry ("Builds a named list
+          ... Issues each a personal code"), so an entry can legitimately exist before
+          any code does. The list entry row's own existence IS the invited state -- no
+          separate boolean.
+        * OPENED is the one genuinely open question and MUST NOT be silently resolved.
+          "Opened" plausibly means the person started the bot at all, or that they
+          opened THIS invitation (the `?start=i_<code>` deep link for their personal
+          code). These differ observably: a VIP who has used the bot before is
+          permanently "opened" under the first reading before ever seeing this
+          invitation. The second reading is the one that carries information for an
+          outreach list, and it requires storing a first-open timestamp per entry,
+          because a deep-link open that does not lead to registration leaves no other
+          trace. RESOLUTION REQUIRED FROM THE DESIGN STEP, stated in the artefact with
+          its reasoning: either (a) store an opened_at on the list entry, written the
+          first time that entry's personal code deep link is resolved, and justify it
+          as a genuinely unrecordable-otherwise event, or (b) derive opened from
+          users.tg_id having become non-null (the person has linked an account), and
+          state plainly that this is the weaker signal. Whichever is chosen, the
+          artefact states the choice, and any stored column is justified against PRD 5
+          in the artefact's own text.
+      - ACCOUNT LINKING ON FIRST CONTACT (PRD FR-17: "Entries link to a real User on
+        first /start, so nobody is duplicated"; story F9's third Confirmation): when a
+        person redeems their personal code, the pre-created User row (tg_id NULL) is
+        LINKED to their Telegram account -- its tg_id is set -- rather than a second User
+        row being created. The match is BY THE CODE (STORY-DETAILS F9: "matched by the
+        code"), which is exactly why REQ-037 issues personal codes with
+        issued_to_user_id pointing at the pre-created row. REQ-014's description
+        already anticipated this: "A user pre-created by an organizer with NULL tg_id
+        links on first /start by whatever matching rule the invitation flow
+        establishes -- that matching is a Release 2 requirement". THIS IS THAT
+        REQUIREMENT, and the rule it establishes is code-based matching. The design
+        artefact must state what happens when the redeemer ALREADY has their own User
+        row (they have used the bot before under a different identity than the
+        pre-created one) -- a merge, a refusal, or linking the registration to the
+        existing row and leaving the placeholder -- because that case is reachable the
+        moment an organizer pre-creates someone who is already a member, and silently
+        creating a duplicate would break FR-17's "so nobody is duplicated" guarantee.
+      - THE REFUSAL (STORY-DETAILS F9, restated from REQ-037 because this is the
+        surface where an organizer would most naturally expect it): THE BOT CANNOT
+        MESSAGE A GUEST WHO HAS NEVER STARTED IT. Telegram does not permit it. The list
+        shows the organizer the code and link to share themselves -- by DM, email or in
+        person -- and offers no "send invitation" action. This is a platform fact, not a
+        product choice, and a design proposing an outbound send to a stranger is
+        wrong regardless of how the request is phrased.
+      - AUTHORIZATION (security-invariants.md S2): organizer-only, own-chapter, checked
+        on the HANDLER via requireOrganizerForChapter(), EventStaff refused. The list
+        surfaces other people's personal data, so security-invariants.md S3 bounds it:
+        name, company, position and the outreach status -- never phone or email. Every
+        entry added and removed writes an AuditLog row (PRD 12.7, S8); creating a User
+        row for a real named person on someone else's say-so is an act worth having a
+        record of.
+      - "Active in the Telegram group" IS NOT COMPUTED AND MUST NOT BE APPROXIMATED.
+        PRD FR-4 and RE-EVALUATION R4 are emphatic: a bot has no access to group
+        history, "active in the group stays a human judgement, supported by the
+        invitation list, not replaced by it", and "Do not fake this with a proxy
+        metric". Any engagement score, activity heuristic or inferred-activity column
+        contradicts the PRD directly.
+    acceptance_criteria:
+      - "An organizer adds a named guest who has never used the bot: exactly one users row is created with tg_id NULL, and a personal code can then be issued to that row through REQ-037's path -- both verified by reading the users and invite_codes tables (PRD FR-17, story F9's first Confirmation)."
+      - "Adding two different never-seen guests both succeed, each producing a users row with tg_id NULL -- verified by adding both and confirming the unique index on tg_id does not collide across the two NULL rows (PRD 5, REQ-010's proven nullability)."
+      - "The list renders each entry's outreach status across all four values: verified by constructing four entries in the four states (added only; opened per the design artefact's chosen definition; registered; checked in) and confirming each renders its correct status (PRD FR-17, story F9's second Confirmation)."
+      - "The registered and attended statuses are DERIVED, not stored: verified by flipping a registration's admission and separately setting checked_in_at directly in the database, then re-rendering the list and confirming both statuses changed with NO write to the list entry row (compared by that row's updated timestamp before and after) -- PRD 5 computed-never-stored."
+      - "`git grep` over apps/bot finds no column, cache or persisted field holding a registered or attended status for a list entry; the design artefact states the chosen 'opened' definition with its reasoning, and justifies against PRD 5 any column it does store."
+      - "A guest redeeming their personal code LINKS the pre-created users row -- that row's tg_id becomes non-null and its id is unchanged -- rather than creating a second users row: verified by capturing the pre-created row's id and the users table count before and after redemption (PRD FR-17, STORY-DETAILS F9's third Confirmation). A run where the redeemer had no pre-created row does not exercise this and is not evidence."
+      - "The case where the redeemer ALREADY has their own users row is handled exactly as the design artefact states, verified by constructing that state (a pre-created entry plus a separate existing account for the same person) and running the redemption -- an outcome leaving two live users rows for one person with no stated resolution fails this criterion (PRD FR-17 'so nobody is duplicated')."
+      - "The rendered list contains no phone number and no email address for any entry -- verified by constructing entries whose users have both stored, rendering as an organizer, and grepping the captured output for each stored value (security-invariants.md S3)."
+      - "The list surface offers NO action that sends a message to an entry, and `git grep` over apps/bot finds no send path targeting a user whose tg_id is NULL -- verified by reading the rendered surface's actions and the grep result (STORY-DETAILS F9's refusal; a bot cannot message a person who has never started it)."
+      - "`git grep` over apps/bot finds no engagement score, activity heuristic, group-activity column or any field approximating 'active in the Telegram group' (PRD FR-4, RE-EVALUATION R4: 'Do not fake this with a proxy metric')."
+      - "A member, and separately an EventStaff member, each invoking the list handlers directly are refused; an organizer of chapter A is refused for a chapter B event -- all three cases constructed and run (security-invariants.md S2)."
+      - "Adding and removing a list entry each write exactly one audit_log row, counted before and after each (PRD 12.7, security-invariants.md S8)."
+    depends_on: [REQ-037, REQ-014]
+
+  - id: REQ-041
+    title: Waitlist closure notification when registration closes, sent once, closing Release 2
+    owner: BACKEND-DEV
+    status: pending
+    description: >
+      FINAL REQUIREMENT OF RELEASE 2. Implements USER-STORIES B9 / STORY-DETAILS B9
+      (Know when I didn't get in) and closes JOURNEY-AUDIT's J2 ("The waitlist has no
+      ending"), which the audit rates the worst experience in the product: "A
+      waitlisted member is told their position and then hears nothing, ever ... the
+      most engaged people (they tried, and it was full) get the worst experience."
+      USER-STORIES B9's Conversation says the same: "Silence is the worst possible
+      answer."
+
+      REQ-021 (done) deliberately left this hole and said so: "Waitlist CLOSURE is
+      Release 2 (PRD 4) and is not implemented here." This requirement fills it.
+
+      Placed last in the chain because it is the smallest of the seven stories
+      (USER-STORIES sizes B9 `S`, every other Release 2 story `M`) and depends on
+      nothing Release 2 builds -- it is sequenced here for chain clarity, not
+      technical necessity.
+
+      Scope of work:
+      - A scheduled job on REQ-025's runner (apps/bot/src/scheduler/runner.ts),
+        alongside the reminder, feedback, no-show and REQ-036 auto-decline jobs -- no
+        new scheduling mechanism (PRD 1's "do not add infrastructure").
+      - AT registration_closes_at, every registration still at admission='waitlisted'
+        for that event receives ONE message telling them plainly that it did not work
+        out this time, plus the onward path (the upcoming-events list, per REQ-035's
+        stated wishlist-offramp decision, inherited unchanged -- no Wishlist row or
+        table is created here either; Release 3's G4 replaces this substitution).
+      - IT CHANGES NO STATE. STORY-DETAILS B9 is explicit: "Moves. Nothing -- being told
+        is not a state." The person stays 'waitlisted'. They are NOT transitioned to
+        'rejected', which PRD 6's vocabulary rule reserves for an organizer's active
+        refusal ("organizer refuses -> rejected"), and nobody refused them. This is a
+        deliberate contrast with REQ-036's auto-decline, which DOES transition
+        'requested' -> 'rejected' because an approval decision is exactly what was
+        owed and never given. The design artefact states the contrast so the two jobs
+        are not later "harmonized" into one behaviour.
+      - SENT ONCE, AND ONLY TO THE STILL-WAITLISTED (STORY-DETAILS B9's refusal:
+        "Sending twice"; its "Also": "Promoted before closing -> never sent. Sent once;
+        the event ending adds nothing further"). Two mechanisms, both needed and both
+        stated: admission is re-checked AT SEND TIME so someone promoted before closure
+        is never selected (the same at-send-time re-check REQ-026's reminders already
+        make), and the send goes through REQ-025's ledger keyed
+        (registration_id, kind) so a restart mid-batch or a repeated tick cannot
+        repeat it. Notably the event's own ending must trigger nothing further -- a
+        second message at ends_at would violate B9's "the event ending adds nothing
+        further" even though the person is still waitlisted then.
+      - An event with registration_closes_at NULL has no close moment to key on, the
+        same gap REQ-036 confronts. The design artefact states the behaviour and the
+        reasoning, consistently with whatever REQ-036 resolved -- and if the two
+        requirements' resolutions differ, the artefact states why, rather than the two
+        jobs silently disagreeing about when registration closes. NO column may be
+        added to make the null case go away (PRD 5).
+      - Transactional (PRD 9, security-invariants.md S10): reaches the person
+        regardless of broadcast_opt_in; `blocked` users are skipped, as REQ-025's send
+        API already does for every caller.
+      - WORDING: STORY-DETAILS B9 says "told plainly that it didn't work out this
+        time" and JOURNEY-AUDIT J2 frames these as the most motivated people in the
+        room. The implementing agent writes plain factual wording through REQ-013's
+        catalog mechanism (ru and en, no hardcoded literals in the handler) and records
+        in its handoff result that the exact copy is provisional pending the product
+        owner -- the same treatment REQ-014, REQ-032 and REQ-036 give their copy.
+      - No AuditLog row is required by PRD 12.7 for this job, because it changes no
+        status -- PRD 12.7 is "every STATUS CHANGE writes one AuditLog row" and there is
+        no status change here. Stated explicitly so its absence reads as a decision
+        rather than an omission, and so nobody adds an audit row that would make this
+        the only non-status-change action in the system to write one.
+
+      RELEASE BOUNDARY -- READ BEFORE DRAFTING MORE REQUIREMENTS. REQ-033..REQ-041 are
+      PRD 4's RELEASE 2 (next Fail Stories, Q4) in PRD 14's build order step 7,
+      covering exactly its seven stories: B6 (REQ-034, with REQ-036's deadline half),
+      B7 (REQ-038), B8 (REQ-039), B9 (this requirement), F3 (REQ-035, with REQ-036),
+      F4 (REQ-037), F9 (REQ-040), on REQ-033's InviteCode schema enabler.
+      RELEASE 3 IS DELIBERATELY NOT DRAFTED IN THIS WF-01 RUN, for the same reason
+      REQ-032 gave for deferring this one: entries that cannot start until Release 2
+      lands would be registry noise, and their shape may legitimately change once
+      Release 2 is real. Release 3 is a LATER WF-01 run, and it covers (PRD 4 and
+      PRD 14 steps 8-10, Meetup #4 onward, 15 stories): the speaker CFP and pipeline
+      (FR-9, FR-10, stories E1/E2/E4); lineup on the event card with publish consent
+      (FR-11, stories E3/E5, security-invariants.md S14); speaker seats outside
+      capacity (story E6); the D1 "want to speak" question REQ-031 deferred, which
+      becomes story D2 once Talk exists; segmented broadcast with the programme
+      template and notification preferences (FR-15, stories G1a/G1b/G1c/G2/G3,
+      security-invariants.md S10); the chapter-interest WISHLIST (FR-6's wishlist
+      half, story G4) -- which Release 2 deliberately did NOT build, substituting the
+      upcoming-events list as the onward path on every refusal per REQ-035's stated
+      offramp decision, so Release 3's G4 requirement must REPLACE that substitution
+      on REQ-035's, REQ-036's, REQ-038's and this requirement's refusal paths, not
+      merely add a new surface; full metrics matching the partner factsheet and CSV
+      export (FR-16, stories H1/H2, security-invariants.md S12); manual waitlist
+      promotion (story F5, which REQ-023's T-24h halt leaves as a stated hole); the
+      organizer-facing cancel flow (story F6, whose notification half REQ-027 already
+      covers); audit and hardening. PRD 4's "Later" list (.ics files, materials
+      archive, analytics dashboard, UZ/KZ BOT interface locales, Telegram Mini App
+      scanner, Redis/worker queue) and its "Non-goals" list (payments, gamification,
+      full CRM, custom Telegram client, a web front-end for the bot, hackathon
+      teams/judging) are NOT to be drafted at all -- a requirement proposing one
+      contradicts decisions/0003 and PRD 4.
+    acceptance_criteria:
+      - "At registration_closes_at, every registration still at admission='waitlisted' receives exactly one message and every non-waitlisted registration for that event receives nothing -- verified by constructing three waitlisted, one admitted, one withdrawn and one rejected registration, running the job, and counting the captured sends (exactly three) (STORY-DETAILS B9)."
+      - "No registration's admission changes: verified by capturing every registrations row for the event before and after the job and confirming all are byte-for-byte identical, with the three waitlisted rows still 'waitlisted' (STORY-DETAILS B9's 'being told is not a state', PRD 6's vocabulary rule)."
+      - "A person promoted from waitlisted to admitted BEFORE registration closes receives nothing from this job -- verified by constructing that promotion first, then running the job, and confirming zero sends to them (STORY-DETAILS B9's 'Promoted before closing -> never sent'). A run where nobody was promoted does not exercise this and is not evidence."
+      - "Running the job, KILLING the process, restarting it, and running the job again for the same event delivers no additional messages -- counted across both runs (PRD 12.8, PRD 13 criterion 6, security-invariants.md S9). A single-run test does not exercise restart-safety and is not evidence."
+      - "Running the job again after the event's ends_at has passed delivers no further message to a still-waitlisted registration, verified by advancing past ends_at and re-running (STORY-DETAILS B9's 'the event ending adds nothing further')."
+      - "The message states plainly that a seat did not come free and offers the upcoming-events list as an onward path, and contains no wording implying the person was refused or judged -- verified by reading the captured message text (STORY-DETAILS B9, REQ-035's offramp decision)."
+      - "No wishlist table, migration or row is created by this requirement, verified by grepping every apps/bot migration and the schema for 'wishlist' (PRD 4 -- G4 is Release 3)."
+      - "An event whose registration_closes_at is NULL behaves exactly as the design artefact states, verified by constructing that event with a waitlisted registration and running the job -- an unhandled crash, an undescribed silent skip, or a new column added to avoid the case all fail this criterion."
+      - "The message reaches a user with broadcast_opt_in=false and reaches no user with blocked=true, verified by setting each flag and re-running (PRD 9, security-invariants.md S10)."
+      - "No audit_log row is written by this job, verified by counting audit rows before and after a run that sends three messages (PRD 12.7 -- no status change occurs)."
+      - "Every user-facing string added by this requirement resolves through REQ-013's catalog mechanism in both ru and en, verified by grepping the handler and the job for literal user-facing text and by the existing catalog key-set parity check; and the handoff result records that the wording is provisional pending the product owner."
+    depends_on: [REQ-036, REQ-021]
