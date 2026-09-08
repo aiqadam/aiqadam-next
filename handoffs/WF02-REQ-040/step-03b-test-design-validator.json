@@ -1,0 +1,60 @@
+{
+  "handoff_id": "step-03b-test-design-validator",
+  "run_id": "WF02-REQ-040",
+  "workflow_id": "WF-02",
+  "step": "03b",
+  "from_agent": "TEST-DESIGN-VALIDATOR",
+  "to_agent": "TEST-DESIGNER",
+  "file": "handoffs/WF02-REQ-040/step-03b-test-design-validator.json",
+  "created_at": "2026-09-08T18:14:58Z",
+  "started_at": "2026-09-08T18:14:58Z",
+  "completed_at": "2026-09-08T18:14:58Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-040"],
+    "related_handoff_ids": ["step-03-test-designer"],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "docs/agents/design/REQ-040.md",
+      "docs/agents/design/REQ-040-schema.md",
+      "handoffs/WF02-REQ-040/step-03-test-designer.json",
+      "apps/bot/src/domain/inviteList.db.test.ts",
+      "apps/bot/src/handlers/inviteList.db.test.ts"
+    ]
+  },
+  "task": {
+    "description": "WF-02 Step 3b hard gate on TEST-DESIGNER's verification spec for REQ-040 (commit 45ee427, branch feature/WF02-REQ-040): apps/bot/src/domain/inviteList.db.test.ts and apps/bot/src/handlers/inviteList.db.test.ts. Re-derive the AC-to-case mapping independently by reading the actual test code (not TEST-DESIGNER's own claimed map), with particular attention to the full resolvePersonalCodeIdentity rule table, the S2/S3 security cases, and the c2a109c cancelled/finished-event refusal fix.",
+    "acceptance_criteria": [
+      "Every acceptance criterion in REQ-040's requirements.yaml entry (AC1-AC11 plus the S2 negative cases and audit-count criterion) has at least one verification case that targets it.",
+      "No TODO left in either test file.",
+      "Each case is precise/mechanical enough to run without judgment.",
+      "No coverage gap: a case's actual assertions must exercise what the AC claims, not merely carry a plausibly-named describe block."
+    ]
+  },
+  "result": {
+    "status": "FAIL",
+    "summary": "Read both test files in full (774 + 771 lines) against docs/agents/design/REQ-040.md, REQ-040-schema.md, and requirements.yaml's REQ-040 AC list -- not TEST-DESIGNER's own ac_to_case_map, though it was cross-checked afterward and found accurate as far as it goes. AC1, AC2, AC3, AC4, AC6, AC7 (including the multi-event and REQ-040-schema.md SS4 uniqueness-conflict relink sub-cases), AC8, AC11, the S2 negative cases (member/EventStaff/cross-chapter organizer on all four entry points), and the c2a109c cancelled/finished/baseline refusal fix are all well-covered by real, runnable vitest code that constructs the exact database state each criterion describes and asserts on it precisely -- these are PASS. The resolvePersonalCodeIdentity rule table is exercised case-by-case: not-found, bulk/companion-not-applicable, target-already-linked-not-applicable, the normal link (id unchanged, no second row), the idempotent-second-tap fallback, plain collision-relink, multi-event collision-relink, and the schema's own two-step conditional-repoint-then-delete uniqueness-conflict scenario -- all present and each assertion traces to the specific row/column the design states, not just a plausible-looking check. However, AC5, AC9, and AC10 each FAIL the no-coverage-gap check: requirements.yaml states each of these three criteria's verification method explicitly as a `git grep` OVER apps/bot (the whole subproject), but the actual test code in both files narrows this to hard-coded reads of only 1-2 files -- domain/inviteList.db.test.ts's AC5/AC10 cases grep only schema.ts's inviteListEntries table block plus domain/inviteList.ts's listInviteListEntries function body; AC9's case greps domain/inviteList.ts and handlers/inviteList.ts only. This is not a pedantic literalism: apps/bot/src/handlers/start.ts is a real file this requirement's own diff modifies (git diff master...feature/WF02-REQ-040 confirms it), adding calls to resolvePersonalCodeIdentity and markInviteListEntryOpened inside makeStartHandler/resolveInviteDeepLink -- exactly the kind of new code AC5 ('no stored registered/attended field'), AC9 ('no send path targeting a tg_id-NULL user'), and AC10 ('no engagement/activity-approximation field') are meant to police, and none of the three static checks reads this file at all. A future regression that introduces a stray field or a stray send call inside handlers/start.ts's new REQ-040 code, or inside handlers/inviteList.ts for AC5/AC10, would pass this suite silently -- the suite's own regression-guarding value for exactly the population these ACs exist to constrain is narrower than the criteria's stated verification method. This is a coverage gap under this gate's own standard (checking that a case actually exercises the claimed behavior, not that a plausibly-named case exists), not a request to rewrite the spec myself.",
+    "artifacts_out": [],
+    "issues": [
+      {
+        "severity": "BLOCKER",
+        "description": "AC5's git-grep case (domain/inviteList.db.test.ts, describe(\"AC5\")) only reads schema.ts's inviteListEntries table block and domain/inviteList.ts's listInviteListEntries body. requirements.yaml's AC5 states the verification method as `git grep` over apps/bot -- the case must actually cover the files this requirement's own diff touches (at minimum schema.ts in full, domain/inviteList.ts, handlers/inviteList.ts, handlers/start.ts) for a stored registered/attended field, not two hard-coded slices.",
+        "affected_requirement": "REQ-040"
+      },
+      {
+        "severity": "BLOCKER",
+        "description": "AC9's git-grep case (domain/inviteList.db.test.ts, describe(\"AC9\")) reads domain/inviteList.ts and handlers/inviteList.ts for NotificationSender/sender. usage but never reads handlers/start.ts, which this requirement's diff modifies (resolvePersonalCodeIdentity/markInviteListEntryOpened calls added to makeStartHandler/resolveInviteDeepLink). requirements.yaml's AC9 states the verification method as `git grep` over apps/bot for a send path targeting a tg_id-NULL user -- the case's file scope must include every file this requirement touches, not just the two new ones.",
+        "affected_requirement": "REQ-040"
+      },
+      {
+        "severity": "BLOCKER",
+        "description": "AC10's git-grep case (domain/inviteList.db.test.ts, describe(\"AC10\")) has the identical scope gap as AC5 -- only schema.ts's inviteListEntries block and domain/inviteList.ts's body are read for an engagement/activity-score field; requirements.yaml's AC10 states the verification method as `git grep` over apps/bot. handlers/inviteList.ts and handlers/start.ts are unchecked.",
+        "affected_requirement": "REQ-040"
+      }
+    ],
+    "next_action": "Rework TEST-DESIGNER (rework iteration 1 of 3) -- broaden the AC5/AC9/AC10 static checks in apps/bot/src/domain/inviteList.db.test.ts to actually run their grep over the full set of files this requirement's diff touches (schema.ts, domain/inviteList.ts, handlers/inviteList.ts, handlers/start.ts at minimum -- ideally a real `apps/bot/src` tree walk, matching the criteria's literal 'over apps/bot' wording) rather than two hard-coded file slices. Re-submit to TEST-DESIGN-VALIDATOR (Step 3b) once fixed. All other coverage (AC1-4, AC6-8, AC11, S2 negatives, c2a109c fix) is PASS and needs no rework."
+  },
+  "rework_count": 0,
+  "max_rework": 3
+}
