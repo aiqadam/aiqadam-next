@@ -1,0 +1,51 @@
+{
+  "handoff_id": "708192a3-b4c5-4de6-f567-9102bc3d4e67",
+  "run_id": "WF02-REQ-033",
+  "workflow_id": "WF-02",
+  "step": "02b",
+  "from_agent": "ORCH",
+  "to_agent": "REVIEWER",
+  "file": "handoffs/WF02-REQ-033/step-02b-reviewer.json",
+  "created_at": "2026-09-08T05:35:16Z",
+  "started_at": "2026-09-08T05:35:16Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": [
+      "REQ-033"
+    ],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": [
+      "6f708192-a3b4-4cd5-e456-8091ab3c4d56"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/REQ-033.md",
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/drizzle/0007_sturdy_network.sql",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/inviteCode.test.ts",
+      "docs/agents/anti-patterns.md",
+      "docs/agents/decisions/"
+    ],
+    "branch_name": "feature/WF02-REQ-033"
+  },
+  "task": {
+    "description": "WF-02 Step 2b (Review) for REQ-033 on branch feature/WF02-REQ-033. Read git diff master...HEAD. This is a bot/schema requirement (no apps/web/design-system surface) -- check instead against docs/agents/decisions/0004-telegram-framework-grammy.md (domain logic stays framework-free, no grammY import in schema/domain files) and decisions/0005-orm-drizzle.md (migration committed as generated .sql, reviewed as SQL, not hand-written). Check scope: does the diff do exactly what REQ-033 asked (InviteCode table, FK closure, code generator) and nothing more -- confirm NO handler code, NO issuing/redemption domain logic leaked in (that is explicitly out of scope, reserved for REQ-037/038/039/040). Check consistency: does the migration ordering (CREATE TABLE invite_codes before ALTER TABLE registrations ADD CONSTRAINT) match docs/agents/design/REQ-033.md exactly. Check the generator: unbiased byte-to-symbol mapping (byte % 32, since 32 divides 256 evenly -- verify this claim, do not just accept it), crypto.randomBytes (not Math.random), matches the design alphabet exactly (23456789ABCDEFGHJKLMNPQRSTUVWXYZ, no L/Q exclusion). ORCH independently ran npm run lint and npm run build already (both exit 0) and the new generator test file directly (5/5 passing) -- re-verify yourself rather than trusting this note.",
+    "acceptance_criteria": [
+      "git diff master...HEAD read directly, not from BACKEND-DEV summary",
+      "No handler code or issuing/redemption logic present -- scope matches REQ-033 exactly",
+      "Migration SQL ordering and shape matches docs/agents/design/REQ-033.md",
+      "Generator alphabet, length, and byte-mapping bias checked against the design and against modular-bias correctness",
+      "decisions/0004 (framework-free domain) and decisions/0005 (generated migration, reviewed as SQL) both checked explicitly",
+      "PASS or FAIL stated with specifics; FAIL routes to Rework BACKEND-DEV"
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": []
+  }
+}
