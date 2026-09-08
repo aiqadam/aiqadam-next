@@ -8,14 +8,18 @@
   "file": "handoffs/WF02-REQ-033/step-01b-code-design-validator.json",
   "created_at": "2026-09-08T05:21:13Z",
   "started_at": "2026-09-08T05:21:13Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-09-08T05:22:07Z",
+  "status": "COMPLETE",
   "priority": "NORMAL",
   "context": {
-    "requirement_ids": ["REQ-033"],
+    "requirement_ids": [
+      "REQ-033"
+    ],
     "requirement_text": {},
     "source_text": {},
-    "related_handoff_ids": ["2b3c4d5e-6f70-4891-b012-4c5d6e7f8091"],
+    "related_handoff_ids": [
+      "2b3c4d5e-6f70-4891-b012-4c5d6e7f8091"
+    ],
     "artifacts_in": [
       "docs/agents/design/REQ-033.md",
       "handoffs/WF02-REQ-033/step-01-data-designer.json",
@@ -35,9 +39,17 @@
     ]
   },
   "result": {
-    "status": null,
-    "summary": null,
+    "status": "FAIL",
+    "summary": "FAIL — Rework DATA-DESIGNER. Independently read docs/agents/design/REQ-033.md in full (not DATA-DESIGNER's handoff summary). Verified premises against apps/bot/src/db/schema.ts: no invite_codes table exists; registrations.inviteCodeId (schema.ts:278) is a plain uuid column with no .references(...), matching the artefact's 'Verified current state' claim exactly, including the quoted comment at lines 276-277. Verified generateQrToken() precedent (apps/bot/src/domain/registration.ts:90-92, randomBytes(32).toString('hex'), 256-bit) matches the artefact's citation. Verified S4 (security-invariants.md:67-77): >=128-bit CSPRNG floor, same bar extended to InviteCode values, correctly cited. Independently recomputed the entropy arithmetic from scratch (not re-reading the artefact's number): alphabet '23456789ABCDEFGHJKLMNPQRSTUVWXYZ' has exactly 32 unique characters (8 digits 2-9, 24 letters A-Z minus I/O), log2(32)=5 bits/char exact, 128/5=25.6 rounds up to 26 chars, 26*5=130 bits >= 128-bit S4 floor -- the arithmetic itself is correct and shown, not merely asserted (AC7, SS4 satisfied). All 9 acceptance criteria map to concrete design elements cited by section (SS9 table cross-checked against SS1/SS2/SS3/SS4/SS7/SS8). No implementation code present -- all 4 code blocks (SS3 SQL-shape fragment, SS4 alphabet string, SS4 generateInviteCode pseudocode, SS7 Drizzle-shape pseudocode) are structure/pseudocode only, explicitly labeled 'design-level pseudocode -- not implementation', no real .ts logic bodies. FK closure (SS3/SS7/SS8) is precise: registrations.invite_code_id -> invite_codes.id, ON DELETE RESTRICT, nullability unchanged, migration ordering (CREATE TABLE before ALTER) stated -- sufficient for BACKEND-DEV to write the migration without inventing anything. FR-4 'configurable per event' eligibility rule (SS6 point 1) is genuinely left open and explicitly routed to REQ-038 with two named resolution paths, not silently answered. HOWEVER: FAILS check 2c (color/spacing/token-equivalent precision -- every stated fact must resolve to what the artefact itself defines, not be invented or self-contradicted) via a genuine self-contradiction BACKEND-DEV cannot resolve without guessing. SS4's actual 32-symbol alphabet, the literal string quoted at line 231 and used for the SS4/SS7/SS10 entropy arithmetic, is '23456789ABCDEFGHJKLMNPQRSTUVWXYZ' -- verified programmatically to contain both L and Q (alphabet.includes('L') === true, alphabet.includes('Q') === true). But SS6 open question 5 (line 358) states the artefact 'recommends excluding 0/O, 1/I/L as the non-negotiable ambiguity exclusions, and flags Q as an optional further exclusion' -- i.e. claims L IS excluded and only Q is undecided. SS10's handoff summary (line 458) independently repeats the same wrong claim: 'a 32-symbol alphabet excluding 0/O/1/I/L'. Both of these directly contradict the alphabet actually defined and used in SS4, which excludes only 0/1/O/I and retains both L and Q. This is not cosmetic: it is the artefact asserting two incompatible facts about its own primary generator output (what characters a stored, security-relevant token can contain) in two separate sections, one of which (SS10) is the binding handoff summary. BACKEND-DEV reading SS4 alone would implement L/Q-inclusive; reading SS6/SS10 would believe L is already excluded and only Q remains open -- an ambiguity this gate's job is to catch before Step 2, per WF-02 Step 1b check 2a (no design element may leave the requirement's job unresolved via internally inconsistent statements).",
     "artifacts_out": [],
-    "issues": []
+    "issues": [
+      {
+        "severity": "MAJOR",
+        "requirement_id": "REQ-033",
+        "acceptance_criterion": "AC7",
+        "description": "Self-contradiction in the alphabet definition. SS4 (line 231) defines and uses the 32-symbol alphabet '23456789ABCDEFGHJKLMNPQRSTUVWXYZ', which contains both L and Q (independently verified: alphabet.includes('L') and .includes('Q') both true) -- this is the alphabet the SS4 entropy arithmetic (26x5=130 bits) and SS7 Drizzle-shape pseudocode are built on. But SS6 open question 5 (line 358) and SS10's summary (line 458) both assert the alphabet excludes '0/O/1/I/L' -- claiming L is already excluded, contradicting SS4's own literal alphabet string. DATA-DESIGNER must fix SS6/SS10 to match SS4 (drop the false L-exclusion claim, leave only Q as the flagged optional exclusion) OR change SS4's alphabet to actually exclude L (and re-verify the resulting count is still a power of two -- excluding only L from the current 32 gives 31, not a power of two, which would break the exact log2 arithmetic and require a compensating swap). Either fix is DATA-DESIGNER's call, but the artefact as written gives BACKEND-DEV two contradictory instructions for a security-relevant generated value with no way to know which one is authoritative."
+      }
+    ],
+    "next_action": "Rework DATA-DESIGNER -- rework iteration 1 of 3. Fix the SS4/SS6/SS10 alphabet-exclusion contradiction (issue above) and resubmit to CODE-DESIGN-VALIDATOR."
   }
 }
