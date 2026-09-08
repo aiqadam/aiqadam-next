@@ -452,5 +452,28 @@ export interface Catalog {
     rejectedNotificationPrefix: string;
     rejectedNotificationReasonPrefix: string;
     rejectedReplyToOrganizer: string;
+    // NEW, REQ-036 (docs/agents/design/REQ-036.md §5): prefixed onto a row in
+    // the /requests list (and the detail view's header line) when
+    // PendingRequestListItem.isUrgent is true. Provisional placeholder copy
+    // -- CONTENT-BA/product owner owns final wording per decisions/0002 and
+    // this requirement's own "HONEST WORDING" instruction.
+    urgentMarker: string;
+    // NEW, REQ-036: the push notification body sent to the one chosen
+    // organizer (design §2.3). Interpolated with {event}. Provisional
+    // placeholder copy, pending the product owner.
+    urgentNotification: string;
+  };
+  // NEW, REQ-036 (docs/agents/design/REQ-036.md §5): the auto-decline
+  // notification sent to a registrant whose request was never decided
+  // before registration closed (or, when registration_closes_at is NULL,
+  // before the event ended -- design §3.1). Provisional placeholder copy --
+  // plain, factual, no wording implying personal judgment, per this
+  // requirement's own "HONEST WORDING" instruction (same tone class as
+  // REQ-014's consent copy and REQ-032's no-show copy). The onward-path line
+  // (catalog.event.deepLinkSeeUpcoming) is always appended by the caller,
+  // never part of this string itself.
+  autoDecline: {
+    // Interpolated with {event}.
+    notification: string;
   };
 }

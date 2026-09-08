@@ -78,6 +78,8 @@ import {
   makeFeedbackTextReplyHandler,
 } from "./handlers/feedback.js";
 import { makeNoShowReasonRequestJob } from "./scheduler/noShowJobs.js";
+import { makeUrgencyNoticeJob } from "./scheduler/urgencyJobs.js";
+import { makeAutoDeclineJob } from "./scheduler/autoDeclineJobs.js";
 import {
   NO_SHOW_OTHER_PATTERN,
   NO_SHOW_REASON_PATTERN,
@@ -149,6 +151,11 @@ startScheduledJobs([
   // REQ-032 §3.5 — the single no-show reason-request job, the fourth and
   // final Release-1 consumer of scheduler/runner.ts, same 5-minute interval.
   makeNoShowReasonRequestJob(db, notificationSender, 300000),
+  // REQ-036 §0.1/§2.5/§3.6 — the T-48h urgency job and the
+  // registration-close auto-decline job, same 5-minute interval as every
+  // other scheduled job in this codebase.
+  makeUrgencyNoticeJob(db, notificationSender, 300000),
+  makeAutoDeclineJob(db, notificationSender, 300000),
 ]);
 
 bot.command("health", (ctx) => ctx.reply("ok"));
