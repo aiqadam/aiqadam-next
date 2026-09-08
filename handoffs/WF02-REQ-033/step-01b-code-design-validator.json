@@ -1,0 +1,43 @@
+{
+  "handoff_id": "3c4d5e6f-7081-49a2-b123-5d6e7f809ab2",
+  "run_id": "WF02-REQ-033",
+  "workflow_id": "WF-02",
+  "step": "01b",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "file": "handoffs/WF02-REQ-033/step-01b-code-design-validator.json",
+  "created_at": "2026-09-08T05:21:13Z",
+  "started_at": "2026-09-08T05:21:13Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-033"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["2b3c4d5e-6f70-4891-b012-4c5d6e7f8091"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-033.md",
+      "handoffs/WF02-REQ-033/step-01-data-designer.json",
+      "apps/bot/src/db/schema.ts",
+      "docs/agents/instructions/security-invariants.md"
+    ],
+    "branch_name": "feature/WF02-REQ-033"
+  },
+  "task": {
+    "description": "HARD GATE on DATA-DESIGNER's docs/agents/design/REQ-033.md, per WF-02 Step 1b. Read the artefact itself, not DATA-DESIGNER's handoff summary. Check each of REQ-033's 9 acceptance criteria against the artefact: does a concrete design element address it, with no TBD/deferral language on anything that is this requirement's job to resolve? Verify no implementation code is present (no .ts code blocks with real logic bodies -- types/shapes/pseudocode-level structure only). Verify the two open questions the requirement explicitly required to stay open (the FR-4 'configurable per event' eligibility rule, routed to REQ-038; and the code-shape composition ambiguities the artefact itself surfaced) are genuinely left open with the resolver named, not silently resolved. Verify the entropy arithmetic (26 chars x 5 bits/char = 130 bits) is correct and actually shown, not merely asserted. Verify the FK closure (registrations.invite_code_id -> invite_codes.id, onDelete restrict) is stated precisely enough for BACKEND-DEV to write the migration without inventing anything.",
+    "acceptance_criteria": [
+      "Every one of REQ-033's 9 acceptance criteria maps to a concrete design element in REQ-033.md, cited by section.",
+      "No implementation code (real .ts logic bodies) appears anywhere in the artefact -- structure/types/shapes only.",
+      "The FR-4 eligibility open question is confirmed genuinely unresolved in the artefact (not quietly answered) and is explicitly routed to REQ-038.",
+      "The entropy arithmetic is independently recomputed, not merely re-read, and confirmed correct.",
+      "FAIL cites the specific acceptance criterion or check that failed; PASS states what was independently checked."
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": []
+  }
+}
