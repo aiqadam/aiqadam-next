@@ -393,4 +393,30 @@ export const en = {
     hostNotification: "Your guest {name}{company} has registered using your companion invite.",
     refLinePrefix: "Companion code: ",
   },
+  // Provisional/placeholder wording (REQ-040 design §4/§8 open question 2) --
+  // product owner/CONTENT-BA owns final copy per decisions/0002.
+  inviteList: {
+    usageAddMissingEventId: "Usage: /invite_list_add <event_id> <name> | <company> | <position>",
+    usageAddMissingName: "A name is required. Usage: /invite_list_add <event_id> <name> | <company> | <position>",
+    eventNotFound: "Event not found.",
+    notAuthorized: "Only an organizer for this chapter can manage the invitation list.",
+    addedReply: "Added {name} to the list (user id: {userId}).",
+    listHeader: "Invitation list for {event} ({count})",
+    listEmpty: "No one on the list yet.",
+    statusInvited: "invited",
+    statusOpened: "opened",
+    statusRegistered: "registered",
+    statusAttended: "attended",
+    entryRowLabel: "{name} -- {status}",
+    issueButtonLabel: "Issue code",
+    removeButtonLabel: "Remove",
+    issuedReply:
+      "Code issued: {code}\nLink: {link}\nShare this yourself -- the bot cannot message someone who hasn't started it.",
+    removeConfirmPrompt: "Remove this person from the invitation list?",
+    removeConfirmButtonLabel: "Remove",
+    removeCancelButtonLabel: "Cancel",
+    removedReply: "Removed from the list.",
+    removeCancelledNote: "Cancelled -- nothing was removed.",
+    entryNotFound: "That list entry no longer exists.",
+  },
 } satisfies Catalog;

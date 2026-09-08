@@ -1,0 +1,47 @@
+{
+  "handoff_id": "step-04-test-runner",
+  "run_id": "WF02-REQ-040",
+  "workflow_id": "WF-02",
+  "step": "04",
+  "from_agent": "TEST-RUNNER",
+  "to_agent": "RELEASE-VALIDATOR",
+  "file": "handoffs/WF02-REQ-040/step-04-test-runner.json",
+  "created_at": "2026-09-08T18:32:26Z",
+  "started_at": "2026-09-08T18:30:00Z",
+  "completed_at": "2026-09-08T18:32:26Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-040"],
+    "related_handoff_ids": [
+      "step-03b-test-design-validator-rework1",
+      "step-03-test-designer-rework1"
+    ],
+    "artifacts_in": [
+      "apps/bot/src/domain/inviteList.db.test.ts",
+      "apps/bot/src/handlers/inviteList.db.test.ts",
+      "apps/bot/src/handlers/start.ts"
+    ]
+  },
+  "task": {
+    "description": "Execute the TEST-DESIGN-VALIDATOR-approved verification suite for REQ-040 on branch feature/WF02-REQ-040: run npm run lint -w apps/bot, npm run build -w apps/bot, and the full vitest suite from repo root with npx vitest run --no-file-parallelism. Report real pass/fail counts and output; write test-reports/report-2026-09-08-WF02-REQ-040.yaml.",
+    "acceptance_criteria": [
+      "npm run lint -w apps/bot exits clean",
+      "npm run build -w apps/bot exits clean",
+      "Full repo-root vitest run passes with no unattributed failures",
+      "REQ-040's own test suites (domain/inviteList.db.test.ts, handlers/inviteList.db.test.ts) pass, covering AC1-AC11 including the AC5/AC9/AC10 start.ts checks",
+      "test-reports/report-2026-09-08-WF02-REQ-040.yaml written with real command output"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "npm run lint -w apps/bot: eslint . exited 0, no output. npm run build -w apps/bot: tsc -p tsconfig.json exited 0, no output. npx vitest run --no-file-parallelism from repo root C:/Users/tvolo/dev/aiqadam-next: 48 test files passed (48), 458 tests passed (458), Duration 65.17s -- a single clean run with no FK-violation cascades or connection timeouts, so per ISS-0031's guidance no re-run was needed (there was no ambiguous failure to disambiguate). Targeted re-run of the two REQ-040 suite files (npx vitest run --no-file-parallelism apps/bot/src/domain/inviteList.db.test.ts apps/bot/src/handlers/inviteList.db.test.ts) confirmed 2 test files passed (2), 38 tests passed (38), including the AC5/AC9/AC10 widened start.ts checks TEST-DESIGN-VALIDATOR gated in step-03b-test-design-validator-rework1.json. grep -n \"TODO\" on both test files: no matches. git status --short: clean before this handoff's own commit. Note: the 458-tests/48-files figure is the correct repo-root count -- it is not comparable to the 916-tests/96-files TEST-DESIGNER reported from an apps/bot-rooted vitest invocation in step-03-test-designer-rework1.json, which double-counts compiled dist/ copies alongside src/ originals since vitest.config.ts's dist/ exclude only applies when run from repo root. This is not a regression, just a different (and for that designer step, non-canonical) invocation root.",
+    "artifacts_out": [
+      "test-reports/report-2026-09-08-WF02-REQ-040.yaml"
+    ],
+    "issues": [],
+    "next_action": "Route to RELEASE-VALIDATOR (Step 5) -- independently re-run lint/build/full vitest suite from repo root and re-verify REQ-040's acceptance criteria before marking the requirement done."
+  },
+  "rework_count": 0,
+  "max_rework": 3
+}

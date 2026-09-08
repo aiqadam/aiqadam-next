@@ -1,0 +1,72 @@
+{
+  "handoff_id": "step-01b-code-design-validator",
+  "run_id": "WF02-REQ-040",
+  "workflow_id": "WF-02",
+  "step": "01b",
+  "from_agent": "CODE-DESIGN-VALIDATOR",
+  "to_agent": "ORCH",
+  "file": "handoffs/WF02-REQ-040/step-01b-code-design-validator.json",
+  "created_at": "2026-09-08T14:54:52Z",
+  "started_at": "2026-09-08T14:54:52Z",
+  "completed_at": "2026-09-08T14:54:52Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-040"],
+    "requirement_text": {
+      "REQ-040": "GitHub issue #72. Full text/ACs read directly via `gh issue view 72`."
+    },
+    "source_text": { "github_issue": "#72" },
+    "related_handoff_ids": [
+      "handoffs/WF02-REQ-040/step-01-code-designer.json",
+      "handoffs/WF02-REQ-040/step-01-data-designer.json"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/REQ-040.md",
+      "docs/agents/design/REQ-040-schema.md",
+      "apps/bot/src/handlers/start.ts",
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/src/domain/inviteCode.ts",
+      "docs/agents/instructions/security-invariants.md",
+      "docs/agents/workflows/WF-02_requirement_implementation.md"
+    ],
+    "branch_name": "feature/WF02-REQ-040"
+  },
+  "task": {
+    "description": "WF-02 Step 1b (design gate) for REQ-040 on feature/WF02-REQ-040 (repo at commit 7a33230 at run start). Independently re-validate docs/agents/design/REQ-040.md (CODE-DESIGNER) and docs/agents/design/REQ-040-schema.md (DATA-DESIGNER) against issue #72's 11 acceptance criteria, re-deriving every load-bearing claim from the live code (start.ts's resolveOrCreateUser timing, schema.ts's tgId/audit_log.entity_id shape, inviteCode.ts's validateInviteCodeForRedemption) rather than trusting either producer's result.summary.",
+    "acceptance_criteria": [
+      "Every one of issue #72's 11 ACs maps to a concrete design element, no TBD/deferral language",
+      "Props/types for all new functions fully specified",
+      "No implementation code present in either artefact (structure/types only)",
+      "The resolveOrCreateUser-runs-before-parseStartPayload finding is independently re-verified against the actual current start.ts",
+      "The relink UPDATE-then-DELETE sequence is independently traced for atomicity and correctness",
+      "The hard-delete-vs-audit_log.entity_id-FK reasoning is independently re-verified against the actual current schema.ts",
+      "The S1 boundary for guest business-card fields is independently assessed with a stated view"
+    ]
+  },
+  "result": {
+    "status": "FAIL",
+    "summary": "REQ-040.md (CODE-DESIGNER) passes every substantive check performed: all 11 ACs map to concrete design elements with no TBD language (Sec9's own table, cross-checked against issue #72's literal AC text); the load-bearing resolveOrCreateUser-timing finding is CONFIRMED TRUE by direct reading of apps/bot/src/handlers/start.ts -- makeStartHandler calls resolveOrCreateUser unconditionally at line 504, and parseStartPayload is not evaluated until line 523, after the flowUser row is already resolved by tg_id -- so a pre-created (tg_id NULL) row's personal code is genuinely unreachable today, exactly as claimed, and resolvePersonalCodeIdentity's new pre-check (Sec2.2, gated on payload.kind==='invite' only) leaves the event/checkin/none branches at lines 524/547/574 completely untouched, so no existing deep-link flow regresses. validateInviteCodeForRedemption (apps/bot/src/domain/inviteCode.ts line 573) still refuses on issuedToUserId!==redeemerUserId (line 591) unmodified, and redeemInviteCode re-reads issuedToUserId FRESH inside its own FOR UPDATE transaction (line 677-684) -- since resolvePersonalCodeIdentity's repoint transaction runs and commits, sequentially, before redeemInviteCode is ever called, the fresh read correctly observes the corrected issued_to_user_id=B.id; the claim that redeemInviteCode needs no code change holds. opened_at is written only under an `opened_at IS NULL` guard (first-open-only, no second parallel engagement signal -- it is bounded to exactly the four-fact enumeration in Sec7, cross-checked, and registered/attended stay derive-only). users.tgId's existing nullable+unique setup (schema.ts line 64/104) is untouched by this design, confirmed by direct read -- no AC1/AC2 regression risk. The relink UPDATE-then-DELETE sequence (REQ-040-schema.md Sec4.2) is independently correct: step 1's NOT EXISTS guard repoints every A-row whose event has no pre-existing B-row, step 2 deletes exactly the rows step 1's WHERE clause skipped (the ones where B already had an entry) -- B's own pre-existing entry is never touched by either statement, both statements run in one transaction (atomic), and audit_log.entity_id genuinely carries no FK (schema.ts line 483: `uuid(\"entity_id\").notNull()` with no `.references()` call) -- independently confirmed, so the hard-delete decision (REQ-040-schema.md Sec3) is real and does not orphan any audit_log row, and AC11 holds. The S1 boundary question (REQ-040.md Sec3.4/Sec8 item 1) is a genuinely close call -- storing a real, identifiable person's name/company/position without their own consent is exactly the shape of S1's stated negative case ('a walk-in path that skips the consent step because it is faster'), and S1's literal text ('nobody's details are stored before they have agreed') does not on its face carve out organizer-already-knows-it data the way the design argues; this is plausible but contestable reasoning, not obviously correct, and the design does the right thing by NOT silently resolving it -- it is explicitly flagged as an open question routed to SECURITY-REVIEWER for Step 2c sign-off, which is the correct venue (no AC in issue #72 depends on this question being resolved at Step 1b; AC8's phone/email exclusion, the only S3-adjacent AC, is independently satisfied by structural column absence). No-send (Sec6) and no-engagement-score (Sec7) are genuine, checkable design constraints with exact git grep shapes named for TEST-DESIGNER, not aspirational language.\n\nHOWEVER: REQ-040-schema.md Sec1 fails Step 1b check (d) and DATA-DESIGNER's own role file's 'Forbidden: Writing implementation code, migrations included' clause. The code block at Sec1 (lines ~71-106) is a complete, copy-paste-ready Drizzle `export const inviteListEntries = pgTable(\"invite_list_entries\", { ... }, (table) => [...])` definition -- real column calls (`uuid(...)`, `text(...)`, `timestamp(...)`), real `.references()` FK calls with `onDelete: \"restrict\"`, a real `.notNull().defaultRandom()`/`.defaultNow()` chain, and a real named `uniqueIndex(...)` -- not a type/shape description but the literal TypeScript that Sec7's own migration instructions tell BACKEND-DEV to copy verbatim into schema.ts ('Add the inviteListEntries table definition (Sec1's reference shape) to apps/bot/src/db/schema.ts'). This is materially different from every other schema artefact's precedent checked (REQ-031-schema.md, REQ-032-schema.md): neither contains a full new-table pgTable() definition -- REQ-032-schema.md's two ```ts blocks are single-line quotes of an EXISTING column (`noShowReason: text(\"no_show_reason\"),`) for reference, not a novel table's complete executable definition. The preceding Column|Type|Nullable|Default|FK table (Sec1, same section) already fully specifies the shape in the non-executable form Step 1b's rule calls for; the code block is redundant with it and crosses from 'design' into 'implementation' by leaving BACKEND-DEV nothing to actually write. Per 'FAIL immediately on any check failure -- no partial credit,' this is a hard fail of the design gate.",
+    "artifacts_out": [],
+    "issues": [
+      {
+        "severity": "BLOCKER",
+        "description": "docs/agents/design/REQ-040-schema.md Sec1 (lines ~71-106) contains a complete, executable Drizzle `pgTable(...)` TypeScript definition for the new invite_list_entries table -- real `.references()` FK calls, real column-builder calls, a real named unique index -- which is implementation code, not a structure/types-only specification, violating WF-02 Step 1b check (d) and DATA-DESIGNER's own role file 'Forbidden' clause ('Writing implementation code, migrations included -- you specify the migration, BACKEND-DEV writes it'). REQUIRED REWORK: remove the code block; the Column|Type|Nullable|Default|FK/constraint table immediately above it in the same section already specifies the shape adequately in non-executable form -- keep that, drop the `export const ... pgTable(...)` block, or replace it with plain prose naming the Drizzle primitives conceptually (e.g. 'a uuid primary key, four uuid FKs referencing events/users/users/invite_codes...') without literal `.references()`/`.notNull()`/`.defaultNow()` call syntax.",
+        "affected_requirement": "REQ-040"
+      },
+      {
+        "severity": "MINOR",
+        "description": "Not a Step 1b failure, but flagged for the record per the handoff's explicit ask: the S1 boundary for guest business-card fields (REQ-040.md Sec3.4/Sec8 item 1) is a genuinely contestable reading of security-invariants.md S1's literal text ('nobody's details are stored before they have agreed') -- plausible, not obviously correct. Confirmed the design already routes this to SECURITY-REVIEWER for explicit Step 2c sign-off rather than resolving it silently, which is the correct handling; this issue exists only to make sure that sign-off is not skipped, since it is the one place this design's reasoning is arguable rather than structurally proven.",
+        "affected_requirement": "REQ-040"
+      }
+    ],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-040",
+      "commit_sha_list": [],
+      "remote_branch": "origin/feature/WF02-REQ-040",
+      "push_status": "ok",
+      "pr_url": null
+    },
+    "next_action": "Rework DATA-DESIGNER — remove the executable pgTable(...) code block from docs/agents/design/REQ-040-schema.md Sec1 per the BLOCKER issue above, keep the non-executable column table, then re-route to CODE-DESIGN-VALIDATOR (Step 1b) for re-gating of REQ-040-schema.md. docs/agents/design/REQ-040.md itself (CODE-DESIGNER's artefact) is not faulted by this run and needs no rework."
+  }
+}

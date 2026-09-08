@@ -469,6 +469,68 @@ export const feedback = pgTable(
   ],
 );
 
+// ---------------------------------------------------------------------------
+// REQ-040: invite_list_entries — the named-invitation-list membership table.
+//
+// Pure schema — no domain logic, no handlers (decisions/0004). Translates
+// docs/agents/design/REQ-040-schema.md §1 into a drizzle-orm/pg-core table
+// definition. Every person-referencing FK resolves to users.id, never
+// tg_id (REQ-010 §5.1). `ON DELETE RESTRICT` on every FK, matching this
+// schema's uniform posture (REQ-040-schema.md §0) — no CASCADE, no SET NULL
+// anywhere in this file.
+//
+// `registered`/`attended` are DERIVED (REQ-040.md §3.3, REQ-040-schema.md
+// §6) — no column here for either. `added_at` is this table's own
+// `created_at` (REQ-040-schema.md §1.1) — no separate column. Remove is a
+// hard DELETE (REQ-040-schema.md §3) — no `removed_at`/`active` marker.
+// ---------------------------------------------------------------------------
+
+export const inviteListEntries = pgTable(
+  "invite_list_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "restrict" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    // Nullable — issuing a code is a separate step from adding the entry
+    // (REQ-040.md §3.1, STORY-DETAILS F9 step 2). Never a business key.
+    inviteCodeId: uuid("invite_code_id").references(() => inviteCodes.id, {
+      onDelete: "restrict",
+    }),
+    addedBy: uuid("added_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    // First-open timestamp for this entry's personal code deep link, written
+    // once, guarded `IS NULL` (REQ-040.md §3.2) — a genuinely
+    // unrecordable-otherwise event, justified against PRD 5 there.
+    openedAt: timestamp("opened_at", { withTimezone: true }),
+    // Guest business-card fields (REQ-040.md §3.4, REQ-040-schema.md §1.3) —
+    // organizer's own independently-known data, per-entry, not per-person.
+    // `name` is belt-and-suspenders NOT NULL (the handler already refuses a
+    // blank name before the INSERT); `company`/`position` are optional, `""`
+    // translated to NULL at the application level (createWalkinProfile's own
+    // convention, REQ-040-schema.md §1.2).
+    name: text("name").notNull(),
+    company: text("company"),
+    position: text("position"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_invite_list_entries_event_user").on(
+      table.eventId,
+      table.userId,
+    ),
+  ],
+);
+
 export const auditLog = pgTable("audit_log", {
   id: uuid("id").primaryKey().defaultRandom(),
   // Nullable: a genuinely system-initiated action (e.g. a scheduled job) has

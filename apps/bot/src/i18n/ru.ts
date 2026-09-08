@@ -403,4 +403,32 @@ export const ru = {
     hostNotification: "Ваш гость {name}{company} зарегистрировался по вашему приглашению +1.",
     refLinePrefix: "Companion code: ",
   },
+  // Временная/предварительная формулировка (REQ-040, дизайн §4/§8, открытый
+  // вопрос 2) -- окончательный текст утверждают владелец продукта и
+  // CONTENT-BA (precedent 0002).
+  inviteList: {
+    usageAddMissingEventId: "Использование: /invite_list_add <event_id> <имя> | <компания> | <должность>",
+    usageAddMissingName:
+      "Требуется имя. Использование: /invite_list_add <event_id> <имя> | <компания> | <должность>",
+    eventNotFound: "Мероприятие не найдено.",
+    notAuthorized: "Только организатор этого отделения может управлять списком приглашённых.",
+    addedReply: "{name} добавлен(а) в список (id пользователя: {userId}).",
+    listHeader: "Список приглашённых для {event} ({count})",
+    listEmpty: "Список пока пуст.",
+    statusInvited: "приглашён",
+    statusOpened: "открыл ссылку",
+    statusRegistered: "зарегистрирован",
+    statusAttended: "присутствовал",
+    entryRowLabel: "{name} -- {status}",
+    issueButtonLabel: "Выпустить код",
+    removeButtonLabel: "Удалить",
+    issuedReply:
+      "Код выпущен: {code}\nСсылка: {link}\nОтправьте её сами -- бот не может написать тому, кто не запускал его.",
+    removeConfirmPrompt: "Удалить этого человека из списка приглашённых?",
+    removeConfirmButtonLabel: "Удалить",
+    removeCancelButtonLabel: "Отмена",
+    removedReply: "Удалён(а) из списка.",
+    removeCancelledNote: "Отменено -- ничего не удалено.",
+    entryNotFound: "Эта запись списка больше не существует.",
+  },
 } satisfies Catalog;

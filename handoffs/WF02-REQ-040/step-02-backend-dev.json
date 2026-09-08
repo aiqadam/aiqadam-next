@@ -1,0 +1,19 @@
+{
+  "handoff_id": "step-02-backend-dev",
+  "run_id": "WF02-REQ-040",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "BACKEND-DEV",
+  "to_agent": "REVIEWER",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Implemented REQ-040 per docs/agents/design/REQ-040.md and REQ-040-schema.md: new invite_list_entries table + migration 0008 (schema.ts, drizzle/0008_optimal_medusa.sql, matching meta files); apps/bot/src/domain/inviteList.ts (createNamedGuestUser, add/get/remove/issueInviteListEntryCode, listInviteListEntries with S3-safe projection, resolvePersonalCodeIdentity + relinkToExistingAccount implementing REQ-014's deferred account-linking rule); apps/bot/src/handlers/inviteList.ts (/invite_list_add, /invite_list, issue/remove/remove-confirm/remove-cancel callbacks, S2 checked on every handler, no send-action per design §6); apps/bot/src/handlers/start.ts extended to call resolvePersonalCodeIdentity ahead of resolveOrCreateUser for invite-payload deep links and markInviteListEntryOpened on open, non-invasive to event/checkin/none payload kinds; wired new commands/callbacks in index.ts; added en/ru/types.ts inviteList i18n catalog (provisional copy per design open question 2, CONTENT-BA to finalize later per decisions/0002 precedent).",
+    "notes": "Original BACKEND-DEV dispatch and a follow-up recovery fork both stalled reporting background-vitest waits without committing (ISS-0031-adjacent); ORCH took over directly, independently verified every file against the approved design/schema docs, ran lint+build clean, and ran the full test suite twice (420/420 both times) before committing. One transient run showed 2 Postgres connection-timeout failures under heavy concurrent sibling-session load (registrationApproval.db.test.ts's real-concurrency case) -- confirmed non-regression by an isolated re-run (7/7 passed). Also discovered the workflow's own vitest invocations had been mistakenly passing `-w <path>` (vitest's --watch flag, not a workspace flag) in prior requirements' Step 4 runs -- worth flagging to TEST-RUNNER/DOC-UPDATER guidance so future runs use `npx vitest run --no-file-parallelism` without `-w`.",
+    "lint": "npm run lint -w apps/bot -- clean",
+    "build": "npm run build -w apps/bot -- clean",
+    "tests": "npx vitest run --no-file-parallelism -- 420/420 passed, run twice",
+    "commit": "3d292c0",
+    "next_action": "Route to REVIEWER (Step 2b)"
+  }
+}

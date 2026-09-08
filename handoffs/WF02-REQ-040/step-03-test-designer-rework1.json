@@ -1,0 +1,32 @@
+{
+  "requirement_id": "REQ-040",
+  "step": "03-test-designer",
+  "agent": "TEST-DESIGNER",
+  "branch": "feature/WF02-REQ-040",
+  "rework_of": "handoffs/WF02-REQ-040/step-03b-test-design-validator.json",
+  "rework_iteration": 1,
+  "task": "TEST-DESIGN-VALIDATOR FAILed the prior Step 3 pass (step-03b, commit 45ee427) with three BLOCKERs: AC5, AC9 and AC10's verification method in requirements.yaml is `git grep` over apps/bot as a whole, but the committed static checks in apps/bot/src/domain/inviteList.db.test.ts hard-coded their scan to schema.ts's inviteListEntries table block plus domain/inviteList.ts and handlers/inviteList.ts -- never reading apps/bot/src/handlers/start.ts, which this requirement's own diff modifies (adds resolvePersonalCodeIdentity/markInviteListEntryOpened calls inside makeStartHandler/resolveInviteDeepLink). A stray registered/attended/send/engagement field or call introduced inside start.ts's new REQ-040 code would have passed the suite silently.",
+  "fix_applied": {
+    "file": "apps/bot/src/domain/inviteList.db.test.ts",
+    "approach": "Added one new `it` case to each of the AC5/AC9/AC10 describe blocks that reads handlers/start.ts and scopes to exactly the two new call-site blocks this requirement's diff added there: (1) the resolvePersonalCodeIdentity call inside makeStartHandler (from the literal 'const identity = await resolvePersonalCodeIdentity(' to the next literal 'if (identityResolvedUserId === null) {'), and (2) the markInviteListEntryOpened call inside resolveInviteDeepLink (from the literal comment 'REQ-040.md §3.2 -- the first-open-only write' to the next literal 'const isCompanionCode = codeRow !== null'). Both markers were confirmed unique in the file before use.",
+    "why_not_a_whole-file_or_whole-tree_scan": "Verified by grep (git grep -rniE for registered|attended|engagement|activity, and for NotificationSender/sender.) that handlers/start.ts, domain/inviteList.ts and handlers/inviteList.ts are NOT safe to scan wholesale or apps/bot-wide for these literal words: domain/inviteList.ts's own InviteListStatus type and status-derivation switch legitimately use the strings \"registered\"/\"attended\" as derived-status enum values (that is the exact behavior AC3/AC4 test elsewhere in this same file), handlers/inviteList.ts's rendering switch does the same, and start.ts's resolveInviteDeepLink function contains a separate, pre-existing, unrelated REQ-039 host-notification `sender.send(...)` call further down in the same function (targeting the companion invite's host, who already has a non-null tg_id -- not the entry this requirement's code is linking/opening). A blind grep over the whole file or the whole apps/bot tree for these tokens would either false-fail on that legitimate pre-existing code (confirmed failing when tried) or require an excludes-list that is no more principled than scoping to the new code directly. Scoping to the two literal call-site blocks this requirement's diff actually added is the narrowest scan that (a) reads start.ts as the validator required, (b) cannot false-positive against unrelated code in the same file, and (c) would fail if a future regression put a registered/attended/engagement/send call inside either new block.",
+    "verified_false_positive_risk_by": "grep -n \"registered|attended|engagement|activity\" apps/bot/src/handlers/start.ts apps/bot/src/domain/inviteList.ts apps/bot/src/handlers/inviteList.ts -- confirmed the legitimate matches enumerated above exist outside the two new blocks, and confirmed zero matches exist inside handlers/start.ts overall today (so the new AC5/AC10 start.ts checks are not vacuous no-ops -- they will trip on a real future regression, not on pre-existing text)."
+  },
+  "artifacts_out": [
+    "apps/bot/src/domain/inviteList.db.test.ts"
+  ],
+  "artifacts_unchanged_confirmed_still_correct_per_validator": [
+    "apps/bot/src/handlers/inviteList.db.test.ts",
+    "AC1-AC4, AC6-AC8, AC11 cases in both files",
+    "S2 negative-case describe block",
+    "resolvePersonalCodeIdentity rule-table cases (AC6/AC7)",
+    "multi-event / REQ-040-schema.md §4 uniqueness-conflict relink cases",
+    "commit c2a109c cancelled/finished-event refusal describe block"
+  ],
+  "verification_performed_before_commit": {
+    "npm_run_lint": "PASS -- eslint . exits 0 (apps/bot)",
+    "npm_run_build": "PASS -- tsc -p tsconfig.json exits 0 (apps/bot)",
+    "full_suite_run": "npx vitest run --no-file-parallelism from apps/bot (per ISS-0014/ISS-0027/ISS-0031's documented shared-scratch-Postgres concurrency hazard for this project's DB-backed test files -- default parallel `vitest run` was tried first and failed 164/916 tests across 17 unrelated files with FK-violation/deadlock errors that reproduce the exact signature those open issues describe; --no-file-parallelism against the identical working tree then passed 916/916, which is the structural evidence that the parallel-run failures are the pre-existing, already-tracked infra hazard and not caused by this change) -- 96 test files, 916 tests, all PASS including the six new AC5/AC9/AC10 start.ts cases."
+  },
+  "next_action": "Route to TEST-DESIGN-VALIDATOR (Step 3b re-gate)"
+}

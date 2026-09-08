@@ -21,6 +21,7 @@ import {
   normalizeInviteCode,
   redeemInviteCode,
 } from "../domain/inviteCode.js";
+import { markInviteListEntryOpened, resolvePersonalCodeIdentity } from "../domain/inviteList.js";
 import { getProfileByUserId } from "../domain/profile.js";
 import type { NotificationSender } from "../domain/notification.js";
 import { resolveCheckinQrDeepLink } from "./checkinQr.js";
@@ -232,6 +233,14 @@ async function resolveInviteDeepLink(
   // is null.
   const normalizedCode = normalizeInviteCode(code);
   const codeRow = await getInviteCodeByCode(db, normalizedCode);
+
+  // docs/agents/design/REQ-040.md §3.2 -- the first-open-only write, matched
+  // by invite_code_id, guarded opened_at IS NULL. A no-op for a companion/
+  // bulk code, or a personal code with no matching list entry at all.
+  if (codeRow !== null) {
+    await markInviteListEntryOpened(db, codeRow.id, new Date());
+  }
+
   const isCompanionCode = codeRow !== null && codeRow.grantsCompanionOf !== null;
   const existingProfile = isCompanionCode ? await getProfileByUserId(db, userId) : null;
 
@@ -501,26 +510,58 @@ export function makeStartHandler(db: DbClient["db"], sender: NotificationSender 
     }
 
     const mappedLang = mapTelegramLanguageCode(ctx.from?.language_code);
-    await resolveOrCreateUser(db, {
-      tgId: BigInt(tgId),
-      tgUsername: ctx.from?.username ?? null,
-      lang: mappedLang,
-    });
+    const tgUsername = ctx.from?.username ?? null;
+
+    // docs/agents/design/REQ-040.md §2.2 — resolvePersonalCodeIdentity runs
+    // BEFORE resolveOrCreateUser, and only when the payload parses as an
+    // `i_<code>` personal-invite link. Every other payload kind (event,
+    // checkin, none) is completely unaffected — parseStartPayload is
+    // evaluated here (earlier than this handler used to run it) purely to
+    // make this one check possible; its result is reused unchanged below,
+    // never re-parsed.
+    const payload = parseStartPayload(matchText(ctx));
+    let identityResolvedUserId: string | null = null;
+    if (payload.kind === "invite") {
+      const identity = await resolvePersonalCodeIdentity(
+        db,
+        payload.code,
+        BigInt(tgId),
+        tgUsername,
+        mappedLang,
+        new Date(),
+      );
+      if (identity.kind !== "not-applicable") {
+        // "linked" — the pre-created row was just UPDATEd to this tg_id.
+        // "collision-relinked" — the caller's own pre-existing row already
+        // carries this tg_id. Either way, resolveOrCreateUser below is
+        // skipped for this request; the next read (getFlowUserByTgId)
+        // already resolves the correct row by tg_id.
+        identityResolvedUserId = identity.userId;
+      }
+    }
+
+    if (identityResolvedUserId === null) {
+      await resolveOrCreateUser(db, {
+        tgId: BigInt(tgId),
+        tgUsername,
+        lang: mappedLang,
+      });
+    }
 
     const flowUser = await getFlowUserByTgId(db, BigInt(tgId));
     if (flowUser === null) {
-      // Unreachable: resolveOrCreateUser just guaranteed this row exists.
+      // Unreachable: either resolveOrCreateUser or resolvePersonalCodeIdentity
+      // just guaranteed a row with this tg_id exists.
       return;
     }
 
     const lang = resolveLang(flowUser.lang, flowUser.chapterDefaultLang);
 
     // REQ-016 §6.3 — deep-link payload branch, checked immediately after
-    // user creation (step 7) and before the ordinary REQ-014 flow's own
-    // logic runs at all (consent gate included) — the design's §6.3 does
-    // not route a deep-link open through onboarding, only through event
-    // resolution.
-    const payload = parseStartPayload(matchText(ctx));
+    // user creation/linking (step 7) and before the ordinary REQ-014 flow's
+    // own logic runs at all (consent gate included) — the design's §6.3
+    // does not route a deep-link open through onboarding, only through
+    // event resolution.
     if (payload.kind === "event") {
       // REQ-016 rework — consent state decides whether the published-event
       // write path runs now or is deferred to the consent callback;

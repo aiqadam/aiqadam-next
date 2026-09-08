@@ -122,6 +122,17 @@ import {
   makeCompanionConfirmCallbackHandler,
   makeCompanionTextReplyHandler,
 } from "./handlers/companion.js";
+import {
+  INVITE_LIST_ISSUE_PATTERN,
+  INVITE_LIST_REMOVE_CONFIRM_PATTERN,
+  INVITE_LIST_REMOVE_PATTERN,
+  makeInviteListAddHandler,
+  makeInviteListHandler,
+  makeInviteListIssueCallbackHandler,
+  makeInviteListRemoveCallbackHandler,
+  makeInviteListRemoveCancelCallbackHandler,
+  makeInviteListRemoveConfirmCallbackHandler,
+} from "./handlers/inviteList.js";
 
 let config: BotConfig;
 
@@ -364,5 +375,19 @@ bot.command("redeem", makeRedeemCommandHandler(db));
 bot.callbackQuery(COMPANION_CONFIRM_PATTERN, makeCompanionConfirmCallbackHandler(db, notificationSender));
 bot.callbackQuery(COMPANION_CANCEL_CALLBACK, makeCompanionCancelCallbackHandler());
 bot.on("message:text", makeCompanionTextReplyHandler(db));
+
+// REQ-040: the named invitation list -- /invite_list_add, /invite_list, the
+// issue/remove callbacks (handlers/inviteList.ts). Registered after the
+// companion block above, same ordering discipline every prior block's own
+// header note establishes. The `/start i_<code>` identity-resolution step
+// (resolvePersonalCodeIdentity) is dispatched from handlers/start.ts itself
+// -- no new command registered here for it (same "no new command" precedent
+// REQ-029 §7's own header note states for its own deep-link branch).
+bot.command("invite_list_add", makeInviteListAddHandler(db));
+bot.command("invite_list", makeInviteListHandler(db));
+bot.callbackQuery(INVITE_LIST_ISSUE_PATTERN, makeInviteListIssueCallbackHandler(db));
+bot.callbackQuery(INVITE_LIST_REMOVE_CONFIRM_PATTERN, makeInviteListRemoveConfirmCallbackHandler(db));
+bot.callbackQuery(INVITE_LIST_REMOVE_PATTERN, makeInviteListRemoveCallbackHandler(db));
+bot.callbackQuery("invite_list:remove_cancel", makeInviteListRemoveCancelCallbackHandler(db));
 
 bot.start();

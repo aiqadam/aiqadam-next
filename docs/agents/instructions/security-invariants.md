@@ -40,6 +40,31 @@ door**. Three consents, one home each, never conflated:
 path that skips the consent step because it is "faster at the door"; a single boolean
 serving two of the three consents.
 
+**Carve-out — organizer's own independently-known contact data (added at REQ-040's
+Step 2c sign-off, SECURITY-REVIEWER).** S1 governs data a person gives *to the bot/
+organization through it*. It does not extend to a business-card fact (`name`,
+`company`, `position` — never `phone`/`email`) an organizer already independently
+possesses about someone who has never contacted the bot, entered on the organizer's own
+operational record (e.g. REQ-040's `invite_list_entries`), structurally distinct from
+`Profile` (S1's own subject-consented record) and never merged into it. Conditions for
+this carve-out to apply, all required:
+
+1. The field set is limited to what a business card/rolodex would carry — never phone,
+   email, or any field `Profile` itself gates behind consent.
+2. The record lives on a table structurally separate from `Profile`, with no runtime
+   path that copies it there — a schema-level guarantee (no `phone`/`email` column to
+   begin with), not a filter that could be bypassed (S3's discipline, reused for S1).
+3. The subject is never contacted using this record without their own action first (no
+   "send" path targets them — S6 of the introducing requirement's own design, or
+   equivalent).
+4. The record is removable by the organizer at any time and does not survive as a
+   second identity once the subject's real account is known (REQ-040 §2.4's relink is
+   the reference case: the placeholder is retired, never merged).
+
+This is a narrow exception, not a general "organizer knowledge is exempt" principle — it
+does not license storing anything beyond the limited business-card set above, and does
+not touch `Profile`, `broadcast_opt_in`, or `publish_consent` in any way.
+
 ## S2 — Authorization is checked on the action, and the negative path is proven
 
 Roles mean *what you may do*: `member` (own data only), `organizer` (their chapter),

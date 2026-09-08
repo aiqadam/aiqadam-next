@@ -1,0 +1,57 @@
+{
+  "handoff_id": "step-02b-reviewer-rework1",
+  "run_id": "WF02-REQ-040",
+  "workflow_id": "WF-02",
+  "step": "02b",
+  "from_agent": "REVIEWER",
+  "to_agent": "SECURITY-REVIEWER",
+  "file": "handoffs/WF02-REQ-040/step-02b-reviewer-rework1.json",
+  "created_at": "2026-09-08T17:52:48Z",
+  "started_at": "2026-09-08T17:52:48Z",
+  "completed_at": "2026-09-08T18:05:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-040"],
+    "related_handoff_ids": ["step-02-backend-dev", "step-02b-reviewer"],
+    "artifacts_in": [
+      "apps/bot/src/handlers/inviteList.ts",
+      "apps/bot/src/handlers/inviteCodes.ts"
+    ]
+  },
+  "task": {
+    "description": "Re-gate REQ-040 on branch feature/WF02-REQ-040 after BACKEND-DEV's fix (commit c2a109c) for the BLOCKER filed in handoffs/WF02-REQ-040/step-02b-reviewer.json: makeInviteListIssueCallbackHandler issued a personal invite code without ever refusing for a cancelled/finished event, unlike inviteCodes.ts's resolveEventForIssuing(). Verify the guard is correctly placed and re-run a holistic pass over the rest of the implementation.",
+    "acceptance_criteria": [
+      "The cancelled/finished-event guard is present in makeInviteListIssueCallbackHandler, placed after S2 authorization and before any code is issued.",
+      "The guard mirrors resolveEventForIssuing()'s check order and null-field defensiveness.",
+      "No new i18n keys or duplicated copy introduced where an existing key applies.",
+      "Nothing else in the previously-reviewed implementation changed.",
+      "Lint, build, and full test suite pass."
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Scoped re-gate on commit c2a109c, the sole commit since my prior FAIL (edd93f3). git log edd93f3..HEAD shows exactly one commit touching exactly one file (apps/bot/src/handlers/inviteList.ts, +15/-1) -- confirmed by git diff --stat, so nothing else in the implementation I already reviewed changed.\n\nRead the current apps/bot/src/handlers/inviteList.ts in full and diffed c2a109c~1..c2a109c directly. The fix is correctly placed inside makeInviteListIssueCallbackHandler: after the S2 requireOrganizerForChapter check (lines ~208-212) and before expiresAt is computed or issueInviteListEntryCode is called (lines ~229-238), it now checks `event.status === 'cancelled'` (replies via ctx.answerCallbackQuery with catalog.inviteCodes.eventCancelled, show_alert: true) and then `event.startsAt === null || event.endsAt === null || isFinished(event.endsAt, evaluationTime)` (catalog.inviteCodes.eventFinished). This is the exact same two checks, in the exact same order, with the exact same null-field defensiveness (startsAt/endsAt both treated as null-implies-finished, matching inviteCodes.ts's own comment reasoning about EventRecord's defensive `Date | null` typing vs. EventCreateInput's actual non-null guarantee at creation time), as apps/bot/src/handlers/inviteCodes.ts's resolveEventForIssuing() (lines 108-121). isFinished is now imported from ../domain/event.js in inviteList.ts alongside the pre-existing getEventById import -- correct, minimal import addition.\n\ni18n check: grepped en.ts/ru.ts/types.ts -- catalog.inviteCodes.eventCancelled and catalog.inviteCodes.eventFinished already existed (added under REQ-037) and are reused verbatim, exactly as my original FAIL's suggested fix specified. No new i18n keys added, no duplicated copy. This also means the fix reuses inviteCodes-scoped copy from a handler in inviteList.ts, which is a minor cross-module i18n reference but not a new pattern -- inviteList.ts already imported the same catalog object that carries both namespaces, so this is not a design-system or convention violation.\n\nOne residual observation, non-blocking: `const expiresAt = event.startsAt ?? evaluationTime;` immediately after the new guard is now dead-code defensive (event.startsAt is guaranteed non-null at that point, since a null startsAt returns early via the eventFinished branch above it). Functionally harmless -- not a defect, just a redundant fallback now unreachable. Not filing as an issue; noting only for the record, consistent with my original review's treatment of the buildIssuedReply naming discrepancy as a non-blocking note.\n\nHolistic re-check of the rest of the file (all five other handlers: add, list, remove, remove-confirm, remove-cancel) -- unchanged since my original PASS-track review, confirmed unchanged by the stat diff above; no new gaps found. Domain logic remains entirely in domain/inviteList.ts (decisions/0004 honored), S2 re-checked on every handler/callback, no reply ever targets the list entry's own user_id (§6/AC9), no now()/current_timestamp in any predicate (decisions/0006 honored) -- evaluationTime is passed as an explicit Date parameter throughout, including into the new guard's isFinished(event.endsAt, evaluationTime) call.\n\nCommands re-run myself, real output: npm run lint --workspace=apps/bot -> exit 0, 0 errors. npm run build --workspace=apps/bot -> tsc -p tsconfig.json exit 0, clean. npx vitest run (repo root) -> 30 files failed / 16 passed, 211/420 individual test failures, all FK-violation (chapter_id not present in chapters) and deadlock errors in apps/bot/src/domain/registration.db.test.ts and registrationApproval.db.test.ts -- files this diff never touches. Re-ran with npx vitest run --no-file-parallelism -> 46 files passed, 420/420 tests passed, matching BACKEND-DEV's reported count exactly. This matches the already-filed, already-diagnosed docs/issues/ISS-0031.yaml (and its predecessors ISS-0014/ISS-0027) precisely: shared-scratch-Postgres TRUNCATE/seed races under vitest's default cross-file parallelism, non-deterministic in which files it hits, unrelated to any file in this diff (vitest.config.ts is untouched by this branch; the affected files are pre-existing DB test suites for other requirements). Structurally cleared per core-directives.md's Failure Attribution rule, route 1: the failing files and vitest.config.ts do not appear in git diff --name-only master...HEAD for this branch. Not re-filing -- ISS-0031 already covers this exact failure class and its documented mitigation (treat a single parallel full-suite run as inconclusive, re-run with --no-file-parallelism or in isolation before concluding FAIL) is what resolved the ambiguity here.\n\nNo new design-system, anti-pattern, or scope-creep findings. My original review's non-blocking note (REQ-040.md §4.3's literal text expecting reuse of inviteCodes.ts's private buildIssuedReply, which was never exported) still stands unchanged and unaddressed by this rework, since it was never in this rework's scope -- carrying it forward here for the record, not blocking.",
+    "artifacts_out": [],
+    "issues": [
+      {
+        "severity": "MINOR",
+        "description": "Carried forward unchanged from handoffs/WF02-REQ-040/step-02b-reviewer.json (not addressed by this rework, not in its scope, not blocking): REQ-040.md §4.3 says the issued-code reply is 'identical composition to inviteCodes.ts's existing buildIssuedReply -- reused, not reinvented', but buildIssuedReply is a private, non-exported function in inviteCodes.ts, so the implementation instead composes an equivalent reply inline via catalog.inviteList.issuedReply. Functionally equivalent; recommend a design-doc correction note only.",
+        "affected_requirement": "REQ-040"
+      }
+    ],
+    "next_action": "Route to SECURITY-REVIEWER (Step 2c) -- apps/bot/** changes mandate it. Nothing further blocks this step."
+  },
+  "rework_count": 1,
+  "max_rework": 3,
+  "gate_history": [
+    {
+      "iteration": 0,
+      "gated_at": "2026-09-08T17:32:14Z",
+      "status": "FAIL",
+      "summary": "makeInviteListIssueCallbackHandler issued a personal invite code unconditionally, never refusing for a cancelled/finished event, unlike inviteCodes.ts's resolveEventForIssuing() which enforces that refusal on every one of its own issuing commands. Full detail in handoffs/WF02-REQ-040/step-02b-reviewer.json.",
+      "issues": ["BLOCKER: invite_list:issue:<entryId> omits the cancelled/finished-event refusal REQ-037's own issuing surface enforces."],
+      "next_action": "Rework BACKEND-DEV -- add the cancelled/finished-event refusal to makeInviteListIssueCallbackHandler before calling issueInviteListEntryCode, mirroring inviteCodes.ts's resolveEventForIssuing() guard."
+    }
+  ]
+}

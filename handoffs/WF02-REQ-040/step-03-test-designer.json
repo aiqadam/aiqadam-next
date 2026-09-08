@@ -1,0 +1,50 @@
+{
+  "requirement_id": "REQ-040",
+  "step": "03-test-designer",
+  "agent": "TEST-DESIGNER",
+  "branch": "feature/WF02-REQ-040",
+  "commit_reviewed": "a411b25",
+  "scope_test": {
+    "result": "YES -- real user-visible/behavioral surface",
+    "reasoning": "Step 2's artifacts_out (apps/bot/src/domain/inviteList.ts, apps/bot/src/handlers/inviteList.ts, apps/bot/src/db/schema.ts + drizzle/0008_optimal_medusa.sql, apps/bot/src/handlers/start.ts's account-linking extension, i18n files) are real Telegram commands/callbacks/deep-links that write real users/invite_list_entries/invite_codes/registrations/audit_log rows and send real messages. Full Steps 3b/4 apply -- not a docs-only requirement."
+  },
+  "convention": "Per decisions/0006-test-framework-vitest.md and this branch's own established practice (docs/agents/test-specs/REQ-039.md), TEST-DESIGNER writes runnable vitest source directly rather than a manual checklist. Per this run's own task instruction (which takes precedence over REQ-039's variant of committing the code only inside the markdown spec for TEST-RUNNER to materialize), this run writes AND commits the actual .test.ts files itself, verifies them against the real scratch Postgres, and hands a green suite to TEST-DESIGN-VALIDATOR / TEST-RUNNER.",
+  "artifacts_out": [
+    "apps/bot/src/domain/inviteList.db.test.ts",
+    "apps/bot/src/handlers/inviteList.db.test.ts"
+  ],
+  "tg_id_ranges": {
+    "confirmed_distinct_via": "grep -rn \"let nextTgId\\|let tgSeq\" apps/bot/src -- highest pre-existing band was 1_062_000_000 (handlers/companion.db.test.ts, REQ-039)",
+    "apps/bot/src/domain/inviteList.db.test.ts": "1_063_000_000+",
+    "apps/bot/src/handlers/inviteList.db.test.ts": "1_064_000_000+"
+  },
+  "execution_note": "Both files require the scratch Postgres up and migrated first (cd apps/bot && docker compose up -d; DATABASE_URL=postgres://bot:bot@localhost:55432/bot npx drizzle-kit migrate). Per ISS-0014, run with npx vitest run --no-file-parallelism (from apps/bot, or the equivalent workspace-scoped invocation from the repo root). If dbAvailable resolves false (scratch Postgres unreachable/unmigrated), every DB-dependent case calls t.skip(); the static grep/schema-shape cases (AC5, AC9, AC10) have no DB dependency and always run.",
+  "verification_performed_before_handoff": {
+    "npm_run_lint": "PASS -- 0 errors (apps/web: 2 pre-existing, unrelated <img> warnings only; apps/bot: clean, after removing two unused imports the new domain test file initially had)",
+    "npm_run_build": "PASS -- tsc -p tsconfig.json exits 0 for apps/bot",
+    "new_files_isolated_run": "PASS -- npx vitest run --no-file-parallelism against both new files: 2 test files, 35 tests, all passed",
+    "full_suite_run": "PASS -- npx vitest run --no-file-parallelism (whole apps/bot workspace): 96 test files, 910 tests, all passed -- no regression from this addition"
+  },
+  "ac_to_case_map": {
+    "AC1 (named guest, tg_id NULL, personal code issuable via REQ-037's path)": "domain file, describe(\"AC1\")",
+    "AC2 (two never-seen guests, no unique-index collision)": "domain file, describe(\"AC2\")",
+    "AC3 (all four status values render correctly)": "domain file, describe(\"AC3\") (domain-level derivation) + handler file's Happy-path case (rendered message text/status label)",
+    "AC4 (registered/attended derived, no write to the entry row)": "domain file, describe(\"AC4\") -- updated_at compared before/after both a registration write and a direct checked_in_at write",
+    "AC5 (git grep: no stored registered/attended field; artefact justifies opened_at)": "domain file, describe(\"AC5\") -- two static cases (schema column-block grep, listInviteListEntries body has no .update() call)",
+    "AC6 (redemption links the pre-created row, not exercised by a run with no pre-created row)": "domain file, describe(\"AC6\") (resolvePersonalCodeIdentity 'linked' branch, plus not-found/bulk-not-applicable/already-linked-not-applicable/idempotent-second-tap sub-cases) + handler file's 'End-to-end AC6' describe block (full /start -> consent -> resolution dispatch)",
+    "AC7 (redeemer already has own users row -- handled exactly as stated, no two live rows)": "domain file, describe(\"AC7\") (three cases: plain collision, multi-event collision, and REQ-040-schema.md §4's uniqueness-conflict scenario where B already holds an entry for one of A's events) + handler file's 'End-to-end AC7' describe block",
+    "AC8 (rendered list has no phone/email)": "domain file, describe(\"AC8\") (listInviteListEntries output serialized and grepped) + handler file's 'S3' describe block (rendered message text grepped, including post-registration)",
+    "AC9 (no send action; git grep finds no tg_id-NULL send path)": "domain file, describe(\"AC9\") -- static: no NotificationSender import/usage, no sender. call site in either new file",
+    "AC10 (no engagement/activity score anywhere)": "domain file, describe(\"AC10\") -- static: schema column block and domain file body grepped for engagement/activity-score/group-activity",
+    "AC11 (adding/removing each write exactly one audit_log row)": "domain file, describe(\"AC11\") (add, remove, and remove-on-unknown-id no-op cases) + handler file's Happy-path case (audit row count before/after the confirm-step remove) and remove:cancel case (zero rows written)",
+    "S2 authorization negative cases (member, EventStaff, cross-chapter organizer)": "handler file, describe(\"S2 -- authorization negative cases on every invite-list entry point\") -- six cases covering /invite_list_add (member, EventStaff, cross-chapter organizer), /invite_list, invite_list:issue, and invite_list:remove/remove:confirm",
+    "Cancelled/finished-event refusal fix (commit c2a109c)": "handler file, describe(\"invite_list:issue refuses for cancelled/finished events (commit c2a109c)\") -- cancelled case, finished case, and an open-event baseline case proving the fix does not over-refuse"
+  },
+  "notes_for_test_design_validator": [
+    "The full resolvePersonalCodeIdentity rule table (docs/agents/design/REQ-040.md §2.2) is exercised case-by-case in the domain file's AC6/AC7 describe blocks: not-found, bulk/companion-not-applicable, target-already-linked-not-applicable, own-row-null-tgId link (the normal case), the idempotent-second-tap concurrency fallback, plain collision-relink, multi-event collision-relink, and the schema-conflict collision-relink (REQ-040-schema.md §4.2's two-statement conditional-repoint-then-delete sequence, traced against a constructed uniqueness conflict where B already holds an entry for one of A's events).",
+    "The opened_at/derived-status semantics are covered twice deliberately: domain-level (AC3/AC4, constructing each state directly and asserting listInviteListEntries's derivation) and end-to-end (handler file's AC6 describe block, which drives a real /start deep-link tap through markInviteListEntryOpened and confirms opened_at is non-null even though the entry's rendered status has since advanced to 'registered').",
+    "No test in either file asserts on literal English/Russian copy text (only on structural properties: which values are/aren't present, button-label sets, row counts, ids) except where the catalog constant itself is imported and compared (catalog.inviteList.*, catalog.inviteCodes.eventCancelled/eventFinished) -- a future copy change does not require touching these tests, matching REQ-039's own stated discipline.",
+    "AC9's 'no send action' is verified statically (no NotificationSender import, no sender. call site) rather than by asserting an empty captured-messages list at runtime, because the handler file's own happy-path/S2 cases already prove every reply lands on ctx (the organizer's own chat) as a side effect of asserting on lastSendMessage/answerCallbackQuery content -- the static check is the one that would actually fail if a future change added a stray send call, which a runtime assertion scoped to one test's own captured array would not reliably catch."
+  ],
+  "next_action": "Route to TEST-DESIGN-VALIDATOR (Step 3b)"
+}

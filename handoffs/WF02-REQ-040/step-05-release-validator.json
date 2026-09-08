@@ -1,0 +1,56 @@
+{
+  "handoff_id": "step-05-release-validator",
+  "run_id": "WF02-REQ-040",
+  "workflow_id": "WF-02",
+  "step": "05",
+  "from_agent": "RELEASE-VALIDATOR",
+  "to_agent": "DOC-UPDATER",
+  "file": "handoffs/WF02-REQ-040/step-05-release-validator.json",
+  "created_at": "2026-09-08T18:38:50Z",
+  "started_at": "2026-09-08T18:20:00Z",
+  "completed_at": "2026-09-08T18:38:50Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-040"],
+    "related_handoff_ids": ["step-04-test-runner", "step-03b-test-design-validator-rework1", "step-02c-security-reviewer"],
+    "artifacts_in": [
+      "apps/bot/src/domain/inviteList.ts",
+      "apps/bot/src/handlers/inviteList.ts",
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/drizzle/0008_optimal_medusa.sql",
+      "apps/bot/src/handlers/start.ts",
+      "apps/bot/src/index.ts",
+      "apps/bot/src/i18n/en.ts",
+      "apps/bot/src/i18n/ru.ts",
+      "apps/bot/src/i18n/types.ts",
+      "apps/bot/src/domain/inviteList.db.test.ts",
+      "apps/bot/src/handlers/inviteList.db.test.ts"
+    ]
+  },
+  "task": {
+    "description": "Independently re-verify all 11 REQ-040 acceptance criteria on branch feature/WF02-REQ-040 -- re-run npm run lint/build and the full vitest suite from repo root, re-read the actual implementation against docs/agents/design/REQ-040.md and REQ-040-schema.md, and spot-check the test suites for genuine coverage rather than trusting TEST-RUNNER's report.",
+    "acceptance_criteria": [
+      "AC1: named guest never on the bot -> one users row, tg_id NULL, personal code issuable via REQ-037's path.",
+      "AC2: two never-seen guests both succeed, both tg_id NULL, no unique-index collision.",
+      "AC3: all four status values (invited/opened/registered/attended) render correctly.",
+      "AC4: registered/attended are derived, no write to the entry row.",
+      "AC5: git grep finds no stored registered/attended field; opened_at justified against PRD 5.",
+      "AC6: redemption links the pre-created row (tg_id set, id unchanged, no second row).",
+      "AC7: redeemer with a separate existing users row is relinked exactly as designed, no duplicate identity.",
+      "AC8: rendered list has no phone/email.",
+      "AC9: no send action targets a list entry's user_id; no tg_id-NULL send path anywhere.",
+      "AC10: no engagement/activity score anywhere.",
+      "AC11: adding/removing each write exactly one audit_log row."
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Re-ran every check myself rather than trusting step-04-test-runner.json. `npm run lint -w apps/bot`: eslint . exited 0, no output. `npm run build -w apps/bot`: tsc -p tsconfig.json exited 0, no output. First `npx vitest run --no-file-parallelism` from repo root produced 2 failures (inviteCodeRedeem.db.test.ts's AC4 concurrency case and registrationApproval.db.test.ts's AC5 concurrency case), both 'Connection terminated due to connection timeout' -- neither test touches any REQ-040 file (git diff master...HEAD --stat confirms these test files and their domain files are untouched by this branch) and both are the documented ISS-0031 shared-Postgres contention signature. Re-ran the full suite once more per ISS-0031's mitigation: 48 test files passed (48), 458 tests passed (458), clean, confirming the two failures were transient and not attributable to this branch (route 1 of the failure-attribution rule: the failing files/dependencies do not appear in git diff master...HEAD). Then ran a targeted re-run of just the two REQ-040 suites: `npx vitest run --no-file-parallelism apps/bot/src/domain/inviteList.db.test.ts apps/bot/src/handlers/inviteList.db.test.ts` -> 2 test files passed (2), 38 tests passed (38). Independently read domain/inviteList.ts, handlers/inviteList.ts, apps/index.ts's wiring, the 0008_optimal_medusa.sql migration, and both i18n catalogs against docs/agents/design/REQ-040.md/REQ-040-schema.md -- confirmed: createNamedGuestUser is a plain INSERT with tgId/tgUsername/lang NULL (AC1/AC2); listInviteListEntries derives status purely via a LEFT JOIN with no UPDATE in the function body (AC4, confirmed structurally, matches the test's updated_at-unchanged assertion); resolvePersonalCodeIdentity implements the design's rule table exactly, including the row-locked (`for('update')`) linked/collision-relinked branches and relinkToExistingAccount's two-step conditional-repoint-then-delete matching REQ-040-schema.md §4.2's conflict-free algorithm (AC6/AC7); listInviteListEntries's SELECT clause names no phone/email column at all (structural exclusion, AC8); git grep -niE 'engagement|activity[_-]?score|group[_-]?activity' over apps/bot/src found matches only inside the test file's own describe/assertion strings, none in schema.ts/domain/inviteList.ts/handlers/start.ts (AC10); git grep -n 'sender\\.' apps/bot/src/handlers/inviteList.ts apps/bot/src/domain/inviteList.ts returned zero matches, and every reply in handlers/inviteList.ts targets ctx (the organizer's own chat), never the entry's user_id (AC9); addInviteListEntry/removeInviteListEntry each call writeAuditLog exactly once inside their own transaction, actions invite_list.add/invite_list.remove (AC11); issueInviteListEntryCode writes no second audit row (composes issuePersonalInviteCode's own invite_code.issue row unchanged), matching the design's stated non-duplication. Read both .db.test.ts files end to end (not just their names): the AC5/AC9/AC10 static checks genuinely readFileSync handlers/start.ts and scope to the two new call-site blocks (resolvePersonalCodeIdentity, markInviteListEntryOpened) via unique delimiter strings verified present in that file, closing the gap TEST-DESIGN-VALIDATOR's rework1 gate required; AC3/AC6/AC7 are exercised with real Postgres constructions (four states built explicitly, a pre-created row's id/tg_id tracked before and after redemption, a genuine two-users-row collision including the multi-event and uniqueness-conflict sub-cases from REQ-040-schema.md §4); AC7/AC6 are also exercised end-to-end through the real /start dispatch (handlers/inviteList.db.test.ts's two E2E describe blocks), not only at the domain layer -- satisfying the 'a run with no pre-created row is not evidence' condition AC6/AC7's own text states, since every case explicitly constructs the pre-created row first. The c2a109c cancelled/finished-event refusal fix is covered by three cases (cancelled, finished, and an open-event baseline confirming the fix doesn't over-refuse). S2 negative cases cover member, EventStaff-role-stays-member, and cross-chapter organizer against all relevant entry points, entries/users counted before and after. Verified apps/bot/src/index.ts registers all four inviteList handlers/callbacks (lines 386-391) and handlers/start.ts's resolvePersonalCodeIdentity/markInviteListEntryOpened wiring exists (confirmed by the test files' own delimiter-based reads succeeding). git status --short: clean before this handoff's own commit.",
+    "artifacts_out": [],
+    "issues": [],
+    "next_action": "Route to DOC-UPDATER (Step 6) -- flip REQ-040 to done in docs/agents/requirements.yaml, append docs/status/requirement_status.yaml, update any docs referencing this requirement's prior in_progress state."
+  },
+  "rework_count": 0,
+  "max_rework": 3
+}

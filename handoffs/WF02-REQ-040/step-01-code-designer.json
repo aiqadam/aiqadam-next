@@ -1,0 +1,66 @@
+{
+  "handoff_id": "step-01-code-designer",
+  "run_id": "WF02-REQ-040",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "CODE-DESIGNER",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "file": "handoffs/WF02-REQ-040/step-01-code-designer.json",
+  "created_at": "2026-09-08T14:43:11Z",
+  "started_at": "2026-09-08T14:43:11Z",
+  "completed_at": "2026-09-08T14:43:11Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-040"],
+    "requirement_text": {
+      "REQ-040": "GitHub issue #72. Named invitation list with derived invited/opened/registered/attended outreach status and account linking on first contact. Implements USER-STORIES F9 / STORY-DETAILS F9, PRD FR-17. Composes REQ-010's nullable-tg_id User (pre-created guests), REQ-037's personal-code issuing path, and REQ-020/028/029's registration/check-in state for status derivation. registered/attended are DERIVED (no column); invited is the list entry row's own existence (genuinely stored, justified because nothing else records the organizer's act of adding someone); opened is the requirement's own flagged open question requiring an explicit resolution with reasoning (either a stored opened_at on the list entry, or derived from tg_id becoming non-null). Account linking on first contact: matching is by the code (issued_to_user_id), and the requirement explicitly requires stating what happens when the redeemer already has a separate users row (merge, refusal, or link-and-leave-placeholder) so FR-17's 'nobody is duplicated' guarantee holds. Bot cannot message a guest who never started it -- list shows code/link for the organizer to share, no send action. S2 organizer-only/own-chapter; S3 list shows name/company/position/status only, never phone/email. Every add/remove writes exactly one AuditLog row. 'Active in the group' is explicitly not computed/approximated (PRD FR-4, RE-EVALUATION R4)."
+    },
+    "source_text": { "github_issue": "#72" },
+    "related_handoff_ids": [],
+    "artifacts_in": [
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/user.ts",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/domain/auditLog.ts",
+      "apps/bot/src/domain/eventAuthorization.ts",
+      "apps/bot/src/domain/profile.ts",
+      "apps/bot/src/handlers/start.ts",
+      "apps/bot/src/handlers/organizerRequests.ts",
+      "apps/bot/src/handlers/inviteCodes.ts",
+      "docs/agents/design/REQ-014.md",
+      "docs/agents/instructions/security-invariants.md"
+    ],
+    "branch_name": "feature/WF02-REQ-040"
+  },
+  "task": {
+    "description": "WF-02 Step 1 (Design) for REQ-040, on branch feature/WF02-REQ-040 (repo at commit 7ef86ff at run start; eighth of Release 2's nine build requirements, REQ-033..REQ-039 already merged). Produced docs/agents/design/REQ-040.md mapping all 11 acceptance criteria to concrete design elements. Two open questions the requirement text explicitly demands be resolved, not silently picked: (1) 'opened' definition -- resolved as (a), a stored opened_at on the new list-entry table, written the first time the personal code's i_<code> deep link resolves past the consent gate (same gate point invite_codes.used_count's own increment already waits behind), matched by invite_code_id with an opened_at IS NULL guard (first-open-only). Justified against PRD 5 explicitly in design section 3.2: a deep-link tap that never leads to a registration leaves no other trace anywhere in the schema (no registrations row, no used_count increment), the same category of genuinely-unrecordable-otherwise fact REQ-011/033 already accepted stored columns for (used_count itself, no_show_reason) -- and reading (b) instead (derive from tg_id becoming non-null) was rejected because this requirement's own new linking mechanism (section 2.3) sets tg_id at the SAME instant admission is decided, which would collapse opened and registered into the same moment for exactly the never-contacted-VIP population this requirement exists to serve. (2) Existing-account collision on redemption -- resolved as neither merge nor refusal but a narrow relink: the redemption proceeds under the redeemer's own existing account (B), every invite_list_entries row referencing the pre-created placeholder (A) is repointed to B (across ALL of A's events, not just the one being redeemed, since A is being permanently retired as an identity), the code's issued_to_user_id is corrected to B in the same transaction so validateInviteCodeForRedemption's existing not-yours check passes unmodified, A is left inert (tg_id forever NULL, never again reachable via /start) but not deleted (other rows may still name its id historically), and one additional AuditLog row (invite_list.entry_relinked) is written per repointed entry, kept distinct from the add/remove audit actions so AC11's exactly-one-per-add/remove count is not conflated. Full reasoning against the requirement's own three named candidates (merge/refusal/link-and-leave-placeholder) is in design section 2.4 -- a full cross-table data merge was rejected as disproportionate and unprecedented anywhere else in this codebase; refusal was rejected as defeating the requirement's own purpose for exactly its target population. A third, load-bearing finding not asked for by name but required to make either resolution possible at all: re-reading apps/bot/src/handlers/start.ts's makeStartHandler (section 0) showed resolveOrCreateUser runs unconditionally, keyed on tg_id, BEFORE parseStartPayload is even evaluated -- meaning, as the code exists today, a personal invite code issued to a pre-created (tg_id NULL) row is structurally unreachable by its intended redeemer (the first /start creates a brand-new row under the caller's own tg_id, and validateInviteCodeForRedemption's existing not-yours check then refuses it). Section 2.2 introduces a new resolvePersonalCodeIdentity step that runs before resolveOrCreateUser, only when the /start payload parses as an i_<code> invite, to close this gap -- this is the requirement's actual central mechanism, not an incidental fix.",
+    "acceptance_criteria": [
+      "An organizer adds a named guest who has never used the bot: exactly one users row is created with tg_id NULL, and a personal code can then be issued to that row through REQ-037's path -- both verified by reading the users and invite_codes tables.",
+      "Adding two different never-seen guests both succeed, each producing a users row with tg_id NULL -- verified by adding both and confirming the unique index on tg_id does not collide across the two NULL rows.",
+      "The list renders each entry's outreach status across all four values: invited, opened, registered, attended.",
+      "The registered and attended statuses are DERIVED, not stored: flipping admission and setting checked_in_at directly in the database changes both statuses on re-render with NO write to the list entry row (compared updated_at before/after).",
+      "git grep over apps/bot finds no column, cache or persisted field holding a registered or attended status for a list entry; the design artefact states the chosen 'opened' definition with its reasoning, and justifies against PRD 5 any column it does store.",
+      "A guest redeeming their personal code LINKS the pre-created users row -- tg_id becomes non-null, id unchanged -- rather than creating a second users row.",
+      "The case where the redeemer ALREADY has their own users row is handled exactly as the design artefact states, with no outcome leaving two live users rows for one person with no stated resolution.",
+      "The rendered list contains no phone number and no email address for any entry.",
+      "The list surface offers NO action that sends a message to an entry, and git grep over apps/bot finds no send path targeting a user whose tg_id is NULL.",
+      "git grep over apps/bot finds no engagement score, activity heuristic, group-activity column or any field approximating 'active in the Telegram group'.",
+      "A member, and separately an EventStaff member, each invoking the list handlers directly are refused; an organizer of chapter A is refused for a chapter B event.",
+      "Adding and removing a list entry each write exactly one audit_log row, counted before and after each."
+    ]
+  },
+  "result": {
+    "status": "SUCCESS",
+    "summary": "Produced docs/agents/design/REQ-040.md (10 sections plus open questions, full 11-AC map in section 9). DATA-DESIGNER IS needed and is explicitly deferred: a new table, tentatively invite_list_entries, holding event_id/user_id/invite_code_id(nullable)/added_by/added_at/opened_at plus guest business-card fields (name/company/position, kept OFF profiles deliberately -- section 3.4's own reasoning) -- section 3 states the exact column list, the recommended (not mandated) UNIQUE(event_id, user_id) index, and explicitly leaves the remove-mechanism (hard delete vs. removed_at marker) to DATA-DESIGNER's own judgment. No other schema change anywhere else -- users/invite_codes/registrations are all reused unchanged (section 0's re-verification against the live schema.ts/inviteCode.ts). Reviewers should check in particular: (a) section 0's re-derivation that resolveOrCreateUser's unconditional tg_id-keyed resolution at the top of makeStartHandler is what makes account linking impossible without this requirement's new pre-check step -- not asserted, traced against the actual current file; (b) section 2.2's rule table for resolvePersonalCodeIdentity, stated as a table with no comparison written as executable code; (c) section 2.4's collision resolution, in particular that it repoints ALL of the retired row's list entries across every event, not just the one being redeemed, and that it corrects invite_codes.issued_to_user_id in the same transaction so redeemInviteCode/validateInviteCodeForRedemption need NO code change at all; (d) section 3.2's opened_at justification against PRD 5, and that the write site is traced to the exact existing line in resolveInviteDeepLink (post-consent, matching used_count's own gate) rather than a new, ungated write path; (e) section 3.4's S1 boundary reasoning for why guest business-card fields are never written to profiles -- flagged in open questions (item 1) for explicit SECURITY-REVIEWER sign-off at Step 2c rather than treated as silently settled; (f) section 6's exact 'no send' constraint and the git grep shape named for TEST-DESIGNER to encode; (g) that no implementation code appears anywhere -- every new function is a type/signature/rule-table, matching REQ-037/038/039's own artefact style.",
+    "artifacts_out": ["docs/agents/design/REQ-040.md"],
+    "issues": [
+      "OPEN (design section 8, item 1): whether the S1 boundary drawn in section 3.4 (organizer's own independently-known business-card data is out of S1's consent-gate scope, so it is never written to profiles) is accepted as reasoned here, or needs a formal carve-out recorded in security-invariants.md itself. Not resolved by this design on its own authority -- explicitly routed to SECURITY-REVIEWER at Step 2c.",
+      "OPEN (design section 8, item 2): exact command/callback names (/invite_list_add, /invite_list, invite_list:issue:, invite_list:remove:) follow the existing <entity>_<verb> convention but are not pinned as final product copy; all new catalog strings are provisional English/RU source text pending CONTENT-BA, same precedent REQ-014/032/037 already established in their own handoffs.",
+      "OPEN (design section 8, item 3): the UNIQUE(event_id, user_id) index recommendation and the hard-delete-vs-removed_at remove mechanism are both explicitly left to DATA-DESIGNER, not assumed here.",
+      "OPEN (design section 8, item 4): re-adding a previously removed guest is not addressed by any acceptance criterion and is left to whichever remove-mechanism DATA-DESIGNER chooses.",
+      "OPEN (design section 8, item 5): section 2.4's collision resolution covers the plain two-users-row case only -- a compound collision also involving a companion-code grants_companion_of link or an event-staff/organizer role on either row is not addressed by any acceptance criterion and is flagged as a narrow gap, not silently extended."
+    ]
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "handoff_id": "step-01b-code-design-validator-regate",
+  "run_id": "WF02-REQ-040",
+  "workflow_id": "WF-02",
+  "step": "01b",
+  "from_agent": "CODE-DESIGN-VALIDATOR",
+  "to_agent": "ORCH",
+  "file": "handoffs/WF02-REQ-040/step-01b-code-design-validator-regate.json",
+  "created_at": "2026-09-08T14:58:27Z",
+  "started_at": "2026-09-08T14:58:27Z",
+  "completed_at": "2026-09-08T14:58:27Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-040"],
+    "requirement_text": {
+      "REQ-040": "GitHub issue #72. Full text/ACs read directly via `gh issue view 72`."
+    },
+    "related_handoff_ids": [
+      "handoffs/WF02-REQ-040/step-01b-code-design-validator.json",
+      "handoffs/WF02-REQ-040/step-01-data-designer-rework1.json"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/REQ-040-schema.md",
+      "docs/Design system for AI agents/tokens/tokens.css"
+    ],
+    "branch_name": "feature/WF02-REQ-040",
+    "repo_commit_at_run_start": "e6dd2fcb7954abfa8280c88e916c9b3b9a07b35e"
+  },
+  "task": {
+    "description": "Re-gate of docs/agents/design/REQ-040-schema.md only, after DATA-DESIGNER's rework (handoffs/WF02-REQ-040/step-01-data-designer-rework1.json) removed the executable Drizzle pgTable() code block from Sec1 and converted Sec4.2's literal SQL sequence to prose. docs/agents/design/REQ-040.md already PASSED in the prior step-01b run and is not re-reviewed here.",
+    "acceptance_criteria": [
+      "Zero code fences or executable TypeScript/SQL/Drizzle syntax remain anywhere in the document, not just the two spots DATA-DESIGNER named",
+      "The prose Column|Type|Nullable|Default|FK table and the rewritten Sec1/Sec4.2 prose paragraphs still fully specify every column's type/nullability/default/FK-target/ON-DELETE-behavior and the relink mechanism's exact two-step logic -- precision not lost in the code-to-prose conversion",
+      "No design decision changed in substance: uniqueness constraint (Sec2), hard-delete (Sec3), and business-card field placement (Sec1.3) are identical to what was already verified correct in the prior step-01b pass"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Independently re-read docs/agents/design/REQ-040-schema.md in full (386 lines) rather than trusting DATA-DESIGNER's rework summary, and separately grepped the whole document for code fences (```) and executable-syntax markers (pgTable, UPDATE/DELETE/SELECT/CREATE TABLE, .references(), .notNull(), .defaultNow(), .defaultRandom(), export const). Zero code fences remain anywhere in the file. The five grep hits that remain (lines 24, 79, 175-176, 347) are all single-token inline-backtick references inside prose sentences describing the pattern in words (e.g. 'the actual pgTable(...) definition', 'CREATE TABLE invite_list_entries (...)' used as a plain-English description of what drizzle-kit generate will emit) -- none is a code block, none is copy-pasteable, none leaves BACKEND-DEV with nothing to write. This satisfies Step 1b check (d).\n\nPrecision check: Sec1's Column|Type|Nullable|Default|FK table (lines 54-66) is untouched and remains the authoritative, complete spec -- every column's type, nullability, default, and FK target/cascade behavior (all ON DELETE RESTRICT) is stated explicitly, including the one nullable FK (invite_code_id) and the two required self-referencing-to-users FKs (user_id, added_by) correctly distinguished. The new Sec1 'Reference shape' paragraph (lines 68-79) restates the identical shape in prose with no loss of information: PK default, all four FKs named with their targets and required/nullable status, the opened_at nullable timestamp, the three text columns with correct required/optional split, the created_at/updated_at pair, and the named uq_invite_list_entries_event_user unique index on (event_id, user_id) -- all present. Sec4.2's rewritten relink prose (lines 252-266) still states the exact two-step logic precisely enough to implement without judgment calls: step 1 is a conditional repoint of every A-row to B, gated on non-existence of a same-event B-row (the NOT EXISTS guard, described in words); step 2 deletes exactly the rows step 1's condition skipped; both run in one transaction, atomicity stated explicitly. This is traceable one-to-one against the original SQL version already verified correct in the prior step-01b pass -- no logic was lost or altered in the conversion, only the syntax form changed.\n\nNo-decision-changed check: Sec2's UNIQUE(event_id, user_id) (non-partial, same reasoning, same precedent tables cited) is byte-identical in substance to the version already confirmed. Sec3's hard-DELETE decision (audit_log.entity_id carries no FK, confirmed again by the same schema.ts citation) is identical. Sec1.3's business-card-field placement on invite_list_entries rather than profiles (three-point data-shape argument) is identical. Sec8's AC-closure table and Sec9's open-questions list are both unchanged from the version already verified to leave no AC unaddressed and no TBD/deferral language.\n\nToken check (c) is N/A for this artefact: REQ-040-schema.md is a pure database schema design with no UI/visual surface -- it references no color, spacing, or typography tokens, so there is nothing in docs/Design system for AI agents/tokens/tokens.css for it to violate. This matches the established precedent for prior schema artefacts (REQ-031-schema.md, REQ-032-schema.md), neither of which references design tokens either.\n\nAll four Step 1b checks (a-d) pass. FAIL immediately on any single failure did not trigger -- no failures found.",
+    "artifacts_out": [],
+    "issues": [
+      {
+        "severity": "MINOR",
+        "description": "Carried forward from the prior step-01b run, unchanged and unresolved by this rework (correctly -- it was never in scope for the rework): the S1 boundary for guest business-card fields (REQ-040.md Sec3.4/Sec8 open question 1) remains a genuinely contestable reading of security-invariants.md S1's literal text. The design correctly routes this to SECURITY-REVIEWER for explicit Step 2c sign-off rather than resolving it silently. This issue exists only to ensure that sign-off is not skipped at Step 2c.",
+        "affected_requirement": "REQ-040"
+      }
+    ],
+    "git_evidence": {
+      "branch_name": "feature/WF02-REQ-040",
+      "commit_sha_list": [],
+      "remote_branch": "origin/feature/WF02-REQ-040",
+      "push_status": "pending",
+      "pr_url": null
+    },
+    "next_action": "Route to BACKEND-DEV (Step 2)"
+  }
+}
