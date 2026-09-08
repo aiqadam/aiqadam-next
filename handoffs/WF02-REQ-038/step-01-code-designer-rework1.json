@@ -1,0 +1,42 @@
+{
+  "handoff_id": "step-01-code-designer-rework1",
+  "run_id": "WF02-REQ-038",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "CODE-DESIGNER",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "file": "handoffs/WF02-REQ-038/step-01-code-designer-rework1.json",
+  "created_at": "2026-09-08T00:00:00Z",
+  "started_at": "2026-09-08T00:00:00Z",
+  "completed_at": "2026-09-08T00:00:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-038"],
+    "source_text": { "github_issue": "#70" },
+    "related_handoff_ids": [
+      "handoffs/WF02-REQ-038/step-01-code-designer.json",
+      "handoffs/WF02-REQ-038/step-01b-code-design-validator.json"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/REQ-038.md",
+      "apps/bot/src/domain/registration.ts",
+      "handoffs/WF02-REQ-038/step-01b-code-design-validator.json"
+    ],
+    "branch_name": "feature/WF02-REQ-038"
+  },
+  "task": {
+    "description": "Rework docs/agents/design/REQ-038.md to fix the single blocking FAIL from step-01b: the design never stated how hasPastCheckIn's result reaches decideRegistrationOutcome's required inviteSatisfied field on the plain (no-code) registration path, and registerForEvent (the function that actually builds RegistrationDecisionInput and calls decideRegistrationOutcome for that path) was absent from the file-change manifest. Read apps/bot/src/domain/registration.ts's full, current registerForEvent (lines 119-263) to ground the fix in its real transaction/lock shape before editing the design doc."
+  },
+  "result": {
+    "status": "COMPLETED",
+    "summary": "Fixed the one blocking gap. Chose option (b): hasPastCheckIn is called from inside registerForEvent's own existing transaction (using the already-open tx handle and the already-available userId parameter), as a new internal step inserted between registerForEvent's existing step 2 (event lock, which yields event.requiresInvite) and its existing step 6 (the decideRegistrationOutcome call, which now receives the computed value as the new inviteSatisfied field). registerForEvent's external signature (db, userId, eventId, evaluationTime) is unchanged, so handlers/registration.ts's existing register:<eventId> callback call site needs no edit. Option (a) (handler computes hasPastCheckIn before calling registerForEvent, passed in as a new parameter) was considered and rejected in the doc for two independent reasons: (1) it would read the invite-satisfaction input outside the transaction that makes the admission decision and performs the write, unlike every other input to that same decision (existingAdmission, admittedCount/seatsLeft, event.status), introducing a real TOCTOU gap where today there is none; (2) it would be inconsistent with this same design's own established atomicity discipline elsewhere (redemption path §3.1 step 5's 'never trust a pre-tx read', invite_codes locked fresh inside the transaction rather than reused from an outside pre-check).",
+    "artifacts_out": ["docs/agents/design/REQ-038.md"],
+    "changes": [
+      "Top-of-document 'Files this design expects to change' list: registerForEvent explicitly named as gaining a new internal step inside its existing transaction (no signature/external-caller change), alongside its already-listed changes (decideRegistrationOutcome branch, hasPastCheckIn read, redemption entry point).",
+      "SS2.2 'Where it's called' rewritten: states the resolved option (b) explicitly, quotes the current registerForEvent line numbers (126-188, specifically requiresInvite: event.requiresInvite at line 181) it is grounded in, states the exact insertion point (after existing step 2, before existing step 6), states the exact economy-note gating (query only when event.requiresInvite is true, else inviteSatisfied: false unconditionally), and states this is the only call site for hasPastCheckIn (the redemption path never calls it; it always passes inviteSatisfied: true by construction once a code validates).",
+      "SS8 AC7 row updated to cite SS2.2's exact call-site resolution alongside the existing SS2/SS1.1/SS1.2 references."
+    ],
+    "next_action": "Route to CODE-DESIGN-VALIDATOR for re-gate. Every other item already passed step-01b's review (FR-4 resolution, identity-leakage reasoning, atomic used_count increment, decideRegistrationOutcome minimal-diff claim, hasPastCheckIn purity, consent-gate reuse) and was not touched in this rework."
+  }
+}
