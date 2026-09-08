@@ -1,0 +1,146 @@
+run_id: WF02-REQ-035
+date: 2026-09-08T09:21:16Z
+lint: pass
+build: pass
+lint_output: |
+  > bot@0.1.0 lint
+  > eslint .
+  (no errors after removing one unused helper -- see notes below)
+build_output: |
+  > bot@0.1.0 build
+  > tsc -p tsconfig.json
+  (clean, no errors)
+vitest_command: npx vitest run --no-file-parallelism (from repo root, per ISS-0014)
+full_suite_runs:
+  - run: 1
+    test_files: "2 failed | 37 passed (39)"
+    tests: "8 failed | 350 passed (358)"
+  - run: 2
+    test_files: "2 failed | 37 passed (39)"
+    tests: "8 failed | 350 passed (358)"
+concurrency_ac5_stability_check:
+  file: apps/bot/src/domain/registrationApproval.db.test.ts
+  isolated_runs: 3
+  each_run_result: "4 passed | 3 failed (7)"
+  ac5_specific: "both AC5 'it' cases (20x2 last-seat race, 5x10 fan-in race) PASSED in all 3 isolated runs and in both full-suite runs -- 5/5 AC5 executions passed, fully deterministic, no flakiness observed"
+  ac10_specific: "all 3 AC10 cases FAILED identically in all 3 isolated runs -- deterministic failure, not flaky (same root cause every time, see below)"
+result: FAIL
+overall_verdict: "FAIL -- 8 of 358 tests fail deterministically due to a spec/behavior mismatch, not a code defect and not flakiness. AC5 concurrency tests (the highest-risk case) are confirmed stable across 5 executions."
+root_cause:
+  summary: >
+    Every failure is the identical off-by-one bug: the test spec's countAuditRows()
+    baseline assumption ("no audit_log row exists for a fresh pending registration")
+    is false. apps/bot/src/domain/registration.ts lines 242-254 (registerForEvent,
+    pre-existing code, not new to REQ-035) unconditionally writes an audit_log row
+    for EVERY registration outcome including "requested" (action:
+    "registration.request", entityId: the new registration's id). This means every
+    registration produced by the shared seedPendingRequest() helper already carries
+    one audit_log row before any approve/reject call is made.
+  evidence: |
+    apps/bot/src/domain/registration.ts:242-254
+      await writeAuditLog(tx, {
+        actorUserId: userId,
+        action: outcome.kind === "admitted" ? "registration.admit"
+              : outcome.kind === "waitlisted" ? "registration.waitlist"
+              : "registration.request",
+        entity: "registration",
+        entityId: insertedRow.id,
+        payload: { eventId },
+        at: evaluationTime,
+      });
+  affected_assertions:
+    - file: apps/bot/src/domain/registrationApproval.db.test.ts
+      case: "AC10 > approveRequest (plain) ... registration.approve"
+      line: 339
+      expected: 0
+      actual: 1
+      note: "before-count check right after seedPendingRequest"
+    - file: apps/bot/src/domain/registrationApproval.db.test.ts
+      case: "AC10 > approveRequest (override) ... registration.approve_override"
+      line: 373
+      expected: 0
+      actual: 1
+    - file: apps/bot/src/domain/registrationApproval.db.test.ts
+      case: "AC10 > rejectRequest ... registration.reject"
+      line: 400
+      expected: 0
+      actual: 1
+    - file: apps/bot/src/handlers/organizerRequests.db.test.ts
+      case: "AC2 > organizer taps Reject ..."
+      line: 331
+      expected: 1
+      actual: 2
+      note: "after-count check; off by the same +1 pre-existing 'registration.request' row"
+    - file: apps/bot/src/handlers/organizerRequests.db.test.ts
+      case: "AC4 > dismissing the override prompt ..."
+      line: 363
+      expected: 0
+      actual: 1
+    - file: apps/bot/src/handlers/organizerRequests.db.test.ts
+      case: "AC6 > a plain member ..."
+      line: 435
+      expected: 0
+      actual: 1
+    - file: apps/bot/src/handlers/organizerRequests.db.test.ts
+      case: "AC6 > an EventStaff member ..."
+      line: 463 (approx, second AC6 case)
+      expected: 0
+      actual: 1
+    - file: apps/bot/src/handlers/organizerRequests.db.test.ts
+      case: "AC7 > organizer scoped to chapter A ..."
+      line: 463
+      expected: 0
+      actual: 1
+  attribution: >
+    This is a TEST-DESIGNER spec defect, not a BACKEND-DEV code defect. The
+    "registration.request" audit row on every requested registration is pre-existing,
+    correct, intentional behavior (writeAuditLog call is unconditional across all three
+    outcome kinds, and this code path predates REQ-035 -- REQ-035 added no changes to
+    registerForEvent). The test spec's countAuditRows() before/after baselines simply
+    did not account for this pre-existing row. Per this run's explicit instruction, the
+    test files were NOT silently altered to force a pass -- reporting precisely instead.
+cases:
+  - acceptance_criterion: AC1
+    result: pass
+    notes: "Approve sets admission=admitted, 64-hex qr_token, registrant notified with event title. All assertions passed."
+  - acceptance_criterion: AC2
+    result: fail
+    notes: "Reject flow itself (admission=rejected, reason+onward-path in notification, audit action/payload) all correct. Fails only on the audit-row COUNT assertion (expected 1, got 2) due to the pre-existing 'registration.request' row -- see root_cause."
+  - acceptance_criterion: AC3
+    result: pass
+    notes: "Zero 'wishlist' references in schema.ts or any migration file. Static check, no DB dependency."
+  - acceptance_criterion: AC4
+    result: fail
+    notes: "Dismiss/confirm override flow itself (admission unchanged/admitted correctly, notification counts, override audit action) all correct. Fails only on one intermediate audit-row COUNT assertion (expected 0, got 1) for the same pre-existing-row reason."
+  - acceptance_criterion: AC5
+    result: pass
+    notes: >
+      Both concurrency cases (20 iterations x 2 concurrent organizers on a capacity-1
+      event; 5 iterations x 10 concurrent approvals via a dedicated max:30 pool with a
+      pool.totalCount>1 evidence check) passed in every execution: 2 full-suite runs +
+      3 isolated file runs = 5/5 AC5 executions passed. Exactly one admit per iteration
+      in all cases, zero over-admissions, zero crashes. No flakiness observed -- fully
+      deterministic pass.
+  - acceptance_criterion: AC6
+    result: fail
+    notes: "Both refusal cases (member, EventStaff) correctly leave admission unchanged, send zero notifications, and answerCallbackQuery carries notAuthorized. Fails only on the audit-row COUNT assertion (expected 0, got 1) for the same pre-existing-row reason."
+  - acceptance_criterion: AC7
+    result: fail
+    notes: "Cross-chapter refusal correctly leaves admission unchanged, sends zero notifications, answerCallbackQuery carries notAuthorized. Fails only on the audit-row COUNT assertion (expected 0, got 1) for the same pre-existing-row reason."
+  - acceptance_criterion: AC8
+    result: pass
+    notes: "Rendered list/detail views never leak phone or email even with both present on the profile; positive control (company name) confirms the fixture rendered real content."
+  - acceptance_criterion: AC9
+    result: pass
+    notes: "Both approval and rejection notifications reach a registrant with broadcast_opt_in=false, without flipping that flag."
+  - acceptance_criterion: AC10
+    result: fail
+    notes: "Action strings (registration.approve / registration.approve_override / registration.reject) and re-decision no-further-write behavior are all correct. All three cases fail only on the 'before' audit-row COUNT baseline (expected 0, got 1) for the same pre-existing-row reason."
+notes_for_test_designer: >
+  Recommended spec fix (not applied by TEST-RUNNER per this run's explicit
+  instruction to stop rather than silently alter tests): adjust every
+  countAuditRows() baseline in both files to expect 1 (not 0) immediately after
+  seedPendingRequest(), and adjust every "after approve/reject" total by the same
+  +1 offset. Alternatively, seedPendingRequest() could itself assert/consume the
+  known pre-existing row so downstream assertions read as deltas rather than raw
+  totals.

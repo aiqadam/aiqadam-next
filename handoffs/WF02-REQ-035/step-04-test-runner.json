@@ -1,0 +1,66 @@
+{
+  "handoff_id": "step-04-test-runner",
+  "run_id": "WF02-REQ-035",
+  "workflow_id": "WF-02",
+  "step": "04",
+  "from_agent": "TEST-RUNNER",
+  "to_agent": "TEST-DESIGNER",
+  "file": "handoffs/WF02-REQ-035/step-04-test-runner.json",
+  "created_at": "2026-09-08T09:21:16Z",
+  "started_at": "2026-09-08T09:15:00Z",
+  "completed_at": "2026-09-08T09:21:16Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-035"],
+    "artifacts_in": [
+      "docs/agents/test-specs/REQ-035.md",
+      "handoffs/WF02-REQ-035/step-03b-test-design-validator.json",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/handlers/organizerRequests.ts"
+    ],
+    "branch_name": "feature/WF02-REQ-035"
+  },
+  "task": {
+    "description": "WF-02 Step 4 (test run) for REQ-035. Create the two test files docs/agents/test-specs/REQ-035.md specifies verbatim, run lint/build, run the full vitest suite with --no-file-parallelism at least twice, and re-run the concurrency file in isolation three times to check for flakiness.",
+    "acceptance_criteria": [
+      "Both new test files exist, implementing every AC1-AC10 case from the spec.",
+      "npm run lint -w apps/bot and npm run build -w apps/bot both pass.",
+      "Full vitest suite run at least twice with exact pass/fail counts reported.",
+      "Concurrency test file (registrationApproval.db.test.ts) run three times in isolation with stability explicitly confirmed or refuted.",
+      "Any spec/behavior mismatch reported precisely, not silently patched."
+    ]
+  },
+  "result": {
+    "status": "FAIL",
+    "summary": "Wrote both test files verbatim from docs/agents/test-specs/REQ-035.md (apps/bot/src/domain/registrationApproval.db.test.ts, apps/bot/src/handlers/organizerRequests.db.test.ts), with one lint-driven deletion of a dead helper (commandUpdate in organizerRequests.db.test.ts -- defined by the spec's verbatim source but never called by any of the spec's own AC cases; removing unused dead code, not altering any test's logic/assertions). npm run lint -w apps/bot: PASS (clean, zero errors after the dead-code removal). npm run build -w apps/bot: PASS (tsc -p tsconfig.json, clean).\n\nScratch Postgres (apps/bot's docker-compose, port 55432) was already up; ran `DATABASE_URL=postgres://bot:bot@localhost:55432/bot npx drizzle-kit migrate` from apps/bot to confirm current -- succeeded, no new migrations for REQ-035 as the spec noted.\n\nFull suite (`npx vitest run --no-file-parallelism` from repo root) run TWICE: both runs identical -- 'Test Files 2 failed | 37 passed (39)', 'Tests 8 failed | 350 passed (358)'. Zero variance between runs.\n\nConcurrency stability check on apps/bot/src/domain/registrationApproval.db.test.ts, run in isolation THREE additional times: all three identical -- 'Tests 3 failed | 4 passed (7)' each time. The two AC5 'it' cases (20x2 last-seat race; 5x10 fan-in race with dedicated max:30 pool and pool.totalCount>1 evidence) PASSED in every one of 5 total executions (2 full-suite + 3 isolated) -- fully deterministic, zero flakiness observed on the highest-risk case. The three AC10 cases in the same file failed identically in all three isolated runs -- also fully deterministic (not flaky), same root cause every time.\n\nROOT CAUSE (identical across all 8 failures, in both files): apps/bot/src/domain/registration.ts lines 242-254 (registerForEvent, pre-existing code predating REQ-035, unchanged by this requirement) unconditionally writes an audit_log row for every registration outcome including 'requested' (action: 'registration.request', entityId: the new registration's id). The test spec's countAuditRows() before/after baselines in AC2, AC4, AC6, AC7, AC10 assume zero audit rows exist for a freshly-seeded pending registration, which is false -- every seedPendingRequest() call already produces one audit_log row before any approve/reject call. This is an off-by-one spec defect (TEST-DESIGNER's baseline assumption), not a BACKEND-DEV code defect: the writeAuditLog call is unconditional, intentional, and untouched by REQ-035's actual diff. Per this run's explicit instruction, did NOT silently alter the test files' assertions to force a pass -- stopping and reporting precisely instead, with the exact line numbers, expected-vs-actual values, and recommended fix (adjust every baseline by +1) written into test-reports/report-2026-09-08-WF02-REQ-035.yaml.\n\nAll non-audit-count assertions in the 5 affected describe blocks (AC2, AC4, AC6, AC7, AC10) passed correctly: admission-state transitions, qr_token issuance, notification content/counts, authorization refusals, and audit action strings/payloads are all correct per the actual implementation. Only the raw audit-row COUNT assertions are wrong, by exactly the same +1 in every case.\n\nAC1, AC3, AC5, AC8, AC9 fully pass with no issues.",
+    "artifacts_out": [
+      "apps/bot/src/domain/registrationApproval.db.test.ts",
+      "apps/bot/src/handlers/organizerRequests.db.test.ts",
+      "test-reports/report-2026-09-08-WF02-REQ-035.yaml",
+      "handoffs/WF02-REQ-035/step-04-test-runner.json"
+    ],
+    "issues": [
+      {
+        "title": "REQ-035 test spec: countAuditRows() baselines off by one due to registerForEvent's pre-existing 'registration.request' audit row",
+        "description": "docs/agents/test-specs/REQ-035.md's AC2/AC4/AC6/AC7/AC10 cases in both new test files assert countAuditRows(registrationId) baselines (before approve/reject: expect 0; after: expect exactly N) without accounting for apps/bot/src/domain/registration.ts:242-254's unconditional writeAuditLog call on every registerForEvent outcome including 'requested'. Every seedPendingRequest() helper call already produces one 'registration.request' audit row before any approve/reject. All 8 affected assertions fail deterministically (confirmed across 5 total suite/file executions, zero flakiness) with actual counts exactly +1 over expected. Recommended fix: TEST-DESIGNER adjusts each baseline by +1 (or the shared seed helpers assert/consume the known pre-existing row so downstream checks read as deltas). Full per-assertion evidence (file, line, expected, actual) is in test-reports/report-2026-09-08-WF02-REQ-035.yaml.",
+        "severity": "MAJOR",
+        "affected_files": [
+          "docs/agents/test-specs/REQ-035.md",
+          "apps/bot/src/domain/registrationApproval.db.test.ts",
+          "apps/bot/src/handlers/organizerRequests.db.test.ts"
+        ]
+      },
+      {
+        "title": "REQ-035 test spec: unused helper commandUpdate in organizerRequests.db.test.ts's verbatim source",
+        "description": "docs/agents/test-specs/REQ-035.md's File 2 verbatim source defines a commandUpdate(tgId, text) helper (originally around line 142) that is never called by any of the spec's own AC1-AC9 cases, causing an ESLint '@typescript-eslint/no-unused-vars' failure when committed verbatim. TEST-RUNNER removed the dead function (no test logic/assertion changed) to unblock the lint gate. Flagging so TEST-DESIGNER can either delete it from the spec's markdown source too, or add a case that legitimately exercises the /requests command via this helper if that coverage was intended.",
+        "severity": "MINOR",
+        "affected_files": [
+          "docs/agents/test-specs/REQ-035.md",
+          "apps/bot/src/handlers/organizerRequests.db.test.ts"
+        ]
+      }
+    ],
+    "next_action": "Route to TEST-DESIGNER for a spec/test fix (adjust countAuditRows baselines per the filed MAJOR issue), then back through TEST-DESIGN-VALIDATOR -> TEST-RUNNER before RELEASE-VALIDATOR. Do NOT route to RELEASE-VALIDATOR while 8/358 tests fail."
+  }
+}
