@@ -8,8 +8,8 @@
   "file": "handoffs/WF02-REQ-033/step-01-data-designer.json",
   "created_at": "2026-09-08T00:00:00Z",
   "started_at": "2026-09-08T00:00:00Z",
-  "completed_at": null,
-  "status": "PENDING",
+  "completed_at": "2026-09-08T00:00:00Z",
+  "status": "COMPLETED",
   "priority": "NORMAL",
   "context": {
     "requirement_ids": [
@@ -47,9 +47,16 @@
     ]
   },
   "result": {
-    "status": null,
-    "summary": null,
-    "artifacts_out": [],
-    "issues": []
+    "status": "SUCCESS",
+    "summary": "Produced docs/agents/design/REQ-033.md: invite_codes table (event_id, code UNIQUE, issued_to_user_id nullable FK->users, grants_companion_of nullable FK->users, max_uses, used_count DEFAULT 0, expires_at, UUID PK + timestamps, all FKs ON DELETE RESTRICT). PERSONAL/BULK/COMPANION stated as compositions of issued_to_user_id/grants_companion_of/max_uses, not a type enum, with the legal-combination table and two cardinality questions routed to REQ-037. registrations.invite_code_id closed to a real FK -> invite_codes.id, ON DELETE RESTRICT, nullability unchanged. Code generator: crypto.randomBytes, 32-symbol alphabet (digits 2-9 + A-Z minus I/O/0/1 ambiguity exclusions), unbiased byte%32 mapping, 26 characters = 130 bits (>= S4's 128-bit floor), arithmetic shown. used_count confirmed as a legitimate stored counter (not a computed-value violation) with atomicity deferred to REQ-038. FR-4 'configurable per event' eligibility rule recorded as explicitly UNRESOLVED and routed to REQ-038, not decided here. No no_show/waitlist_position/seats_taken/registration_open/finished column introduced. Design artefact only -- no migration file, no handler/domain code.",
+    "artifacts_out": [
+      "docs/agents/design/REQ-033.md"
+    ],
+    "issues": [
+      "OPEN (routed to REQ-038, not resolved here): PRD FR-4's 'configurable per event' eligibility rule (past checked_in_at satisfies requires_invite without a code) implies an Event-level flag PRD 5's Event entity does not list. This requirement does not add that column.",
+      "OPEN (routed to REQ-037): whether a companion code (grants_companion_of non-null) may legally have max_uses > 1, and whether issued_to_user_id is required/forbidden/optional alongside grants_companion_of.",
+      "OPEN (routed to REQ-037): no uniqueness constraint on (event_id, issued_to_user_id) -- an event may have multiple personal codes issued to the same person; whether re-issuance should revoke the prior code is not decided here.",
+      "OPEN (cosmetic, BACKEND-DEV to confirm): the exact typeable alphabet is 23456789ABCDEFGHJKLMNPQRSTUVWXYZ (32 symbols); if a further character is judged ambiguous, alphabet size should be adjusted to stay a power of two so the entropy arithmetic remains exact."
+    ]
   }
 }
