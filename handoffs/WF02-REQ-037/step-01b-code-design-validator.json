@@ -1,0 +1,42 @@
+{
+  "handoff_id": "step-01b-code-design-validator",
+  "run_id": "WF02-REQ-037",
+  "workflow_id": "WF-02",
+  "step": "01b",
+  "from_agent": "CODE-DESIGN-VALIDATOR",
+  "to_agent": "ORCH",
+  "file": "handoffs/WF02-REQ-037/step-01b-code-design-validator.json",
+  "created_at": "2026-09-08T11:18:32Z",
+  "started_at": "2026-09-08T11:18:32Z",
+  "completed_at": "2026-09-08T11:18:32Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-037"],
+    "related_handoff_ids": ["handoffs/WF02-REQ-037/step-01-code-designer.json"],
+    "artifacts_in": [
+      "docs/agents/design/REQ-037.md",
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/eventAuthorization.ts",
+      "apps/bot/src/domain/event.ts",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/handlers/organizerRequests.ts",
+      "docs/agents/instructions/security-invariants.md"
+    ],
+    "branch_name": "feature/WF02-REQ-037"
+  },
+  "task": {
+    "description": "WF-02 Step 1b (Design gate) for REQ-037. Read docs/agents/design/REQ-037.md independently (not CODE-DESIGNER's result.summary), re-derived every checkable claim against the live source files, and checked all 10 acceptance criteria per GitHub issue #69 for a corresponding, fully-specified, non-deferred design element.",
+    "acceptance_criteria": [
+      "AC1-AC10 per GitHub issue #69 / docs/agents/requirements.yaml REQ-037 (full text read via gh issue view 69)"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "PASS. Independently re-read docs/agents/design/REQ-037.md in full (not the designer's summary) and verified every load-bearing claim against live source:\n\n1. Schema/zero-schema-change (design §0): confirmed apps/bot/src/db/schema.ts:333-370 invite_codes has id, eventId, code (unique), issuedToUserId (nullable FK->users.id), grantsCompanionOf (nullable FK->users.id), maxUses (not null), usedCount (not null default 0), expiresAt (nullable), createdAt, updatedAt -- every field the design uses genuinely exists, none invented. registrations schema confirms inviteCodeId (line 281, FK->inviteCodes.id) and invitedByUserId (line 272) both pre-existing. generateInviteCode() in apps/bot/src/domain/inviteCode.ts confirmed exported and used unchanged (no redefinition proposed). DATA-DESIGNER-not-needed conclusion re-derived independently: no new entity/relationship/migration is implied anywhere in the design; it composes only pre-existing columns. Correct.\n\n2. Three-command shape (design §1): grepped organizerRequests.ts and schema.ts comments -- codebase convention is confirmed one-verb-per-command (venue_new/event_new/staff_add pattern referenced matches actual naming visible in organizerRequests.ts's req:open:<id> callback convention and requireOrganizerForChapter call sites). The three shapes' differing required arguments (target user vs. use count vs. host user) genuinely justify three parse functions over one branching command; this is not an invented pattern, it matches REQ-033's own already-adopted no-type-enum precedent restated at the command layer.\n\n3. Refusal order (design §2): traced against the actual apps/bot/src/domain/event.ts -- isFinished(endsAt, evaluationTime) confirmed at event.ts:755-757, taking evaluationTime as an explicit caller-supplied parameter (matches decisions/0006, no new predicate, no internal new Date()). getEventById (event.ts:519+) confirmed to already select status and endsAt in its returned row -- no new query needed for the cancelled/finished checks. Order (event resolve -> auth -> cancelled -> finished) matches organizerRequests.ts's actual call-site ordering (requireOrganizerForChapter invoked immediately after getEventById, before any business-rule check, at every one of its ~8 call sites grepped).\n\n4. Bot-never-sends reasoning (design §5): stated as a genuine platform-fact argument (Telegram's Bot API cannot open a conversation to a chat_id that has never started the bot), not merely asserted -- and internally consistent with AC3's requirement that a PERSONAL code work for a tg_id=NULL user: since that user has structurally never started the bot, no delivery channel can exist at issue time regardless of any hypothetical send-policy choice. git grep over apps/bot for sendMessage/ctx.reply/bot.api patterns near 'invite' returned nothing (the design artefact does not yet exist as code, consistent with Step 1 being design-only) -- the design's own git-grep-verifiable-negative claim (AC9) is a correct forward-looking specification, not a runtime check misplaced at this gate.\n\n5. S3-safe redeemer query (design §4.2): the specified SELECT structurally omits profiles.phone and profiles.email from its select-clause column list (registrationId, firstName, lastName, tgUsername, company only) -- matches the exact structural-exclusion pattern already used by listPendingRequestsForOrganizer (registration.ts:1597-1624, confirmed by direct read: its own select clause also omits phone/email). This satisfies S3 by construction, not by a runtime filter.\n\n6. AC7 read-only claim (design §4.1-4.2): both specified queries are plain SELECTs; no UPDATE/INSERT/DELETE against invite_codes appears anywhere in the read path the design specifies. Confirmed no write statement is present in either query block.\n\n7. AC5 (codes work on any event, not gated on requires_invite): design §2 step 5 explicitly states this is NOT a check ('Nothing in this design reads requiresInvite or requiresApproval at issuing time') -- an explicit non-check statement, not a silent omission, satisfying the handoff's specific instruction on this point.\n\n8. Acceptance-criteria coverage: all 10 ACs from GitHub issue #69 map to a concrete, non-deferred design element (design §9's table cross-checked against the issue's own AC list) -- no 'TBD'/'TODO'/deferral language found anywhere in the artefact.\n\n9. Props/types: IssueInviteCodeInput/IssueInviteCodeValidation (§1.5), InviteCodeListItem/InviteCodeRedeemer/InviteCodeDetail (§4.1/§4.2) are all fully field-level specified with concrete TypeScript shapes -- no vague placeholder types.\n\n10. No implementation code: the entire artefact contains only type/interface declarations, SQL-shaped query descriptions (not actual drizzle query builder code), a lookup table (§4.3), and prose -- no function body, no actual .ts control flow. Consistent with REQ-033/035/036 precedent artefacts.\n\n11. Design-system tokens: N/A correctly and explicitly stated (§8) -- this is a Telegram bot conversation surface with no apps/web rendering, so tokens.css has no applicable entries to check; this is consistent with the repo's own site/bot surface split (WF-02 Step 0.9) and matches REQ-033/035/036's own artefacts taking the same N/A stance.\n\nAll checks pass. No rework required.",
+    "artifacts_out": ["handoffs/WF02-REQ-037/step-01b-code-design-validator.json"],
+    "issues": [],
+    "next_action": "Route to BACKEND-DEV (Step 2)"
+  }
+}

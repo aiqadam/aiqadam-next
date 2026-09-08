@@ -1,0 +1,60 @@
+{
+  "handoff_id": "step-03-test-designer",
+  "run_id": "WF02-REQ-037",
+  "workflow_id": "WF-02",
+  "step": "03",
+  "from_agent": "TEST-DESIGNER",
+  "to_agent": "TEST-DESIGN-VALIDATOR",
+  "file": "handoffs/WF02-REQ-037/step-03-test-designer.json",
+  "created_at": "2026-09-08T11:52:00Z",
+  "started_at": "2026-09-08T11:45:00Z",
+  "completed_at": "2026-09-08T11:52:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-037"],
+    "related_handoff_ids": [
+      "handoffs/WF02-REQ-037/step-02-backend-dev.json",
+      "handoffs/WF02-REQ-037/step-02b-reviewer.json",
+      "handoffs/WF02-REQ-037/step-02c-security-reviewer.json"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/REQ-037.md",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/user.ts",
+      "apps/bot/src/handlers/inviteCodes.ts",
+      "apps/bot/src/domain/inviteCode.test.ts",
+      "apps/bot/src/handlers/organizerRequests.db.test.ts",
+      "apps/bot/src/db/schema.ts"
+    ],
+    "branch_name": "feature/WF02-REQ-037"
+  },
+  "task": {
+    "description": "WF-02 Step 3 (Test Design) for REQ-037 on branch feature/WF02-REQ-037. Scope test: BACKEND-DEV's Step 2 artifacts_out (apps/bot/src/domain/inviteCode.ts's new issuing/read functions, apps/bot/src/domain/user.ts's userExistsById, the new handlers/inviteCodes.ts, new i18n catalog section, index.ts wiring) is real user-visible behavioral surface -- real Telegram commands writing real invite_codes/audit_log rows -- so full Steps 3b/4 apply, not the docs-only skip.\n\nWrote docs/agents/test-specs/REQ-037.md mapping all 10 acceptance criteria (GitHub issue #69) to precise, runnable vitest cases in one new file, apps/bot/src/handlers/inviteCodes.db.test.ts (handler-layer, real Postgres, real grammY bot.handleUpdate dispatch -- same convention as handlers/organizerRequests.db.test.ts). AC9 (no code path sends the code/link to the invitee) is specified as a static git-grep structural check with the exact commands and expected output, not a vitest case -- per the handoff's own instruction that AC9 is structural, and per .claude/agents/test-designer.md's rule against inventing a check with nothing real to fail against (a runtime test for 'no outbound send exists' would have nothing to exercise -- the property is the absence of a call site, which a grep proves directly and a dynamic test cannot prove better).\n\ntg_id range: confirmed via grep -rn \"let nextTgId\" apps/bot/src against every existing band (highest prior: 1_031_000_000, scheduler/autoDeclineJobs.db.test.ts). Claimed range for the new file: 1_040_000_000+ -- fresh, beyond every existing band, stated in the spec's own range table.\n\nEvery case is precise enough for TEST-RUNNER to create the file verbatim from the spec's fenced source and run it without judgment: exact command text, exact event/user fixture shape, exact expected reply-text/row-state assertions, before/after counts for every refusal and every audit-row check.",
+    "acceptance_criteria": [
+      "AC1 (personal/bulk/companion field composition, read back) has a runnable case.",
+      "AC2 (expiry default = event.starts_at; explicit override wins) has a runnable case.",
+      "AC3 (personal code to a tg_id=NULL user succeeds) has a runnable case, constructing that exact user row first.",
+      "AC4 (issuing for an OPEN event succeeds) has a runnable case.",
+      "AC5 (cancelled and finished events each refused, no row created, table re-counted) has a runnable case.",
+      "AC6 (usage view shows used_count + redeemer name/company, no phone/email) has a runnable case with a redeemer carrying both secrets stored.",
+      "AC7 (redeemer list is a read-only JOIN; a direct DB insert is reflected on next read; invite_codes.updated_at unchanged) has a runnable case.",
+      "AC8 (member, EventStaff member, chapter-A-organizer-on-chapter-B-event each refused, no row created) has a runnable case per negative case.",
+      "AC9 (git grep finds no send-to-invitee code path) is specified as an exact, runnable static check.",
+      "AC10 (exactly one audit_log row per issue, all three shapes, counted before/after) has a runnable case per shape."
+    ]
+  },
+  "result": {
+    "status": "SUCCESS",
+    "summary": "Wrote docs/agents/test-specs/REQ-037.md: one new file design (apps/bot/src/handlers/inviteCodes.db.test.ts, full source included, ready for TEST-RUNNER to commit verbatim at Step 4) covering AC1-AC8 and AC10 as real grammY-dispatch, real-Postgres vitest cases (26 `it` blocks across 9 describe blocks), plus AC9 specified as a static git-grep structural check with the exact commands and pass condition (no vitest case -- nothing dynamic to exercise for an absence-of-a-call-site property). Claimed tg_id range: 1_040_000_000+, confirmed distinct against every existing band up to the current highest (1_031_000_000). Every case names the exact command text or callback data, the exact fixture construction (chapter/venue/event/user rows, including a users row inserted directly with tg_id NULL for AC3 and a registrations row inserted directly bypassing this requirement's own domain layer for AC7), and the exact expected assertion (row field values, reply text, before/after counts) -- no case leaves an observation to TEST-RUNNER's judgment.",
+    "artifacts_out": [
+      "docs/agents/test-specs/REQ-037.md"
+    ],
+    "issues": [
+      "AC9 is a static check, not a vitest case -- flagged explicitly in the spec's own dedicated section (and here) so TEST-RUNNER does not look for a 26th `it` block that doesn't exist and instead runs the two named git grep commands and records their literal output.",
+      "CARRIED FORWARD (not this step's to resolve): i18n catalog strings are provisional pending CONTENT-BA/product-owner wording (already flagged by REVIEWER/SECURITY-REVIEWER); REQ-033 section 6's re-issuance/chunking open questions remain unresolved per the design's own explicit non-resolution.",
+      "NOTED: this spec's AC6 case sets invite_codes.used_count via a direct UPDATE (not through any REQ-037 domain function, since incrementing used_count on redemption is REQ-038's scope, not this requirement's) -- a legitimate test-fixture step, not an exercise of production code, stated explicitly in the case's own comment in the fenced source."
+    ],
+    "next_action": "Route to TEST-DESIGN-VALIDATOR (Step 3b)"
+  }
+}

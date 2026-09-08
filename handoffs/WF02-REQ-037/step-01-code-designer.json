@@ -1,0 +1,64 @@
+{
+  "handoff_id": "step-01-code-designer",
+  "run_id": "WF02-REQ-037",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGN-VALIDATOR",
+  "file": "handoffs/WF02-REQ-037/step-01-code-designer.json",
+  "created_at": "2026-09-08T11:16:30Z",
+  "started_at": "2026-09-08T11:16:30Z",
+  "completed_at": "2026-09-08T11:16:30Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-037"],
+    "requirement_text": {
+      "REQ-037": "GitHub issue #69. Organizer issues personal, bulk and companion invite codes and sees who has used each. Implements USER-STORIES F4 / STORY-DETAILS F4, the issuing side of PRD FR-5. Consumes REQ-033's invite_codes table and code generator UNCHANGED -- adds NO schema, NO column; a missing field is a blocker against REQ-033, not license to add one here. Scope: an organizer issues a code for an event in THEIR OWN chapter, in three shapes composed from REQ-033's columns (not a type enum): PERSONAL (issued_to_user_id set, max_uses=1), BULK (issued_to_user_id null, max_uses=N), COMPANION (grants_companion_of set to the host user). A personal code may be issued to a person who has never opened the bot (tg_id NULL) -- creating that pre-arrival User row is REQ-040's scope; this requirement accepts an existing issued_to_user_id whose tg_id may be null. The shareable link is a ?start=i_<code> deep link plus the bare code, shown to the ORGANIZER -- the bot does not send it to the invitee (Telegram cannot message someone who has never started it). expires_at defaults to Event.starts_at, overridable at issue time. Codes work on ANY event including open events (requires_invite=false) -- issuing is not gated on requires_invite. Usage visibility: used_count and redeemer identity (name, company, never phone/email per S3) derived by JOINing registrations on invite_code_id, not a stored redemption list. Refusals: cancelled or finished (ends_at passed) events refused, no row created. Authorization (S2): requireOrganizerForChapter on the handler, EventStaff refused. Audit (S8): exactly one AuditLog row per issue."
+    },
+    "source_text": { "github_issue": "#69" },
+    "related_handoff_ids": [],
+    "artifacts_in": [
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/eventAuthorization.ts",
+      "apps/bot/src/domain/event.ts",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/domain/auditLog.ts",
+      "apps/bot/src/handlers/organizerRequests.ts",
+      "apps/bot/src/i18n/en.ts",
+      "apps/bot/src/i18n/ru.ts",
+      "apps/bot/src/i18n/types.ts",
+      "apps/bot/src/index.ts",
+      "docs/agents/design/REQ-033.md",
+      "docs/agents/instructions/security-invariants.md"
+    ],
+    "branch_name": "feature/WF02-REQ-037"
+  },
+  "task": {
+    "description": "WF-02 Step 1 (Design) for REQ-037, on branch feature/WF02-REQ-037 (verified branch matches, commit c9dc4d3 at run start). Produced docs/agents/design/REQ-037.md mapping all 10 acceptance criteria to concrete design elements. Re-verified directly against the current apps/bot/src/db/schema.ts and apps/bot/src/domain/inviteCode.ts that every field/generator this requirement needs already exists unchanged (invite_codes' full column set, registrations.inviteCodeId's closed FK, generateInviteCode()) -- zero schema change, DATA-DESIGNER NOT dispatched. Key resolutions: (1) Command surface = three separate commands (/invite_personal, /invite_bulk, /invite_companion), not one command branching on a type argument -- matches this codebase's uniform <entity>_<verb> convention (venue_new/event_new/staff_add) and each shape's differing required argument (target user vs. use count vs. host user). (2) Refusal check order traced exactly against event.ts's existing getEventById (status) and isFinished(endsAt, evaluationTime) -- no new predicate: event-not-found, then requireOrganizerForChapter (S2), then cancelled (event.status), then finished (isFinished), with the requires_invite/requires_approval gate explicitly named as NOT a check. (3) Usage-visibility query is a plain read-only SELECT joining registrations/profiles/users on invite_code_id, structurally excluding profiles.phone/profiles.email from the select clause (same shape listPendingRequestsForOrganizer already uses) -- confirmed no UPDATE statement anywhere in the read path, so invite_codes.updated_at is untouched by reading the redeemer list (AC7). (4) The bot-never-sends-to-invitee rule is stated as a genuine design decision with platform reasoning (Telegram cannot message a chat_id that has never started the bot; a PERSONAL code's own AC3 requires working for exactly a tg_id=NULL user, so no delivery channel exists at issue time) -- not an implementation footnote. (5) REQ-033 open questions 2/3 (companion cardinality; issued_to_user_id alongside grants_companion_of) are resolved at the issuing-flow level: /invite_companion always produces max_uses=1 and never sets issued_to_user_id -- the DB-legal 'personal companion code' combination is simply never produced by any command this design defines. (6) Exactly one writeAuditLog call per issue, inside the same transaction as the invite_codes INSERT, action 'invite_code.issue', payload carrying only ids/parameters (no phone/email, S11) -- mirrors createEvent/publishEvent/cancelEvent's existing insert+audit-in-one-transaction shape.",
+    "acceptance_criteria": [
+      "Issuing a personal code creates one invite_codes row with issued_to_user_id set and max_uses=1; a bulk code with N creates issued_to_user_id NULL and max_uses=N; a companion code sets grants_companion_of to the host -- all three verified by reading rows back.",
+      "Issuing without an explicit expiry sets expires_at to the event's starts_at; an explicit expiry overrides it -- both verified by reading rows.",
+      "Issuing a personal code to a user whose tg_id is NULL succeeds, verified by constructing exactly that user row first.",
+      "Issuing a code for an OPEN event (requires_invite=false, requires_approval=false) succeeds rather than being refused.",
+      "Issuing a code for a cancelled event and for an event whose ends_at has passed are each refused with the reason stated, no invite_codes row created -- both constructed and the table re-counted.",
+      "The organizer's view of a code shows used_count and the name/company of each redeemer, and contains NO phone number and NO email.",
+      "The redeemer list is derived by querying registrations on invite_code_id: a redeeming registration inserted directly in the database is reflected on the next read, with no write to the invite_codes row (compared updated_at before/after).",
+      "A member, and separately an EventStaff member, invoking the issue-code handler directly are each refused and no invite_codes row is created; an organizer of chapter A issuing for a chapter B event is likewise refused.",
+      "git grep over apps/bot finds no code path that sends an invite code to the issued_to_user, and the design artefact states the bot-cannot-message-a-stranger reasoning.",
+      "Each code issue writes exactly one audit_log row naming the actor, action, entity and entity id, counted before and after."
+    ]
+  },
+  "result": {
+    "status": "SUCCESS",
+    "summary": "Produced docs/agents/design/REQ-037.md (10 sections plus open questions, full AC map in section 9). Re-confirmed by reading the actual current schema.ts/inviteCode.ts (section 0) that invite_codes already has every column this flow needs (id, eventId, code, issuedToUserId, grantsCompanionOf, maxUses, usedCount, expiresAt) and registrations.inviteCodeId is already a closed FK -- zero schema change anywhere in this design. DATA-DESIGNER is NOT dispatched for this run: there is no entity/relationship/migration decision left open, REQ-033 already made all of them; this requirement only composes existing columns via issuing logic. Design gate reviewers should check in particular: (a) the exact refusal check order in section 2, traced against event.ts's real getEventById/isFinished with no new predicate invented; (b) section 4's read-only redeemer query, confirmed to contain no UPDATE statement so AC7's before/after updated_at comparison holds structurally; (c) section 5's shareable-link decision, stated with full platform reasoning (Telegram cannot message a never-started chat_id) rather than assumed; (d) that no implementation code appears anywhere -- every new function is a type/signature plus a prose/table rule, matching REQ-033/REQ-035/REQ-036's own artefact style; (e) section 0's explicit confirmation that DATA-DESIGNER is not needed, re-derived from the live schema file rather than asserted from REQ-033's design doc alone.",
+    "artifacts_out": ["docs/agents/design/REQ-037.md"],
+    "issues": [
+      "OPEN (design section 10, point 2): REQ-033 §6 open question 4 (whether re-issuing a personal code to the same (event_id, issued_to_user_id) pair should revoke the prior code or simply coexist) is NOT resolved here -- no requirement text asks for revocation, so /invite_personal performs a plain INSERT with no prior-code check. Multiple personal codes for the same person/event will coexist. Flagged for a future requirement if this turns out to be unwanted, not invented as a constraint here.",
+      "OPEN (design section 10, point 3): exact display grouping/chunking of the 26-character code in the success reply (e.g. hyphenated groups) is left to BACKEND-DEV/CONTENT-BA -- no behavioral consequence, REQ-033 §4 already named this as a presentation-layer choice.",
+      "OPEN (design section 10, point 1): exact English verb choice for the three command names (invite_personal/invite_bulk/invite_companion) follows the existing <entity>_<verb> convention but is not pinned as final product copy.",
+      "NOTED (design section 7): all new i18n catalog strings are provisional English source text pending CONTENT-BA/product-owner final wording and RU translation, same precedent as REQ-014/032/036's own provisional-copy handling -- BACKEND-DEV's own handoff must restate this."
+    ]
+  }
+}

@@ -170,6 +170,16 @@ export interface UserForNotification {
   broadcastOptIn: boolean;
 }
 
+// docs/agents/design/REQ-037.md §1.1 -- "does a users row with this id exist"
+// lookup for PERSONAL/COMPANION invite-code issuing (§1.1/§1.3). Deliberately
+// does NOT condition on tgId in any way (AC3: a personal code may target a
+// user whose tgId is null) -- existence of the users.id row is the only
+// thing checked.
+export async function userExistsById(db: DbClient["db"], userId: string): Promise<boolean> {
+  const rows = await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
+  return rows.length > 0;
+}
+
 export async function getUserForNotificationById(
   db: DbClient["db"],
   userId: string,

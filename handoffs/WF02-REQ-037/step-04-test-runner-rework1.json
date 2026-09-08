@@ -1,0 +1,21 @@
+{
+  "handoff_id": "step-04-test-runner-rework1",
+  "run_id": "WF02-REQ-037",
+  "workflow_id": "WF-02",
+  "step": "04",
+  "from_agent": "TEST-RUNNER",
+  "to_agent": "ORCH",
+  "status": "COMPLETED",
+  "started_at": "2026-09-08T16:55:00Z",
+  "completed_at": "2026-09-08T17:00:30Z",
+  "result": {
+    "status": "PASS",
+    "summary": "Re-ran WF-02 Step 4 after TEST-DESIGNER's rework1 (handoffs/WF02-REQ-037/step-03-test-designer-rework1.json) fixed AC10's 3 auditBefore===0 false-precondition failures reported in the prior run (handoffs/WF02-REQ-037/step-04-test-runner.json). Test file apps/bot/src/handlers/inviteCodes.db.test.ts (already committed at 04763c8 with the delta-based auditBefore/auditAfter fix in all 3 AC10 cases) was NOT further modified -- ran as-is. npm run lint -w apps/bot and npm run build -w apps/bot both clean (zero errors/warnings). Full suite (npx vitest run --no-file-parallelism, repo root) run twice: 384/384 passing both times (42/42 test files), zero failures, identical counts both runs -- no flakiness, no ISS-0031 contention pattern. AC10's rework confirmed effective: all 3 cases (personal/bulk/companion) now pass, including the substantive entity-scoped assertions (countAuditRows(row.id)===1, action==='invite_code.issue'). AC9's static git-grep check re-run independently (not trusted from any prior report) -- both commands' literal output recorded, both conditions hold (all ctx.reply/answerCallbackQuery calls take no recipient argument; domain/inviteCode.ts has zero grammy/Context references). Full detail and both grep outputs in test-reports/report-2026-09-08-WF02-REQ-037-rework1.yaml.",
+    "issues": [],
+    "artifacts_out": [
+      "test-reports/report-2026-09-08-WF02-REQ-037-rework1.yaml",
+      "handoffs/WF02-REQ-037/step-04-test-runner-rework1.json"
+    ],
+    "next_action": "Route to RELEASE-VALIDATOR (Step 5)"
+  }
+}

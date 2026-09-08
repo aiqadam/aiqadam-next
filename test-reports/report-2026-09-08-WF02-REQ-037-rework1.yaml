@@ -1,0 +1,113 @@
+run_id: WF02-REQ-037
+report: rework1
+date: "2026-09-08"
+branch: feature/WF02-REQ-037
+commit_at_start: 04763c8
+agent: TEST-RUNNER
+
+context: >
+  Re-run of WF-02 Step 4 after TEST-DESIGNER's rework1
+  (handoffs/WF02-REQ-037/step-03-test-designer-rework1.json) fixed the AC10
+  auditBefore===0 false-precondition bug found in the prior run
+  (handoffs/WF02-REQ-037/step-04-test-runner.json, test-reports/report-2026-09-08-WF02-REQ-037.yaml).
+  Fix: all 3 AC10 cases (personal/bulk/companion) in
+  apps/bot/src/handlers/inviteCodes.db.test.ts now capture auditBefore as a plain
+  baseline (no assertion on its value) and assert auditAfter === auditBefore + 1,
+  matching REQ-035's own precedent fix. No coverage change; AC1-AC9 untouched.
+  Test file content was NOT modified by TEST-RUNNER -- committed as-is from
+  commit 04763c8 (already contains the rework1 fix).
+
+lint:
+  command: "npm run lint -w apps/bot"
+  result: pass
+  output: |
+    > bot@0.1.0 lint
+    > eslint .
+    (zero errors, zero warnings)
+
+build:
+  command: "npm run build -w apps/bot"
+  result: pass
+  output: |
+    > bot@0.1.0 build
+    > tsc -p tsconfig.json
+    (zero errors)
+
+db_setup:
+  scratch_postgres: "already running (bot-postgres-1)"
+  migrate_command: "DATABASE_URL=postgres://bot:bot@localhost:55432/bot npx drizzle-kit migrate (from apps/bot)"
+  migrate_result: "[✓] migrations applied successfully!"
+
+full_suite_runs:
+  command: "npx vitest run --no-file-parallelism (repo root, per ISS-0014)"
+  run_1:
+    test_files: "42 passed (42)"
+    tests: "384 passed (384)"
+    failed: 0
+    duration: "58.06s"
+  run_2:
+    test_files: "42 passed (42)"
+    tests: "384 passed (384)"
+    failed: 0
+    duration: "61.99s"
+  flakiness: none -- identical 384/384 pass counts both runs, zero failures, no
+    ISS-0031 contention-pattern failures observed.
+
+ac10_verdict:
+  status: PASS
+  detail: >
+    All 3 AC10 cases (personal/bulk/companion) now pass. The delta-based
+    auditBefore/auditAfter pattern correctly accounts for seedEvent()'s own 2
+    audit_log rows (from createEvent + publishEvent), and the substantive
+    entity-scoped assertions (countAuditRows(row.id) === 1,
+    action === "invite_code.issue") pass as expected.
+
+ac9_static_check:
+  command_1: 'git grep -nE "ctx\.reply|ctx\.api\.sendMessage|bot\.api\.sendMessage|answerCallbackQuery" apps/bot/src/handlers/inviteCodes.ts'
+  command_1_output: |
+    apps/bot/src/handlers/inviteCodes.ts:142:      await ctx.reply(usageMessageFor("personal", validation, catalog));
+    apps/bot/src/handlers/inviteCodes.ts:153:      await ctx.reply(catalog.inviteCodes[resolved.reason]);
+    apps/bot/src/handlers/inviteCodes.ts:159:      await ctx.reply(catalog.inviteCodes.userNotFound);
+    apps/bot/src/handlers/inviteCodes.ts:173:    await ctx.reply(buildIssuedReply(catalog, issued.code, ctx.me.username));
+    apps/bot/src/handlers/inviteCodes.ts:189:      await ctx.reply(usageMessageFor("bulk", validation, catalog));
+    apps/bot/src/handlers/inviteCodes.ts:200:      await ctx.reply(catalog.inviteCodes[resolved.reason]);
+    apps/bot/src/handlers/inviteCodes.ts:214:    await ctx.reply(buildIssuedReply(catalog, issued.code, ctx.me.username));
+    apps/bot/src/handlers/inviteCodes.ts:230:      await ctx.reply(usageMessageFor("companion", validation, catalog));
+    apps/bot/src/handlers/inviteCodes.ts:241:      await ctx.reply(catalog.inviteCodes[resolved.reason]);
+    apps/bot/src/handlers/inviteCodes.ts:247:      await ctx.reply(catalog.inviteCodes.userNotFound);
+    apps/bot/src/handlers/inviteCodes.ts:261:    await ctx.reply(buildIssuedReply(catalog, issued.code, ctx.me.username));
+    apps/bot/src/handlers/inviteCodes.ts:301:      await ctx.reply(catalog.inviteCodes.usageNoIdPersonal);
+    apps/bot/src/handlers/inviteCodes.ts:307:      await ctx.reply(catalog.inviteCodes.eventNotFound);
+    apps/bot/src/handlers/inviteCodes.ts:314:      await ctx.reply(catalog.inviteCodes.notAuthorized);
+    apps/bot/src/handlers/inviteCodes.ts:320:    await ctx.reply(view.text, { reply_markup: view.keyboard });
+    apps/bot/src/handlers/inviteCodes.ts:358:      await ctx.answerCallbackQuery();
+    apps/bot/src/handlers/inviteCodes.ts:364:      await ctx.answerCallbackQuery();
+    apps/bot/src/handlers/inviteCodes.ts:372:      await ctx.answerCallbackQuery({ text: catalog.inviteCodes.eventNotFound, show_alert: true });
+    apps/bot/src/handlers/inviteCodes.ts:377:      await ctx.answerCallbackQuery({ text: catalog.inviteCodes.eventNotFound, show_alert: true });
+    apps/bot/src/handlers/inviteCodes.ts:384:      await ctx.answerCallbackQuery({ text: catalog.inviteCodes.notAuthorized, show_alert: true });
+    apps/bot/src/handlers/inviteCodes.ts:390:      await ctx.answerCallbackQuery({ text: catalog.inviteCodes.eventNotFound, show_alert: true });
+    apps/bot/src/handlers/inviteCodes.ts:394:    await ctx.answerCallbackQuery();
+    apps/bot/src/handlers/inviteCodes.ts:395:    await ctx.reply(renderInviteCodeDetailMessage(detail, lang));
+  command_1_analysis: >
+    Every match is a bare ctx.reply(...)/ctx.answerCallbackQuery(...) call. Every
+    argument is a message-text expression (catalog string, usageMessageFor(...),
+    buildIssuedReply(...), view.text, renderInviteCodeDetailMessage(...)) or a
+    keyboard/options object -- none passes targetUserId, hostUserId,
+    issuedToUserId, grantsCompanionOf, or any tgId-derived variable as an
+    argument. No explicit chat_id/recipient argument anywhere.
+  command_2: 'git grep -n "grammy\|Context" apps/bot/src/domain/inviteCode.ts'
+  command_2_output: "(no matches, exit code 1)"
+  command_2_analysis: >
+    Zero matches confirms domain/inviteCode.ts imports no grammy symbol and
+    references no Context type -- the domain layer cannot message anyone,
+    structurally.
+  result: pass
+
+overall_verdict: PASS
+summary: >
+  Lint clean, build clean. Full suite (npx vitest run --no-file-parallelism, repo
+  root) run twice: 384/384 passing both times, zero failures, zero flakiness.
+  AC10's rework fully resolves the prior baseline-count bug -- all 3 cases now
+  pass. AC9's static grep check re-run and both conditions confirmed from literal
+  output. All 26 dynamic cases + AC9's static check pass. Ready for
+  RELEASE-VALIDATOR (Step 5).

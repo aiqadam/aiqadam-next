@@ -1,0 +1,42 @@
+{
+  "handoff_id": "step-06-doc-updater",
+  "run_id": "WF02-REQ-037",
+  "workflow_id": "WF-02",
+  "step": "06",
+  "from_agent": "DOC-UPDATER",
+  "to_agent": "FRONTEND-DEV",
+  "file": "handoffs/WF02-REQ-037/step-06-doc-updater.json",
+  "created_at": "2026-09-08T12:06:32Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-037"],
+    "related_handoff_ids": [
+      "handoffs/WF02-REQ-037/step-05-release-validator.json"
+    ],
+    "branch_name": "feature/WF02-REQ-037",
+    "commit": "22da61c"
+  },
+  "task": {
+    "description": "WF-02 Step 6 (DOC-UPDATER) for REQ-037 (GitHub issue #69) on branch feature/WF02-REQ-037. RELEASE-VALIDATOR independently PASSed at Step 5. Flip requirement status to done, append the done status-history event, and check README.md for staleness.",
+    "acceptance_criteria": [
+      "docs/agents/requirements.yaml's REQ-037 entry status flipped in_progress -> done.",
+      "docs/status/requirement_status.yaml has a new 'done' event appended for REQ-037, real UTC timestamp, no prior entry rewritten (git diff --numstat deletions == 0).",
+      "README.md checked for staleness against this requirement's actual surface; updated only if it documented affected behavior."
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Flipped docs/agents/requirements.yaml's REQ-037 status from in_progress to done (single-field edit, no other content changed). Appended a 'done' event to docs/status/requirement_status.yaml's history list, following the exact schema and narrative-note precedent of REQ-036's most recent entry -- real UTC timestamp (2026-09-08T12:06:32Z) taken from the clock via `date -u`, summarizing RELEASE-VALIDATOR's independent re-verification of all 10 acceptance criteria and the lint/build/test results from step-05-release-validator.json. Confirmed via `git diff --numstat` that docs/status/requirement_status.yaml shows 5 insertions, 0 deletions -- append-only preserved, no prior entry touched. requirements.yaml's REQ-037 entry needed no content correction beyond the status flip -- RELEASE-VALIDATOR's step-05 found none, and this step's own re-check of the description/ACs against the shipped-code citations in that handoff agrees. README.md checked with a case-insensitive grep for 'invite', 'companion', 'bulk' -- zero matches anywhere in the file; it still contains no bot-flow-specific content beyond the one generic apps/bot description line established at REQ-009's doc-update step, so no README update was warranted -- same checked-then-skipped pattern as every prior bot requirement (REQ-010 through REQ-036). This is the FIFTH requirement of Release 2 -- 4 more (REQ-038 through REQ-041) remain pending, so no phase/release-complete marker was added.",
+    "artifacts_out": [
+      "docs/agents/requirements.yaml",
+      "docs/status/requirement_status.yaml",
+      "handoffs/WF02-REQ-037/step-06-doc-updater.json"
+    ],
+    "issues": [
+      "CARRIED FORWARD (not this step's to resolve, already flagged upstream by RELEASE-VALIDATOR): inviteCodes i18n catalog strings (en.ts/ru.ts) are provisional pending CONTENT-BA/product-owner final wording -- same precedent as REQ-014/032/036.",
+      "CARRIED FORWARD (not this step's to resolve, already flagged upstream by RELEASE-VALIDATOR): REQ-033 section 6's open questions on personal-code re-issuance coexistence and code-display chunking remain unresolved per that design's own explicit non-resolution -- no new constraint invented here."
+    ],
+    "next_action": "Route to ORCH for merge (Step Final)"
+  }
+}

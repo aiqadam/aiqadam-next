@@ -103,6 +103,14 @@ import {
   makeRequestsListHandler,
   makeRequestsPageCallbackHandler,
 } from "./handlers/organizerRequests.js";
+import {
+  INVITE_OPEN_PATTERN,
+  makeInviteBulkHandler,
+  makeInviteCodeDetailCallbackHandler,
+  makeInviteCodesListHandler,
+  makeInviteCompanionHandler,
+  makeInvitePersonalHandler,
+} from "./handlers/inviteCodes.js";
 
 let config: BotConfig;
 
@@ -316,5 +324,15 @@ bot.callbackQuery(REQ_APPROVE_CANCEL_PATTERN, makeRequestApproveCancelCallbackHa
 bot.callbackQuery(REQ_APPROVE_PATTERN, makeRequestApproveCallbackHandler(db, notificationSender));
 bot.callbackQuery(REQ_REJECT_PATTERN, makeRequestRejectCallbackHandler(db));
 bot.on("message:text", makeRequestRejectTextReplyHandler(db, notificationSender));
+
+// REQ-037: the issuing side of PRD FR-5 -- /invite_personal, /invite_bulk,
+// /invite_companion, and the /invite_codes usage-visibility surface
+// (handlers/inviteCodes.ts). Registered after the request-approval block,
+// same ordering discipline those files' own header notes establish.
+bot.command("invite_personal", makeInvitePersonalHandler(db));
+bot.command("invite_bulk", makeInviteBulkHandler(db));
+bot.command("invite_companion", makeInviteCompanionHandler(db));
+bot.command("invite_codes", makeInviteCodesListHandler(db));
+bot.callbackQuery(INVITE_OPEN_PATTERN, makeInviteCodeDetailCallbackHandler(db));
 
 bot.start();

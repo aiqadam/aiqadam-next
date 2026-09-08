@@ -1,0 +1,14 @@
+{
+  "handoff_id": "step-00-git-setup",
+  "run_id": "WF02-REQ-037",
+  "workflow_id": "WF-02",
+  "step": "00",
+  "from_agent": "ORCH",
+  "to_agent": "ORCH",
+  "status": "COMPLETED",
+  "result": {
+    "status": "PASS",
+    "summary": "Created feature/WF02-REQ-037 from master (HEAD at merge of PR #83, REQ-036). Working tree clean. Fifth requirement of Release 2 -- organizer issues personal/bulk/companion invite codes, sees who used each. No schema change (consumes REQ-033's invite_codes table unchanged). Flipped requirements.yaml's REQ-037 to in_progress and logged a 'started' event. This commit also folds in REQ-036's step-final handoff and registry.json entry, per the established convention (bookkeeping riding on the next run's branch instead of a separate PR).",
+    "next_action": "Route to CODE-DESIGNER (Step 1)"
+  }
+}
