@@ -39,6 +39,12 @@ export interface RegistrationDecisionInput {
   registrationClosesAt: Date | null;
   endsAt: Date;
   seatsLeft: number;
+  // docs/agents/design/REQ-038.md §1.1 — NEW. `true` when the invite gate is
+  // already cleared by some means (a code that passed §3.2's validation
+  // table, or past-attendee eligibility, §2). Computed by the caller, outside
+  // this pure function — decisions/0006, same discipline every other field on
+  // this interface already follows.
+  inviteSatisfied: boolean;
 }
 
 export type RegistrationOutcome =
@@ -71,7 +77,10 @@ export function decideRegistrationOutcome(
   if (!isRegistrationOpen(input.registrationClosesAt, evaluationTime)) {
     return { kind: "registration-closed" };
   }
-  if (input.requiresInvite) {
+  // docs/agents/design/REQ-038.md §1.2 row 5 — only row that changed: gained
+  // the `AND inviteSatisfied === false` term. Rows 1-4/6-8 are byte-for-byte
+  // unchanged.
+  if (input.requiresInvite && !input.inviteSatisfied) {
     return { kind: "requires-invite" };
   }
   if (input.requiresApproval) {
@@ -106,6 +115,27 @@ export function resolveRegistrationSource(pendingSource: string | null): string 
 // ---------------------------------------------------------------------------
 export async function clearPendingSource(db: DbClient["db"], userId: string): Promise<void> {
   await db.update(users).set({ pendingSource: null }).where(eq(users.id, userId));
+}
+
+// ---------------------------------------------------------------------------
+// docs/agents/design/REQ-038.md §2.1 — hasPastCheckIn: the derived,
+// never-stored past-attendee eligibility read (PRD FR-4, story B7's third
+// Confirmation). Pure query, no evaluationTime parameter -- `checked_in_at`
+// non-null is already structural evidence of a past attendance (toggleCheckIn/
+// performQrCheckIn only ever set it against an already-underway event), so a
+// second "past" filter against endsAt would be redundant, not more correct
+// (design §2.1's own reasoning). No column, cache, or flag anywhere stores
+// this -- computed fresh on every call, same discipline as countCheckedIn.
+// `db` is typed loosely as DbClient["db"] so this also accepts a
+// db.transaction(...) callback's `tx` handle (§2.2's call site).
+// ---------------------------------------------------------------------------
+export async function hasPastCheckIn(db: DbClient["db"], userId: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: registrations.id })
+    .from(registrations)
+    .where(and(eq(registrations.userId, userId), isNotNull(registrations.checkedInAt)))
+    .limit(1);
+  return rows.length > 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -173,6 +203,20 @@ export async function registerForEvent(
     // §3.2 step 5 — seatsLeft.
     const seatsLeft = computeSeatsLeft(event.capacity, admittedCount);
 
+    // docs/agents/design/REQ-038.md §2.2 — internal step, inserted between
+    // the existing event lock (step 2, above) and the existing
+    // decideRegistrationOutcome call (step 6, below): past-attendee
+    // eligibility, computed only when the event requires an invite (§1.1's
+    // economy note -- inviteSatisfied is never inspected by row 5 when
+    // requiresInvite is false, so running the query would be pure waste).
+    // Uses the already-open `tx` handle and the already-in-scope `userId` --
+    // this is the ONLY call site for hasPastCheckIn in this codebase; the
+    // code-redemption path (domain/inviteCode.ts's redeemInviteCode) never
+    // calls it, since a code-bearing redemption always passes
+    // `inviteSatisfied: true` by construction once the code validates.
+    // registerForEvent's external signature is unchanged by this step.
+    const inviteSatisfied = event.requiresInvite ? await hasPastCheckIn(tx, userId) : false;
+
     // §3.2 step 6 — decide the outcome (pure).
     const outcome = decideRegistrationOutcome(
       {
@@ -183,6 +227,7 @@ export async function registerForEvent(
         registrationClosesAt: event.registrationClosesAt,
         endsAt: event.endsAt,
         seatsLeft,
+        inviteSatisfied,
       },
       evaluationTime,
     );

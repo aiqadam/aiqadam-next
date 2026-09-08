@@ -1,0 +1,59 @@
+{
+  "handoff_id": "step-04-test-runner",
+  "run_id": "WF02-REQ-038",
+  "workflow_id": "WF-02",
+  "step": "04",
+  "from_agent": "TEST-RUNNER",
+  "to_agent": "ORCH",
+  "file": "handoffs/WF02-REQ-038/step-04-test-runner.json",
+  "created_at": "2026-09-08T13:12:00Z",
+  "started_at": "2026-09-08T13:04:00Z",
+  "completed_at": "2026-09-08T13:12:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-038"],
+    "artifacts_in": [
+      "docs/agents/test-specs/REQ-038.md",
+      "handoffs/WF02-REQ-038/step-03b-test-design-validator.json",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/handlers/registration.ts",
+      "apps/bot/src/handlers/start.ts",
+      "docs/agents/design/REQ-038.md"
+    ],
+    "branch_name": "feature/WF02-REQ-038"
+  },
+  "task": {
+    "description": "WF-02 Step 4 (test run) for REQ-038 on branch feature/WF02-REQ-038, commit 59e99b6. Write the two test files docs/agents/test-specs/REQ-038.md specifies verbatim, run lint/build, run the full vitest suite twice plus an isolated third run of the AC4 concurrency cases, report exact output.",
+    "acceptance_criteria": [
+      "apps/bot/src/domain/inviteCodeRedeem.db.test.ts and apps/bot/src/handlers/redeem.db.test.ts written verbatim from the spec",
+      "npm run lint -w apps/bot and npm run build -w apps/bot both pass with quoted real output",
+      "npx vitest run --no-file-parallelism from repo root, run twice, plus an isolated third run of the AC4 concurrency file to confirm stability",
+      "Any failure caused by spec/code mismatch is reported precisely, not silently patched"
+    ]
+  },
+  "result": {
+    "status": "FAIL",
+    "summary": "Wrote both files (apps/bot/src/domain/inviteCodeRedeem.db.test.ts, apps/bot/src/handlers/redeem.db.test.ts) byte-for-byte from docs/agents/test-specs/REQ-038.md's committed fenced source -- zero edits. `npm run lint -w apps/bot` passed clean (zero errors/warnings). `npm run build -w apps/bot` passed clean (tsc, zero errors). Started the scratch Postgres (docker compose up -d, bot-postgres-1 already Running, pg_isready confirmed accepting connections) and ran `DATABASE_URL=postgres://bot:bot@localhost:55432/bot npx drizzle-kit migrate` -- migrations applied successfully (no new migration for REQ-038, confirmed by the spec's own note).\n\nRan `npx vitest run --no-file-parallelism` from the repo root TWICE: attempt 1 = 1 failed | 43 passed (44 files), 1 failed | 404 passed (405 tests), 55.29s. Attempt 2 = identical: 1 failed | 43 passed (44 files), 1 failed | 404 passed (405 tests), 55.08s. Both attempts failed on the exact same single test: AC8's first `it()` in apps/bot/src/domain/inviteCodeRedeem.db.test.ts (line 470) -- `expect(designText).toContain(\"resolution (a): the rule applies uniformly to every\")`.\n\nRan the AC4 concurrency file in isolation a third time (`npx vitest run --no-file-parallelism apps/bot/src/domain/inviteCodeRedeem.db.test.ts -t AC4 --reporter=verbose`): both cases PASSED -- literal-shape case (20 iterations, two concurrent redeemers) in 811ms, higher-fan-in case (5 iterations x 10 concurrent redeemers, dedicated Pool with totalCount evidence of real multi-connection parallelism) in 468ms. Combined with both full-suite runs (where these same two cases also passed each time), AC4's concurrency property is confirmed stable across three independent executions with zero flakiness observed -- exactly one admit per iteration, used_count never exceeding max_uses, exactly one admitted registrations row per iteration every time.\n\nROOT CAUSE of the one failing test (verified programmatically, not by inspection alone): `docs/agents/design/REQ-038.md` lines 606-607 read '**This design takes resolution (a): the rule applies uniformly to\\nevery `requires_invite` event**' -- the committed markdown source line-wraps between 'to' and 'every'. `node -e 'fs.readFileSync(...).includes(\"resolution (a): the rule applies uniformly to every\")'` returns `false`; the raw file contains a newline, not a space, at that position (confirmed by slicing and JSON.stringify-ing the raw substring: `\"resolution (a): the rule applies uniformly to\\nevery \\`requires_invite\\` event** (\\u00a7\"`). AC8's second assertion in the same test (`toContain(\"No column is added to \\`events\\`\")`) passes, because that phrase happens to sit on one unbroken source line.\n\nATTRIBUTION: this is a defect in the test spec's own literal-string assertion, not in BACKEND-DEV's design artefact or the actual implementation. The design doc's content is semantically present and correct -- it states resolution (a) exactly as required, just wrapped across two markdown lines for readability, which is normal prose formatting, not a defect in the doc. TEST-DESIGN-VALIDATOR's step-03b handoff (handoffs/WF02-REQ-038/step-03b-test-design-validator.json) explicitly claimed 'Both substrings are present verbatim in the current file' -- that claim is incorrect for the first substring; it was evidently checked by eye against soft-wrapped/rendered text rather than the raw file's literal byte content. Per this run's own instruction ('If any test fails because the spec described something that doesn't match actual code behavior, STOP and report precisely rather than silently altering the test to force a pass'), neither the test file nor the design doc was edited -- both are committed exactly as they existed at the start of this run, plus the two new verbatim test files.\n\nCommitted and pushed the two new test files plus this handoff and the test report to feature/WF02-REQ-038. `git status` confirmed clean after the commit.",
+    "artifacts_out": [
+      "apps/bot/src/domain/inviteCodeRedeem.db.test.ts",
+      "apps/bot/src/handlers/redeem.db.test.ts",
+      "test-reports/report-2026-09-08-WF02-REQ-038.yaml",
+      "handoffs/WF02-REQ-038/step-04-test-runner.json"
+    ],
+    "issues": [
+      {
+        "title": "REQ-038 test spec AC8 assertion breaks on a markdown line-wrap in the design doc it checks",
+        "description": "docs/agents/test-specs/REQ-038.md's File 1, AC8's first it(), asserts `expect(designText).toContain(\"resolution (a): the rule applies uniformly to every\")` against docs/agents/design/REQ-038.md. That design doc's prose line-wraps 'to'/'every' across lines 606-607 in the committed source, so the raw file never contains this phrase as one contiguous substring (confirmed via node -e fs.readFileSync(...).includes(...) === false). The test therefore fails deterministically, not due to any code or content defect -- the design doc's resolution (a) statement is present and correct, just soft-wrapped. TEST-DESIGN-VALIDATOR's step-03b handoff asserted this substring was verbatim present, which was not independently re-derived against the raw file bytes. Fix options: (1) TEST-DESIGNER rewrites the assertion to be line-wrap-tolerant (e.g. a regex with \\s+ in place of the literal space, or two separate toContain calls split at a safe point), or (2) rewrap docs/agents/design/REQ-038.md lines 606-607 so the phrase sits on one line. Either requires a rework cycle before this run can report a clean PASS.",
+        "severity": "MAJOR",
+        "affected_files": [
+          "docs/agents/test-specs/REQ-038.md",
+          "apps/bot/src/domain/inviteCodeRedeem.db.test.ts",
+          "docs/agents/design/REQ-038.md"
+        ]
+      }
+    ],
+    "next_action": "Do NOT route to RELEASE-VALIDATOR. Route to ORCH to file the above issue (assign an id per ISSUE_QUEUE.md) and dispatch a rework cycle -- either back to TEST-DESIGNER to fix the line-wrap-fragile assertion, or a targeted one-line rewrap of docs/agents/design/REQ-038.md lines 606-607 -- then re-run Step 4."
+  }
+}

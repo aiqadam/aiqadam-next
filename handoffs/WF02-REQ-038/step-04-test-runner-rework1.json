@@ -1,0 +1,45 @@
+{
+  "handoff_id": "step-04-test-runner-rework1",
+  "run_id": "WF02-REQ-038",
+  "workflow_id": "WF-02",
+  "step": "04",
+  "from_agent": "TEST-RUNNER",
+  "to_agent": "RELEASE-VALIDATOR",
+  "file": "handoffs/WF02-REQ-038/step-04-test-runner-rework1.json",
+  "created_at": "2026-09-08T18:16:00Z",
+  "started_at": "2026-09-08T18:09:00Z",
+  "completed_at": "2026-09-08T18:16:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-038"],
+    "artifacts_in": [
+      "handoffs/WF02-REQ-038/step-03-test-designer-rework1.json",
+      "handoffs/WF02-REQ-038/step-04-test-runner.json",
+      "docs/agents/test-specs/REQ-038.md",
+      "apps/bot/src/domain/inviteCodeRedeem.db.test.ts",
+      "apps/bot/src/handlers/redeem.db.test.ts"
+    ],
+    "branch_name": "feature/WF02-REQ-038"
+  },
+  "task": {
+    "description": "Re-run WF-02 Step 4 (test run) for REQ-038, branch feature/WF02-REQ-038, commit e535fb8, after TEST-DESIGNER's rework1 fixed AC8's line-wrap-fragile literal-string assertion via whitespace normalization (no coverage change). Run lint/build, run the full vitest suite twice, plus an isolated third run of the AC4 concurrency block to reconfirm stability.",
+    "acceptance_criteria": [
+      "npm run lint -w apps/bot passes with quoted real output",
+      "npm run build -w apps/bot passes with quoted real output",
+      "npx vitest run --no-file-parallelism from repo root, run twice, both clean",
+      "Isolated third run of AC4 concurrency cases to reconfirm stability after the file changed",
+      "405/405 tests passing across all runs with zero flakiness, or precise failure report if not"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "npm run lint -w apps/bot: PASS, clean (`> bot@0.1.0 lint` / `> eslint .`, zero errors/warnings, no output). npm run build -w apps/bot: PASS, clean (`> bot@0.1.0 build` / `> tsc -p tsconfig.json`, zero errors, no output).\n\nPostgres (bot-postgres-1) was already running (3h uptime) from the prior baseline run -- confirmed via `docker compose ps`, no restart needed.\n\nRan `npx vitest run --no-file-parallelism` from the repo root TWICE (DATABASE_URL=postgres://bot:bot@localhost:55432/bot): attempt 1 = 44 passed (44 files), 405 passed (405 tests), 56.88s. Attempt 2 = 44 passed (44 files), 405 passed (405 tests), 55.31s. Both attempts fully clean -- zero failures, including AC8's previously-failing first it(), which now passes in both runs.\n\nRan the AC4 concurrency block in isolation a third time (`npx vitest run --no-file-parallelism apps/bot/src/domain/inviteCodeRedeem.db.test.ts -t AC4 --reporter=verbose`): both cases PASSED -- literal-shape case (20 iterations, two concurrent redeemers) in 773ms, higher-fan-in case (5 iterations x 10 concurrent redeemers, dedicated pool with totalCount evidence of real multi-connection parallelism) in 521ms. Combined with both full-suite runs (where these same two cases also passed), AC4's concurrency property is confirmed stable across three independent executions in this rework re-verification, with zero flakiness observed -- consistent with the 3/3 stability already established in the prior baseline run before this rework touched anything.\n\nVerified AC8's fix directly in the committed test file (not just relying on TEST-DESIGNER's description): apps/bot/src/domain/inviteCodeRedeem.db.test.ts's AC8 first it() now builds `normalizedDesignText = designText.replace(/\\s+/g, \" \")` and runs both toContain checks against the normalized text. Both required phrases -- \"resolution (a): the rule applies uniformly to every\" and \"No column is added to `events`\" -- are still asserted in full, so the fix removes the line-wrap fragility without weakening what AC8 verifies. Spot-checked docs/agents/test-specs/REQ-038.md's File 1 fenced source against the committed test file around the AC8 block: consistent with TEST-DESIGNER's rework1 claim of byte-for-byte sync.\n\nNo other test case, file, or count changed versus the prior baseline run (test-reports/report-2026-09-08-WF02-REQ-038.yaml) apart from AC8's first it() flipping from FAIL to PASS -- exactly the outcome TEST-DESIGNER's rework1 targeted, no coverage gained or lost.\n\nCommitted this handoff and the new test report (test-reports/report-2026-09-08-WF02-REQ-038-rework1.yaml) to feature/WF02-REQ-038 and pushed. `git status` confirmed clean after the commit.",
+    "artifacts_out": [
+      "test-reports/report-2026-09-08-WF02-REQ-038-rework1.yaml",
+      "handoffs/WF02-REQ-038/step-04-test-runner-rework1.json"
+    ],
+    "issues": [],
+    "next_action": "Route to RELEASE-VALIDATOR (Step 5)"
+  }
+}

@@ -482,7 +482,15 @@ export async function countAdmittedRegistrations(
 export type StartPayload =
   | { kind: "none" }
   | { kind: "event"; eventId: string; channel: string | null }
-  | { kind: "checkin"; qrToken: string };
+  | { kind: "checkin"; qrToken: string }
+  // docs/agents/design/REQ-038.md §4.1 -- NEW. Grammar reuses the exact
+  // primary__optional shape e_<id>__<channel> already establishes: `code` is
+  // the primary token, an explicit target event id is the optional suffix.
+  // `i_<code>` (no suffix) is what ?start=i_<code> deep links always
+  // produce; `i_<code>__<eventId>` exists only as the shape the /redeem
+  // command's consent-deferral re-encodes into consent:agree's callback_data
+  // (§5.2).
+  | { kind: "invite"; code: string; eventId: string | null };
 
 export function parseStartPayload(raw: string): StartPayload {
   const trimmed = raw.trim();
@@ -497,6 +505,22 @@ export function parseStartPayload(raw: string): StartPayload {
   // (§2.1's lookup), falling into the existing "unknown token" refusal.
   if (trimmed.startsWith("ci_")) {
     return { kind: "checkin", qrToken: trimmed.slice(3) };
+  }
+  // docs/agents/design/REQ-038.md §4.1 -- placed directly after "ci_", before
+  // "e_", for the same "readability only" reason this file's own comment
+  // already gives for ci_ vs e_'s ordering -- ci_/e_/i_ share no overlapping
+  // prefix, so order among the three does not affect correctness.
+  if (trimmed.startsWith("i_")) {
+    const remainder = trimmed.slice(2);
+    const separatorIndex = remainder.indexOf("__");
+    if (separatorIndex === -1) {
+      return { kind: "invite", code: remainder, eventId: null };
+    }
+    return {
+      kind: "invite",
+      code: remainder.slice(0, separatorIndex),
+      eventId: remainder.slice(separatorIndex + 2),
+    };
   }
   if (!trimmed.startsWith("e_")) {
     return { kind: "none" };

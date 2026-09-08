@@ -1,0 +1,49 @@
+{
+  "handoff_id": "step-03b-test-design-validator",
+  "run_id": "WF02-REQ-038",
+  "workflow_id": "WF-02",
+  "step": "03b",
+  "from_agent": "TEST-DESIGN-VALIDATOR",
+  "to_agent": "TEST-RUNNER",
+  "file": "handoffs/WF02-REQ-038/step-03b-test-design-validator.json",
+  "created_at": "2026-09-08T13:01:20Z",
+  "started_at": "2026-09-08T13:01:20Z",
+  "completed_at": "2026-09-08T13:01:20Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-038"],
+    "artifacts_in": [
+      "docs/agents/test-specs/REQ-038.md",
+      "handoffs/WF02-REQ-038/step-03-test-designer.json",
+      "docs/agents/design/REQ-038.md",
+      "GitHub issue #70",
+      "apps/bot/src/domain/inviteCode.ts",
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/handlers/registration.ts",
+      "apps/bot/src/handlers/start.ts",
+      "apps/bot/src/domain/consent.ts",
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/src/domain/registrationApproval.db.test.ts"
+    ],
+    "branch_name": "feature/WF02-REQ-038"
+  },
+  "task": {
+    "description": "WF-02 Step 3b (test design gate) for REQ-038 on branch feature/WF02-REQ-038, commit a93257b. Independently re-derived a verdict on docs/agents/test-specs/REQ-038.md against GitHub issue #70's exact 11 acceptance criteria, docs/agents/design/REQ-038.md, and the actual implementation in apps/bot/src/domain/inviteCode.ts and apps/bot/src/domain/registration.ts.",
+    "acceptance_criteria": [
+      "Every one of the 11 ACs in issue #70 has at least one verification case that would fail if violated",
+      "No TODO left in the spec",
+      "Each case is precise enough to run without judgment (exact function/handler/route, exact expected result)",
+      "AC4's concurrency test is genuinely probative and isolated from capacity effects"
+    ]
+  },
+  "result": {
+    "status": "PASS",
+    "summary": "Read docs/agents/test-specs/REQ-038.md in full independently (both proposed files' complete source, not the AC-to-case map alone). Read GitHub issue #70 directly for the exact wording of all 11 ACs. Read docs/agents/design/REQ-038.md in full. Read the actual implementation: apps/bot/src/domain/inviteCode.ts's redeemInviteCode (lines 616-826), validateInviteCodeForRedemption (557-594), getInviteCodeByCode/normalizeInviteCode (510-538), parseRedeemArgs; apps/bot/src/domain/registration.ts's hasPastCheckIn (132-139), decideRegistrationOutcome's inviteSatisfied gate (34-93), registerForEvent's new internal step (206-218); apps/bot/src/handlers/registration.ts's makeRedeemCommandHandler; apps/bot/src/handlers/start.ts's resolveInviteDeepLink/i_ dispatch/makeConsentCallbackHandler's invite branch. Every function/type/signature the spec's test source calls was confirmed to exist verbatim in the real committed code -- no invented API.\n\nNo TODO in the spec. All 11 ACs have at least one precise, mechanically-followable verification case (exact function calls, exact expected outcome.kind values, exact row/field assertions) -- verified the AC-to-case map against issue #70's literal AC text one by one and confirmed each case's assertions actually match what the AC requires (e.g. AC2's case checks BOTH zero registration for B AND unchanged used_count, plus a positive control that A's own redemption succeeds; AC3's four sub-cases are genuinely distinct constructed scenarios -- expired via PAST_EXPIRY, spent via usedCount forced to maxUses, unknown via a literal nonexistent code string, wrong-event via a second seeded event passed as explicitEventId -- each independently asserting zero registrations and unchanged used_count; AC7 has both the positive (checked_in_at set directly, then registerForEvent admits with zero code involvement) and negative (no check-in, registerForEvent refuses 'requires-invite') cases plus a static grep of schema.ts for is_?returning|returning_status|attended_before|past_attendee|eligib -- confirmed by an independent grep that no such column exists on this branch, so the check would genuinely catch a real violation; AC9 exercises a redeemer with zero prior consent, confirms zero profiles rows and no registration both immediately after the prompt and after an unrelated follow-up /start with no consent:agree tap -- independently confirmed via grep that this codebase's consent flow (domain/consent.ts, handlers/start.ts) has no separate 'decline' affordance, only consent:agree, so the spec's framing of 'declining' as 'never taps agree' is accurate, not a cop-out).\n\ntg_id ranges independently re-verified via `grep -rn \"let nextTgId|let tgSeq\" apps/bot/src`: highest pre-existing band is 1_040_000_000 (handlers/inviteCodes.db.test.ts). The spec's claimed 1_050_000_000+ and 1_051_000_000+ are both comfortably above every existing band -- confirmed collision-free.\n\nAC4 concurrency test (the highest-stakes check) verified in full detail against both proposed cases: (1) Genuinely concurrent -- both redeemInviteCode(...) calls are invoked directly inside the Promise.all(...) argument array (never awaited individually first), matching the exact anti-serialization pattern registrationApproval.db.test.ts's own already-validated REQ-035 AC5 case uses. The higher-fan-in case uses a dedicated `new Pool({ max: 30 })`, fires all 10 calls via .map(...) into Promise.all, and asserts `highConcurrencyPool.totalCount` immediately after firing (via a setImmediate tick) but before any call has necessarily completed -- byte-for-byte the same evidence-of-genuine-parallelism assertion shape (`toBeGreaterThan(Math.min(1, totalCountBefore))` and `toBeGreaterThan(1)`) as registrationApproval.db.test.ts lines 237/247-248 for REQ-035's own AC5, confirmed by direct comparison. (2) Isolation from capacity: every seeded event across both AC4 cases uses capacity 50 while the fan-in never exceeds 10 -- capacity is never the bottleneck, so a capacity-driven waitlist outcome cannot produce 'exactly one success' by accident; only the invite_codes row's own FOR UPDATE lock (confirmed at inviteCode.ts lines 662-673, taken fresh inside the transaction, never reusing the unlocked step-2 precheck at line 627) can produce the observed exactly-one-winner result. (3) The invariant traced precisely: literal case seeds maxUses=2 with usedCount forced to 1 (one use left), asserts post-race usedCount===2 (== maxUses, never above) and exactly 1 admitted registration row; higher-fan-in case seeds maxUses=FAN_IN(10) with usedCount forced to FAN_IN-1, asserts post-race usedCount===FAN_IN and exactly 1 admitted row, with admittedCount===1 and spentCount===FAN_IN-1 read directly off the returned outcomes. Both match AC4's literal text ('exactly one successful registration and used_count ending at max_uses, never above it') and the requirement's 'repeated at least 20 times' (literal case runs exactly 20 iterations).\n\nAC8's design-artefact string-match case was independently checked against the actual design doc text: docs/agents/design/REQ-038.md section 8 contains 'This design takes resolution (a): the rule applies uniformly to every `requires_invite` event' (matches the spec's expected substring 'resolution (a): the rule applies uniformly to every') and 'No column is added to `events`, `users`, or any other table by this design' (matches 'No column is added to `events`'). Both substrings are present verbatim in the current file.\n\nNo issues found. No rework required.",
+    "artifacts_out": [
+      "handoffs/WF02-REQ-038/step-03b-test-design-validator.json"
+    ],
+    "issues": [],
+    "next_action": "Route to TEST-RUNNER (Step 4)"
+  }
+}

@@ -213,6 +213,13 @@ export const ru = {
     requestedDecisionByPrefix: "Ответ будет получен до:",
     requestedDecisionByFallback: "Ответ будет получен до начала мероприятия.",
     requestedWhatNext: "Что дальше: если запрос одобрят, вы получите код для входа.",
+    refusedRequiresInviteHint: "Если у вас есть код приглашения, используйте /redeem <event_id> <code>.",
+    refusedInviteCodeNotFound: "Такой код приглашения не распознан.",
+    refusedInviteCodeExpired: "Срок действия этого кода приглашения истёк.",
+    refusedInviteCodeSpent: "Этот код приглашения уже полностью использован.",
+    refusedInviteCodeWrongEvent: "Этот код приглашения предназначен для другого мероприятия.",
+    refusedInviteCodeNotYours: "Этот код приглашения был выдан другому человеку.",
+    redeemUsage: "Использование: /redeem <event_id> <code>",
   },
   // NEW, REQ-022: /withdraw <event_id>. Placeholder/minimal functional copy
   // per decisions/0002 (CONTENT-BA owns final wording).

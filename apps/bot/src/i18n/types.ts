@@ -282,6 +282,18 @@ export interface Catalog {
     requestedDecisionByPrefix: string;
     requestedDecisionByFallback: string;
     requestedWhatNext: string;
+    // NEW, REQ-038: invite-code redemption (the `i_` deep link and the typed
+    // /redeem command) -- the plain requires-invite refusal's new onward
+    // hint, and the five distinct invite-code-validation refusals. Placeholder/
+    // minimal functional copy per decisions/0002 (CONTENT-BA owns final
+    // wording).
+    refusedRequiresInviteHint: string;
+    refusedInviteCodeNotFound: string;
+    refusedInviteCodeExpired: string;
+    refusedInviteCodeSpent: string;
+    refusedInviteCodeWrongEvent: string;
+    refusedInviteCodeNotYours: string;
+    redeemUsage: string;
   };
   // NEW, REQ-022: /withdraw <event_id> -- the two-step confirm/cancel UX
   // (design §4) and its refusal copy (design §2.1). Placeholder/minimal

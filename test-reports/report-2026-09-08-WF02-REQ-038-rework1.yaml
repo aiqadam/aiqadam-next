@@ -1,0 +1,80 @@
+run_id: WF02-REQ-038-rework1
+date: "2026-09-08T18:14:00Z"
+lint: pass
+build: pass
+lint_command: "npm run lint -w apps/bot"
+lint_output: |
+  > bot@0.1.0 lint
+  > eslint .
+  (zero errors, zero warnings)
+build_command: "npm run build -w apps/bot"
+build_output: |
+  > bot@0.1.0 build
+  > tsc -p tsconfig.json
+  (zero errors, clean tsc build)
+context: >
+  Re-run of Step 4 after TEST-DESIGNER's rework1
+  (handoffs/WF02-REQ-038/step-03-test-designer-rework1.json), which fixed AC8's first
+  it() in apps/bot/src/domain/inviteCodeRedeem.db.test.ts -- the literal-string
+  assertion that broke on a markdown line-wrap in docs/agents/design/REQ-038.md
+  (lines 606-607) is now checked against `designText.replace(/\s+/g, " ")` instead of
+  the raw file text. Pure assertion-robustness fix, no coverage change, no other case
+  touched. This run's own step-04 FAIL (prior report:
+  test-reports/report-2026-09-08-WF02-REQ-038.yaml) is the baseline this rework
+  addresses.
+db_setup:
+  - "docker compose ps -- bot-postgres-1 already Running (3h uptime), no action needed"
+  - "DATABASE_URL=postgres://bot:bot@localhost:55432/bot used for all vitest invocations"
+full_suite:
+  command: "npx vitest run --no-file-parallelism"
+  invocation_root: repo root (per mandate -- never apps/bot)
+  attempts: 2
+  attempt_1:
+    test_files: "44 passed (44)"
+    tests: "405 passed (405)"
+    duration: "56.88s"
+  attempt_2:
+    test_files: "44 passed (44)"
+    tests: "405 passed (405)"
+    duration: "55.31s"
+  conclusion: >
+    Both full-suite runs are clean: 44/44 files, 405/405 tests, zero failures. AC8's
+    previously-failing first it() now passes in both attempts, confirming the
+    whitespace-normalization fix resolved the line-wrap fragility without weakening the
+    assertion (both required phrases -- "resolution (a): the rule applies uniformly to
+    every" and "No column is added to `events`" -- are still checked in full).
+ac4_concurrency_verification:
+  literal_shape_case:
+    description: "20 iterations, two concurrent redeemers racing a code with exactly one use left"
+    result_run_1: PASS (part of full-suite attempt_1)
+    result_run_2: PASS (part of full-suite attempt_2)
+    result_run_3_isolated: "PASS, 773ms (npx vitest run --no-file-parallelism apps/bot/src/domain/inviteCodeRedeem.db.test.ts -t AC4 --reporter=verbose)"
+  higher_fan_in_case:
+    description: "5 iterations of 10 concurrent redeemers, dedicated pool proven >1 real connection via pool.totalCount"
+    result_run_1: PASS (part of full-suite attempt_1)
+    result_run_2: PASS (part of full-suite attempt_2)
+    result_run_3_isolated: "PASS, 521ms (same isolated invocation as above)"
+  stability_conclusion: >
+    Both AC4 concurrency cases passed in all three executions of this rework
+    re-verification (two full-suite runs plus one isolated single-file, filtered-to-AC4
+    re-run), consistent with the 3/3 stability already established before this rework and
+    unaffected by it (AC4 was not touched by TEST-DESIGNER's rework1). No flakiness
+    observed across this run or the prior baseline run's three executions -- six total
+    independent passes of both AC4 cases combined.
+ac8_fix_verification:
+  test: "apps/bot/src/domain/inviteCodeRedeem.db.test.ts, AC8's first it()"
+  prior_failure: 'expect(designText).toContain("resolution (a): the rule applies uniformly to every") -- false, due to a newline at the "to"/"every" line-wrap boundary in docs/agents/design/REQ-038.md lines 606-607'
+  fix_applied: >
+    TEST-DESIGNER inserted `const normalizedDesignText = designText.replace(/\s+/g, " ");`
+    and both toContain checks now run against normalizedDesignText instead of the raw
+    designText. Confirmed the fix is present in the actual committed test file (not just
+    the spec) and that both AC8 assertions pass in every run of this re-verification.
+  spec_sync_check: "docs/agents/test-specs/REQ-038.md's File 1 fenced source matches the committed apps/bot/src/domain/inviteCodeRedeem.db.test.ts (spot-checked the AC8 block)."
+verdict: PASS
+verdict_reason: >
+  Lint clean, build clean, 405/405 tests passing across two full-suite runs with zero
+  file-level or test-level failures, and both AC4 concurrency cases reconfirmed stable
+  across a third isolated run. AC8's previously-failing assertion now passes in both full
+  runs, consistent with TEST-DESIGNER's whitespace-normalization fix. No flakiness
+  observed anywhere.
+next_action: "Route to RELEASE-VALIDATOR (Step 5)"

@@ -51,7 +51,11 @@ import {
   makeProfileStudentCallbackHandler,
   makeProfileTextAnswerHandler,
 } from "./handlers/profile.js";
-import { makeRegisterCallbackHandler, REGISTER_CALLBACK_PATTERN } from "./handlers/registration.js";
+import {
+  makeRedeemCommandHandler,
+  makeRegisterCallbackHandler,
+  REGISTER_CALLBACK_PATTERN,
+} from "./handlers/registration.js";
 import {
   makeWithdrawCancelCallbackHandler,
   makeWithdrawCommandHandler,
@@ -334,5 +338,11 @@ bot.command("invite_bulk", makeInviteBulkHandler(db));
 bot.command("invite_companion", makeInviteCompanionHandler(db));
 bot.command("invite_codes", makeInviteCodesListHandler(db));
 bot.callbackQuery(INVITE_OPEN_PATTERN, makeInviteCodeDetailCallbackHandler(db));
+
+// REQ-038 §5.5 -- the redemption side of PRD FR-5's typed-code entry point.
+// No callback-query or message:text listener is added (§5.1 point 2's
+// resolution: no free-text/reply-to state) -- registered alongside the
+// issuing block above.
+bot.command("redeem", makeRedeemCommandHandler(db));
 
 bot.start();

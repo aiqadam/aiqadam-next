@@ -15,12 +15,14 @@ import {
   parseStartPayload,
   setPendingSource,
 } from "../domain/event.js";
+import { getInviteCodeByCode, normalizeInviteCode, redeemInviteCode } from "../domain/inviteCode.js";
 import { resolveCheckinQrDeepLink } from "./checkinQr.js";
 import { advanceOnboarding } from "../domain/onboarding.js";
 import { getVenueById } from "../domain/venue.js";
 import { getFlowUserByTgId, resolveOrCreateUser } from "../domain/user.js";
 import { getCatalog, type BotLang } from "../i18n/catalog.js";
 import { mapTelegramLanguageCode, resolveLang } from "../i18n/resolveLang.js";
+import { composeRegistrationReply, resolveRegistrationOutcomeDisplayData } from "./registrationReply.js";
 
 // REQ-014 — replaces the REQ-013 stub wholesale (see that file's own header
 // comment / docs/agents/design/REQ-013.md §3.2's closing note). Reused
@@ -182,6 +184,61 @@ async function resolveEventDeepLink(
   }
 }
 
+// docs/agents/design/REQ-038.md §4.2 — resolveInviteDeepLink: mirrors
+// resolveEventDeepLink's shape exactly. Consent gate FIRST (S1, design §0
+// point 5): no invite_codes read, no registrations/profiles write, and no
+// redemption at all happens before this returns for a not-yet-consented
+// caller -- the ordinary consent prompt is shown, with the invite payload
+// carried in consent:agree's callback_data, and this function resumes (with
+// hasConsented: true) from makeConsentCallbackHandler's own sibling branch
+// below.
+async function resolveInviteDeepLink(
+  ctx: Context,
+  db: DbClient["db"],
+  userId: string,
+  lang: BotLang,
+  code: string,
+  explicitEventId: string | null,
+  hasConsented: boolean,
+): Promise<void> {
+  if (!hasConsented) {
+    const payloadText = `i_${code}${explicitEventId !== null ? `__${explicitEventId}` : ""}`;
+    await ctx.reply(getCatalog(lang).consent.prompt, {
+      reply_markup: buildConsentKeyboard(lang, payloadText),
+    });
+    return; // STOP — resumes in the consent callback (§4.3)
+  }
+
+  // §3.1 — the one transactional entry point both redemption routes share.
+  const outcome = await redeemInviteCode(db, userId, code, explicitEventId, new Date());
+  const catalog = getCatalog(lang);
+
+  // §4.2 point 3 — display data (eventTitle/dateTimeText/waitlistPosition)
+  // fetched only when actually needed, after the transaction has already
+  // committed, exactly like handlers/registration.ts's own register callback
+  // does. The target event id for display purposes is the explicit one when
+  // given, or (for the bare i_<code> deep link) the code's own event_id,
+  // resolved via the same unlocked by-code read redeemInviteCode itself uses
+  // (a plumbing read, not a second decision).
+  let targetEventId = explicitEventId;
+  if (targetEventId === null) {
+    const codeRow = await getInviteCodeByCode(db, normalizeInviteCode(code));
+    targetEventId = codeRow?.eventId ?? null;
+  }
+
+  const display = await resolveRegistrationOutcomeDisplayData(db, outcome, targetEventId, lang);
+  await ctx.reply(
+    composeRegistrationReply(
+      outcome,
+      catalog,
+      display.eventTitle,
+      display.dateTimeText,
+      display.waitlistPosition,
+      display.registrationClosesAtText,
+    ),
+  );
+}
+
 // REQ-020 §7.1/§7.3 — the register:<eventId> callback_data shape, shared
 // between the button-building site above and handlers/registration.ts's own
 // pattern match, so both sides agree on the exact prefix.
@@ -283,20 +340,37 @@ function buildConsentAgreeCallbackData(payloadText: string | null): string {
   }
 
   const parsed = parseStartPayload(payloadText);
-  if (parsed.kind !== "event" || parsed.channel === null) {
-    // The event id alone already exceeds the limit (should not happen for a
-    // real UUID) — fall back to a plain consent tap rather than send an
-    // oversized/invalid callback_data; the deep-link resolution is lost for
-    // this tap, same as any other unattributed /start.
-    return CONSENT_AGREE_CALLBACK;
+  if (parsed.kind === "event" && parsed.channel !== null) {
+    const fixedPrefix = `${CONSENT_AGREE_CALLBACK}:e_${parsed.eventId}__`;
+    const budget = CALLBACK_DATA_MAX_BYTES - Buffer.byteLength(fixedPrefix, "utf8");
+    if (budget <= 0) {
+      return CONSENT_AGREE_CALLBACK;
+    }
+    return `${fixedPrefix}${truncateToByteBudget(parsed.channel, budget)}`;
   }
 
-  const fixedPrefix = `${CONSENT_AGREE_CALLBACK}:e_${parsed.eventId}__`;
-  const budget = CALLBACK_DATA_MAX_BYTES - Buffer.byteLength(fixedPrefix, "utf8");
-  if (budget <= 0) {
-    return CONSENT_AGREE_CALLBACK;
+  // docs/agents/design/REQ-038.md §5.2 — the /redeem command's with-suffix
+  // grammar (i_<code>__<eventId>). Here the "primary" this truncation logic
+  // must never truncate is `code` (the primary token, mirroring `eventId`'s
+  // role in the "event" branch above); the truncatable tail is the optional
+  // eventId suffix, the same role `channel` plays there. BACKEND-DEV extends
+  // this existing truncation branch rather than writing a second one, per the
+  // design's own instruction.
+  if (parsed.kind === "invite" && parsed.eventId !== null) {
+    const fixedPrefix = `${CONSENT_AGREE_CALLBACK}:i_${parsed.code}__`;
+    const budget = CALLBACK_DATA_MAX_BYTES - Buffer.byteLength(fixedPrefix, "utf8");
+    if (budget <= 0) {
+      return CONSENT_AGREE_CALLBACK;
+    }
+    return `${fixedPrefix}${truncateToByteBudget(parsed.eventId, budget)}`;
   }
-  return `${fixedPrefix}${truncateToByteBudget(parsed.channel, budget)}`;
+
+  // The primary token (event id / invite code) alone already exceeds the
+  // limit (should not happen for a real UUID/code) — fall back to a plain
+  // consent tap rather than send an oversized/invalid callback_data; the
+  // deep-link resolution is lost for this tap, same as any other
+  // unattributed /start.
+  return CONSENT_AGREE_CALLBACK;
 }
 
 // REQ-019 §3.3 — exported (was file-private): reused by
@@ -417,6 +491,24 @@ export function makeStartHandler(db: DbClient["db"]) {
     // on someone else's registration.
     if (payload.kind === "checkin") {
       await resolveCheckinQrDeepLink(ctx, db, flowUser.id, lang, payload.qrToken);
+      return;
+    }
+
+    // docs/agents/design/REQ-038.md §4 -- a third branch alongside "event"/
+    // "checkin", on the same already-resolved flowUser. Consent state decides
+    // whether redemption runs now or is deferred to the consent callback;
+    // resolveInviteDeepLink itself enforces the gate (S1, same discipline as
+    // resolveEventDeepLink above).
+    if (payload.kind === "invite") {
+      await resolveInviteDeepLink(
+        ctx,
+        db,
+        flowUser.id,
+        lang,
+        payload.code,
+        payload.eventId,
+        flowUser.consentPdAt !== null,
+      );
       return;
     }
 
@@ -610,6 +702,20 @@ export function makeConsentCallbackHandler(db: DbClient["db"]) {
           lang,
           payload.eventId,
           payload.channel,
+          true, // hasConsented — recordConsent just succeeded above
+        );
+      } else if (payload.kind === "invite") {
+        // docs/agents/design/REQ-038.md §4.3 -- one new sibling branch, same
+        // position, same "already consented" `true` argument, same "this
+        // already sent the caller's reply, no separate ordinary greeting"
+        // trade-off the "event" branch above already documents.
+        await resolveInviteDeepLink(
+          ctx,
+          db,
+          flowUser.id,
+          lang,
+          payload.code,
+          payload.eventId,
           true, // hasConsented — recordConsent just succeeded above
         );
       }
