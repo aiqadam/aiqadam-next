@@ -2088,7 +2088,7 @@ requirements:
   - id: REQ-038
     title: Invite code redemption via i_ deep link or typed code, with the full validation table and past-attendee eligibility
     owner: BACKEND-DEV
-    status: pending
+    status: in_progress
     description: >
       Implements USER-STORIES B7 / STORY-DETAILS B7 (Use my invitation) and PRD FR-4's
       two requires_invite rows: `requires_invite=true, requires_approval=false` (valid
