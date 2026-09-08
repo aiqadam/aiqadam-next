@@ -1,0 +1,47 @@
+{
+  "handoff_id": "8b41d6e2-90fa-4c37-a5e1-1d7f43c98b60",
+  "run_id": "WF01-RELEASE-2",
+  "workflow_id": "WF-01",
+  "step": "02",
+  "from_agent": "ORCH",
+  "to_agent": "REQ-VALIDATOR",
+  "file": "handoffs/WF01-RELEASE-2/step-02-req-validator.json",
+  "created_at": "2026-09-08T03:56:36Z",
+  "started_at": "2026-09-08T03:56:36Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": ["REQ-033","REQ-034","REQ-035","REQ-036","REQ-037","REQ-038","REQ-039","REQ-040","REQ-041"],
+    "requirement_text": {},
+    "source_text": {},
+    "related_handoff_ids": ["3f2c9a41-7b0e-4d88-9c1a-52e6b0d47a13"],
+    "artifacts_in": [
+      "docs/agents/requirements.yaml",
+      "handoffs/WF01-RELEASE-2/step-01-req-analyst.json",
+      "docs/agents/decisions/",
+      "docs/agents/instructions/security-invariants.md",
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/src/domain/registration.ts",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/PRD.md",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/USER-STORIES.md",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/STORY-DETAILS.md",
+      "c:/tmp/AI-Qadam-Events-Bot-Spec/JOURNEY-AUDIT.md"
+    ]
+  },
+  "task": {
+    "description": "HARD GATE on REQ-ANALYST's Release 2 draft. Run WF-01 Step 2 checks a-e against each of REQ-033..REQ-041 in docs/agents/requirements.yaml. This is the gate that decides whether Release 2 is buildable, so re-derive independently -- read the requirement text yourself, do not validate against REQ-ANALYST's handoff summary. In particular verify these specific claims REQ-ANALYST made, because each is a checkable factual premise the draft rests on: (1) that REQ-020 (done) genuinely states its refusals are placeholders for Release 2 to fill in, so REQ-034/REQ-038 replacing them is not a contradiction of a done requirement -- read apps/bot/src/domain/registration.ts and REQ-020's own text; (2) that no Wishlist table/row is created anywhere in the draft and the wishlist substitution is stated consistently across all five requirements that reference it; (3) that the InviteCode FK deferral REQ-011 recorded is actually picked up by REQ-033; (4) that story coverage is genuinely complete for B6, B7, B8, B9, F3, F4, F9 against USER-STORIES.md's Confirmation bullets and STORY-DETAILS.md's Refuses lines -- a story is not covered because a REQ mentions it, only if its acceptance criteria and refusals are actually testable somewhere. Also check the three ambiguities REQ-ANALYST deliberately left to the design step (FR-4's per-event eligibility flag, FR-17's 'opened' status, nullable registration_closes_at): a deferral is legitimate ONLY if the requirement text forbids silently inventing a resolution and names who resolves it -- if any of them is merely vague instead, that is a testability FAIL.",
+    "acceptance_criteria": [
+      "Checks a (testability), b (consistency), c (depends_on correctness), d (design-system fit), e (size) were each actually run against each of REQ-033..REQ-041, with the finding stated per requirement id.",
+      "The four numbered claims in the task description were each independently verified against the cited files, and the verification method is stated -- not asserted.",
+      "Any FAIL cites the specific requirement id and which check letter failed.",
+      "Story coverage for B6, B7, B8, B9, F3, F4, F9 is confirmed or a gap is named precisely."
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": []
+  }
+}
