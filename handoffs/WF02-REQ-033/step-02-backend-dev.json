@@ -1,0 +1,55 @@
+{
+  "handoff_id": "6f708192-a3b4-4cd5-e456-8091ab3c4d56",
+  "run_id": "WF02-REQ-033",
+  "workflow_id": "WF-02",
+  "step": "02",
+  "from_agent": "ORCH",
+  "to_agent": "BACKEND-DEV",
+  "file": "handoffs/WF02-REQ-033/step-02-backend-dev.json",
+  "created_at": "2026-09-08T05:26:48Z",
+  "started_at": "2026-09-08T05:26:48Z",
+  "completed_at": null,
+  "status": "PENDING",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": [
+      "REQ-033"
+    ],
+    "requirement_text": {
+      "REQ-033": "FIRST REQUIREMENT OF RELEASE 2 (PRD 4's \"next Fail Stories, Q4 - 7 stories\", PRD 14 build-order step 7). Release 2 covers exactly seven stories: B6, B7, B8, B9, F3, F4, F9. This requirement is the schema enabler all of B7/B8/F4/F9 need and none of them can create for itself without three requirements racing to define the same table.\n\nIt follows the REQ-010/REQ-011/REQ-025/REQ-031 precedent exactly: schema-bearing work is drafted as its own DATA-DESIGNER-owned requirement producing a design artefact under docs/agents/design/ PLUS the migration under apps/bot/, so DATA-DESIGNER's step is separable from the BACKEND-DEV requirements that consume it. (REQ-010 and REQ-011 are owner: DATA-DESIGNER; REQ-025 and REQ-031 are owner: BACKEND-DEV and carry their schema inline because their table exists only to serve one flow. InviteCode serves four separate flows, so it takes REQ-010's shape, not REQ-025's.)\n\nVERIFIED CURRENT STATE (read from apps/bot/src/db/schema.ts at drafting time -- re-verify before changing, per HANDOFF_PROTOCOL.md 1.1, do not trust this paragraph): there is NO InviteCode table anywhere in the schema. The `registrations` table carries `inviteCodeId: uuid(\"invite_code_id\")` as a PLAIN UUID COLUMN WITH NO FOREIGN KEY, and the comment above it reads: \"No FK: no InviteCode table exists in this requirement's scope (REQ-011.md 11 open question 3). A future requirement adds the FK.\" THIS IS THAT REQUIREMENT. Adding the FK is not scope creep; it is the deferred half of an explicitly-recorded open question being closed at the point the referenced table finally exists.\n\nScope of work -- one entity plus one FK plus one generator:\n- InviteCode, per PRD 5: event_id - code(UNIQUE) - issued_to_user_id(nullable) - grants_companion_of(user_id, nullable) - max_uses - used_count - expires_at. UUID primary key and created/updated timestamps like every other entity (PRD 5 preamble).\n- The three code SHAPES PRD FR-5 and story F4 name are COMPOSITIONS of those columns, not a fourth `type` enum column: PERSONAL is issued_to_user_id non-null with max_uses=1; BULK is issued_to_user_id null with max_uses=N; COMPANION is grants_companion_of non-null. The design artefact states this composition explicitly and states which combinations are legal, because REQ-037 (issuing) and REQ-038/REQ-039 (redeeming) all branch on it and must not each invent their own reading. This mirrors DESIGN-REVIEW.md's own reasoning for requires_invite/requires_approval being two booleans rather than one access enum (\"compositions, not special cases\").\n- The FK: registrations.invite_code_id becomes a real foreign key to invite_codes.id, replacing the plain uuid column, with the same onDelete posture as the other person/event references in that table (`restrict` -- a redeemed code is history and must not be deletable out from under a registration; the design artefact states this).\n- The code VALUE generator: security-invariants.md S4 sets the SAME bar for InviteCode values as for qr_token -- cryptographically secure source, never Math.random, never a sequential id, never a hash of a user id. It must also be human-typeable, because story B7 requires redemption \"by typing it\" as well as by `?start=i_<code>` deep link. These two pull against each other and the design artefact must resolve the tension explicitly (an alphabet excluding visually ambiguous characters, with a stated length giving the entropy S4 demands). apps/bot/src/domain/registration.ts's generateQrToken() is the existing CSPRNG precedent to follow, not to copy verbatim -- its 64-character hex output is not typeable.\n- used_count is a STORED counter and this is NOT a violation of PRD 5's computed-never-stored rule. PRD 5 names exactly five computed values (no_show, waitlist position, seats taken, registration_open, finished) and lists `used_count` as an InviteCode FIELD in the same block. Stated here because a reader who has internalized REQ-017/REQ-021's discipline will otherwise flag it. It is nonetheless subject to S7-style atomicity at increment time, which is REQ-038's problem, not this one's.\n- NO handlers, NO domain logic, NO issuing or redemption flow -- REQ-037 and REQ-038 own those. This requirement produces the design artefact and the migration only, exactly as REQ-010 and REQ-011 did.\n\nOPEN QUESTION, flagged rather than silently resolved (docs/agents/decisions/ is the place it would be settled if it needs to be): PRD FR-4's row `requires_invite=true, requires_approval=false` states \"Valid code -> admitted; no code -> offer wishlist\", and FR-4 additionally says \"A user who has checked_in_at on any past event satisfies requires_invite without a code (eligibility rule, CONFIGURABLE PER EVENT)\". \"Configurable per event\" implies an Event-level flag that PRD 5's Event entity does not list. This requirement does NOT add such a column -- inventing an unlisted Event field is exactly what PRD's closing rule forbids, and REQ-026's doors-time episode is this registry's own precedent for reading an existing field rather than adding one. REQ-038 owns the eligibility rule and must state how it resolves \"configurable per event\" (a new flag needing a decision record, or the rule applying uniformly to every requires_invite event); this requirement records the question so REQ-038 cannot inherit it silently."
+    },
+    "source_text": {},
+    "related_handoff_ids": [
+      "3c4d5e6f-7081-49a2-b123-5d6e7f809ab2",
+      "5e6f7081-92a3-4bc4-d345-7f809ab3c4d5"
+    ],
+    "artifacts_in": [
+      "docs/agents/design/REQ-033.md",
+      "apps/bot/src/db/schema.ts",
+      "apps/bot/src/domain/registration.ts",
+      "docs/agents/instructions/security-invariants.md",
+      "docs/guides/backend_dev_guide.md"
+    ],
+    "branch_name": "feature/WF02-REQ-033"
+  },
+  "task": {
+    "description": "WF-02 Step 2 (Build) for REQ-033, on branch feature/WF02-REQ-033. Verify branch first. Implement docs/agents/design/REQ-033.md exactly, now PASSed by CODE-DESIGN-VALIDATOR after one rework cycle: add the invite_codes table to apps/bot/src/db/schema.ts, close registrations.invite_code_id to a real FK -> invite_codes.id (ON DELETE RESTRICT), generate the Drizzle migration, and implement the CSPRNG+typeable code generator function per section 4 (crypto.randomBytes, the 32-symbol alphabet 23456789ABCDEFGHJKLMNPQRSTUVWXYZ -- note L and Q ARE both included in this alphabet, only 0/O/1/I are excluded, per the corrected design -- 26 characters, 130 bits of entropy). No handler code, no issuing/redemption domain logic -- this requirement is schema plus the generator function only; REQ-037/038/039/040 build on top of it. Run npm run lint and npm run build (both apps/bot) and npm test before handing off -- quote real output.",
+    "acceptance_criteria": [
+      "The migration creates an invite_codes table with a UUID primary key, created/updated timestamps, and columns for event_id, code, issued_to_user_id, grants_companion_of, max_uses, used_count and expires_at -- verified by applying the migration to a scratch Postgres database and pasting the resulting schema into the verification report (PRD 5).",
+      "invite_codes.code carries a UNIQUE constraint that is actually enforced: verified by inserting the same code value twice against the scratch database and confirming the second insert fails with a unique-violation error. Reading the schema is not sufficient; the duplicate insert must be attempted.",
+      "invite_codes.issued_to_user_id and invite_codes.grants_companion_of are both nullable and both reference users.id, verified by inserting a bulk code supplying neither (must succeed) and a code whose issued_to_user_id names a non-existent user id (must fail on the foreign key) -- both cases run (PRD 5).",
+      "registrations.invite_code_id is a real FOREIGN KEY to invite_codes.id after this migration, verified by attempting to insert a registration whose invite_code_id names a non-existent invite_codes row and confirming it FAILS -- an insert that succeeds proves the FK was not added and is a FAIL of this criterion (REQ-011.md 11 open question 3, closed here).",
+      "Deleting an invite_codes row that a registration references is refused by the database, verified by constructing exactly that pair and attempting the delete (the restrict posture this requirement's design states).",
+      "The code generator draws from a cryptographically secure source: verified by reading the generation code (it must call crypto.randomBytes or an equivalent CSPRNG -- a git grep for Math.random in the generator's module must return no hit) AND by generating 10000 codes in a test and asserting zero collisions (security-invariants.md S4).",
+      "The generated code contains only characters from the design artefact's stated typeable alphabet, and the artefact states the resulting entropy in bits with the arithmetic shown -- verified by generating 1000 codes, asserting every character is in the alphabet, and reading the artefact's entropy calculation (S4 plus story B7's 'or by typing it').",
+      "The design artefact under docs/agents/design/ states: how personal, bulk and companion codes are composed from the columns (not a type enum); which column combinations are legal; and the FR-4 'configurable per event' eligibility open question as an unresolved question routed to REQ-038, not a decision made here.",
+      "No column named no_show, waitlist_position, seats_taken, registration_open or finished is added by this migration, verified by grepping it for each of the five names (PRD 5)."
+    ]
+  },
+  "result": {
+    "status": null,
+    "summary": null,
+    "artifacts_out": [],
+    "issues": []
+  }
+}
