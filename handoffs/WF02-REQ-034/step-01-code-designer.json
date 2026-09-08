@@ -1,0 +1,63 @@
+{
+  "handoff_id": "step-01-code-designer",
+  "run_id": "WF02-REQ-034",
+  "workflow_id": "WF-02",
+  "step": "01",
+  "from_agent": "ORCH",
+  "to_agent": "CODE-DESIGNER",
+  "file": "handoffs/WF02-REQ-034/step-01-code-designer.json",
+  "created_at": "2026-09-08T00:00:00Z",
+  "started_at": "2026-09-08T00:00:00Z",
+  "completed_at": "2026-09-08T00:00:00Z",
+  "status": "COMPLETED",
+  "priority": "NORMAL",
+  "context": {
+    "requirement_ids": [
+      "REQ-034"
+    ],
+    "requirement_text": {
+      "REQ-034": "GitHub issue #66. Implements the MEMBER-FACING half of Release 2's approval flow: USER-STORIES B6 (Ask for a seat at a curated event), PRD FR-4's requires_invite=false, requires_approval=true row (requested -> organizer decides). depends_on: REQ-033. VERIFIED CURRENT STATE (re-verified independently against apps/bot/src/domain/registration.ts and apps/bot/src/db/schema.ts at design time, not taken on the issue's word): decideRegistrationOutcome already reads Event.requires_approval and returns { kind: 'requires-approval' } as a non-writing refusal (REQ-020's deliberate placeholder). 'requested' already exists in the admission pgEnum and the AdmissionState union -- confirmed by direct line-by-line reads of both files -- so no schema change is needed or permitted here. Scope: for requires_approval=true, requires_invite=false, registering creates the registration with admission='requested' instead of refusing. The confirmation states a decision will follow and by when, derived from Event.registration_closes_at rendered in the chapter's timezone, or a stated fallback phrased in terms of the event start when that column is NULL. A 'requested' registration occupies NO seat and has NO capacity check anywhere on this path (S7/PRD 12.2: seats_taken = count(admission='admitted') only; the capacity decision moves to REQ-035's approval step). Requesting twice must show the person's CURRENT pending status (the existing already-registered outcome plus UNIQUE(event_id,user_id) already prevent a duplicate row). /events/event card (REQ-017) and /my (REQ-024) must render a requested row plainly. NO QR token is issued at request time (qr_token stays NULL -- S4). Every admission-state write is a status change -> exactly one AuditLog row (S8). The confirmation's send mechanism (direct reply vs. REQ-025's ledger) must be reasoned about, not assumed from the issue text."
+    },
+    "source_text": {
+      "github_issue": "#66"
+    },
+    "related_handoff_ids": [
+      "handoffs/WF02-REQ-034/step-00-git-setup.json"
+    ],
+    "artifacts_in": [
+      "apps/bot/src/domain/registration.ts",
+      "apps/bot/src/handlers/registration.ts",
+      "apps/bot/src/handlers/my.ts",
+      "apps/bot/src/domain/notification.ts",
+      "apps/bot/src/db/schema.ts",
+      "docs/agents/design/REQ-020.md",
+      "docs/agents/design/REQ-024.md",
+      "docs/agents/design/REQ-018.md",
+      "docs/agents/instructions/security-invariants.md"
+    ],
+    "branch_name": "feature/WF02-REQ-034"
+  },
+  "task": {
+    "description": "WF-02 Step 1 (Design) for REQ-034, on branch feature/WF02-REQ-034. Verified branch matches. Produced docs/agents/design/REQ-034.md mapping all 7 acceptance criteria to concrete design elements: the decideRegistrationOutcome outcome-kind change ({ kind: 'requires-approval' } -> { kind: 'requested' }), registerForEvent's widened writing-outcome set and three-way audit-action mapping, the new handlers/registration.ts reply branch and event-data-fetch gate, the four new/one removed i18n catalog keys, and explicit tracing (not assumption) of: zero capacity check on this path, no /my or event-card changes needed (both already handle every AdmissionState including 'requested'), and the direct-reply-vs-ledger question (resolved: direct ctx.reply, no new NotificationKind -- the issue's ledger suggestion does not hold up against REQ-025's own stated idempotency purpose).",
+    "acceptance_criteria": [
+      "Registering for an event with requires_approval=true and requires_invite=false creates exactly one registrations row with admission='requested' -- replacing the placeholder refusal REQ-020 shipped (PRD FR-4, PRD 6).",
+      "The confirmation message states both that a decision will follow and by when, matching registration_closes_at rendered in the chapter's timezone; the NULL case produces the design artefact's stated fallback, not an empty or malformed date.",
+      "Requesting a second time yields the person's CURRENT pending status and leaves exactly one registrations row for that (event_id, user_id).",
+      "A request succeeds even when the event's admitted count already equals capacity: admission='requested', never 'waitlisted' or a refusal.",
+      "The registrations row created by a request has qr_token NULL, and /my shows that row with its pending state and NO QR image.",
+      "Creating a request writes exactly one audit_log row naming the actor, action, entity and entity id.",
+      "An event with requires_approval=false is unaffected: registering for it still admits or waitlists exactly as REQ-020 and REQ-021 do (no regression)."
+    ]
+  },
+  "result": {
+    "status": "SUCCESS",
+    "summary": "Produced docs/agents/design/REQ-034.md. Confirmed independently (not taken on the issue's assertion): no schema change needed -- 'requested' already exists in the admission pgEnum and AdmissionState union (schema.ts lines 188-194, registration.ts lines 25-30); registration_closes_at is nullable timestamptz (schema.ts line 232); startsAt is NOT NULL. DATA-DESIGNER is NOT needed for this run. Domain-logic change (not merely a handler change, traced precisely in design section 0.1): decideRegistrationOutcome's requiresApproval branch changes its return from { kind: 'requires-approval' } to { kind: 'requested' }, in the exact same table position (still before the seatsLeft>0 comparison) -- this is what makes AC7 (unaffected requires_approval=false path) and AC4 (zero capacity check, section 0.2) both hold structurally. registerForEvent's writing-outcome set widens to include 'requested'; its existing qrToken ternary and admission-column write need NO change (both already handle 'requested' correctly via their existing shape); the audit-action mapping becomes three-way, adding 'registration.request'. Handler-level: a new 'requested' switch branch in composeRegistrationReply, a widened event-data-fetch gate, and removal of the now-dead 'requires-approval' branch (TS exhaustiveness forces this once the outcome kind is retired). Traced and confirmed with NO change needed: handlers/my.ts already renders every AdmissionState uniformly via the existing exported STATUS_CATALOG_KEY and already gates QR rendering on admission==='admitted', so 'requested' rows already show plainly with no QR; the existing 'already-registered' branch already renders STATUS_CATALOG_KEY[outcome.admission] for any admission value, so the requesting-twice case (AC3) needs zero new code. Reasoned independently about the ledger-vs-direct question (design section 0.4): sendLedgeredNotification's sole purpose is dedup across retries of a re-runnable send (S9's scheduler-restart negative case); this confirmation is a direct, synchronous ctx.reply inside the same callback-handler invocation that performed the write, exactly the same category as the already-shipped 'admitted'/'waitlisted' replies in the same function -- concluded NO new NotificationKind and NO ledger call, contrary to the issue text's suggestion, with the reasoning against REQ-025/REQ-018's own stated purposes written into the artefact rather than followed uncritically.",
+    "artifacts_out": [
+      "docs/agents/design/REQ-034.md"
+    ],
+    "issues": [
+      "OPEN (routed to CONTENT-BA per decisions/0002, not resolved here): final copy for the four new registration.* catalog keys (requestedPrefix, requestedDecisionByPrefix, requestedDecisionByFallback, requestedWhatNext) -- placeholder strings only, matching every prior bot requirement's own convention.",
+      "OPEN (routed to CONTENT-BA): the exact preposition choice ('before' vs 'by') for requestedDecisionByPrefix -- AC2 only requires the stated time to match registration_closes_at rendered in the chapter's timezone, not a specific wording."
+    ]
+  }
+}
