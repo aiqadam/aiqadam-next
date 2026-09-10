@@ -194,6 +194,7 @@
     "communityChatKazakhstan": "Chat · Qozog'iston",
     "communityChatContributors": "Chat · kontributorlar",
     "ecosystemHeading": "Ekotizim",
+    "partnersLink": "Hamkorlik",
     "contactsHeading": "Kontaktlar",
     "contactsTelegram": "Telegram · @RETURN_VOID_0",
     "hashtag": "#AIQadam",
@@ -201,5 +202,84 @@
     "licenseContent": "KONTENT · CC BY 4.0",
     "licenseBrand": "BREND · AI QADAM BUP",
     "prototypeLabel": "BOSH SAHIFA PROTOTIPI · v0"
+  },
+  "PartnerMetadata": {
+    "title": "Hamkorlik — AI Qadam",
+    "description": "Hamkorlar auditoriyani sotib olmaydi, hamjamiyatga sarmoya kiritadi. Uchta hissa qo‘shish gorizonti, to‘rtta yo‘nalish va nimani rad etishimizning aniq chegarasi."
+  },
+  "PartnerNav": {
+    "why": "Nega hozir",
+    "tiers": "Formatlar",
+    "line": "Bizning chegaramiz",
+    "deck": "Taqdimot",
+    "backToSite": "Bosh sahifaga"
+  },
+  "PartnerHero": {
+    "eyebrow": "Hamkorlik",
+    "title": "Hamkorlar hamjamiyatga sarmoya kiritadi — <em>auditoriyani sotib olmaydi.</em>",
+    "subtitle": "Markaziy Osiyo AI-hamjamiyati infratuzilmasi: ikkita meetupda 300 ro‘yxatdan o‘tish, NPS +78, 80+ kompaniya. Biz teng sifatida keladigan hamkorlarni izlaymiz.",
+    "ctaPrimary": "Ishtirok formatlari",
+    "ctaSecondary": "Bizga yozing"
+  },
+  "PartnerWhy": {
+    "eyebrow": "Nega hozir",
+    "title": "Uchta to‘lqin bir joyda va bir vaqtda birlashmoqda.",
+    "lede": "Mintaqa boshqalarning yechimlari iste’molchisi bo‘lishdan to‘xtashi mumkin bo‘lgan oyna hozir ochiq — va quruvchilar hamjamiyatisiz u yopiladi.",
+    "wave1Title": "AI hamma joyda",
+    "wave1Body": "AI mintaqa bo‘ylab banking, telekom, davlat xizmatlari, ta’lim va sog‘liqni saqlashga kirib bormoqda. U bilan qurishni biladiganlarga talab taklifdan bir necha barobar ustun.",
+    "wave2Title": "Mintaqa subyektlikni xohlaydi",
+    "wave2Body": "Markaziy Osiyo boshqalarning yechimlaridan foydalanuvchi bo‘lib qolishi — yoki o‘zining quruvchilar hamjamiyatini yetishtirishi mumkin. Bu oyna aynan hozir ochiq.",
+    "wave3Title": "Ishonch tanqis",
+    "wave3Body": "Bozor haypga va sotuv uchun konferensiyalarga to‘yingan. Halol maydoncha o‘z-o‘zidan qadrli. Ishonchni sotib bo‘lmaydi — bizda esa u allaqachon bor."
+  },
+  "ContributionTiers": {
+    "eyebrow": "Ishtirok formatlari",
+    "title": "Hamkorlikning uchta gorizonti.",
+    "lede": "Har bir hissa hamjamiyatga nimadir qoldiradi. Tanlov — qancha muddatga sarmoya kiritishga tayyorligingizda.",
+    "partnerGets": "Hamkor oladi",
+    "tier1Cadence": "Bir marta",
+    "tier1Title": "Bitta tadbirni qo‘llab-quvvatlash",
+    "tier1Body": "Bitta meetup yoki hakaton uchun pul yoki resurslar — maydoncha, katering, sovrin jamg‘armasi, infratuzilma.",
+    "tier1Benefit1": "Tadbir homiysi sifatida e’tirof",
+    "tier1Benefit2": "Stend va teng sharoitda netvorking",
+    "tier1Benefit3": "Bizning standartlarimiz bo‘yicha formatni birga olib borish imkoniyati",
+    "tier2Cadence": "Har oy",
+    "tier2Title": "Ritmni saqlab turish",
+    "tier2Body": "Barqaror oylik qo‘llab-quvvatlash — pul yoki resurslar bilan — HyperApp yo‘nalish infratuzilmasini qo‘llab-quvvatlagani kabi.",
+    "tier2Benefit1": "Oy davomida doimiy ishtirok",
+    "tier2Benefit2": "Merch va materiallarda logotip",
+    "tier2Benefit3": "Hamjamiyat tashabbuslarida o‘rin",
+    "tier3Cadence": "Har yili",
+    "tier3Title": "Missiya hamkori bo‘lish",
+    "tier3Body": "Yo‘nalishga yoki chapter ochilishiga bog‘langan yillik majburiyat.",
+    "tier3Benefit1": "Qo‘shma tadqiqotlar va ochiq nashrlar",
+    "tier3Benefit2": "Iste’dodlar zaxirasiga erta kirish",
+    "tier3Benefit3": "Kafolatlangan slotlar — faqat sifatli kontent uchun",
+    "tier3Benefit4": "Yo‘nalish dasturini birgalikda shakllantirish",
+    "streamsNote": "Yillik hamkorlik yo‘nalishlardan biriga bog‘lanadi: Events · Education · Accelerator · People."
+  },
+  "PartnerLine": {
+    "eyebrow": "Bizning chegaramiz",
+    "title": "Biz chegarani qayerda o‘tkazamiz.",
+    "lede": "Sotuv kanali emas, hamjamiyat — bu shior emas, bu kelishuv sharti. Quyida nimani qabul qilishimiz va nimadan voz kechishimiz.",
+    "welcomeHeading": "Biz qo‘llab-quvvatlaymiz",
+    "welcome1": "Reklama beruvchi emas, teng sifatida keladigan hamkorlarni",
+    "welcome2": "Qo‘shma tadbirlar, tadqiqotlar va tashabbuslarni",
+    "welcome3": "Hamjamiyat bilan haqiqiy ekspertiza almashishni",
+    "welcome4": "Mintaqa AI-iste’dodlariga samimiy tikishni",
+    "declineHeading": "Biz rad etamiz",
+    "decline1": "AI Qadamdan reklama kanali sifatida foydalanishni",
+    "decline2": "Auditoriyaga kirishni xaridorlarday sotishni",
+    "decline3": "Ekspert doklad niqobidagi sotuv taqdimotlarini",
+    "decline4": "Ishtirokchilar ma’lumotlari bilan savdo qilishni",
+    "decline5": "Hamjamiyat ustidan eksklyuzivlik talablarini",
+    "decline6": "Hissa o‘rniga lidogeneratsiya uchun hamkorlikni"
+  },
+  "DeckDownload": {
+    "eyebrow": "Materiallar",
+    "title": "Hamkorlik taqdimoti",
+    "body": "Hamkasblarga yuborish mumkin bo‘lgan formatdagi o‘sha dalillar: raqamlar, yo‘nalishlar, chapter modeli va ishtirok formatlari.",
+    "cta": "PDF yuklab olish →",
+    "note": "PDF, ~1,2 MB · 2026-yil may versiyasi · dolzarb raqamlar shu sahifada"
   }
 }

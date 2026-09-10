@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { Link } from "@/i18n/navigation";
 
 export default async function Footer() {
   const t = await getTranslations("Footer");
@@ -27,6 +28,7 @@ export default async function Footer() {
           </div>
           <div className="f-col">
             <h4>{t("ecosystemHeading")}</h4>
+            <Link href="/partners">{t("partnersLink")}</Link>
             <a href="https://build.aiqadam.org">build.aiqadam.org</a>
             <a href="https://flow.aiqadam.org">flow.aiqadam.org</a>
             <a href="https://brand.aiqadam.org">brand.aiqadam.org</a>

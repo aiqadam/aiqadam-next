@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { Link } from "@/i18n/navigation";
 
 const PARTNERS = [
   { name: "IMPACT.T" },
@@ -32,9 +33,9 @@ export default async function Partners() {
         </div>
         <p className="line-note rv">{t("disclaimer")}</p>
         <div className="cta-row rv">
-          <a className="btn btn-ghost" href="mailto:binali.rustamov@aiqadam.org">
+          <Link className="btn btn-ghost" href="/partners">
             {t("cta")}
-          </a>
+          </Link>
         </div>
       </div>
     </section>

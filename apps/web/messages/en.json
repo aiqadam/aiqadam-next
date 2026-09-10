@@ -194,6 +194,7 @@
     "communityChatKazakhstan": "Chat · Kazakhstan",
     "communityChatContributors": "Chat · contributors",
     "ecosystemHeading": "Ecosystem",
+    "partnersLink": "Partnership",
     "contactsHeading": "Contacts",
     "contactsTelegram": "Telegram · @RETURN_VOID_0",
     "hashtag": "#AIQadam",
@@ -201,5 +202,84 @@
     "licenseContent": "CONTENT · CC BY 4.0",
     "licenseBrand": "BRAND · AI QADAM BUP",
     "prototypeLabel": "HOMEPAGE PROTOTYPE · v0"
+  },
+  "PartnerMetadata": {
+    "title": "Partnership — AI Qadam",
+    "description": "Partners invest in the community — they don't buy the audience. Three horizons of contribution, four streams, and a clear line on what we turn down."
+  },
+  "PartnerNav": {
+    "why": "Why now",
+    "tiers": "Ways to contribute",
+    "line": "Where we draw the line",
+    "deck": "Deck",
+    "backToSite": "Back to site"
+  },
+  "PartnerHero": {
+    "eyebrow": "Partnership",
+    "title": "Partners invest in the community — <em>they don't buy the audience.</em>",
+    "subtitle": "The AI community infrastructure for Central Asia: 300 sign-ups across two meetups, NPS +78, 80+ companies. We're looking for partners who join as equals.",
+    "ctaPrimary": "Ways to contribute",
+    "ctaSecondary": "Get in touch"
+  },
+  "PartnerWhy": {
+    "eyebrow": "Why now",
+    "title": "Three waves converging in one place and time.",
+    "lede": "The window in which the region can stop being a consumer of other people's solutions is open right now — and closes without a community of people who build.",
+    "wave1Title": "AI is everywhere",
+    "wave1Body": "AI is entering banking, telecom, public services, education and healthcare across the region. Demand for people who can build with it vastly outstrips supply.",
+    "wave2Title": "The region wants agency",
+    "wave2Body": "Central Asia can stay a consumer of others' solutions — or grow its own community of people who build. That window is open right now.",
+    "wave3Title": "Trust is scarce",
+    "wave3Body": "The market is saturated with hype and sales-driven conferences. An honest venue becomes valuable in itself. Trust can't be bought — and we already have it."
+  },
+  "ContributionTiers": {
+    "eyebrow": "Ways to contribute",
+    "title": "Three horizons of partnership.",
+    "lede": "Every contribution leaves something with the community. The choice is how long you're ready to commit for.",
+    "partnerGets": "Partner gets",
+    "tier1Cadence": "One-off",
+    "tier1Title": "Back a single event",
+    "tier1Body": "Money or resources for one meetup or hackathon — venue, catering, prize pool, infrastructure.",
+    "tier1Benefit1": "Recognition as the event's supporter",
+    "tier1Benefit2": "A stand and networking as an equal",
+    "tier1Benefit3": "Option to co-host a format to our standards",
+    "tier2Cadence": "Monthly",
+    "tier2Title": "Keep the rhythm going",
+    "tier2Body": "Steady monthly support, in cash or in kind — the way HyperApp keeps stream infrastructure running.",
+    "tier2Benefit1": "Ongoing presence across the month",
+    "tier2Benefit2": "Logo on merch and in materials",
+    "tier2Benefit3": "A seat in community initiatives",
+    "tier3Cadence": "Annual",
+    "tier3Title": "Partner with the mission",
+    "tier3Body": "A yearly commitment, tied to a stream or to a chapter launch.",
+    "tier3Benefit1": "Joint research and open publications",
+    "tier3Benefit2": "Early access to the talent pool",
+    "tier3Benefit3": "Guaranteed slots — for quality content only",
+    "tier3Benefit4": "Co-define a stream's programme",
+    "streamsNote": "An annual partnership is tied to one of the streams: Events · Education · Accelerator · People."
+  },
+  "PartnerLine": {
+    "eyebrow": "Where we draw the line",
+    "title": "Where we draw the line.",
+    "lede": "Community, not channel, isn't a slogan — it's a condition of the deal. Here's what we take on, and what we turn down.",
+    "welcomeHeading": "We welcome",
+    "welcome1": "Partners who join as equals, not advertisers",
+    "welcome2": "Joint events, research and initiatives",
+    "welcome3": "Sharing real expertise with the community",
+    "welcome4": "A genuine bet on the region's AI talent",
+    "declineHeading": "We turn down",
+    "decline1": "Using AI Qadam as an advertising channel",
+    "decline2": "Selling access to the audience as if they were buyers",
+    "decline3": "Sales pitches disguised as expert talks",
+    "decline4": "Trading participants' data",
+    "decline5": "Demands for exclusivity over the community",
+    "decline6": "Partnering for lead-gen instead of contribution"
+  },
+  "DeckDownload": {
+    "eyebrow": "Materials",
+    "title": "Partnership deck",
+    "body": "The same case in a format you can forward to colleagues: numbers, streams, the chapter model and ways to contribute.",
+    "cta": "Download PDF →",
+    "note": "PDF, ~1.2 MB · May 2026 version · current numbers are on this page"
   }
 }
